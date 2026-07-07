@@ -60,6 +60,11 @@ public class CallbackController {
         return ApiResponse.ok(callbackService.replay(id));
     }
 
+    @PostMapping("/api/admin/callback-records/dispatch-due")
+    public ApiResponse<Integer> dispatchDue(@RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.ok(callbackService.dispatchDueCallbacks(limit));
+    }
+
     public record CallbackManualCommand(String responseBody) {
     }
 }

@@ -21,6 +21,7 @@ import {
   markCallbackFailed,
   markCallbackSuccess,
   replayCallback,
+  dispatchDueCallbacks,
 } from './api/callback';
 import {
   listReadyDeliveryOrders,
@@ -199,7 +200,7 @@ function errorMessage(error: unknown) {
 function statusTone(status: string | null | undefined) {
   if (!status) return 'neutral';
   if (['APPROVED', 'COMPLETED', 'AUDIT_PASSED', 'RECHECKED', 'PASSED', 'SUCCESS', 'SENT', 'OK', 'SIGNED'].includes(status)) return 'success';
-  if (['REJECTED', 'AUDIT_FAILED', 'FAILED', 'CANCELLED', 'TERMINATED', 'ERROR'].includes(status)) return 'danger';
+  if (['REJECTED', 'AUDIT_FAILED', 'FAILED', 'DEAD', 'CANCELLED', 'TERMINATED', 'ERROR'].includes(status)) return 'danger';
   if (['PENDING', 'CREATED', 'BOUND', 'DECOCTING', 'OCCUPIED', 'WORKING', 'NEW', 'RETRYING', 'PACKED', 'SHIPPED', 'IN_TRANSIT'].includes(status)) return 'warning';
   if (['DECOCTED', 'IDLE'].includes(status)) return 'success';
   return 'neutral';
@@ -513,6 +514,20 @@ async function handleCallbackAction(record: CallbackRecord, action: 'success' | 
     logisticsError.value = errorMessage(error);
   } finally {
     handlingCallbackId.value = '';
+  }
+}
+
+async function handleDispatchDueCallbacks() {
+  logisticsLoading.value = true;
+  logisticsError.value = '';
+  try {
+    const handled = await dispatchDueCallbacks(normalizedLogisticsLimit());
+    showNotice('success', `已派发到期回调 ${handled} 条`);
+    await refreshLogisticsRecords();
+  } catch (error) {
+    logisticsError.value = errorMessage(error);
+  } finally {
+    logisticsLoading.value = false;
   }
 }
 
@@ -1022,12 +1037,15 @@ onMounted(() => {
           <template v-else>
             <label>
               <span>状态</span>
-              <input v-model="callbackStatus" placeholder="PENDING / SUCCESS / FAILED" @keyup.enter="refreshLogisticsRecords" />
+              <input v-model="callbackStatus" placeholder="PENDING / SUCCESS / FAILED / DEAD" @keyup.enter="refreshLogisticsRecords" />
             </label>
             <label>
               <span>回调类型</span>
               <input v-model="callbackType" placeholder="ORDER_SHIPPED" @keyup.enter="refreshLogisticsRecords" />
             </label>
+            <button class="secondary" type="button" :disabled="logisticsLoading" @click="handleDispatchDueCallbacks">
+              派发到期回调
+            </button>
           </template>
         </div>
 

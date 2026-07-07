@@ -17,3 +17,12 @@ management:
     web:
       exposure:
         include: health,info
+
+zhyf:
+  callback:
+    dispatch-enabled: ${ZHYF_CALLBACK_DISPATCH_ENABLED:false}
+    dispatch-fixed-delay-ms: ${ZHYF_CALLBACK_DISPATCH_FIXED_DELAY_MS:5000}
+    dispatch-batch-size: ${ZHYF_CALLBACK_DISPATCH_BATCH_SIZE:20}
+    max-retries: ${ZHYF_CALLBACK_MAX_RETRIES:5}
+    initial-retry-delay-seconds: ${ZHYF_CALLBACK_INITIAL_RETRY_DELAY_SECONDS:60}
+    max-retry-delay-seconds: ${ZHYF_CALLBACK_MAX_RETRY_DELAY_SECONDS:1800}

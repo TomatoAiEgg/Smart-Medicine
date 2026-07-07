@@ -42,3 +42,9 @@ export function replayCallback(id: string) {
     method: 'PATCH',
   });
 }
+
+export function dispatchDueCallbacks(limit = 20) {
+  return request<number>(`/callback-api/api/admin/callback-records/dispatch-due?limit=${limit}`, {
+    method: 'POST',
+  });
+}

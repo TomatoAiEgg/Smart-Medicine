@@ -59,6 +59,16 @@ public class CallbackRepository {
         return jdbcTemplate.query(query.sql(), this::mapCallbackRecord, query.args());
     }
 
+    public List<CallbackRecords.CallbackRecord> findDueRecords(Instant now, int limit) {
+        String sql = baseQuery() + """
+                where c.status in ('PENDING', 'FAILED')
+                  and (c.next_retry_at is null or c.next_retry_at <= ?)
+                order by c.next_retry_at nulls first, c.created_at asc
+                limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapCallbackRecord, now, limit);
+    }
+
     public int createRecord(
             UUID id,
             UUID tenantId,
@@ -101,6 +111,19 @@ public class CallbackRepository {
                 where id = ?
                 """;
         return jdbcTemplate.update(sql, responseBody, nextRetryAt, id);
+    }
+
+    public int markDead(UUID id, String responseBody) {
+        String sql = """
+                update callback_record
+                set status = 'DEAD',
+                    response_body = ?,
+                    retry_count = retry_count + 1,
+                    next_retry_at = null,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, id);
     }
 
     public int replay(UUID id, Instant nextRetryAt) {

@@ -21,7 +21,7 @@
 | `prescription-service` | Spring Boot 服务 | 处方、处方明细、处方修改、审方摘要、处方状态机 |
 | `decoction-service` | Spring Boot 服务 | PDA 登录、扫码绑定、水桶/设备、加水、煎煮、MES 适配、设备模拟 |
 | `logistics-service` | Spring Boot 服务 | 打包出库、面单、物流轨迹、签收、自提、顺丰/EMS 适配；当前已落地最小物流单、轨迹和回调入口 |
-| `callback-service` | Spring Boot 服务 | 机构状态回调、社康回写、地址补录回推、失败重试、死信、人工重放；当前已落地回调记录和人工补偿骨架 |
+| `callback-service` | Spring Boot 服务 | 机构状态回调、社康回写、地址补录回推、失败重试、死信、人工重放；当前已落地回调记录、真实 HTTP 发送、失败重试、`DEAD` 终态和人工补偿入口 |
 | `integration-service` | Spring Boot 服务 | 社康、医院、地址补录等外围适配 |
 | `device-service` | Spring Boot 服务 | 设备档案、设备占用、关系管理 |
 | `portal-service` | Spring Boot 服务 | 医院查单、地址补录页面 |
