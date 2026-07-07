@@ -1,0 +1,46 @@
+services:
+  zhyf-postgres:
+    image: postgres:16-alpine
+    container_name: zhyf-postgres
+    profiles: ["local-optional"]
+    environment:
+      POSTGRES_DB: zhyf_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      TZ: Asia/Hong_Kong
+    ports:
+      - "15432:5432"
+    volumes:
+      - zhyf-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zhyf_saas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zhyf-redis:
+    image: redis:7-alpine
+    container_name: zhyf-redis
+    profiles: ["local-optional"]
+    command: ["redis-server", "--requirepass", "123456"]
+    ports:
+      - "16379:6379"
+    volumes:
+      - zhyf-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zhyf-rocketmq-namesrv:
+    image: apache/rocketmq:5.3.2
+    container_name: zhyf-rocketmq-namesrv
+    profiles: ["local-optional"]
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
+
+volumes:
+  zhyf-postgres-data:
+  zhyf-redis-data:

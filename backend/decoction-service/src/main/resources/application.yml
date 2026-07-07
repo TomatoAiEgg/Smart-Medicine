@@ -1,0 +1,29 @@
+server:
+  port: ${DECOCTION_SERVICE_PORT:18087}
+
+spring:
+  application:
+    name: decoction-service
+  datasource:
+    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    username: ${ZHYF_DB_USERNAME:postgres}
+    password: ${ZHYF_DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+  jackson:
+    time-zone: Asia/Hong_Kong
+
+zhyf:
+  decoction:
+    order-service-base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:18082}
+    device-codes:
+      - DECOCT-001
+      - DECOCT-002
+      - DECOCT-003
+      - DECOCT-004
+      - DECOCT-005
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

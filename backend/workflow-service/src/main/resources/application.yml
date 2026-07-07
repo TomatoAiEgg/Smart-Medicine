@@ -1,0 +1,26 @@
+server:
+  port: ${WORKFLOW_SERVICE_PORT:18085}
+
+spring:
+  application:
+    name: workflow-service
+  datasource:
+    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    username: ${ZHYF_DB_USERNAME:postgres}
+    password: ${ZHYF_DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
+zhyf:
+  workflow:
+    consumer-enabled: ${ZHYF_WORKFLOW_CONSUMER_ENABLED:true}
+    order-service-base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:18082}
+    rocketmq:
+      name-server: ${ZHYF_ROCKETMQ_NAMESRV:100.115.165.51:9876}
+      consumer-group: ${ZHYF_ROCKETMQ_WORKFLOW_CONSUMER_GROUP:zhyf-workflow-order-consumer}
+      order-topic: ${ZHYF_ROCKETMQ_ORDER_TOPIC:zhyf-order-event}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

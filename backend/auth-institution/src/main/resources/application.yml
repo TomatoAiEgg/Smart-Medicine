@@ -1,0 +1,16 @@
+server:
+  port: ${AUTH_INSTITUTION_PORT:18081}
+
+spring:
+  application:
+    name: auth-institution
+  datasource:
+    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    username: ${ZHYF_DB_USERNAME:postgres}
+    password: ${ZHYF_DB_PASSWORD:123456}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

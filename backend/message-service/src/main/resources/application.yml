@@ -1,0 +1,28 @@
+server:
+  port: ${MESSAGE_SERVICE_PORT:18083}
+
+spring:
+  application:
+    name: message-service
+  datasource:
+    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    username: ${ZHYF_DB_USERNAME:postgres}
+    password: ${ZHYF_DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
+zhyf:
+  message:
+    outbox-scan-enabled: ${ZHYF_OUTBOX_SCAN_ENABLED:false}
+    publisher-type: ${ZHYF_MESSAGE_PUBLISHER:logging}
+    consumer-enabled: ${ZHYF_MESSAGE_CONSUMER_ENABLED:true}
+    rocketmq:
+      name-server: ${ZHYF_ROCKETMQ_NAMESRV:100.115.165.51:9876}
+      producer-group: ${ZHYF_ROCKETMQ_PRODUCER_GROUP:zhyf-message-producer}
+      consumer-group: ${ZHYF_ROCKETMQ_CONSUMER_GROUP:zhyf-message-order-consumer}
+      order-topic: ${ZHYF_ROCKETMQ_ORDER_TOPIC:zhyf-order-event}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

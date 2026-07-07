@@ -1,0 +1,58 @@
+package com.zhyf.ops.application;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public final class OpsRecords {
+
+    private OpsRecords() {
+    }
+
+    public record EventOutboxRecord(
+            UUID id,
+            UUID tenantId,
+            String eventId,
+            String eventType,
+            String aggregateType,
+            String aggregateId,
+            String status,
+            int retryCount,
+            Instant nextRetryAt,
+            Instant createdAt,
+            Instant publishedAt
+    ) {
+    }
+
+    public record MessageConsumeRecord(
+            UUID id,
+            String consumerGroup,
+            String messageId,
+            String eventId,
+            String status,
+            Instant createdAt
+    ) {
+    }
+
+    public record OrderValidationRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            String eventId,
+            String validationStatus,
+            String validationMessage,
+            Instant createdAt
+    ) {
+    }
+
+    public record ApiAccessLogRecord(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String appKey,
+            String requestPath,
+            String requestIp,
+            String resultCode,
+            Instant createdAt
+    ) {
+    }
+}
