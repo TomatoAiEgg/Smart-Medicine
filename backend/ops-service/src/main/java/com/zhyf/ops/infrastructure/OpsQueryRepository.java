@@ -117,7 +117,11 @@ public class OpsQueryRepository {
                     latest_trace.trace_content as latest_trace_content,
                     latest_trace.trace_time as latest_trace_time
                 from callback_record c
-                left join shipment s on s.logistics_no = c.business_id
+                left join shipment s on (
+                    c.business_id = s.id::text
+                    or c.business_id like s.id::text || ':%'
+                    or c.business_id = s.logistics_no
+                )
                 left join order_main o on o.id = c.order_id
                 left join lateral (
                     select trace_status, trace_content, trace_time
@@ -134,7 +138,11 @@ public class OpsQueryRepository {
             query.append(" and c.status in ('FAILED', 'DEAD')");
         }
         query.addTextFilter("c.callback_type", callbackType);
-        query.addTextFilter("c.business_id", businessId);
+        if (StringUtils.hasText(businessId)) {
+            query.append(" and (c.business_id = ? or s.logistics_no = ?)");
+            query.add(businessId);
+            query.add(businessId);
+        }
         query.addTextFilter("coalesce(o.order_no, s.order_no)", orderNo);
         query.append(" order by c.updated_at desc, c.created_at desc limit ?");
         query.add(limit);

@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -97,7 +98,7 @@ public class LogisticsRepository {
                 payMethod,
                 pkgWeight,
                 pkgNum,
-                packageTime
+                offsetDateTime(packageTime)
         );
     }
 
@@ -114,7 +115,7 @@ public class LogisticsRepository {
         }
         sql = "update shipment set logistics_status = ?, " + timeColumn + " = coalesce(" + timeColumn
                 + ", ?), updated_at = now() where id = ?";
-        return jdbcTemplate.update(sql, status, actionTime, shipmentId);
+        return jdbcTemplate.update(sql, status, offsetDateTime(actionTime), shipmentId);
     }
 
     public int createTrace(
@@ -141,7 +142,7 @@ public class LogisticsRepository {
                 traceStatus,
                 traceContent,
                 rawPayload == null ? "{}" : rawPayload,
-                traceTime
+                offsetDateTime(traceTime)
         );
     }
 
@@ -216,6 +217,10 @@ public class LogisticsRepository {
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private OffsetDateTime offsetDateTime(Instant value) {
+        return value == null ? null : OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 
     private static final class QueryParts {
