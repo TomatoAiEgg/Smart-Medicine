@@ -56,4 +56,21 @@ public class OpsQueryController {
     ) {
         return ApiResponse.ok(queryService.listApiAccessLogs(appKey, resultCode, limit));
     }
+
+    @GetMapping("/logistics-callback-issues")
+    public ApiResponse<List<OpsRecords.LogisticsCallbackIssueRecord>> listLogisticsCallbackIssues(
+            @RequestParam(required = false) String callbackStatus,
+            @RequestParam(required = false) String callbackType,
+            @RequestParam(required = false) String businessId,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(queryService.listLogisticsCallbackIssues(
+                callbackStatus,
+                callbackType,
+                businessId,
+                orderNo,
+                limit
+        ));
+    }
 }

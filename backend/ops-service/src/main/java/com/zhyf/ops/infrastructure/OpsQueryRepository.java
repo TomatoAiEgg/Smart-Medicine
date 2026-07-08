@@ -87,6 +87,60 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapApiAccessLogRecord, query.args());
     }
 
+    public List<OpsRecords.LogisticsCallbackIssueRecord> findLogisticsCallbackIssues(
+            String callbackStatus,
+            String callbackType,
+            String businessId,
+            String orderNo,
+            int limit
+    ) {
+        QueryParts query = new QueryParts("""
+                select
+                    c.id as callback_id,
+                    c.tenant_id,
+                    c.order_id,
+                    coalesce(o.order_no, s.order_no) as order_no,
+                    c.callback_type,
+                    c.business_id,
+                    c.request_url,
+                    c.response_body,
+                    c.status as callback_status,
+                    c.retry_count,
+                    c.next_retry_at,
+                    c.created_at as callback_created_at,
+                    c.updated_at as callback_updated_at,
+                    s.id as shipment_id,
+                    s.logistics_no,
+                    s.logistics_company,
+                    s.logistics_status,
+                    latest_trace.trace_status as latest_trace_status,
+                    latest_trace.trace_content as latest_trace_content,
+                    latest_trace.trace_time as latest_trace_time
+                from callback_record c
+                left join shipment s on s.logistics_no = c.business_id
+                left join order_main o on o.id = c.order_id
+                left join lateral (
+                    select trace_status, trace_content, trace_time
+                    from shipment_trace st
+                    where st.shipment_id = s.id
+                    order by st.created_at desc
+                    limit 1
+                ) latest_trace on true
+                where 1 = 1
+                """);
+        if (StringUtils.hasText(callbackStatus)) {
+            query.addTextFilter("c.status", callbackStatus);
+        } else {
+            query.append(" and c.status in ('FAILED', 'DEAD')");
+        }
+        query.addTextFilter("c.callback_type", callbackType);
+        query.addTextFilter("c.business_id", businessId);
+        query.addTextFilter("coalesce(o.order_no, s.order_no)", orderNo);
+        query.append(" order by c.updated_at desc, c.created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapLogisticsCallbackIssueRecord, query.args());
+    }
+
     private OpsRecords.EventOutboxRecord mapEventOutboxRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OpsRecords.EventOutboxRecord(
                 rs.getObject("id", UUID.class),
@@ -136,6 +190,32 @@ public class OpsQueryRepository {
                 rs.getString("request_ip"),
                 rs.getString("result_code"),
                 instant(rs, "created_at")
+        );
+    }
+
+    private OpsRecords.LogisticsCallbackIssueRecord mapLogisticsCallbackIssueRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OpsRecords.LogisticsCallbackIssueRecord(
+                rs.getObject("callback_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("callback_type"),
+                rs.getString("business_id"),
+                rs.getString("request_url"),
+                rs.getString("response_body"),
+                rs.getString("callback_status"),
+                rs.getInt("retry_count"),
+                instant(rs, "next_retry_at"),
+                instant(rs, "callback_created_at"),
+                instant(rs, "callback_updated_at"),
+                rs.getObject("shipment_id", UUID.class),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_status"),
+                rs.getString("latest_trace_status"),
+                rs.getString("latest_trace_content"),
+                instant(rs, "latest_trace_time")
         );
     }
 

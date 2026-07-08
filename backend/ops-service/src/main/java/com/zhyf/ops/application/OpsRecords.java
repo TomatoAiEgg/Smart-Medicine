@@ -55,4 +55,28 @@ public final class OpsRecords {
             Instant createdAt
     ) {
     }
+
+    public record LogisticsCallbackIssueRecord(
+            UUID callbackId,
+            UUID tenantId,
+            UUID orderId,
+            String orderNo,
+            String callbackType,
+            String businessId,
+            String requestUrl,
+            String responseBody,
+            String callbackStatus,
+            int retryCount,
+            Instant nextRetryAt,
+            Instant callbackCreatedAt,
+            Instant callbackUpdatedAt,
+            UUID shipmentId,
+            String logisticsNo,
+            String logisticsCompany,
+            String logisticsStatus,
+            String latestTraceStatus,
+            String latestTraceContent,
+            Instant latestTraceTime
+    ) {
+    }
 }

@@ -42,6 +42,22 @@ public class OpsQueryService {
         return repository.findApiAccessLogs(appKey, resultCode, normalizeLimit(limit));
     }
 
+    public List<OpsRecords.LogisticsCallbackIssueRecord> listLogisticsCallbackIssues(
+            String callbackStatus,
+            String callbackType,
+            String businessId,
+            String orderNo,
+            int limit
+    ) {
+        return repository.findLogisticsCallbackIssues(
+                callbackStatus,
+                callbackType,
+                businessId,
+                orderNo,
+                normalizeLimit(limit)
+        );
+    }
+
     private int normalizeLimit(int limit) {
         if (limit <= 0) {
             return DEFAULT_LIMIT;

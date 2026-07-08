@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   ApiAccessLogRecord,
   EventOutboxRecord,
+  LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
 } from './types';
@@ -16,6 +17,10 @@ interface OpsQueryParams {
   validationStatus?: string;
   appKey?: string;
   resultCode?: string;
+  callbackStatus?: string;
+  callbackType?: string;
+  businessId?: string;
+  orderNo?: string;
 }
 
 function buildQuery(params: OpsQueryParams) {
@@ -51,4 +56,10 @@ export function listOrderValidationRecords(
 
 export function listApiAccessLogs(params: Pick<OpsQueryParams, 'appKey' | 'resultCode' | 'limit'> = {}) {
   return request<ApiAccessLogRecord[]>(opsUrl('api-access-logs', params));
+}
+
+export function listLogisticsCallbackIssues(
+  params: Pick<OpsQueryParams, 'callbackStatus' | 'callbackType' | 'businessId' | 'orderNo' | 'limit'> = {},
+) {
+  return request<LogisticsCallbackIssueRecord[]>(opsUrl('logistics-callback-issues', params));
 }

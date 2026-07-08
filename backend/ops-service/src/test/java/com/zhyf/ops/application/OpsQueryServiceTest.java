@@ -24,4 +24,11 @@ class OpsQueryServiceTest {
 
         verify(repository).findMessageConsumeLogs("SUCCESS", "group-1", "event-1", 200);
     }
+
+    @Test
+    void shouldNormalizeLimitForLogisticsCallbackIssues() {
+        service.listLogisticsCallbackIssues("FAILED", "ORDER_SHIPPED", "SF123", "ZHYF1", 0);
+
+        verify(repository).findLogisticsCallbackIssues("FAILED", "ORDER_SHIPPED", "SF123", "ZHYF1", 50);
+    }
 }

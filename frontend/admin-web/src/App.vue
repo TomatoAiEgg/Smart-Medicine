@@ -35,6 +35,7 @@ import {
 import { getOrder } from './api/order';
 import {
   listApiAccessLogs,
+  listLogisticsCallbackIssues,
   listMessageConsumeLogs,
   listOrderValidationRecords,
   listOutbox,
@@ -55,6 +56,7 @@ import type {
   DeviceRecord,
   DeviceWorkRecord,
   EventOutboxRecord,
+  LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
   OrderCreateResult,
@@ -67,7 +69,7 @@ import StatusPill from './components/StatusPill.vue';
 
 type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics';
 type NoticeTone = 'info' | 'success' | 'error';
-type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access';
+type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
 
 const activeView = ref<ViewKey>('reviews');
@@ -115,10 +117,15 @@ const opsOrderId = ref('');
 const opsValidationStatus = ref('');
 const opsAppKey = ref('');
 const opsResultCode = ref('');
+const opsCallbackStatus = ref('');
+const opsCallbackType = ref('');
+const opsBusinessId = ref('');
+const opsIssueOrderNo = ref('');
 const outboxRecords = ref<EventOutboxRecord[]>([]);
 const messageConsumeRecords = ref<MessageConsumeRecord[]>([]);
 const orderValidationRecords = ref<OrderValidationRecord[]>([]);
 const apiAccessLogRecords = ref<ApiAccessLogRecord[]>([]);
+const logisticsCallbackIssueRecords = ref<LogisticsCallbackIssueRecord[]>([]);
 
 const activeLogisticsDataset = ref<LogisticsDataset>('ready');
 const logisticsLoading = ref(false);
@@ -150,7 +157,8 @@ const activeOpsCount = computed(() => {
   if (activeOpsDataset.value === 'outbox') return outboxRecords.value.length;
   if (activeOpsDataset.value === 'consume') return messageConsumeRecords.value.length;
   if (activeOpsDataset.value === 'validation') return orderValidationRecords.value.length;
-  return apiAccessLogRecords.value.length;
+  if (activeOpsDataset.value === 'access') return apiAccessLogRecords.value.length;
+  return logisticsCallbackIssueRecords.value.length;
 });
 const activeLogisticsCount = computed(() => {
   if (activeLogisticsDataset.value === 'ready') return readyDeliveryOrders.value.length;
@@ -178,6 +186,7 @@ const opsDatasetNames: Record<OpsDataset, string> = {
   consume: '消费日志',
   validation: '订单校验',
   access: '访问日志',
+  callbackIssues: '回调失败',
 };
 
 const logisticsDatasetNames: Record<LogisticsDataset, string> = {
@@ -358,10 +367,18 @@ async function refreshOpsRecords() {
         validationStatus: opsValidationStatus.value,
         limit,
       });
-    } else {
+    } else if (activeOpsDataset.value === 'access') {
       apiAccessLogRecords.value = await listApiAccessLogs({
         appKey: opsAppKey.value,
         resultCode: opsResultCode.value,
+        limit,
+      });
+    } else {
+      logisticsCallbackIssueRecords.value = await listLogisticsCallbackIssues({
+        callbackStatus: opsCallbackStatus.value,
+        callbackType: opsCallbackType.value,
+        businessId: opsBusinessId.value,
+        orderNo: opsIssueOrderNo.value,
         limit,
       });
     }
@@ -379,6 +396,7 @@ function switchOpsDataset(dataset: OpsDataset) {
   if (dataset === 'consume' && messageConsumeRecords.value.length === 0) void refreshOpsRecords();
   if (dataset === 'validation' && orderValidationRecords.value.length === 0) void refreshOpsRecords();
   if (dataset === 'access' && apiAccessLogRecords.value.length === 0) void refreshOpsRecords();
+  if (dataset === 'callbackIssues' && logisticsCallbackIssueRecords.value.length === 0) void refreshOpsRecords();
 }
 
 function normalizedLogisticsLimit() {
@@ -1250,6 +1268,14 @@ onMounted(() => {
           >
             访问日志
           </button>
+          <button
+            class="secondary"
+            :class="{ active: activeOpsDataset === 'callbackIssues' }"
+            type="button"
+            @click="switchOpsDataset('callbackIssues')"
+          >
+            回调失败
+          </button>
           <label class="limit-label">
             <span>条数</span>
             <input v-model.number="opsLimit" type="number" min="1" max="200" step="10" @keyup.enter="refreshOpsRecords" />
@@ -1294,7 +1320,7 @@ onMounted(() => {
               <input v-model="opsValidationStatus" placeholder="PASSED / REJECTED" @keyup.enter="refreshOpsRecords" />
             </label>
           </template>
-          <template v-else>
+          <template v-else-if="activeOpsDataset === 'access'">
             <label>
               <span>AppKey</span>
               <input v-model="opsAppKey" placeholder="机构 appKey" @keyup.enter="refreshOpsRecords" />
@@ -1302,6 +1328,24 @@ onMounted(() => {
             <label>
               <span>结果码</span>
               <input v-model="opsResultCode" placeholder="SUCCESS / HTTP_4XX" @keyup.enter="refreshOpsRecords" />
+            </label>
+          </template>
+          <template v-else>
+            <label>
+              <span>回调状态</span>
+              <input v-model="opsCallbackStatus" placeholder="默认 FAILED / DEAD" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>回调类型</span>
+              <input v-model="opsCallbackType" placeholder="ORDER_SHIPPED" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>物流单号</span>
+              <input v-model="opsBusinessId" placeholder="businessId / logisticsNo" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>订单号</span>
+              <input v-model="opsIssueOrderNo" placeholder="ZHYF..." @keyup.enter="refreshOpsRecords" />
             </label>
           </template>
         </div>
@@ -1403,7 +1447,7 @@ onMounted(() => {
           </table>
         </div>
 
-        <div v-else class="table-wrap ops-table">
+        <div v-else-if="activeOpsDataset === 'access'" class="table-wrap ops-table">
           <table>
             <thead>
               <tr>
@@ -1427,6 +1471,54 @@ onMounted(() => {
                 <td>{{ record.requestIp }}</td>
                 <td><StatusPill :value="record.resultCode" :tone="statusTone(record.resultCode)" /></td>
                 <td>{{ formatDate(record.createdAt) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="table-wrap ops-table">
+          <table>
+            <thead>
+              <tr>
+                <th>回调</th>
+                <th>订单/物流</th>
+                <th>状态</th>
+                <th>重试</th>
+                <th>失败原因</th>
+                <th>最新轨迹</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!opsLoading && logisticsCallbackIssueRecords.length === 0">
+                <td colspan="7" class="empty">暂无物流回调失败记录</td>
+              </tr>
+              <tr v-for="record in logisticsCallbackIssueRecords" :key="record.callbackId">
+                <td>
+                  <strong>{{ record.callbackType }}</strong>
+                  <small>{{ record.callbackId }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.orderNo || '-' }}</strong>
+                  <small>{{ record.logisticsNo || record.businessId }}</small>
+                </td>
+                <td>
+                  <StatusPill :value="record.callbackStatus" :tone="statusTone(record.callbackStatus)" />
+                  <small>{{ record.logisticsStatus || '-' }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.retryCount }}</strong>
+                  <small>{{ formatDate(record.nextRetryAt) }}</small>
+                </td>
+                <td><code>{{ record.responseBody || record.requestUrl || '-' }}</code></td>
+                <td>
+                  <strong>{{ record.latestTraceStatus || '-' }}</strong>
+                  <small>{{ record.latestTraceContent || '-' }}</small>
+                </td>
+                <td>
+                  <strong>{{ formatDate(record.callbackUpdatedAt) }}</strong>
+                  <small>{{ formatDate(record.latestTraceTime) }}</small>
+                </td>
               </tr>
             </tbody>
           </table>

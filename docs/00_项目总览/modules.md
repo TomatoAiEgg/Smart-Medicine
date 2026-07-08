@@ -12,7 +12,7 @@
 | `order-service` | Spring Boot 服务 | 订单创建、订单状态机、后台订单查询、订单状态日志、人工修正入口 | `zhyf_order`、后台订单 Controller |
 | `message-service` | Spring Boot 服务 | Outbox 扫描、RocketMQ 生产、消费幂等、消息补偿、短信事件 | `zhyf-async` ActiveMQ 消费者 |
 | `workflow-service` | Spring Boot 服务 | 后台审核、调剂、复核、订单锁、人工流程控制、状态推进 | 后台审核、复核、流程控制能力 |
-| `ops-service` | Spring Boot 服务 | 操作日志、异常日志、审计、链路追踪、监控聚合、联调记录 | 后台日志、运维散落能力 |
+| `ops-service` | Spring Boot 服务 | 操作日志、异常日志、审计、链路追踪、监控聚合、联调记录；当前已覆盖基础日志查询和物流/回调失败原因聚合 | 后台日志、运维散落能力 |
 
 ## 2. 扩展模块
 

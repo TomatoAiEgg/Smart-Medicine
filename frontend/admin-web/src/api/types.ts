@@ -162,6 +162,29 @@ export interface ApiAccessLogRecord {
   createdAt: string;
 }
 
+export interface LogisticsCallbackIssueRecord {
+  callbackId: string;
+  tenantId: string;
+  orderId: string | null;
+  orderNo: string | null;
+  callbackType: string;
+  businessId: string;
+  requestUrl: string | null;
+  responseBody: string | null;
+  callbackStatus: string;
+  retryCount: number;
+  nextRetryAt: string | null;
+  callbackCreatedAt: string;
+  callbackUpdatedAt: string;
+  shipmentId: string | null;
+  logisticsNo: string | null;
+  logisticsCompany: string | null;
+  logisticsStatus: string | null;
+  latestTraceStatus: string | null;
+  latestTraceContent: string | null;
+  latestTraceTime: string | null;
+}
+
 export interface DeliveryOrderRecord {
   tenantId: string;
   orderId: string;
