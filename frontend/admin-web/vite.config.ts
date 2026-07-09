@@ -48,6 +48,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/report-api/, ''),
         },
+        '/integration-api': {
+          target: env.VITE_INTEGRATION_SERVICE_URL || 'http://127.0.0.1:18092',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/integration-api/, ''),
+        },
       },
     },
   };

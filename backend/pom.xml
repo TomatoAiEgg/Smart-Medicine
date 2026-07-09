@@ -30,6 +30,7 @@
         <module>logistics-service</module>
         <module>portal-service</module>
         <module>report-service</module>
+        <module>integration-service</module>
         <module>gateway</module>
     </modules>
 

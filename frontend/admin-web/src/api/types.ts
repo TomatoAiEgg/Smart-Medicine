@@ -331,6 +331,58 @@ export interface ReportOverview {
   dailyOrderCounts: DailyOrderCount[];
 }
 
+export interface CommunityMessageCommand {
+  areaCode?: string;
+  communityCode: string;
+  externalMessageId: string;
+  messageType: string;
+  businessKey?: string;
+  rawPayload?: string;
+}
+
+export interface AddressPushCommand {
+  supplementId: string;
+  hospitalCode: string;
+  adapterCode: string;
+  orderNo: string;
+  rawPayload?: string;
+}
+
+export interface IntegrationMessageRecord {
+  messageId: string;
+  sourceType: string;
+  sourceSystem: string;
+  externalMessageId: string;
+  messageType: string;
+  businessKey: string | null;
+  processStatus: string;
+  normalizedPayload: string;
+  rawPayload: string;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  processedAt: string | null;
+}
+
+export interface HospitalOrderRecord {
+  tenantId: string;
+  orderId: string;
+  institutionName: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  prescriptionNo: string;
+  prescriptionStatus: string;
+  patientName: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverAddress: string | null;
+  logisticsNo: string | null;
+  logisticsCompany: string | null;
+  logisticsStatus: string | null;
+  createdAt: string;
+}
+
 export interface PackShipmentCommand {
   orderNo: string;
   logisticsCompany: string;

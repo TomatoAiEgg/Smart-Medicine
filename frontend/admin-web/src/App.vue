@@ -32,6 +32,12 @@ import {
   shipShipment,
   signShipment,
 } from './api/logistics';
+import {
+  findHospitalOrderByPrescription,
+  listIntegrationMessages,
+  recordAddressPush,
+  recordCommunityMessage,
+} from './api/integration';
 import { getOrder } from './api/order';
 import {
   listApiAccessLogs,
@@ -58,6 +64,8 @@ import type {
   DeviceRecord,
   DeviceWorkRecord,
   EventOutboxRecord,
+  HospitalOrderRecord,
+  IntegrationMessageRecord,
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
@@ -72,7 +80,7 @@ import type {
 } from './api/types';
 import StatusPill from './components/StatusPill.vue';
 
-type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal' | 'reports';
+type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal' | 'reports' | 'integration';
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
@@ -177,6 +185,28 @@ const reportLoading = ref(false);
 const reportError = ref('');
 const reportOverview = ref<ReportOverview | null>(null);
 
+const integrationLoading = ref(false);
+const integrationError = ref('');
+const integrationLimit = ref(50);
+const integrationSourceType = ref('');
+const integrationStatus = ref('');
+const integrationBusinessKey = ref('');
+const integrationMessages = ref<IntegrationMessageRecord[]>([]);
+const communityAreaCode = ref('LG');
+const communityCode = ref('CH-001');
+const communityExternalMessageId = ref('');
+const communityMessageType = ref('ORDER_CREATED');
+const communityBusinessKey = ref('');
+const communityRawPayload = ref('{}');
+const addressSupplementId = ref('');
+const addressHospitalCode = ref('HOSP-001');
+const addressAdapterCode = ref('LGFY');
+const addressOrderNo = ref('');
+const addressRawPayload = ref('{}');
+const hospitalPrescriptionNo = ref('');
+const hospitalQueryPhone = ref('');
+const hospitalOrder = ref<HospitalOrderRecord | null>(null);
+
 const pendingReviewCount = computed(() => reviewTasks.value.length);
 const pendingRecheckCount = computed(() => recheckTasks.value.length);
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
@@ -192,10 +222,12 @@ const activeLogisticsCount = computed(() => {
   if (activeLogisticsDataset.value === 'shipments') return shipments.value.length;
   return callbackRecords.value.length;
 });
+const activeIntegrationCount = computed(() => integrationMessages.value.length);
 const pageEyebrow = computed(() => {
   if (activeView.value === 'orders') return 'Order Lookup';
   if (activeView.value === 'portal') return 'Hospital Portal';
   if (activeView.value === 'reports') return 'Report Overview';
+  if (activeView.value === 'integration') return 'External Integration';
   if (activeView.value === 'decoction') return 'PDA / MES Simulator';
   if (activeView.value === 'ops') return 'Ops Diagnostics';
   if (activeView.value === 'logistics') return 'Logistics / Callback';
@@ -209,6 +241,7 @@ const pageTitle = computed(() => {
   if (activeView.value === 'logistics') return '物流回调';
   if (activeView.value === 'portal') return '门户查单';
   if (activeView.value === 'reports') return '报表统计';
+  if (activeView.value === 'integration') return '集成适配';
   return '订单查询';
 });
 
@@ -330,6 +363,10 @@ async function refreshRecheckTasks() {
 }
 
 async function refreshCurrentTasks() {
+  if (activeView.value === 'integration') {
+    await refreshIntegrationMessages();
+    return;
+  }
   if (activeView.value === 'reports') {
     await refreshReports();
     return;
@@ -468,6 +505,11 @@ function normalizedReportTrendDays() {
   return Math.min(Math.trunc(reportTrendDays.value), 60);
 }
 
+function normalizedIntegrationLimit() {
+  if (!Number.isFinite(integrationLimit.value) || integrationLimit.value <= 0) return 50;
+  return Math.min(Math.trunc(integrationLimit.value), 200);
+}
+
 async function refreshReports() {
   reportLoading.value = true;
   reportError.value = '';
@@ -485,6 +527,99 @@ async function refreshReports() {
     reportError.value = errorMessage(error);
   } finally {
     reportLoading.value = false;
+  }
+}
+
+async function refreshIntegrationMessages() {
+  integrationLoading.value = true;
+  integrationError.value = '';
+  const limit = normalizedIntegrationLimit();
+  integrationLimit.value = limit;
+  try {
+    integrationMessages.value = await listIntegrationMessages({
+      sourceType: integrationSourceType.value,
+      processStatus: integrationStatus.value,
+      businessKey: integrationBusinessKey.value,
+      limit,
+    });
+    showNotice('info', `已刷新集成消息：${activeIntegrationCount.value} 条`);
+  } catch (error) {
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
+  }
+}
+
+async function handleCommunityMessage() {
+  if (!communityCode.value.trim() || !communityExternalMessageId.value.trim() || !communityMessageType.value.trim()) {
+    integrationError.value = '社康编码、外部消息 ID 和消息类型不能为空';
+    return;
+  }
+  integrationLoading.value = true;
+  integrationError.value = '';
+  try {
+    const record = await recordCommunityMessage({
+      areaCode: communityAreaCode.value.trim() || undefined,
+      communityCode: communityCode.value.trim(),
+      externalMessageId: communityExternalMessageId.value.trim(),
+      messageType: communityMessageType.value.trim(),
+      businessKey: communityBusinessKey.value.trim() || undefined,
+      rawPayload: communityRawPayload.value,
+    });
+    integrationBusinessKey.value = record.businessKey || integrationBusinessKey.value;
+    showNotice('success', `社康消息已记录：${record.externalMessageId}`);
+    await refreshIntegrationMessages();
+  } catch (error) {
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
+  }
+}
+
+async function handleAddressPushRecord() {
+  if (!addressSupplementId.value.trim() || !addressHospitalCode.value.trim() || !addressAdapterCode.value.trim() || !addressOrderNo.value.trim()) {
+    integrationError.value = '补录 ID、医院编码、适配器和订单号不能为空';
+    return;
+  }
+  integrationLoading.value = true;
+  integrationError.value = '';
+  try {
+    const record = await recordAddressPush({
+      supplementId: addressSupplementId.value.trim(),
+      hospitalCode: addressHospitalCode.value.trim(),
+      adapterCode: addressAdapterCode.value.trim(),
+      orderNo: addressOrderNo.value.trim(),
+      rawPayload: addressRawPayload.value,
+    });
+    integrationBusinessKey.value = record.businessKey || addressOrderNo.value.trim();
+    showNotice('success', `地址回推记录已写入：${record.externalMessageId}`);
+    await refreshIntegrationMessages();
+  } catch (error) {
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
+  }
+}
+
+async function handleHospitalPrescriptionQuery() {
+  if (!hospitalPrescriptionNo.value.trim() || !hospitalQueryPhone.value.trim()) {
+    integrationError.value = '处方号和手机号不能为空';
+    hospitalOrder.value = null;
+    return;
+  }
+  integrationLoading.value = true;
+  integrationError.value = '';
+  try {
+    hospitalOrder.value = await findHospitalOrderByPrescription(
+      hospitalPrescriptionNo.value.trim(),
+      hospitalQueryPhone.value.trim(),
+    );
+    showNotice('success', `已查询到处方订单 ${hospitalOrder.value.orderNo}`);
+  } catch (error) {
+    hospitalOrder.value = null;
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
   }
 }
 
@@ -918,6 +1053,7 @@ function switchView(view: ViewKey) {
   if (view === 'ops') void refreshOpsRecords();
   if (view === 'logistics') void refreshLogisticsRecords();
   if (view === 'reports' && !reportOverview.value) void refreshReports();
+  if (view === 'integration' && integrationMessages.value.length === 0) void refreshIntegrationMessages();
 }
 
 onMounted(() => {
@@ -960,6 +1096,10 @@ onMounted(() => {
           <span>报表统计</span>
           <b>{{ reportOverview ? reportOverview.totalOrders : 0 }}</b>
         </button>
+        <button :class="{ active: activeView === 'integration' }" type="button" @click="switchView('integration')">
+          <span>集成适配</span>
+          <b>{{ activeIntegrationCount }}</b>
+        </button>
         <button :class="{ active: activeView === 'ops' }" type="button" @click="switchView('ops')">
           <span>运维排错</span>
           <b>{{ activeOpsCount }}</b>
@@ -979,6 +1119,7 @@ onMounted(() => {
         <code>callback-service :18089</code>
         <code>portal-service :18090</code>
         <code>report-service :18091</code>
+        <code>integration-service :18092</code>
       </div>
     </aside>
 
@@ -1366,6 +1507,176 @@ onMounted(() => {
               <tr v-for="item in reportOverview.dailyOrderCounts" :key="item.day">
                 <td><strong>{{ item.day }}</strong></td>
                 <td><strong>{{ formatNumber(item.count) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section v-else-if="activeView === 'integration'" class="workspace">
+        <div class="toolbar">
+          <label>
+            <span>来源类型</span>
+            <input v-model="integrationSourceType" placeholder="COMMUNITY_HOSPITAL / ADDRESS_PUSH" @keyup.enter="refreshIntegrationMessages" />
+          </label>
+          <label>
+            <span>处理状态</span>
+            <input v-model="integrationStatus" placeholder="PENDING / FAILED" @keyup.enter="refreshIntegrationMessages" />
+          </label>
+          <label class="grow">
+            <span>业务键</span>
+            <input v-model="integrationBusinessKey" placeholder="订单号 / 社康业务号" @keyup.enter="refreshIntegrationMessages" />
+          </label>
+          <label class="limit-label">
+            <span>条数</span>
+            <input v-model.number="integrationLimit" type="number" min="1" max="200" step="10" @keyup.enter="refreshIntegrationMessages" />
+          </label>
+          <button class="primary" type="button" :disabled="integrationLoading" @click="refreshIntegrationMessages">
+            {{ integrationLoading ? '刷新中' : '刷新' }}
+          </button>
+        </div>
+
+        <div class="toolbar event-toolbar">
+          <label>
+            <span>区域</span>
+            <input v-model="communityAreaCode" placeholder="LG" />
+          </label>
+          <label>
+            <span>社康编码</span>
+            <input v-model="communityCode" placeholder="CH-001" />
+          </label>
+          <label>
+            <span>外部消息 ID</span>
+            <input v-model="communityExternalMessageId" placeholder="MSG-001" />
+          </label>
+          <label>
+            <span>消息类型</span>
+            <input v-model="communityMessageType" placeholder="ORDER_CREATED" />
+          </label>
+          <label>
+            <span>业务键</span>
+            <input v-model="communityBusinessKey" placeholder="CH-ORDER-001" />
+          </label>
+          <label class="grow payload-input">
+            <span>原始报文</span>
+            <input v-model="communityRawPayload" placeholder="{...} / XML" @keyup.enter="handleCommunityMessage" />
+          </label>
+          <button class="secondary" type="button" :disabled="integrationLoading" @click="handleCommunityMessage">
+            记录社康消息
+          </button>
+        </div>
+
+        <div class="toolbar event-toolbar">
+          <label>
+            <span>补录 ID</span>
+            <input v-model="addressSupplementId" placeholder="UUID" />
+          </label>
+          <label>
+            <span>医院编码</span>
+            <input v-model="addressHospitalCode" placeholder="HOSP-001" />
+          </label>
+          <label>
+            <span>适配器</span>
+            <input v-model="addressAdapterCode" placeholder="LGFY" />
+          </label>
+          <label>
+            <span>订单号</span>
+            <input v-model="addressOrderNo" placeholder="ZHYF..." />
+          </label>
+          <label class="grow payload-input">
+            <span>回推报文</span>
+            <input v-model="addressRawPayload" placeholder="{...}" @keyup.enter="handleAddressPushRecord" />
+          </label>
+          <button class="secondary" type="button" :disabled="integrationLoading" @click="handleAddressPushRecord">
+            记录地址回推
+          </button>
+        </div>
+
+        <div class="toolbar event-toolbar">
+          <label>
+            <span>处方号</span>
+            <input v-model="hospitalPrescriptionNo" placeholder="RX..." @keyup.enter="handleHospitalPrescriptionQuery" />
+          </label>
+          <label>
+            <span>手机号</span>
+            <input v-model="hospitalQueryPhone" placeholder="患者或收件人手机号" @keyup.enter="handleHospitalPrescriptionQuery" />
+          </label>
+          <button class="secondary" type="button" :disabled="integrationLoading" @click="handleHospitalPrescriptionQuery">
+            处方查单
+          </button>
+        </div>
+
+        <p v-if="integrationError" class="error-line">{{ integrationError }}</p>
+
+        <div v-if="hospitalOrder" class="detail-grid">
+          <div>
+            <span>医院</span>
+            <strong>{{ hospitalOrder.institutionName }}</strong>
+          </div>
+          <div>
+            <span>平台订单号</span>
+            <strong>{{ hospitalOrder.orderNo }}</strong>
+          </div>
+          <div>
+            <span>外部单号</span>
+            <strong>{{ hospitalOrder.externalOrderNo }}</strong>
+          </div>
+          <div>
+            <span>订单状态</span>
+            <StatusPill :value="hospitalOrder.orderStatus" :tone="statusTone(hospitalOrder.orderStatus)" />
+          </div>
+          <div>
+            <span>处方</span>
+            <strong>{{ hospitalOrder.prescriptionNo }}</strong>
+            <small>{{ hospitalOrder.prescriptionStatus }}</small>
+          </div>
+          <div>
+            <span>收件人</span>
+            <strong>{{ hospitalOrder.receiverName || '-' }} / {{ hospitalOrder.receiverPhone || '-' }}</strong>
+          </div>
+          <div class="wide">
+            <span>收件地址</span>
+            <strong>{{ hospitalOrder.receiverAddress || '-' }}</strong>
+          </div>
+          <div>
+            <span>物流</span>
+            <strong>{{ hospitalOrder.logisticsCompany || '-' }} / {{ hospitalOrder.logisticsNo || '-' }}</strong>
+            <small>{{ hospitalOrder.logisticsStatus || '未发货' }}</small>
+          </div>
+        </div>
+
+        <div class="table-wrap integration-table">
+          <table>
+            <thead>
+              <tr>
+                <th>来源/外部消息</th>
+                <th>类型/业务键</th>
+                <th>状态</th>
+                <th>时间</th>
+                <th>载荷</th>
+                <th>失败原因</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!integrationLoading && integrationMessages.length === 0">
+                <td colspan="6" class="empty">暂无集成适配消息</td>
+              </tr>
+              <tr v-for="message in integrationMessages" :key="message.messageId">
+                <td>
+                  <strong>{{ message.sourceType }} / {{ message.sourceSystem }}</strong>
+                  <small>{{ message.externalMessageId }}</small>
+                </td>
+                <td>
+                  <strong>{{ message.messageType }}</strong>
+                  <small>{{ message.businessKey || '-' }}</small>
+                </td>
+                <td><StatusPill :value="message.processStatus" :tone="statusTone(message.processStatus)" /></td>
+                <td>
+                  <strong>{{ formatDate(message.createdAt) }}</strong>
+                  <small>{{ formatDate(message.updatedAt) }}</small>
+                </td>
+                <td><code>{{ message.normalizedPayload || message.rawPayload || '-' }}</code></td>
+                <td><code>{{ message.failureReason || '-' }}</code></td>
               </tr>
             </tbody>
           </table>

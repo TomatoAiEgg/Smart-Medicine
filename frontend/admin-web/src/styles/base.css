@@ -374,6 +374,14 @@ td small {
   min-width: 520px;
 }
 
+.integration-table table {
+  min-width: 1040px;
+}
+
+.payload-input {
+  min-width: 260px;
+}
+
 .events-wrap code {
   white-space: normal;
   overflow-wrap: anywhere;
