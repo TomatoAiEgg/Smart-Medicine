@@ -2,8 +2,10 @@ import { request } from './client';
 import type {
   AddressPushCommand,
   CommunityMessageCommand,
+  CommunityStatusPushCommand,
   HospitalOrderRecord,
   IntegrationMessageRecord,
+  IntegrationRetryTaskRecord,
 } from './types';
 
 interface IntegrationMessageQuery {
@@ -13,8 +15,17 @@ interface IntegrationMessageQuery {
   limit?: number;
 }
 
+interface IntegrationRetryTaskQuery {
+  taskType?: string;
+  taskStatus?: string;
+  businessKey?: string;
+  limit?: number;
+}
+
 interface IntegrationQueryParams extends IntegrationMessageQuery {
   phone?: string;
+  taskType?: string;
+  taskStatus?: string;
 }
 
 function setQueryParam(query: URLSearchParams, key: string, value: string | number | undefined) {
@@ -30,6 +41,8 @@ function buildQuery(params: IntegrationQueryParams) {
   setQueryParam(query, 'businessKey', params.businessKey);
   setQueryParam(query, 'limit', params.limit);
   setQueryParam(query, 'phone', params.phone);
+  setQueryParam(query, 'taskType', params.taskType);
+  setQueryParam(query, 'taskStatus', params.taskStatus);
   return query.toString();
 }
 
@@ -47,6 +60,13 @@ export function recordAddressPush(command: AddressPushCommand) {
   });
 }
 
+export function createCommunityStatusPush(command: CommunityStatusPushCommand) {
+  return request<IntegrationMessageRecord>('/integration-api/api/integration/community/status-pushes', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
 export function findHospitalOrderByPrescription(prescriptionNo: string, phone: string) {
   const query = buildQuery({ phone });
   return request<HospitalOrderRecord>(
@@ -57,4 +77,16 @@ export function findHospitalOrderByPrescription(prescriptionNo: string, phone: s
 export function listIntegrationMessages(params: IntegrationMessageQuery = {}) {
   const query = buildQuery(params);
   return request<IntegrationMessageRecord[]>(`/integration-api/api/admin/integration/messages${query ? `?${query}` : ''}`);
+}
+
+export function listIntegrationRetryTasks(params: IntegrationRetryTaskQuery = {}) {
+  const query = buildQuery(params);
+  return request<IntegrationRetryTaskRecord[]>(`/integration-api/api/admin/integration/retry-tasks${query ? `?${query}` : ''}`);
+}
+
+export function dispatchDueIntegrationRetryTasks(limit = 20) {
+  const query = buildQuery({ limit });
+  return request<number>(`/integration-api/api/admin/integration/retry-tasks/dispatch-due?${query}`, {
+    method: 'POST',
+  });
 }

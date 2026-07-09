@@ -17,3 +17,11 @@ management:
     web:
       exposure:
         include: health,info
+
+zhyf:
+  integration:
+    dispatch-enabled: ${ZHYF_INTEGRATION_DISPATCH_ENABLED:false}
+    dispatch-batch-size: ${ZHYF_INTEGRATION_DISPATCH_BATCH_SIZE:20}
+    max-retries: ${ZHYF_INTEGRATION_MAX_RETRIES:5}
+    initial-retry-delay-seconds: ${ZHYF_INTEGRATION_INITIAL_RETRY_DELAY_SECONDS:60}
+    max-retry-delay-seconds: ${ZHYF_INTEGRATION_MAX_RETRY_DELAY_SECONDS:1800}

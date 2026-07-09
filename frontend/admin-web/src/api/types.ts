@@ -346,6 +346,15 @@ export interface AddressPushCommand {
   adapterCode: string;
   orderNo: string;
   rawPayload?: string;
+  requestUrl?: string;
+}
+
+export interface CommunityStatusPushCommand {
+  communityCode: string;
+  orderNo: string;
+  status: string;
+  requestUrl: string;
+  rawPayload?: string;
 }
 
 export interface IntegrationMessageRecord {
@@ -359,6 +368,23 @@ export interface IntegrationMessageRecord {
   normalizedPayload: string;
   rawPayload: string;
   failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  processedAt: string | null;
+}
+
+export interface IntegrationRetryTaskRecord {
+  taskId: string;
+  messageId: string;
+  taskType: string;
+  targetSystem: string;
+  businessKey: string | null;
+  requestUrl: string;
+  requestBody: string;
+  responseBody: string | null;
+  taskStatus: string;
+  retryCount: number;
+  nextRetryAt: string | null;
   createdAt: string;
   updatedAt: string;
   processedAt: string | null;

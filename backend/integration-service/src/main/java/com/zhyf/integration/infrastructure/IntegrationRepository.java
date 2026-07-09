@@ -112,6 +112,144 @@ public class IntegrationRepository {
         return jdbcTemplate.query(query.sql(), this::mapMessage, query.args());
     }
 
+    public Optional<IntegrationRecords.IntegrationRetryTaskRecord> findRetryTask(UUID messageId, String taskType) {
+        String sql = retryTaskBaseQuery() + """
+                where message_id = ? and task_type = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapRetryTask, messageId, taskType).stream().findFirst();
+    }
+
+    public IntegrationRecords.IntegrationRetryTaskRecord createRetryTask(
+            UUID taskId,
+            UUID messageId,
+            String taskType,
+            String targetSystem,
+            String businessKey,
+            String requestUrl,
+            String requestBody,
+            Instant nextRetryAt
+    ) {
+        Instant now = Instant.now();
+        String sql = """
+                insert into integration_retry_task (
+                    id, message_id, task_type, target_system, business_key, request_url,
+                    request_headers, request_body, response_body, task_status, retry_count,
+                    next_retry_at, created_at, updated_at, processed_at
+                ) values (?, ?, ?, ?, ?, ?, '{}'::jsonb, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                taskId,
+                messageId,
+                taskType,
+                targetSystem,
+                businessKey,
+                requestUrl,
+                requestBody == null ? "" : requestBody,
+                null,
+                "PENDING",
+                0,
+                offsetDateTime(nextRetryAt),
+                offsetDateTime(now),
+                offsetDateTime(now),
+                null
+        );
+        return findRetryTask(messageId, taskType)
+                .orElse(new IntegrationRecords.IntegrationRetryTaskRecord(
+                        taskId,
+                        messageId,
+                        taskType,
+                        targetSystem,
+                        businessKey,
+                        requestUrl,
+                        requestBody == null ? "" : requestBody,
+                        null,
+                        "PENDING",
+                        0,
+                        nextRetryAt,
+                        now,
+                        now,
+                        null
+                ));
+    }
+
+    public List<IntegrationRecords.IntegrationRetryTaskRecord> findRetryTasks(
+            String taskType,
+            String taskStatus,
+            String businessKey,
+            int limit
+    ) {
+        QueryParts query = new QueryParts(retryTaskBaseQuery() + " where 1 = 1");
+        query.addTextFilter("task_type", taskType);
+        query.addTextFilter("task_status", taskStatus);
+        query.addTextFilter("business_key", businessKey);
+        query.append(" order by created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapRetryTask, query.args());
+    }
+
+    public List<IntegrationRecords.IntegrationRetryTaskRecord> findDueRetryTasks(Instant now, int limit) {
+        String sql = retryTaskBaseQuery() + """
+                where task_status in ('PENDING', 'FAILED')
+                  and (next_retry_at is null or next_retry_at <= ?)
+                order by next_retry_at nulls first, created_at asc
+                limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapRetryTask, offsetDateTime(now), limit);
+    }
+
+    public int markRetryTaskSucceeded(UUID taskId, String responseBody) {
+        String sql = """
+                update integration_retry_task
+                set task_status = 'SUCCESS',
+                    response_body = ?,
+                    next_retry_at = null,
+                    processed_at = now(),
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, taskId);
+    }
+
+    public int markRetryTaskFailed(UUID taskId, String responseBody, Instant nextRetryAt) {
+        String sql = """
+                update integration_retry_task
+                set task_status = 'FAILED',
+                    response_body = ?,
+                    retry_count = retry_count + 1,
+                    next_retry_at = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, offsetDateTime(nextRetryAt), taskId);
+    }
+
+    public int markRetryTaskDead(UUID taskId, String responseBody) {
+        String sql = """
+                update integration_retry_task
+                set task_status = 'DEAD',
+                    response_body = ?,
+                    retry_count = retry_count + 1,
+                    next_retry_at = null,
+                    processed_at = now(),
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, taskId);
+    }
+
+    public int markMessageStatus(UUID messageId, String processStatus, String failureReason) {
+        String sql = """
+                update integration_message
+                set process_status = ?,
+                    failure_reason = ?,
+                    processed_at = case when ? in ('SUCCESS', 'DEAD') then now() else processed_at end,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, processStatus, failureReason, processStatus, messageId);
+    }
+
     public Optional<IntegrationRecords.HospitalOrderRecord> findHospitalOrderByPrescription(
             String prescriptionNo,
             String phone
@@ -178,6 +316,34 @@ public class IntegrationRepository {
                 rs.getString("logistics_status"),
                 instant(rs, "created_at")
         );
+    }
+
+    private IntegrationRecords.IntegrationRetryTaskRecord mapRetryTask(ResultSet rs, int rowNum) throws SQLException {
+        return new IntegrationRecords.IntegrationRetryTaskRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("message_id", UUID.class),
+                rs.getString("task_type"),
+                rs.getString("target_system"),
+                rs.getString("business_key"),
+                rs.getString("request_url"),
+                rs.getString("request_body"),
+                rs.getString("response_body"),
+                rs.getString("task_status"),
+                rs.getInt("retry_count"),
+                instant(rs, "next_retry_at"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at"),
+                instant(rs, "processed_at")
+        );
+    }
+
+    private String retryTaskBaseQuery() {
+        return """
+                select id, message_id, task_type, target_system, business_key,
+                       request_url, request_body, response_body, task_status, retry_count,
+                       next_retry_at, created_at, updated_at, processed_at
+                from integration_retry_task
+                """;
     }
 
     private Instant instant(ResultSet rs, String column) throws SQLException {

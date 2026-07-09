@@ -44,4 +44,22 @@ public final class IntegrationRecords {
             Instant createdAt
     ) {
     }
+
+    public record IntegrationRetryTaskRecord(
+            UUID taskId,
+            UUID messageId,
+            String taskType,
+            String targetSystem,
+            String businessKey,
+            String requestUrl,
+            String requestBody,
+            String responseBody,
+            String taskStatus,
+            int retryCount,
+            Instant nextRetryAt,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant processedAt
+    ) {
+    }
 }

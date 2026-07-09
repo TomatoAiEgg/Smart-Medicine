@@ -36,6 +36,13 @@ public class IntegrationController {
         return ApiResponse.ok(integrationService.recordAddressPush(command));
     }
 
+    @PostMapping("/community/status-pushes")
+    public ApiResponse<IntegrationRecords.IntegrationMessageRecord> createCommunityStatusPush(
+            @RequestBody IntegrationCommands.CommunityStatusPushCommand command
+    ) {
+        return ApiResponse.ok(integrationService.createCommunityStatusPush(command));
+    }
+
     @GetMapping("/hospital/prescriptions/{prescriptionNo}/order")
     public ApiResponse<IntegrationRecords.HospitalOrderRecord> findHospitalOrderByPrescription(
             @PathVariable String prescriptionNo,

@@ -33,8 +33,11 @@ import {
   signShipment,
 } from './api/logistics';
 import {
+  createCommunityStatusPush,
+  dispatchDueIntegrationRetryTasks,
   findHospitalOrderByPrescription,
   listIntegrationMessages,
+  listIntegrationRetryTasks,
   recordAddressPush,
   recordCommunityMessage,
 } from './api/integration';
@@ -66,6 +69,7 @@ import type {
   EventOutboxRecord,
   HospitalOrderRecord,
   IntegrationMessageRecord,
+  IntegrationRetryTaskRecord,
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
@@ -192,17 +196,26 @@ const integrationSourceType = ref('');
 const integrationStatus = ref('');
 const integrationBusinessKey = ref('');
 const integrationMessages = ref<IntegrationMessageRecord[]>([]);
+const integrationRetryTasks = ref<IntegrationRetryTaskRecord[]>([]);
+const integrationRetryStatus = ref('');
+const integrationRetryType = ref('');
+const integrationDispatchLimit = ref(20);
 const communityAreaCode = ref('LG');
 const communityCode = ref('CH-001');
 const communityExternalMessageId = ref('');
 const communityMessageType = ref('ORDER_CREATED');
 const communityBusinessKey = ref('');
 const communityRawPayload = ref('{}');
+const communityStatusOrderNo = ref('');
+const communityStatus = ref('SIGNED');
+const communityStatusRequestUrl = ref('');
+const communityStatusPayload = ref('{}');
 const addressSupplementId = ref('');
 const addressHospitalCode = ref('HOSP-001');
 const addressAdapterCode = ref('LGFY');
 const addressOrderNo = ref('');
 const addressRawPayload = ref('{}');
+const addressRequestUrl = ref('');
 const hospitalPrescriptionNo = ref('');
 const hospitalQueryPhone = ref('');
 const hospitalOrder = ref<HospitalOrderRecord | null>(null);
@@ -222,7 +235,7 @@ const activeLogisticsCount = computed(() => {
   if (activeLogisticsDataset.value === 'shipments') return shipments.value.length;
   return callbackRecords.value.length;
 });
-const activeIntegrationCount = computed(() => integrationMessages.value.length);
+const activeIntegrationCount = computed(() => integrationMessages.value.length + integrationRetryTasks.value.length);
 const pageEyebrow = computed(() => {
   if (activeView.value === 'orders') return 'Order Lookup';
   if (activeView.value === 'portal') return 'Hospital Portal';
@@ -536,13 +549,23 @@ async function refreshIntegrationMessages() {
   const limit = normalizedIntegrationLimit();
   integrationLimit.value = limit;
   try {
-    integrationMessages.value = await listIntegrationMessages({
-      sourceType: integrationSourceType.value,
-      processStatus: integrationStatus.value,
-      businessKey: integrationBusinessKey.value,
-      limit,
-    });
-    showNotice('info', `已刷新集成消息：${activeIntegrationCount.value} 条`);
+    const [messages, retryTasks] = await Promise.all([
+      listIntegrationMessages({
+        sourceType: integrationSourceType.value,
+        processStatus: integrationStatus.value,
+        businessKey: integrationBusinessKey.value,
+        limit,
+      }),
+      listIntegrationRetryTasks({
+        taskType: integrationRetryType.value,
+        taskStatus: integrationRetryStatus.value,
+        businessKey: integrationBusinessKey.value,
+        limit,
+      }),
+    ]);
+    integrationMessages.value = messages;
+    integrationRetryTasks.value = retryTasks;
+    showNotice('info', `已刷新集成适配：消息 ${integrationMessages.value.length} 条，重试 ${integrationRetryTasks.value.length} 条`);
   } catch (error) {
     integrationError.value = errorMessage(error);
   } finally {
@@ -590,9 +613,49 @@ async function handleAddressPushRecord() {
       adapterCode: addressAdapterCode.value.trim(),
       orderNo: addressOrderNo.value.trim(),
       rawPayload: addressRawPayload.value,
+      requestUrl: addressRequestUrl.value.trim() || undefined,
     });
     integrationBusinessKey.value = record.businessKey || addressOrderNo.value.trim();
     showNotice('success', `地址回推记录已写入：${record.externalMessageId}`);
+    await refreshIntegrationMessages();
+  } catch (error) {
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
+  }
+}
+
+async function handleCommunityStatusPush() {
+  if (!communityCode.value.trim() || !communityStatusOrderNo.value.trim() || !communityStatus.value.trim() || !communityStatusRequestUrl.value.trim()) {
+    integrationError.value = '社康编码、订单号、状态和目标 URL 不能为空';
+    return;
+  }
+  integrationLoading.value = true;
+  integrationError.value = '';
+  try {
+    const record = await createCommunityStatusPush({
+      communityCode: communityCode.value.trim(),
+      orderNo: communityStatusOrderNo.value.trim(),
+      status: communityStatus.value.trim(),
+      requestUrl: communityStatusRequestUrl.value.trim(),
+      rawPayload: communityStatusPayload.value,
+    });
+    integrationBusinessKey.value = record.businessKey || communityStatusOrderNo.value.trim();
+    showNotice('success', `社康状态回写任务已创建：${record.externalMessageId}`);
+    await refreshIntegrationMessages();
+  } catch (error) {
+    integrationError.value = errorMessage(error);
+  } finally {
+    integrationLoading.value = false;
+  }
+}
+
+async function handleDispatchIntegrationRetryTasks() {
+  integrationLoading.value = true;
+  integrationError.value = '';
+  try {
+    const handled = await dispatchDueIntegrationRetryTasks(integrationDispatchLimit.value);
+    showNotice('success', `已派发到期集成重试任务 ${handled} 条`);
     await refreshIntegrationMessages();
   } catch (error) {
     integrationError.value = errorMessage(error);
@@ -1527,12 +1590,27 @@ onMounted(() => {
             <span>业务键</span>
             <input v-model="integrationBusinessKey" placeholder="订单号 / 社康业务号" @keyup.enter="refreshIntegrationMessages" />
           </label>
+          <label>
+            <span>任务类型</span>
+            <input v-model="integrationRetryType" placeholder="ADDRESS_PUSH / COMMUNITY_STATUS_PUSH" @keyup.enter="refreshIntegrationMessages" />
+          </label>
+          <label>
+            <span>任务状态</span>
+            <input v-model="integrationRetryStatus" placeholder="PENDING / FAILED / DEAD" @keyup.enter="refreshIntegrationMessages" />
+          </label>
           <label class="limit-label">
             <span>条数</span>
             <input v-model.number="integrationLimit" type="number" min="1" max="200" step="10" @keyup.enter="refreshIntegrationMessages" />
           </label>
+          <label class="limit-label">
+            <span>派发数</span>
+            <input v-model.number="integrationDispatchLimit" type="number" min="1" max="200" step="10" />
+          </label>
           <button class="primary" type="button" :disabled="integrationLoading" @click="refreshIntegrationMessages">
             {{ integrationLoading ? '刷新中' : '刷新' }}
+          </button>
+          <button class="secondary" type="button" :disabled="integrationLoading" @click="handleDispatchIntegrationRetryTasks">
+            派发到期
           </button>
         </div>
 
@@ -1587,8 +1665,38 @@ onMounted(() => {
             <span>回推报文</span>
             <input v-model="addressRawPayload" placeholder="{...}" @keyup.enter="handleAddressPushRecord" />
           </label>
+          <label class="grow payload-input">
+            <span>目标 URL</span>
+            <input v-model="addressRequestUrl" placeholder="http://..." @keyup.enter="handleAddressPushRecord" />
+          </label>
           <button class="secondary" type="button" :disabled="integrationLoading" @click="handleAddressPushRecord">
             记录地址回推
+          </button>
+        </div>
+
+        <div class="toolbar event-toolbar">
+          <label>
+            <span>社康编码</span>
+            <input v-model="communityCode" placeholder="CH-001" />
+          </label>
+          <label>
+            <span>订单号</span>
+            <input v-model="communityStatusOrderNo" placeholder="ZHYF..." />
+          </label>
+          <label>
+            <span>回写状态</span>
+            <input v-model="communityStatus" placeholder="SIGNED / CANCELLED" />
+          </label>
+          <label class="grow payload-input">
+            <span>目标 URL</span>
+            <input v-model="communityStatusRequestUrl" placeholder="http://..." />
+          </label>
+          <label class="grow payload-input">
+            <span>回写报文</span>
+            <input v-model="communityStatusPayload" placeholder="{...}" @keyup.enter="handleCommunityStatusPush" />
+          </label>
+          <button class="secondary" type="button" :disabled="integrationLoading" @click="handleCommunityStatusPush">
+            创建社康回写
           </button>
         </div>
 
@@ -1643,6 +1751,46 @@ onMounted(() => {
             <strong>{{ hospitalOrder.logisticsCompany || '-' }} / {{ hospitalOrder.logisticsNo || '-' }}</strong>
             <small>{{ hospitalOrder.logisticsStatus || '未发货' }}</small>
           </div>
+        </div>
+
+        <div class="table-wrap integration-table">
+          <table>
+            <thead>
+              <tr>
+                <th>任务/目标</th>
+                <th>业务键</th>
+                <th>状态</th>
+                <th>重试</th>
+                <th>时间</th>
+                <th>响应</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!integrationLoading && integrationRetryTasks.length === 0">
+                <td colspan="6" class="empty">暂无集成重试任务</td>
+              </tr>
+              <tr v-for="task in integrationRetryTasks" :key="task.taskId">
+                <td>
+                  <strong>{{ task.taskType }} / {{ task.targetSystem }}</strong>
+                  <small>{{ task.requestUrl }}</small>
+                </td>
+                <td>
+                  <strong>{{ task.businessKey || '-' }}</strong>
+                  <small>{{ task.messageId }}</small>
+                </td>
+                <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
+                <td>
+                  <strong>{{ task.retryCount }}</strong>
+                  <small>{{ formatDate(task.nextRetryAt) }}</small>
+                </td>
+                <td>
+                  <strong>{{ formatDate(task.createdAt) }}</strong>
+                  <small>{{ formatDate(task.processedAt) }}</small>
+                </td>
+                <td><code>{{ task.responseBody || task.requestBody || '-' }}</code></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="table-wrap integration-table">

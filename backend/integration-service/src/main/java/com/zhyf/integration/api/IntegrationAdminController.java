@@ -5,6 +5,7 @@ import com.zhyf.integration.application.IntegrationRecords;
 import com.zhyf.integration.application.IntegrationService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,5 +28,20 @@ public class IntegrationAdminController {
             @RequestParam(defaultValue = "50") int limit
     ) {
         return ApiResponse.ok(integrationService.listMessages(sourceType, processStatus, businessKey, limit));
+    }
+
+    @GetMapping("/retry-tasks")
+    public ApiResponse<List<IntegrationRecords.IntegrationRetryTaskRecord>> listRetryTasks(
+            @RequestParam(required = false) String taskType,
+            @RequestParam(required = false) String taskStatus,
+            @RequestParam(required = false) String businessKey,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(integrationService.listRetryTasks(taskType, taskStatus, businessKey, limit));
+    }
+
+    @PostMapping("/retry-tasks/dispatch-due")
+    public ApiResponse<Integer> dispatchDueRetryTasks(@RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.ok(integrationService.dispatchDueRetryTasks(limit));
     }
 }

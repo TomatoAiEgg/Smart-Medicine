@@ -22,6 +22,16 @@ public final class IntegrationCommands {
             String hospitalCode,
             String adapterCode,
             String orderNo,
+            String rawPayload,
+            String requestUrl
+    ) {
+    }
+
+    public record CommunityStatusPushCommand(
+            String communityCode,
+            String orderNo,
+            String status,
+            String requestUrl,
             String rawPayload
     ) {
     }
