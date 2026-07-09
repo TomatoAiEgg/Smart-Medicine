@@ -244,6 +244,69 @@ export interface CallbackRecord {
   updatedAt: string;
 }
 
+export interface PortalPrescriptionRecord {
+  prescriptionNo: string;
+  prescriptionStatus: string;
+  prescriptionType: string | null;
+  doctorName: string | null;
+  diagnosis: string | null;
+}
+
+export interface PortalShipmentRecord {
+  logisticsNo: string | null;
+  logisticsCompany: string | null;
+  logisticsStatus: string | null;
+  latestTraceTime: string | null;
+}
+
+export interface PortalOrderRecord {
+  tenantId: string;
+  orderId: string;
+  institutionName: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverAddress: string | null;
+  createdAt: string;
+  prescriptions: PortalPrescriptionRecord[];
+  shipment: PortalShipmentRecord | null;
+}
+
+export interface AddressSupplementCommand {
+  phone: string;
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince?: string;
+  receiverCity?: string;
+  receiverZone?: string;
+  receiverAddress: string;
+  requesterName?: string;
+  requesterPhone?: string;
+  remark?: string;
+}
+
+export interface AddressSupplementRecord {
+  supplementId: string;
+  tenantId: string;
+  orderId: string;
+  orderNo: string;
+  supplementStatus: string;
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string;
+  requesterName: string | null;
+  requesterPhone: string | null;
+  remark: string | null;
+  createdAt: string;
+}
+
 export interface PackShipmentCommand {
   orderNo: string;
   logisticsCompany: string;

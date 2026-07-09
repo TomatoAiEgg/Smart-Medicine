@@ -40,6 +40,7 @@ import {
   listOrderValidationRecords,
   listOutbox,
 } from './api/ops';
+import { createAddressSupplement, queryPortalOrder } from './api/portal';
 import {
   approveReviewTask,
   completeRecheckTask,
@@ -60,6 +61,8 @@ import type {
   MessageConsumeRecord,
   OrderValidationRecord,
   OrderCreateResult,
+  AddressSupplementRecord,
+  PortalOrderRecord,
   PrescriptionRecord,
   ShipmentRecord,
   ShipmentTraceRecord,
@@ -67,7 +70,7 @@ import type {
 } from './api/types';
 import StatusPill from './components/StatusPill.vue';
 
-type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics';
+type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal';
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
@@ -150,6 +153,21 @@ const shipments = ref<ShipmentRecord[]>([]);
 const shipmentTraces = ref<ShipmentTraceRecord[]>([]);
 const callbackRecords = ref<CallbackRecord[]>([]);
 
+const portalOrderNo = ref('');
+const portalExternalOrderNo = ref('');
+const portalPhone = ref('');
+const portalLoading = ref(false);
+const portalError = ref('');
+const portalOrder = ref<PortalOrderRecord | null>(null);
+const latestAddressSupplement = ref<AddressSupplementRecord | null>(null);
+const supplementReceiverName = ref('');
+const supplementReceiverPhone = ref('');
+const supplementReceiverProvince = ref('');
+const supplementReceiverCity = ref('');
+const supplementReceiverZone = ref('');
+const supplementReceiverAddress = ref('');
+const supplementRemark = ref('');
+
 const pendingReviewCount = computed(() => reviewTasks.value.length);
 const pendingRecheckCount = computed(() => recheckTasks.value.length);
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
@@ -167,6 +185,7 @@ const activeLogisticsCount = computed(() => {
 });
 const pageEyebrow = computed(() => {
   if (activeView.value === 'orders') return 'Order Lookup';
+  if (activeView.value === 'portal') return 'Hospital Portal';
   if (activeView.value === 'decoction') return 'PDA / MES Simulator';
   if (activeView.value === 'ops') return 'Ops Diagnostics';
   if (activeView.value === 'logistics') return 'Logistics / Callback';
@@ -178,6 +197,7 @@ const pageTitle = computed(() => {
   if (activeView.value === 'decoction') return '煎煮模拟';
   if (activeView.value === 'ops') return '运维排错';
   if (activeView.value === 'logistics') return '物流回调';
+  if (activeView.value === 'portal') return '门户查单';
   return '订单查询';
 });
 
@@ -279,6 +299,10 @@ async function refreshRecheckTasks() {
 }
 
 async function refreshCurrentTasks() {
+  if (activeView.value === 'portal') {
+    await handlePortalQuery();
+    return;
+  }
   if (activeView.value === 'logistics') {
     await refreshLogisticsRecords();
     return;
@@ -549,6 +573,71 @@ async function handleDispatchDueCallbacks() {
   }
 }
 
+async function handlePortalQuery() {
+  if (!portalPhone.value.trim()) {
+    portalError.value = '请输入患者或收件人手机号';
+    portalOrder.value = null;
+    return;
+  }
+  if (!portalOrderNo.value.trim() && !portalExternalOrderNo.value.trim()) {
+    portalError.value = '请输入平台订单号或外部单号';
+    portalOrder.value = null;
+    return;
+  }
+
+  portalLoading.value = true;
+  portalError.value = '';
+  try {
+    portalOrder.value = await queryPortalOrder({
+      orderNo: portalOrderNo.value,
+      externalOrderNo: portalExternalOrderNo.value,
+      phone: portalPhone.value,
+    });
+    latestAddressSupplement.value = null;
+    supplementReceiverName.value = portalOrder.value.receiverName || '';
+    supplementReceiverPhone.value = portalOrder.value.receiverPhone || portalPhone.value;
+    showNotice('success', `已查询到门户订单 ${portalOrder.value.orderNo}`);
+  } catch (error) {
+    portalOrder.value = null;
+    portalError.value = errorMessage(error);
+  } finally {
+    portalLoading.value = false;
+  }
+}
+
+async function handleAddressSupplement() {
+  if (!portalOrder.value) {
+    portalError.value = '请先查询门户订单';
+    return;
+  }
+  if (!supplementReceiverName.value.trim() || !supplementReceiverPhone.value.trim() || !supplementReceiverAddress.value.trim()) {
+    portalError.value = '收件人、手机号和详细地址不能为空';
+    return;
+  }
+
+  portalLoading.value = true;
+  portalError.value = '';
+  try {
+    latestAddressSupplement.value = await createAddressSupplement(portalOrder.value.orderNo, {
+      phone: portalPhone.value,
+      receiverName: supplementReceiverName.value.trim(),
+      receiverPhone: supplementReceiverPhone.value.trim(),
+      receiverProvince: supplementReceiverProvince.value.trim() || undefined,
+      receiverCity: supplementReceiverCity.value.trim() || undefined,
+      receiverZone: supplementReceiverZone.value.trim() || undefined,
+      receiverAddress: supplementReceiverAddress.value.trim(),
+      requesterName: portalOrder.value.patientName || undefined,
+      requesterPhone: portalPhone.value.trim(),
+      remark: supplementRemark.value.trim() || undefined,
+    });
+    showNotice('success', `${latestAddressSupplement.value.orderNo} 地址补录申请已提交`);
+  } catch (error) {
+    portalError.value = errorMessage(error);
+  } finally {
+    portalLoading.value = false;
+  }
+}
+
 async function handleReview(task: WorkflowTaskSnapshot, action: 'approve' | 'reject') {
   if (!operator.value.trim()) {
     workflowError.value = '处理人不能为空';
@@ -803,6 +892,9 @@ onMounted(() => {
           <span>物流回调</span>
           <b>{{ activeLogisticsCount }}</b>
         </button>
+        <button :class="{ active: activeView === 'portal' }" type="button" @click="switchView('portal')">
+          <span>门户查单</span>
+        </button>
         <button :class="{ active: activeView === 'ops' }" type="button" @click="switchView('ops')">
           <span>运维排错</span>
           <b>{{ activeOpsCount }}</b>
@@ -820,6 +912,7 @@ onMounted(() => {
         <code>ops-service :18086</code>
         <code>logistics-service :18088</code>
         <code>callback-service :18089</code>
+        <code>portal-service :18090</code>
       </div>
     </aside>
 
@@ -965,6 +1058,140 @@ onMounted(() => {
           <div>
             <span>是否重复推单</span>
             <strong>{{ order.duplicated ? '是' : '否' }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeView === 'portal'" class="workspace">
+        <div class="toolbar">
+          <label>
+            <span>平台订单号</span>
+            <input v-model="portalOrderNo" placeholder="ZHYF..." @keyup.enter="handlePortalQuery" />
+          </label>
+          <label>
+            <span>外部单号</span>
+            <input v-model="portalExternalOrderNo" placeholder="机构单号" @keyup.enter="handlePortalQuery" />
+          </label>
+          <label>
+            <span>手机号</span>
+            <input v-model="portalPhone" placeholder="患者或收件人手机号" @keyup.enter="handlePortalQuery" />
+          </label>
+          <button class="primary" type="button" :disabled="portalLoading" @click="handlePortalQuery">
+            {{ portalLoading ? '查询中' : '查单' }}
+          </button>
+        </div>
+
+        <p v-if="portalError" class="error-line">{{ portalError }}</p>
+
+        <div v-if="portalOrder" class="detail-grid">
+          <div>
+            <span>医院</span>
+            <strong>{{ portalOrder.institutionName }}</strong>
+          </div>
+          <div>
+            <span>平台订单号</span>
+            <strong>{{ portalOrder.orderNo }}</strong>
+          </div>
+          <div>
+            <span>外部单号</span>
+            <strong>{{ portalOrder.externalOrderNo }}</strong>
+          </div>
+          <div>
+            <span>订单状态</span>
+            <StatusPill :value="portalOrder.orderStatus" :tone="statusTone(portalOrder.orderStatus)" />
+          </div>
+          <div>
+            <span>患者</span>
+            <strong>{{ portalOrder.patientName || '-' }}</strong>
+          </div>
+          <div>
+            <span>收件人</span>
+            <strong>{{ portalOrder.receiverName || '-' }} / {{ portalOrder.receiverPhone || '-' }}</strong>
+          </div>
+          <div class="wide">
+            <span>收件地址</span>
+            <strong>{{ portalOrder.receiverAddress || '-' }}</strong>
+          </div>
+          <div>
+            <span>物流状态</span>
+            <StatusPill :value="portalOrder.shipment?.logisticsStatus || '未发货'" :tone="statusTone(portalOrder.shipment?.logisticsStatus || '')" />
+          </div>
+        </div>
+
+        <div v-if="portalOrder" class="toolbar event-toolbar">
+          <label>
+            <span>收件人</span>
+            <input v-model="supplementReceiverName" placeholder="收件人姓名" />
+          </label>
+          <label>
+            <span>收件手机号</span>
+            <input v-model="supplementReceiverPhone" placeholder="收件手机号" />
+          </label>
+          <label>
+            <span>省</span>
+            <input v-model="supplementReceiverProvince" placeholder="广东省" />
+          </label>
+          <label>
+            <span>市</span>
+            <input v-model="supplementReceiverCity" placeholder="深圳市" />
+          </label>
+          <label>
+            <span>区</span>
+            <input v-model="supplementReceiverZone" placeholder="南山区" />
+          </label>
+          <label class="grow">
+            <span>详细地址</span>
+            <input v-model="supplementReceiverAddress" placeholder="街道、门牌号" />
+          </label>
+          <label class="grow">
+            <span>备注</span>
+            <input v-model="supplementRemark" placeholder="补录来源或说明" @keyup.enter="handleAddressSupplement" />
+          </label>
+          <button class="secondary" type="button" :disabled="portalLoading" @click="handleAddressSupplement">
+            提交补录
+          </button>
+        </div>
+
+        <div v-if="portalOrder" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>处方号</th>
+                <th>状态</th>
+                <th>类型</th>
+                <th>医生</th>
+                <th>诊断</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="portalOrder.prescriptions.length === 0">
+                <td colspan="5" class="empty">暂无处方记录</td>
+              </tr>
+              <tr v-for="prescription in portalOrder.prescriptions" :key="prescription.prescriptionNo">
+                <td>{{ prescription.prescriptionNo }}</td>
+                <td><StatusPill :value="prescription.prescriptionStatus" :tone="statusTone(prescription.prescriptionStatus)" /></td>
+                <td>{{ prescription.prescriptionType || '-' }}</td>
+                <td>{{ prescription.doctorName || '-' }}</td>
+                <td>{{ prescription.diagnosis || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="latestAddressSupplement" class="detail-grid">
+          <div>
+            <span>补录状态</span>
+            <StatusPill :value="latestAddressSupplement.supplementStatus" :tone="statusTone(latestAddressSupplement.supplementStatus)" />
+          </div>
+          <div>
+            <span>提交时间</span>
+            <strong>{{ formatDate(latestAddressSupplement.createdAt) }}</strong>
+          </div>
+          <div class="wide">
+            <span>补录地址</span>
+            <strong>
+              {{ latestAddressSupplement.receiverProvince || '' }}{{ latestAddressSupplement.receiverCity || '' }}{{ latestAddressSupplement.receiverZone || '' }}{{ latestAddressSupplement.receiverAddress }}
+            </strong>
           </div>
         </div>
       </section>

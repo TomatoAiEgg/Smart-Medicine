@@ -38,6 +38,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/callback-api/, ''),
         },
+        '/portal-api': {
+          target: env.VITE_PORTAL_SERVICE_URL || 'http://127.0.0.1:18090',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/portal-api/, ''),
+        },
       },
     },
   };

@@ -28,6 +28,7 @@
         <module>decoction-service</module>
         <module>callback-service</module>
         <module>logistics-service</module>
+        <module>portal-service</module>
         <module>gateway</module>
     </modules>
 

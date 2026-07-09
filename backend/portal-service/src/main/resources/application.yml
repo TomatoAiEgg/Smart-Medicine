@@ -1,0 +1,19 @@
+server:
+  port: ${PORTAL_SERVICE_PORT:18090}
+
+spring:
+  application:
+    name: portal-service
+  datasource:
+    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    username: ${ZHYF_DB_USERNAME:postgres}
+    password: ${ZHYF_DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+  jackson:
+    time-zone: Asia/Hong_Kong
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
