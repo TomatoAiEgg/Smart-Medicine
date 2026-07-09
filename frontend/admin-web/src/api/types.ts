@@ -307,6 +307,30 @@ export interface AddressSupplementRecord {
   createdAt: string;
 }
 
+export interface ReportStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface DailyOrderCount {
+  day: string;
+  count: number;
+}
+
+export interface ReportOverview {
+  from: string | null;
+  to: string | null;
+  trendDays: number;
+  totalOrders: number;
+  totalPrescriptions: number;
+  totalShipments: number;
+  totalCallbacks: number;
+  pendingAddressSupplements: number;
+  orderStatusCounts: ReportStatusCount[];
+  callbackStatusCounts: ReportStatusCount[];
+  dailyOrderCounts: DailyOrderCount[];
+}
+
 export interface PackShipmentCommand {
   orderNo: string;
   logisticsCompany: string;

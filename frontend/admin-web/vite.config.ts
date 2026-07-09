@@ -43,6 +43,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/portal-api/, ''),
         },
+        '/report-api': {
+          target: env.VITE_REPORT_SERVICE_URL || 'http://127.0.0.1:18091',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/report-api/, ''),
+        },
       },
     },
   };

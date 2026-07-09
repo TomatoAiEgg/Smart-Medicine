@@ -25,13 +25,13 @@
 | `integration-service` | Spring Boot 服务 | 社康、医院、地址补录等外围适配 |
 | `device-service` | Spring Boot 服务 | 设备档案、设备占用、关系管理 |
 | `portal-service` | Spring Boot 服务 | 医院查单、地址补录申请；当前已落地最小查单和补录申请入口 |
-| `report-service` | Spring Boot 服务 | 报表、统计、导出 |
+| `report-service` | Spring Boot 服务 | 报表、统计、导出；当前已落地订单、处方、物流、回调、地址补录和状态分布最小只读统计 |
 
 ## 3. 前端模块
 
 | 模块 | 技术 | 核心页面 |
 | --- | --- | --- |
-| `admin-web` | Vue3 + TypeScript + Vite | 订单中心、处方中心、审核/调剂/复核、PDA/MES 作业监控、物流中心、回调补偿、机构配置、设备管理、系统监控；当前已包含订单查询、审核/复核任务、煎煮模拟、物流回调、门户查单和运维排错入口 |
+| `admin-web` | Vue3 + TypeScript + Vite | 订单中心、处方中心、审核/调剂/复核、PDA/MES 作业监控、物流中心、回调补偿、机构配置、设备管理、系统监控；当前已包含订单查询、审核/复核任务、煎煮模拟、物流回调、门户查单、报表统计和运维排错入口 |
 | `pda-simulator-web` | Vue3 或轻量页面 | PDA 登录、扫码绑定、加水、煎煮状态上报、重复/并发/超时模拟 |
 | `integration-simulator` | 后端或轻量页面 | 机构推单、医院查单、社康拉单、物流轨迹、地址补录、回调失败模拟 |
 

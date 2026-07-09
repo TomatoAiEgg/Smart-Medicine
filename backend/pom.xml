@@ -29,6 +29,7 @@
         <module>callback-service</module>
         <module>logistics-service</module>
         <module>portal-service</module>
+        <module>report-service</module>
         <module>gateway</module>
     </modules>
 

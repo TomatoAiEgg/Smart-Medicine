@@ -41,6 +41,7 @@ import {
   listOutbox,
 } from './api/ops';
 import { createAddressSupplement, queryPortalOrder } from './api/portal';
+import { getReportOverview } from './api/report';
 import {
   approveReviewTask,
   completeRecheckTask,
@@ -64,13 +65,14 @@ import type {
   AddressSupplementRecord,
   PortalOrderRecord,
   PrescriptionRecord,
+  ReportOverview,
   ShipmentRecord,
   ShipmentTraceRecord,
   WorkflowTaskSnapshot,
 } from './api/types';
 import StatusPill from './components/StatusPill.vue';
 
-type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal';
+type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal' | 'reports';
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
@@ -168,6 +170,13 @@ const supplementReceiverZone = ref('');
 const supplementReceiverAddress = ref('');
 const supplementRemark = ref('');
 
+const reportFrom = ref(defaultDate(-13));
+const reportTo = ref(defaultDate(0));
+const reportTrendDays = ref(14);
+const reportLoading = ref(false);
+const reportError = ref('');
+const reportOverview = ref<ReportOverview | null>(null);
+
 const pendingReviewCount = computed(() => reviewTasks.value.length);
 const pendingRecheckCount = computed(() => recheckTasks.value.length);
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
@@ -186,6 +195,7 @@ const activeLogisticsCount = computed(() => {
 const pageEyebrow = computed(() => {
   if (activeView.value === 'orders') return 'Order Lookup';
   if (activeView.value === 'portal') return 'Hospital Portal';
+  if (activeView.value === 'reports') return 'Report Overview';
   if (activeView.value === 'decoction') return 'PDA / MES Simulator';
   if (activeView.value === 'ops') return 'Ops Diagnostics';
   if (activeView.value === 'logistics') return 'Logistics / Callback';
@@ -198,6 +208,7 @@ const pageTitle = computed(() => {
   if (activeView.value === 'ops') return '运维排错';
   if (activeView.value === 'logistics') return '物流回调';
   if (activeView.value === 'portal') return '门户查单';
+  if (activeView.value === 'reports') return '报表统计';
   return '订单查询';
 });
 
@@ -247,6 +258,26 @@ function formatDate(value: string | null | undefined) {
     second: '2-digit',
     hour12: false,
   }).format(date);
+}
+
+function formatNumber(value: number | null | undefined) {
+  return new Intl.NumberFormat('zh-CN').format(value || 0);
+}
+
+function defaultDate(offsetDays: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function dateInputToIso(value: string, endExclusive = false) {
+  if (!value.trim()) return undefined;
+  const date = new Date(`${value.trim()}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return undefined;
+  if (endExclusive) {
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+  return date.toISOString();
 }
 
 async function queryOrder() {
@@ -299,6 +330,10 @@ async function refreshRecheckTasks() {
 }
 
 async function refreshCurrentTasks() {
+  if (activeView.value === 'reports') {
+    await refreshReports();
+    return;
+  }
   if (activeView.value === 'portal') {
     await handlePortalQuery();
     return;
@@ -426,6 +461,31 @@ function switchOpsDataset(dataset: OpsDataset) {
 function normalizedLogisticsLimit() {
   if (!Number.isFinite(logisticsLimit.value) || logisticsLimit.value <= 0) return 50;
   return Math.min(Math.trunc(logisticsLimit.value), 200);
+}
+
+function normalizedReportTrendDays() {
+  if (!Number.isFinite(reportTrendDays.value) || reportTrendDays.value <= 0) return 14;
+  return Math.min(Math.trunc(reportTrendDays.value), 60);
+}
+
+async function refreshReports() {
+  reportLoading.value = true;
+  reportError.value = '';
+  const trendDays = normalizedReportTrendDays();
+  reportTrendDays.value = trendDays;
+  try {
+    reportOverview.value = await getReportOverview({
+      from: dateInputToIso(reportFrom.value),
+      to: dateInputToIso(reportTo.value, true),
+      trendDays,
+    });
+    showNotice('info', `已刷新报表统计：订单 ${formatNumber(reportOverview.value.totalOrders)} 单`);
+  } catch (error) {
+    reportOverview.value = null;
+    reportError.value = errorMessage(error);
+  } finally {
+    reportLoading.value = false;
+  }
 }
 
 async function refreshLogisticsRecords() {
@@ -857,6 +917,7 @@ function switchView(view: ViewKey) {
   if (view === 'decoction' && decoctionTasks.value.length === 0) void refreshDecoctionSimulator();
   if (view === 'ops') void refreshOpsRecords();
   if (view === 'logistics') void refreshLogisticsRecords();
+  if (view === 'reports' && !reportOverview.value) void refreshReports();
 }
 
 onMounted(() => {
@@ -895,6 +956,10 @@ onMounted(() => {
         <button :class="{ active: activeView === 'portal' }" type="button" @click="switchView('portal')">
           <span>门户查单</span>
         </button>
+        <button :class="{ active: activeView === 'reports' }" type="button" @click="switchView('reports')">
+          <span>报表统计</span>
+          <b>{{ reportOverview ? reportOverview.totalOrders : 0 }}</b>
+        </button>
         <button :class="{ active: activeView === 'ops' }" type="button" @click="switchView('ops')">
           <span>运维排错</span>
           <b>{{ activeOpsCount }}</b>
@@ -913,6 +978,7 @@ onMounted(() => {
         <code>logistics-service :18088</code>
         <code>callback-service :18089</code>
         <code>portal-service :18090</code>
+        <code>report-service :18091</code>
       </div>
     </aside>
 
@@ -1193,6 +1259,116 @@ onMounted(() => {
               {{ latestAddressSupplement.receiverProvince || '' }}{{ latestAddressSupplement.receiverCity || '' }}{{ latestAddressSupplement.receiverZone || '' }}{{ latestAddressSupplement.receiverAddress }}
             </strong>
           </div>
+        </div>
+      </section>
+
+      <section v-else-if="activeView === 'reports'" class="workspace">
+        <div class="toolbar">
+          <label>
+            <span>开始日期</span>
+            <input v-model="reportFrom" type="date" @keyup.enter="refreshReports" />
+          </label>
+          <label>
+            <span>结束日期</span>
+            <input v-model="reportTo" type="date" @keyup.enter="refreshReports" />
+          </label>
+          <label>
+            <span>趋势天数</span>
+            <input v-model.number="reportTrendDays" type="number" min="1" max="60" step="1" @keyup.enter="refreshReports" />
+          </label>
+          <button class="primary" type="button" :disabled="reportLoading" @click="refreshReports">
+            {{ reportLoading ? '刷新中' : '刷新' }}
+          </button>
+        </div>
+
+        <p v-if="reportError" class="error-line">{{ reportError }}</p>
+
+        <div v-if="reportOverview" class="detail-grid report-metrics">
+          <div>
+            <span>订单总数</span>
+            <strong>{{ formatNumber(reportOverview.totalOrders) }}</strong>
+            <small>{{ reportOverview.from ? formatDate(reportOverview.from) : '-' }} / {{ reportOverview.to ? formatDate(reportOverview.to) : '-' }}</small>
+          </div>
+          <div>
+            <span>处方总数</span>
+            <strong>{{ formatNumber(reportOverview.totalPrescriptions) }}</strong>
+          </div>
+          <div>
+            <span>物流单</span>
+            <strong>{{ formatNumber(reportOverview.totalShipments) }}</strong>
+          </div>
+          <div>
+            <span>回调记录</span>
+            <strong>{{ formatNumber(reportOverview.totalCallbacks) }}</strong>
+          </div>
+          <div>
+            <span>待处理地址补录</span>
+            <strong>{{ formatNumber(reportOverview.pendingAddressSupplements) }}</strong>
+          </div>
+          <div>
+            <span>趋势窗口</span>
+            <strong>{{ reportOverview.trendDays }} 天</strong>
+          </div>
+        </div>
+
+        <div v-if="reportOverview" class="table-wrap report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>订单状态</th>
+                <th>数量</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="reportOverview.orderStatusCounts.length === 0">
+                <td colspan="2" class="empty">暂无订单状态统计</td>
+              </tr>
+              <tr v-for="item in reportOverview.orderStatusCounts" :key="item.status">
+                <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
+                <td><strong>{{ formatNumber(item.count) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="reportOverview" class="table-wrap report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>回调状态</th>
+                <th>数量</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="reportOverview.callbackStatusCounts.length === 0">
+                <td colspan="2" class="empty">暂无回调状态统计</td>
+              </tr>
+              <tr v-for="item in reportOverview.callbackStatusCounts" :key="item.status">
+                <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
+                <td><strong>{{ formatNumber(item.count) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="reportOverview" class="table-wrap report-table">
+          <table>
+            <thead>
+              <tr>
+                <th>日期</th>
+                <th>新增订单</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="reportOverview.dailyOrderCounts.length === 0">
+                <td colspan="2" class="empty">趋势窗口内暂无订单</td>
+              </tr>
+              <tr v-for="item in reportOverview.dailyOrderCounts" :key="item.day">
+                <td><strong>{{ item.day }}</strong></td>
+                <td><strong>{{ formatNumber(item.count) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
