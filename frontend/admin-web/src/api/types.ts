@@ -12,6 +12,93 @@ export interface OrderCreateResult {
   duplicated: boolean;
 }
 
+export interface OrderProgressSnapshot {
+  orderId: string;
+  tenantId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  prescriptions: PrescriptionProgress[];
+  workflowTasks: WorkflowProgress[];
+  dispenseRecords: DispenseProgress[];
+  decoctionTasks: DecoctionProgress[];
+  shipments: ShipmentProgress[];
+  callbacks: CallbackProgress[];
+  statusLogs: StatusLogProgress[];
+}
+
+export interface PrescriptionProgress {
+  prescriptionId: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  prescriptionStatus: string;
+  detailCount: number;
+  createdAt: string;
+}
+
+export interface WorkflowProgress {
+  taskId: string;
+  taskType: string;
+  taskStatus: string;
+  operator: string | null;
+  comment: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface DispenseProgress {
+  recordId: string;
+  taskId: string;
+  dispenser: string;
+  dispenseComment: string | null;
+  printStatus: string;
+  dispensedAt: string;
+}
+
+export interface DecoctionProgress {
+  taskId: string;
+  taskNo: string;
+  prescriptionNo: string;
+  deviceCode: string;
+  pailNo: string | null;
+  taskStatus: string;
+  operator: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
+export interface ShipmentProgress {
+  shipmentId: string;
+  logisticsNo: string;
+  logisticsCompany: string;
+  logisticsStatus: string;
+  latestTraceStatus: string | null;
+  latestTraceContent: string | null;
+  latestTraceTime: string | null;
+}
+
+export interface CallbackProgress {
+  callbackId: string;
+  callbackType: string;
+  businessId: string;
+  callbackStatus: string;
+  retryCount: number;
+  nextRetryAt: string | null;
+  updatedAt: string;
+}
+
+export interface StatusLogProgress {
+  logId: string;
+  fromStatus: string | null;
+  toStatus: string;
+  operatorType: string;
+  source: string;
+  createdAt: string;
+}
+
 export interface WorkflowTaskSnapshot {
   taskId: string;
   tenantId: string;
@@ -205,6 +292,19 @@ export interface IntegrationRetryIssueRecord {
   messageType: string;
   processStatus: string;
   failureReason: string | null;
+}
+
+export interface OpsHealthOverview {
+  recentHours: number;
+  pendingOutbox: number;
+  failedOutbox: number;
+  failedConsumes: number;
+  rejectedValidations: number;
+  failedCallbacks: number;
+  deadCallbacks: number;
+  failedIntegrationRetries: number;
+  deadIntegrationRetries: number;
+  recentAccessCount: number;
 }
 
 export interface DeliveryOrderRecord {

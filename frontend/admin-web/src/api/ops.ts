@@ -6,6 +6,7 @@ import type {
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
+  OpsHealthOverview,
 } from './types';
 
 interface OpsQueryParams {
@@ -26,6 +27,7 @@ interface OpsQueryParams {
   taskType?: string;
   businessKey?: string;
   sourceSystem?: string;
+  recentHours?: number;
 }
 
 function buildQuery(params: OpsQueryParams) {
@@ -73,4 +75,8 @@ export function listIntegrationRetryIssues(
   params: Pick<OpsQueryParams, 'taskStatus' | 'taskType' | 'businessKey' | 'sourceSystem' | 'limit'> = {},
 ) {
   return request<IntegrationRetryIssueRecord[]>(opsUrl('integration-retry-issues', params));
+}
+
+export function getOpsHealthOverview(params: Pick<OpsQueryParams, 'recentHours'> = {}) {
+  return request<OpsHealthOverview>(opsUrl('health-overview', params));
 }

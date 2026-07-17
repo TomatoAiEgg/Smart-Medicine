@@ -8,6 +8,7 @@ import com.zhyf.order.application.OrderReviewCommand;
 import com.zhyf.order.application.OrderReviewResult;
 import com.zhyf.order.application.OrderReviewTaskService;
 import com.zhyf.order.application.OrderService;
+import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.WorkflowTaskSnapshot;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -55,6 +56,11 @@ public class InstitutionOrderController {
     @GetMapping("/admin/orders/{orderNo}")
     public ApiResponse<OrderCreateResult> getOrder(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.getOrder(orderNo));
+    }
+
+    @GetMapping("/admin/orders/{orderNo}/progress")
+    public ApiResponse<OrderProgressSnapshot> getOrderProgress(@PathVariable String orderNo) {
+        return ApiResponse.ok(orderService.getOrderProgress(orderNo));
     }
 
     @GetMapping("/admin/review-tasks")

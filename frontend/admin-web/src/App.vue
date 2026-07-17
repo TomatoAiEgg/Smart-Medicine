@@ -41,8 +41,9 @@ import {
   recordAddressPush,
   recordCommunityMessage,
 } from './api/integration';
-import { getOrder } from './api/order';
+import { getOrder, getOrderProgress } from './api/order';
 import {
+  getOpsHealthOverview,
   listApiAccessLogs,
   listIntegrationRetryIssues,
   listLogisticsCallbackIssues,
@@ -51,7 +52,7 @@ import {
   listOutbox,
 } from './api/ops';
 import { createAddressSupplement, queryPortalOrder } from './api/portal';
-import { getReportOverview } from './api/report';
+import { downloadReportOverviewCsv, getReportOverview } from './api/report';
 import {
   approveReviewTask,
   completeDispenseTask,
@@ -77,7 +78,9 @@ import type {
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
+  OpsHealthOverview,
   OrderCreateResult,
+  OrderProgressSnapshot,
   AddressSupplementRecord,
   PortalOrderRecord,
   PrescriptionRecord,
@@ -96,6 +99,7 @@ type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
 const activeView = ref<ViewKey>('reviews');
 const orderNo = ref('');
 const order = ref<OrderCreateResult | null>(null);
+const orderProgress = ref<OrderProgressSnapshot | null>(null);
 const orderLoading = ref(false);
 const orderError = ref('');
 
@@ -131,7 +135,9 @@ const handlingDecoctionTaskNo = ref('');
 const activeOpsDataset = ref<OpsDataset>('outbox');
 const opsLoading = ref(false);
 const opsError = ref('');
+const opsHealthLoading = ref(false);
 const opsLimit = ref(50);
+const opsHealthHours = ref(24);
 const opsStatus = ref('');
 const opsEventType = ref('');
 const opsConsumerGroup = ref('');
@@ -154,6 +160,7 @@ const orderValidationRecords = ref<OrderValidationRecord[]>([]);
 const apiAccessLogRecords = ref<ApiAccessLogRecord[]>([]);
 const logisticsCallbackIssueRecords = ref<LogisticsCallbackIssueRecord[]>([]);
 const integrationRetryIssueRecords = ref<IntegrationRetryIssueRecord[]>([]);
+const opsHealth = ref<OpsHealthOverview | null>(null);
 
 const activeLogisticsDataset = ref<LogisticsDataset>('ready');
 const logisticsLoading = ref(false);
@@ -197,6 +204,7 @@ const reportFrom = ref(defaultDate(-13));
 const reportTo = ref(defaultDate(0));
 const reportTrendDays = ref(14);
 const reportLoading = ref(false);
+const reportExporting = ref(false);
 const reportError = ref('');
 const reportOverview = ref<ReportOverview | null>(null);
 
@@ -363,16 +371,20 @@ async function queryOrder() {
   if (!trimmed) {
     orderError.value = '请输入订单号';
     order.value = null;
+    orderProgress.value = null;
     return;
   }
 
   orderLoading.value = true;
   orderError.value = '';
   try {
-    order.value = await getOrder(trimmed);
+    const [nextOrder, nextProgress] = await Promise.all([getOrder(trimmed), getOrderProgress(trimmed)]);
+    order.value = nextOrder;
+    orderProgress.value = nextProgress;
     showNotice('success', `已查询到订单 ${order.value.orderNo}`);
   } catch (error) {
     order.value = null;
+    orderProgress.value = null;
     orderError.value = errorMessage(error);
   } finally {
     orderLoading.value = false;
@@ -439,7 +451,7 @@ async function refreshCurrentTasks() {
     return;
   }
   if (activeView.value === 'ops') {
-    await refreshOpsRecords();
+    await Promise.all([refreshOpsHealth(), refreshOpsRecords()]);
     return;
   }
   if (activeView.value === 'decoction') {
@@ -498,6 +510,26 @@ async function refreshAllWorkflowTasks() {
 function normalizedOpsLimit() {
   if (!Number.isFinite(opsLimit.value) || opsLimit.value <= 0) return 50;
   return Math.min(Math.trunc(opsLimit.value), 200);
+}
+
+function normalizedOpsHealthHours() {
+  if (!Number.isFinite(opsHealthHours.value) || opsHealthHours.value <= 0) return 24;
+  return Math.min(Math.trunc(opsHealthHours.value), 168);
+}
+
+async function refreshOpsHealth() {
+  opsHealthLoading.value = true;
+  opsError.value = '';
+  const recentHours = normalizedOpsHealthHours();
+  opsHealthHours.value = recentHours;
+  try {
+    opsHealth.value = await getOpsHealthOverview({ recentHours });
+  } catch (error) {
+    opsHealth.value = null;
+    opsError.value = errorMessage(error);
+  } finally {
+    opsHealthLoading.value = false;
+  }
 }
 
 async function refreshOpsRecords() {
@@ -599,6 +631,33 @@ async function refreshReports() {
     reportError.value = errorMessage(error);
   } finally {
     reportLoading.value = false;
+  }
+}
+
+async function exportReports() {
+  reportExporting.value = true;
+  reportError.value = '';
+  const trendDays = normalizedReportTrendDays();
+  reportTrendDays.value = trendDays;
+  try {
+    const blob = await downloadReportOverviewCsv({
+      from: dateInputToIso(reportFrom.value),
+      to: dateInputToIso(reportTo.value, true),
+      trendDays,
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report-overview-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showNotice('success', '报表 CSV 已导出');
+  } catch (error) {
+    reportError.value = errorMessage(error);
+  } finally {
+    reportExporting.value = false;
   }
 }
 
@@ -1195,7 +1254,10 @@ function switchView(view: ViewKey) {
   if (view === 'dispenses' && dispenseTasks.value.length === 0) void refreshDispenseTasks();
   if (view === 'rechecks' && recheckTasks.value.length === 0) void refreshRecheckTasks();
   if (view === 'decoction' && decoctionTasks.value.length === 0) void refreshDecoctionSimulator();
-  if (view === 'ops') void refreshOpsRecords();
+  if (view === 'ops') {
+    void refreshOpsHealth();
+    void refreshOpsRecords();
+  }
   if (view === 'logistics') void refreshLogisticsRecords();
   if (view === 'reports' && !reportOverview.value) void refreshReports();
   if (view === 'integration' && integrationMessages.value.length === 0) void refreshIntegrationMessages();
@@ -1415,6 +1477,128 @@ onMounted(() => {
             <strong>{{ order.duplicated ? '是' : '否' }}</strong>
           </div>
         </div>
+
+        <div v-if="orderProgress" class="progress-block">
+          <h2>履约进度</h2>
+          <div class="detail-grid">
+            <div>
+              <span>处方数</span>
+              <strong>{{ orderProgress.prescriptions.length }}</strong>
+            </div>
+            <div>
+              <span>调剂记录</span>
+              <strong>{{ orderProgress.dispenseRecords.length }}</strong>
+            </div>
+            <div>
+              <span>煎煮任务</span>
+              <strong>{{ orderProgress.decoctionTasks.length }}</strong>
+            </div>
+            <div>
+              <span>物流单</span>
+              <strong>{{ orderProgress.shipments.length }}</strong>
+            </div>
+            <div>
+              <span>回调记录</span>
+              <strong>{{ orderProgress.callbacks.length }}</strong>
+            </div>
+            <div>
+              <span>最近更新</span>
+              <strong>{{ formatDate(orderProgress.updatedAt) }}</strong>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>处方号</th>
+                  <th>外部处方号</th>
+                  <th>处方状态</th>
+                  <th>明细数</th>
+                  <th>创建时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="orderProgress.prescriptions.length === 0">
+                  <td colspan="5" class="empty">暂无处方</td>
+                </tr>
+                <tr v-for="item in orderProgress.prescriptions" :key="item.prescriptionId">
+                  <td>{{ item.prescriptionNo }}</td>
+                  <td>{{ item.externalPrescriptionNo }}</td>
+                  <td><StatusPill :value="item.prescriptionStatus" :tone="statusTone(item.prescriptionStatus)" /></td>
+                  <td>{{ item.detailCount }}</td>
+                  <td>{{ formatDate(item.createdAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>流程节点</th>
+                  <th>状态</th>
+                  <th>处理人</th>
+                  <th>意见</th>
+                  <th>完成时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="orderProgress.workflowTasks.length === 0">
+                  <td colspan="5" class="empty">暂无流程任务</td>
+                </tr>
+                <tr v-for="task in orderProgress.workflowTasks" :key="task.taskId">
+                  <td>{{ task.taskType }}</td>
+                  <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
+                  <td>{{ task.operator || '-' }}</td>
+                  <td>{{ task.comment || '-' }}</td>
+                  <td>{{ formatDate(task.completedAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>履约记录</th>
+                  <th>状态/结果</th>
+                  <th>操作人/对象</th>
+                  <th>补充信息</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="record in orderProgress.dispenseRecords" :key="record.recordId">
+                  <td>调剂</td>
+                  <td><StatusPill :value="record.printStatus" :tone="statusTone(record.printStatus)" /></td>
+                  <td>{{ record.dispenser }}</td>
+                  <td>{{ record.dispenseComment || '-' }}</td>
+                  <td>{{ formatDate(record.dispensedAt) }}</td>
+                </tr>
+                <tr v-for="task in orderProgress.decoctionTasks" :key="task.taskId">
+                  <td>煎煮 {{ task.taskNo }}</td>
+                  <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
+                  <td>{{ task.operator }}</td>
+                  <td>{{ task.deviceCode }} / {{ task.pailNo || '-' }}</td>
+                  <td>{{ formatDate(task.finishedAt || task.startedAt || task.createdAt) }}</td>
+                </tr>
+                <tr v-for="shipment in orderProgress.shipments" :key="shipment.shipmentId">
+                  <td>物流 {{ shipment.logisticsNo }}</td>
+                  <td><StatusPill :value="shipment.logisticsStatus" :tone="statusTone(shipment.logisticsStatus)" /></td>
+                  <td>{{ shipment.logisticsCompany }}</td>
+                  <td>{{ shipment.latestTraceStatus || '-' }} {{ shipment.latestTraceContent || '' }}</td>
+                  <td>{{ formatDate(shipment.latestTraceTime) }}</td>
+                </tr>
+                <tr v-if="orderProgress.dispenseRecords.length === 0 && orderProgress.decoctionTasks.length === 0 && orderProgress.shipments.length === 0">
+                  <td colspan="5" class="empty">暂无调剂、煎煮或物流记录</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <section v-else-if="activeView === 'portal'" class="workspace">
@@ -1567,6 +1751,9 @@ onMounted(() => {
           </label>
           <button class="primary" type="button" :disabled="reportLoading" @click="refreshReports">
             {{ reportLoading ? '刷新中' : '刷新' }}
+          </button>
+          <button type="button" :disabled="reportExporting" @click="exportReports">
+            {{ reportExporting ? '导出中' : '导出 CSV' }}
           </button>
         </div>
 
@@ -2238,6 +2425,51 @@ onMounted(() => {
           <button class="primary" type="button" :disabled="opsLoading" @click="refreshOpsRecords">
             {{ opsLoading ? '刷新中' : '刷新' }}
           </button>
+        </div>
+
+        <div class="toolbar">
+          <label>
+            <span>健康窗口</span>
+            <input v-model.number="opsHealthHours" type="number" min="1" max="168" step="1" @keyup.enter="refreshOpsHealth" />
+          </label>
+          <button type="button" :disabled="opsHealthLoading" @click="refreshOpsHealth">
+            {{ opsHealthLoading ? '刷新中' : '刷新健康概览' }}
+          </button>
+        </div>
+
+        <div v-if="opsHealth" class="detail-grid">
+          <div>
+            <span>窗口</span>
+            <strong>{{ opsHealth.recentHours }} 小时</strong>
+          </div>
+          <div>
+            <span>最近访问</span>
+            <strong>{{ formatNumber(opsHealth.recentAccessCount) }}</strong>
+          </div>
+          <div>
+            <span>Outbox 待发</span>
+            <strong>{{ formatNumber(opsHealth.pendingOutbox) }}</strong>
+          </div>
+          <div>
+            <span>Outbox 失败</span>
+            <strong>{{ formatNumber(opsHealth.failedOutbox) }}</strong>
+          </div>
+          <div>
+            <span>消费失败</span>
+            <strong>{{ formatNumber(opsHealth.failedConsumes) }}</strong>
+          </div>
+          <div>
+            <span>校验拒绝</span>
+            <strong>{{ formatNumber(opsHealth.rejectedValidations) }}</strong>
+          </div>
+          <div>
+            <span>回调失败/死信</span>
+            <strong>{{ formatNumber(opsHealth.failedCallbacks) }} / {{ formatNumber(opsHealth.deadCallbacks) }}</strong>
+          </div>
+          <div>
+            <span>集成失败/死信</span>
+            <strong>{{ formatNumber(opsHealth.failedIntegrationRetries) }} / {{ formatNumber(opsHealth.deadIntegrationRetries) }}</strong>
+          </div>
         </div>
 
         <div class="toolbar event-toolbar">

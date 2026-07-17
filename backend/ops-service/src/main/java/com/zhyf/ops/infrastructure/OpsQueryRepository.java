@@ -194,6 +194,37 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapIntegrationRetryIssueRecord, query.args());
     }
 
+    public OpsRecords.OpsHealthOverview loadHealthOverview(int recentHours) {
+        return new OpsRecords.OpsHealthOverview(
+                recentHours,
+                countByStatus("event_outbox", "status", "NEW"),
+                countByStatus("event_outbox", "status", "FAILED"),
+                countByStatus("message_consume_log", "status", "FAILED"),
+                countByStatus("order_validation_record", "validation_status", "REJECTED"),
+                countByStatus("callback_record", "status", "FAILED"),
+                countByStatus("callback_record", "status", "DEAD"),
+                countByStatus("integration_retry_task", "task_status", "FAILED"),
+                countByStatus("integration_retry_task", "task_status", "DEAD"),
+                countRecentAccess(recentHours)
+        );
+    }
+
+    private long countByStatus(String table, String statusColumn, String status) {
+        String sql = "select count(*) from " + table + " where " + statusColumn + " = ?";
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, status);
+        return value == null ? 0 : value;
+    }
+
+    private long countRecentAccess(int recentHours) {
+        String sql = """
+                select count(*)
+                from api_access_log
+                where created_at >= now() - (? * interval '1 hour')
+                """;
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, recentHours);
+        return value == null ? 0 : value;
+    }
+
     private OpsRecords.EventOutboxRecord mapEventOutboxRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OpsRecords.EventOutboxRecord(
                 rs.getObject("id", UUID.class),

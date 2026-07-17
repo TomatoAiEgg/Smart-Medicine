@@ -102,4 +102,18 @@ public final class OpsRecords {
             String failureReason
     ) {
     }
+
+    public record OpsHealthOverview(
+            int recentHours,
+            long pendingOutbox,
+            long failedOutbox,
+            long failedConsumes,
+            long rejectedValidations,
+            long failedCallbacks,
+            long deadCallbacks,
+            long failedIntegrationRetries,
+            long deadIntegrationRetries,
+            long recentAccessCount
+    ) {
+    }
 }

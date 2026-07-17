@@ -38,4 +38,18 @@ class OpsQueryServiceTest {
 
         verify(repository).findIntegrationRetryIssues("FAILED", "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 200);
     }
+
+    @Test
+    void shouldUseDefaultRecentHoursWhenHealthWindowIsInvalid() {
+        service.healthOverview(0);
+
+        verify(repository).loadHealthOverview(24);
+    }
+
+    @Test
+    void shouldCapRecentHoursForHealthOverview() {
+        service.healthOverview(500);
+
+        verify(repository).loadHealthOverview(168);
+    }
 }

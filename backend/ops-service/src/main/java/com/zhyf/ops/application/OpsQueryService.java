@@ -10,6 +10,8 @@ public class OpsQueryService {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
+    private static final int DEFAULT_HEALTH_HOURS = 24;
+    private static final int MAX_HEALTH_HOURS = 168;
 
     private final OpsQueryRepository repository;
 
@@ -74,10 +76,21 @@ public class OpsQueryService {
         );
     }
 
+    public OpsRecords.OpsHealthOverview healthOverview(int recentHours) {
+        return repository.loadHealthOverview(normalizeHealthHours(recentHours));
+    }
+
     private int normalizeLimit(int limit) {
         if (limit <= 0) {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    private int normalizeHealthHours(int recentHours) {
+        if (recentHours <= 0) {
+            return DEFAULT_HEALTH_HOURS;
+        }
+        return Math.min(recentHours, MAX_HEALTH_HOURS);
     }
 }

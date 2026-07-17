@@ -90,4 +90,11 @@ public class OpsQueryController {
                 limit
         ));
     }
+
+    @GetMapping("/health-overview")
+    public ApiResponse<OpsRecords.OpsHealthOverview> healthOverview(
+            @RequestParam(defaultValue = "24") int recentHours
+    ) {
+        return ApiResponse.ok(queryService.healthOverview(recentHours));
+    }
 }

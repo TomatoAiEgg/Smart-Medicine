@@ -21,3 +21,12 @@ export function getReportOverview(params: ReportOverviewQuery = {}) {
   const query = buildQuery(params);
   return request<ReportOverview>(`/report-api/api/admin/reports/overview${query ? `?${query}` : ''}`);
 }
+
+export async function downloadReportOverviewCsv(params: ReportOverviewQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/overview.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}

@@ -49,6 +49,23 @@ class OpsQueryRepositoryTest {
         assertThat(args).containsExactly("ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 50);
     }
 
+    @Test
+    void shouldLoadHealthOverviewFromCoreTables() {
+        when(jdbcTemplate.queryForObject(anyString(), org.mockito.ArgumentMatchers.eq(Long.class), any(Object[].class)))
+                .thenReturn(1L);
+
+        var overview = repository.loadHealthOverview(24);
+
+        assertThat(overview.pendingOutbox()).isEqualTo(1);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, org.mockito.Mockito.atLeastOnce())
+                .queryForObject(sqlCaptor.capture(), org.mockito.ArgumentMatchers.eq(Long.class), any(Object[].class));
+        assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from event_outbox") && sql.contains("status = ?"));
+        assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from message_consume_log"));
+        assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from callback_record"));
+        assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from integration_retry_task"));
+    }
+
     private String capturedSql() {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).query(captor.capture(), any(RowMapper.class), any(Object[].class));

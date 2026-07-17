@@ -8,6 +8,7 @@ import com.zhyf.common.security.SignatureUtils;
 import com.zhyf.common.status.OrderStatus;
 import com.zhyf.common.status.PrescriptionStatus;
 import com.zhyf.order.domain.InstitutionApp;
+import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.infrastructure.OrderRepository;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -61,6 +62,14 @@ public class OrderService {
                         existing.status(),
                         false
                 ))
+                .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
+    }
+
+    public OrderProgressSnapshot getOrderProgress(String orderNo) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        return orderRepository.findOrderProgressByOrderNo(orderNo.trim())
                 .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
     }
 

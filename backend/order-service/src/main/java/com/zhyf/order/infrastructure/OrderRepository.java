@@ -1,6 +1,7 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.domain.InstitutionApp;
+import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.OrderSnapshot;
 import com.zhyf.order.domain.WorkflowTaskSnapshot;
 import java.time.Instant;
@@ -59,6 +60,125 @@ public class OrderRepository {
                 where id = ?
                 """;
         return jdbcTemplate.query(sql, this::mapOrderSnapshot, orderId).stream().findFirst();
+    }
+
+    public Optional<OrderProgressSnapshot> findOrderProgressByOrderNo(String orderNo) {
+        String sql = """
+                select id as order_id, tenant_id, order_no, external_order_no, status as order_status,
+                       created_at, updated_at
+                from order_main
+                where order_no = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapOrderProgressHeader, orderNo).stream()
+                .findFirst()
+                .map(header -> new OrderProgressSnapshot(
+                        header.orderId(),
+                        header.tenantId(),
+                        header.orderNo(),
+                        header.externalOrderNo(),
+                        header.orderStatus(),
+                        header.createdAt(),
+                        header.updatedAt(),
+                        findPrescriptionProgress(header.orderId()),
+                        findWorkflowProgress(header.orderId()),
+                        findDispenseProgress(header.orderId()),
+                        findDecoctionProgress(header.orderId()),
+                        findShipmentProgress(header.orderId()),
+                        findCallbackProgress(header.orderId()),
+                        findStatusLogProgress(header.orderId())
+                ));
+    }
+
+    private List<OrderProgressSnapshot.PrescriptionProgress> findPrescriptionProgress(UUID orderId) {
+        String sql = """
+                select p.id as prescription_id,
+                       p.prescription_no,
+                       p.external_prescription_no,
+                       p.status as prescription_status,
+                       count(d.id)::int as detail_count,
+                       p.created_at
+                from prescription p
+                left join prescription_detail d on d.prescription_id = p.id
+                where p.order_id = ?
+                group by p.id, p.prescription_no, p.external_prescription_no, p.status, p.created_at
+                order by p.created_at asc, p.prescription_no asc
+                """;
+        return jdbcTemplate.query(sql, this::mapPrescriptionProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.WorkflowProgress> findWorkflowProgress(UUID orderId) {
+        String sql = """
+                select id as task_id, task_type, task_status, assigned_to, review_comment, created_at, completed_at
+                from workflow_task
+                where order_id = ?
+                order by created_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapWorkflowProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.DispenseProgress> findDispenseProgress(UUID orderId) {
+        String sql = """
+                select id as record_id, task_id, dispenser, dispense_comment, print_status, dispensed_at
+                from dispense_record d
+                where d.order_id = ?
+                order by d.dispensed_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapDispenseProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.DecoctionProgress> findDecoctionProgress(UUID orderId) {
+        String sql = """
+                select id as task_id, task_no, prescription_no, device_code, pail_no, task_status,
+                       operator, started_at, finished_at, created_at
+                from decoction_task
+                where order_id = ?
+                order by created_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapDecoctionProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.ShipmentProgress> findShipmentProgress(UUID orderId) {
+        String sql = """
+                select s.id as shipment_id,
+                       s.logistics_no,
+                       s.logistics_company,
+                       s.logistics_status,
+                       latest_trace.trace_status as latest_trace_status,
+                       latest_trace.trace_content as latest_trace_content,
+                       latest_trace.trace_time as latest_trace_time
+                from shipment s
+                left join lateral (
+                    select trace_status, trace_content, trace_time
+                    from shipment_trace st
+                    where st.shipment_id = s.id
+                    order by st.created_at desc
+                    limit 1
+                ) latest_trace on true
+                where s.order_id = ?
+                order by s.created_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapShipmentProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.CallbackProgress> findCallbackProgress(UUID orderId) {
+        String sql = """
+                select id as callback_id, callback_type, business_id, status as callback_status,
+                       retry_count, next_retry_at, updated_at
+                from callback_record
+                where order_id = ?
+                order by updated_at desc, created_at desc
+                """;
+        return jdbcTemplate.query(sql, this::mapCallbackProgress, orderId);
+    }
+
+    private List<OrderProgressSnapshot.StatusLogProgress> findStatusLogProgress(UUID orderId) {
+        String sql = """
+                select id as log_id, from_status, to_status, operator_type, source, created_at
+                from order_status_log
+                where order_id = ?
+                order by created_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapStatusLogProgress, orderId);
     }
 
     public List<WorkflowTaskSnapshot> findPendingReviewTasks() {
@@ -295,6 +415,114 @@ public class OrderRepository {
                 instant(rs, "created_at"),
                 instant(rs, "updated_at"),
                 instant(rs, "completed_at")
+        );
+    }
+
+    private OrderProgressSnapshot mapOrderProgressHeader(ResultSet rs, int rowNum) throws SQLException {
+        return new OrderProgressSnapshot(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at"),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        );
+    }
+
+    private OrderProgressSnapshot.PrescriptionProgress mapPrescriptionProgress(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OrderProgressSnapshot.PrescriptionProgress(
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("prescription_status"),
+                rs.getInt("detail_count"),
+                instant(rs, "created_at")
+        );
+    }
+
+    private OrderProgressSnapshot.WorkflowProgress mapWorkflowProgress(ResultSet rs, int rowNum) throws SQLException {
+        return new OrderProgressSnapshot.WorkflowProgress(
+                rs.getObject("task_id", UUID.class),
+                rs.getString("task_type"),
+                rs.getString("task_status"),
+                rs.getString("assigned_to"),
+                rs.getString("review_comment"),
+                instant(rs, "created_at"),
+                instant(rs, "completed_at")
+        );
+    }
+
+    private OrderProgressSnapshot.DispenseProgress mapDispenseProgress(ResultSet rs, int rowNum) throws SQLException {
+        return new OrderProgressSnapshot.DispenseProgress(
+                rs.getObject("record_id", UUID.class),
+                rs.getObject("task_id", UUID.class),
+                rs.getString("dispenser"),
+                rs.getString("dispense_comment"),
+                rs.getString("print_status"),
+                instant(rs, "dispensed_at")
+        );
+    }
+
+    private OrderProgressSnapshot.DecoctionProgress mapDecoctionProgress(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OrderProgressSnapshot.DecoctionProgress(
+                rs.getObject("task_id", UUID.class),
+                rs.getString("task_no"),
+                rs.getString("prescription_no"),
+                rs.getString("device_code"),
+                rs.getString("pail_no"),
+                rs.getString("task_status"),
+                rs.getString("operator"),
+                instant(rs, "started_at"),
+                instant(rs, "finished_at"),
+                instant(rs, "created_at")
+        );
+    }
+
+    private OrderProgressSnapshot.ShipmentProgress mapShipmentProgress(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OrderProgressSnapshot.ShipmentProgress(
+                rs.getObject("shipment_id", UUID.class),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_status"),
+                rs.getString("latest_trace_status"),
+                rs.getString("latest_trace_content"),
+                instant(rs, "latest_trace_time")
+        );
+    }
+
+    private OrderProgressSnapshot.CallbackProgress mapCallbackProgress(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OrderProgressSnapshot.CallbackProgress(
+                rs.getObject("callback_id", UUID.class),
+                rs.getString("callback_type"),
+                rs.getString("business_id"),
+                rs.getString("callback_status"),
+                rs.getInt("retry_count"),
+                instant(rs, "next_retry_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private OrderProgressSnapshot.StatusLogProgress mapStatusLogProgress(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OrderProgressSnapshot.StatusLogProgress(
+                rs.getObject("log_id", UUID.class),
+                rs.getString("from_status"),
+                rs.getString("to_status"),
+                rs.getString("operator_type"),
+                rs.getString("source"),
+                instant(rs, "created_at")
         );
     }
 
