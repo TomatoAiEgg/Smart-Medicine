@@ -19,6 +19,17 @@ export function rejectReviewTask(taskId: string, command: OrderReviewCommand) {
   });
 }
 
+export function listDispenseTasks() {
+  return request<WorkflowTaskSnapshot[]>('/workflow-api/api/admin/workflow/dispense-tasks');
+}
+
+export function completeDispenseTask(taskId: string, command: OrderReviewCommand) {
+  return request<OrderReviewResult>(`/workflow-api/api/admin/workflow/dispense-tasks/${taskId}/complete`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
 export function listRecheckTasks() {
   return request<WorkflowTaskSnapshot[]>('/workflow-api/api/admin/workflow/recheck-tasks');
 }

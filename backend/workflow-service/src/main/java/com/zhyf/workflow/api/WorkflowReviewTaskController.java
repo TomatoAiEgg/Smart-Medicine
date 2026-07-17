@@ -4,6 +4,7 @@ import com.zhyf.common.api.ApiResponse;
 import com.zhyf.workflow.application.OrderReviewCommand;
 import com.zhyf.workflow.application.OrderReviewResult;
 import com.zhyf.workflow.application.OrderReviewTaskService;
+import com.zhyf.workflow.application.PrescriptionDispenseTaskService;
 import com.zhyf.workflow.application.PrescriptionRecheckTaskService;
 import com.zhyf.workflow.domain.WorkflowTaskSnapshot;
 import java.util.List;
@@ -20,13 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class WorkflowReviewTaskController {
 
     private final OrderReviewTaskService orderReviewTaskService;
+    private final PrescriptionDispenseTaskService dispenseTaskService;
     private final PrescriptionRecheckTaskService recheckTaskService;
 
     public WorkflowReviewTaskController(
             OrderReviewTaskService orderReviewTaskService,
+            PrescriptionDispenseTaskService dispenseTaskService,
             PrescriptionRecheckTaskService recheckTaskService
     ) {
         this.orderReviewTaskService = orderReviewTaskService;
+        this.dispenseTaskService = dispenseTaskService;
         this.recheckTaskService = recheckTaskService;
     }
 
@@ -49,6 +53,19 @@ public class WorkflowReviewTaskController {
             @RequestBody OrderReviewCommand command
     ) {
         return ApiResponse.ok(orderReviewTaskService.reject(taskId, command));
+    }
+
+    @GetMapping("/dispense-tasks")
+    public ApiResponse<List<WorkflowTaskSnapshot>> listDispenseTasks() {
+        return ApiResponse.ok(dispenseTaskService.listPendingDispenseTasks());
+    }
+
+    @PatchMapping("/dispense-tasks/{taskId}/complete")
+    public ApiResponse<OrderReviewResult> completeDispenseTask(
+            @PathVariable UUID taskId,
+            @RequestBody OrderReviewCommand command
+    ) {
+        return ApiResponse.ok(dispenseTaskService.complete(taskId, command));
     }
 
     @GetMapping("/recheck-tasks")

@@ -11,7 +11,7 @@
 | `auth-institution` | Spring Boot 服务 | 租户、机构、应用密钥、回调配置、白名单、用户权限 | `zhyf_institutions`、`zhyf_api_permission`、`zhyf_white_ip` |
 | `order-service` | Spring Boot 服务 | 订单创建、订单状态机、后台订单查询、订单状态日志、人工修正入口 | `zhyf_order`、后台订单 Controller |
 | `message-service` | Spring Boot 服务 | Outbox 扫描、RocketMQ 生产、消费幂等、消息补偿、短信事件 | `zhyf-async` ActiveMQ 消费者 |
-| `workflow-service` | Spring Boot 服务 | 后台审核、调剂、复核、订单锁、人工流程控制、状态推进 | 后台审核、复核、流程控制能力 |
+| `workflow-service` | Spring Boot 服务 | 后台审核、调剂、复核、订单锁、人工流程控制、状态推进 | 后台审核、调剂、复核、流程控制能力 |
 | `ops-service` | Spring Boot 服务 | 操作日志、异常日志、审计、链路追踪、监控聚合、联调记录；当前已覆盖基础日志查询、物流/回调失败原因聚合和集成重试失败聚合 | 后台日志、运维散落能力 |
 
 ## 2. 扩展模块
@@ -31,7 +31,7 @@
 
 | 模块 | 技术 | 核心页面 |
 | --- | --- | --- |
-| `admin-web` | Vue3 + TypeScript + Vite | 订单中心、处方中心、审核/调剂/复核、PDA/MES 作业监控、物流中心、回调补偿、机构配置、设备管理、系统监控；当前已包含订单查询、审核/复核任务、煎煮模拟、物流回调、门户查单、报表统计、集成适配重试派发、回调失败/集成失败排错和运维排错入口 |
+| `admin-web` | Vue3 + TypeScript + Vite | 订单中心、处方中心、审核/调剂/复核、PDA/MES 作业监控、物流中心、回调补偿、机构配置、设备管理、系统监控；当前已包含订单查询、审核/调剂/复核任务、煎煮模拟、物流回调、门户查单、报表统计、集成适配重试派发、回调失败/集成失败排错和运维排错入口 |
 | `pda-simulator-web` | Vue3 或轻量页面 | PDA 登录、扫码绑定、加水、煎煮状态上报、重复/并发/超时模拟 |
 | `integration-simulator` | 后端或轻量页面 | 机构推单、医院查单、社康拉单、物流轨迹、地址补录、回调失败模拟 |
 

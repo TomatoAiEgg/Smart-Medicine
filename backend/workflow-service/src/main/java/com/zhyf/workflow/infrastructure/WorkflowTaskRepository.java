@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -88,6 +89,33 @@ public class WorkflowTaskRepository {
         return jdbcTemplate.update(sql, taskStatus, reviewer, reviewComment, taskId);
     }
 
+    public int createDispenseRecord(
+            UUID recordId,
+            UUID tenantId,
+            UUID orderId,
+            UUID taskId,
+            String dispenser,
+            String dispenseComment,
+            Instant dispensedAt
+    ) {
+        String sql = """
+                insert into dispense_record (
+                    id, tenant_id, order_id, task_id, dispenser, dispense_comment, print_status, dispensed_at
+                ) values (?, ?, ?, ?, ?, ?, 'PRINTED', ?)
+                on conflict (task_id) do nothing
+                """;
+        return jdbcTemplate.update(
+                sql,
+                recordId,
+                tenantId,
+                orderId,
+                taskId,
+                dispenser,
+                dispenseComment,
+                offsetDateTime(dispensedAt)
+        );
+    }
+
     private String baseTaskQuery() {
         return """
                 select
@@ -143,5 +171,9 @@ public class WorkflowTaskRepository {
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private OffsetDateTime offsetDateTime(Instant value) {
+        return value == null ? null : OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 }

@@ -19,27 +19,27 @@ public class OrderReviewTaskService {
 
     private final WorkflowTaskRepository taskRepository;
     private final OrderStatusClient orderStatusClient;
-    private final PrescriptionRecheckTaskService recheckTaskService;
+    private final PrescriptionDispenseTaskService dispenseTaskService;
     private final Clock clock;
 
     @Autowired
     public OrderReviewTaskService(
             WorkflowTaskRepository taskRepository,
             OrderStatusClient orderStatusClient,
-            PrescriptionRecheckTaskService recheckTaskService
+            PrescriptionDispenseTaskService dispenseTaskService
     ) {
-        this(taskRepository, orderStatusClient, recheckTaskService, Clock.systemUTC());
+        this(taskRepository, orderStatusClient, dispenseTaskService, Clock.systemUTC());
     }
 
     OrderReviewTaskService(
             WorkflowTaskRepository taskRepository,
             OrderStatusClient orderStatusClient,
-            PrescriptionRecheckTaskService recheckTaskService,
+            PrescriptionDispenseTaskService dispenseTaskService,
             Clock clock
     ) {
         this.taskRepository = taskRepository;
         this.orderStatusClient = orderStatusClient;
-        this.recheckTaskService = recheckTaskService;
+        this.dispenseTaskService = dispenseTaskService;
         this.clock = clock;
     }
 
@@ -90,7 +90,7 @@ public class OrderReviewTaskService {
             throw new BusinessException("REVIEW_TASK_UPDATE_FAILED", "Review task update failed");
         }
         if (approved) {
-            recheckTaskService.createPendingRecheckTask(task, "order-review-approved");
+            dispenseTaskService.createPendingDispenseTask(task, "order-review-approved");
         }
         Instant completedAt = Instant.now(clock);
 
