@@ -31,4 +31,11 @@ class OpsQueryServiceTest {
 
         verify(repository).findLogisticsCallbackIssues("FAILED", "ORDER_SHIPPED", "SF123", "ZHYF1", 50);
     }
+
+    @Test
+    void shouldNormalizeLimitForIntegrationRetryIssues() {
+        service.listIntegrationRetryIssues("FAILED", "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 500);
+
+        verify(repository).findIntegrationRetryIssues("FAILED", "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 200);
+    }
 }

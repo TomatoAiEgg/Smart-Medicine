@@ -58,6 +58,22 @@ public class OpsQueryService {
         );
     }
 
+    public List<OpsRecords.IntegrationRetryIssueRecord> listIntegrationRetryIssues(
+            String taskStatus,
+            String taskType,
+            String businessKey,
+            String sourceSystem,
+            int limit
+    ) {
+        return repository.findIntegrationRetryIssues(
+                taskStatus,
+                taskType,
+                businessKey,
+                sourceSystem,
+                normalizeLimit(limit)
+        );
+    }
+
     private int normalizeLimit(int limit) {
         if (limit <= 0) {
             return DEFAULT_LIMIT;

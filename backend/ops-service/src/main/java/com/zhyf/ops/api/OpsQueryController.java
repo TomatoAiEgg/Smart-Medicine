@@ -73,4 +73,21 @@ public class OpsQueryController {
                 limit
         ));
     }
+
+    @GetMapping("/integration-retry-issues")
+    public ApiResponse<List<OpsRecords.IntegrationRetryIssueRecord>> listIntegrationRetryIssues(
+            @RequestParam(required = false) String taskStatus,
+            @RequestParam(required = false) String taskType,
+            @RequestParam(required = false) String businessKey,
+            @RequestParam(required = false) String sourceSystem,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(queryService.listIntegrationRetryIssues(
+                taskStatus,
+                taskType,
+                businessKey,
+                sourceSystem,
+                limit
+        ));
+    }
 }

@@ -149,6 +149,51 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapLogisticsCallbackIssueRecord, query.args());
     }
 
+    public List<OpsRecords.IntegrationRetryIssueRecord> findIntegrationRetryIssues(
+            String taskStatus,
+            String taskType,
+            String businessKey,
+            String sourceSystem,
+            int limit
+    ) {
+        QueryParts query = new QueryParts("""
+                select
+                    t.id as task_id,
+                    t.message_id,
+                    t.task_type,
+                    t.target_system,
+                    t.business_key,
+                    t.request_url,
+                    t.response_body,
+                    t.task_status,
+                    t.retry_count,
+                    t.next_retry_at,
+                    t.created_at as task_created_at,
+                    t.updated_at as task_updated_at,
+                    t.processed_at,
+                    m.source_type,
+                    m.source_system,
+                    m.external_message_id,
+                    m.message_type,
+                    m.process_status,
+                    m.failure_reason
+                from integration_retry_task t
+                join integration_message m on m.id = t.message_id
+                where 1 = 1
+                """);
+        if (StringUtils.hasText(taskStatus)) {
+            query.addTextFilter("t.task_status", taskStatus);
+        } else {
+            query.append(" and t.task_status in ('FAILED', 'DEAD')");
+        }
+        query.addTextFilter("t.task_type", taskType);
+        query.addTextFilter("t.business_key", businessKey);
+        query.addTextFilter("m.source_system", sourceSystem);
+        query.append(" order by t.updated_at desc, t.created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapIntegrationRetryIssueRecord, query.args());
+    }
+
     private OpsRecords.EventOutboxRecord mapEventOutboxRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OpsRecords.EventOutboxRecord(
                 rs.getObject("id", UUID.class),
@@ -224,6 +269,31 @@ public class OpsQueryRepository {
                 rs.getString("latest_trace_status"),
                 rs.getString("latest_trace_content"),
                 instant(rs, "latest_trace_time")
+        );
+    }
+
+    private OpsRecords.IntegrationRetryIssueRecord mapIntegrationRetryIssueRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OpsRecords.IntegrationRetryIssueRecord(
+                rs.getObject("task_id", UUID.class),
+                rs.getObject("message_id", UUID.class),
+                rs.getString("task_type"),
+                rs.getString("target_system"),
+                rs.getString("business_key"),
+                rs.getString("request_url"),
+                rs.getString("response_body"),
+                rs.getString("task_status"),
+                rs.getInt("retry_count"),
+                instant(rs, "next_retry_at"),
+                instant(rs, "task_created_at"),
+                instant(rs, "task_updated_at"),
+                instant(rs, "processed_at"),
+                rs.getString("source_type"),
+                rs.getString("source_system"),
+                rs.getString("external_message_id"),
+                rs.getString("message_type"),
+                rs.getString("process_status"),
+                rs.getString("failure_reason")
         );
     }
 

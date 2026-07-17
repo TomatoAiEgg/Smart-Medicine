@@ -185,6 +185,28 @@ export interface LogisticsCallbackIssueRecord {
   latestTraceTime: string | null;
 }
 
+export interface IntegrationRetryIssueRecord {
+  taskId: string;
+  messageId: string;
+  taskType: string;
+  targetSystem: string;
+  businessKey: string | null;
+  requestUrl: string;
+  responseBody: string | null;
+  taskStatus: string;
+  retryCount: number;
+  nextRetryAt: string | null;
+  taskCreatedAt: string;
+  taskUpdatedAt: string;
+  processedAt: string | null;
+  sourceType: string;
+  sourceSystem: string;
+  externalMessageId: string;
+  messageType: string;
+  processStatus: string;
+  failureReason: string | null;
+}
+
 export interface DeliveryOrderRecord {
   tenantId: string;
   orderId: string;

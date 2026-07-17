@@ -79,4 +79,27 @@ public final class OpsRecords {
             Instant latestTraceTime
     ) {
     }
+
+    public record IntegrationRetryIssueRecord(
+            UUID taskId,
+            UUID messageId,
+            String taskType,
+            String targetSystem,
+            String businessKey,
+            String requestUrl,
+            String responseBody,
+            String taskStatus,
+            int retryCount,
+            Instant nextRetryAt,
+            Instant taskCreatedAt,
+            Instant taskUpdatedAt,
+            Instant processedAt,
+            String sourceType,
+            String sourceSystem,
+            String externalMessageId,
+            String messageType,
+            String processStatus,
+            String failureReason
+    ) {
+    }
 }

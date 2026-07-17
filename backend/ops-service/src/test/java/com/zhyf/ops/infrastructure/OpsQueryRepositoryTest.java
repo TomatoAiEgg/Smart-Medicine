@@ -32,6 +32,23 @@ class OpsQueryRepositoryTest {
         assertThat(args).containsExactly("E2E-LC-1", "E2E-LC-1", 50);
     }
 
+    @Test
+    void shouldQueryIntegrationRetryIssuesWithDefaultFailedStatuses() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findIntegrationRetryIssues(null, "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 50);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from integration_retry_task t");
+        assertThat(sql).contains("join integration_message m on m.id = t.message_id");
+        assertThat(sql).contains("t.task_status in ('FAILED', 'DEAD')");
+        assertThat(sql).contains("t.task_type = ?");
+        assertThat(sql).contains("t.business_key = ?");
+        assertThat(sql).contains("m.source_system = ?");
+        assertThat(args).containsExactly("ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 50);
+    }
+
     private String capturedSql() {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).query(captor.capture(), any(RowMapper.class), any(Object[].class));

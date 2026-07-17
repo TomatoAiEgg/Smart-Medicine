@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   ApiAccessLogRecord,
   EventOutboxRecord,
+  IntegrationRetryIssueRecord,
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
   OrderValidationRecord,
@@ -21,6 +22,10 @@ interface OpsQueryParams {
   callbackType?: string;
   businessId?: string;
   orderNo?: string;
+  taskStatus?: string;
+  taskType?: string;
+  businessKey?: string;
+  sourceSystem?: string;
 }
 
 function buildQuery(params: OpsQueryParams) {
@@ -62,4 +67,10 @@ export function listLogisticsCallbackIssues(
   params: Pick<OpsQueryParams, 'callbackStatus' | 'callbackType' | 'businessId' | 'orderNo' | 'limit'> = {},
 ) {
   return request<LogisticsCallbackIssueRecord[]>(opsUrl('logistics-callback-issues', params));
+}
+
+export function listIntegrationRetryIssues(
+  params: Pick<OpsQueryParams, 'taskStatus' | 'taskType' | 'businessKey' | 'sourceSystem' | 'limit'> = {},
+) {
+  return request<IntegrationRetryIssueRecord[]>(opsUrl('integration-retry-issues', params));
 }

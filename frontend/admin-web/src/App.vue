@@ -44,6 +44,7 @@ import {
 import { getOrder } from './api/order';
 import {
   listApiAccessLogs,
+  listIntegrationRetryIssues,
   listLogisticsCallbackIssues,
   listMessageConsumeLogs,
   listOrderValidationRecords,
@@ -69,6 +70,7 @@ import type {
   EventOutboxRecord,
   HospitalOrderRecord,
   IntegrationMessageRecord,
+  IntegrationRetryIssueRecord,
   IntegrationRetryTaskRecord,
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
@@ -86,7 +88,7 @@ import StatusPill from './components/StatusPill.vue';
 
 type ViewKey = 'reviews' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal' | 'reports' | 'integration';
 type NoticeTone = 'info' | 'success' | 'error';
-type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues';
+type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues' | 'integrationIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
 
 const activeView = ref<ViewKey>('reviews');
@@ -138,11 +140,16 @@ const opsCallbackStatus = ref('');
 const opsCallbackType = ref('');
 const opsBusinessId = ref('');
 const opsIssueOrderNo = ref('');
+const opsIntegrationTaskStatus = ref('');
+const opsIntegrationTaskType = ref('');
+const opsIntegrationBusinessKey = ref('');
+const opsIntegrationSourceSystem = ref('');
 const outboxRecords = ref<EventOutboxRecord[]>([]);
 const messageConsumeRecords = ref<MessageConsumeRecord[]>([]);
 const orderValidationRecords = ref<OrderValidationRecord[]>([]);
 const apiAccessLogRecords = ref<ApiAccessLogRecord[]>([]);
 const logisticsCallbackIssueRecords = ref<LogisticsCallbackIssueRecord[]>([]);
+const integrationRetryIssueRecords = ref<IntegrationRetryIssueRecord[]>([]);
 
 const activeLogisticsDataset = ref<LogisticsDataset>('ready');
 const logisticsLoading = ref(false);
@@ -228,6 +235,7 @@ const activeOpsCount = computed(() => {
   if (activeOpsDataset.value === 'consume') return messageConsumeRecords.value.length;
   if (activeOpsDataset.value === 'validation') return orderValidationRecords.value.length;
   if (activeOpsDataset.value === 'access') return apiAccessLogRecords.value.length;
+  if (activeOpsDataset.value === 'integrationIssues') return integrationRetryIssueRecords.value.length;
   return logisticsCallbackIssueRecords.value.length;
 });
 const activeLogisticsCount = computed(() => {
@@ -264,6 +272,7 @@ const opsDatasetNames: Record<OpsDataset, string> = {
   validation: '订单校验',
   access: '访问日志',
   callbackIssues: '回调失败',
+  integrationIssues: '集成失败',
 };
 
 const logisticsDatasetNames: Record<LogisticsDataset, string> = {
@@ -482,12 +491,20 @@ async function refreshOpsRecords() {
         resultCode: opsResultCode.value,
         limit,
       });
-    } else {
+    } else if (activeOpsDataset.value === 'callbackIssues') {
       logisticsCallbackIssueRecords.value = await listLogisticsCallbackIssues({
         callbackStatus: opsCallbackStatus.value,
         callbackType: opsCallbackType.value,
         businessId: opsBusinessId.value,
         orderNo: opsIssueOrderNo.value,
+        limit,
+      });
+    } else {
+      integrationRetryIssueRecords.value = await listIntegrationRetryIssues({
+        taskStatus: opsIntegrationTaskStatus.value,
+        taskType: opsIntegrationTaskType.value,
+        businessKey: opsIntegrationBusinessKey.value,
+        sourceSystem: opsIntegrationSourceSystem.value,
         limit,
       });
     }
@@ -506,6 +523,7 @@ function switchOpsDataset(dataset: OpsDataset) {
   if (dataset === 'validation' && orderValidationRecords.value.length === 0) void refreshOpsRecords();
   if (dataset === 'access' && apiAccessLogRecords.value.length === 0) void refreshOpsRecords();
   if (dataset === 'callbackIssues' && logisticsCallbackIssueRecords.value.length === 0) void refreshOpsRecords();
+  if (dataset === 'integrationIssues' && integrationRetryIssueRecords.value.length === 0) void refreshOpsRecords();
 }
 
 function normalizedLogisticsLimit() {
@@ -2138,6 +2156,14 @@ onMounted(() => {
           >
             回调失败
           </button>
+          <button
+            class="secondary"
+            :class="{ active: activeOpsDataset === 'integrationIssues' }"
+            type="button"
+            @click="switchOpsDataset('integrationIssues')"
+          >
+            集成失败
+          </button>
           <label class="limit-label">
             <span>条数</span>
             <input v-model.number="opsLimit" type="number" min="1" max="200" step="10" @keyup.enter="refreshOpsRecords" />
@@ -2192,7 +2218,7 @@ onMounted(() => {
               <input v-model="opsResultCode" placeholder="SUCCESS / HTTP_4XX" @keyup.enter="refreshOpsRecords" />
             </label>
           </template>
-          <template v-else>
+          <template v-else-if="activeOpsDataset === 'callbackIssues'">
             <label>
               <span>回调状态</span>
               <input v-model="opsCallbackStatus" placeholder="默认 FAILED / DEAD" @keyup.enter="refreshOpsRecords" />
@@ -2208,6 +2234,24 @@ onMounted(() => {
             <label>
               <span>订单号</span>
               <input v-model="opsIssueOrderNo" placeholder="ZHYF..." @keyup.enter="refreshOpsRecords" />
+            </label>
+          </template>
+          <template v-else>
+            <label>
+              <span>任务状态</span>
+              <input v-model="opsIntegrationTaskStatus" placeholder="默认 FAILED / DEAD" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>任务类型</span>
+              <input v-model="opsIntegrationTaskType" placeholder="ADDRESS_PUSH / COMMUNITY_STATUS_PUSH" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>业务键</span>
+              <input v-model="opsIntegrationBusinessKey" placeholder="ZHYF..." @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>来源系统</span>
+              <input v-model="opsIntegrationSourceSystem" placeholder="HOSP-E2E / CH-E2E" @keyup.enter="refreshOpsRecords" />
             </label>
           </template>
         </div>
@@ -2338,7 +2382,7 @@ onMounted(() => {
           </table>
         </div>
 
-        <div v-else class="table-wrap ops-table">
+        <div v-else-if="activeOpsDataset === 'callbackIssues'" class="table-wrap ops-table">
           <table>
             <thead>
               <tr>
@@ -2380,6 +2424,54 @@ onMounted(() => {
                 <td>
                   <strong>{{ formatDate(record.callbackUpdatedAt) }}</strong>
                   <small>{{ formatDate(record.latestTraceTime) }}</small>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="table-wrap ops-table">
+          <table>
+            <thead>
+              <tr>
+                <th>任务</th>
+                <th>来源/业务</th>
+                <th>状态</th>
+                <th>重试</th>
+                <th>失败原因</th>
+                <th>消息状态</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!opsLoading && integrationRetryIssueRecords.length === 0">
+                <td colspan="7" class="empty">暂无集成失败任务</td>
+              </tr>
+              <tr v-for="record in integrationRetryIssueRecords" :key="record.taskId">
+                <td>
+                  <strong>{{ record.taskType }}</strong>
+                  <small>{{ record.taskId }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.businessKey || '-' }}</strong>
+                  <small>{{ record.sourceSystem }} / {{ record.targetSystem }}</small>
+                </td>
+                <td>
+                  <StatusPill :value="record.taskStatus" :tone="statusTone(record.taskStatus)" />
+                  <small>{{ record.messageType }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.retryCount }}</strong>
+                  <small>{{ formatDate(record.nextRetryAt) }}</small>
+                </td>
+                <td><code>{{ record.responseBody || record.requestUrl || '-' }}</code></td>
+                <td>
+                  <StatusPill :value="record.processStatus" :tone="statusTone(record.processStatus)" />
+                  <small>{{ record.externalMessageId }}</small>
+                </td>
+                <td>
+                  <strong>{{ formatDate(record.taskUpdatedAt) }}</strong>
+                  <small>{{ formatDate(record.processedAt) }}</small>
                 </td>
               </tr>
             </tbody>
