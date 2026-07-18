@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { ApiError } from './api/client';
 import {
   bindPrescription,
@@ -52,15 +52,6 @@ import {
 } from './api/ops';
 import { createAddressSupplement, queryPortalOrder } from './api/portal';
 import { downloadReportOverviewCsv, getReportOverview } from './api/report';
-import {
-  approveReviewTask,
-  completeDispenseTask,
-  completeRecheckTask,
-  listDispenseTasks,
-  listRecheckTasks,
-  listReviewTasks,
-  rejectReviewTask,
-} from './api/workflow';
 import type {
   ApiAccessLogRecord,
   CallbackRecord,
@@ -84,7 +75,6 @@ import type {
   ReportOverview,
   ShipmentRecord,
   ShipmentTraceRecord,
-  WorkflowTaskSnapshot,
 } from './api/types';
 import AppLayout from './app/AppLayout.vue';
 import { menuItems, viewTitles, type ViewKey } from './app/views';
@@ -92,23 +82,18 @@ import StatusPill from './components/StatusPill.vue';
 import { dateInputToIso, defaultDate, formatDate, formatNumber } from './domain/formatters';
 import { statusTone } from './domain/status';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues' | 'integrationIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
+type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 
 const activeView = ref<ViewKey>('reviews');
 
-const reviewTasks = ref<WorkflowTaskSnapshot[]>([]);
-const dispenseTasks = ref<WorkflowTaskSnapshot[]>([]);
-const recheckTasks = ref<WorkflowTaskSnapshot[]>([]);
-const reviewLoading = ref(false);
-const dispenseLoading = ref(false);
-const recheckLoading = ref(false);
-const workflowError = ref('');
-const operator = ref('admin');
-const comment = ref('处理完成');
-const handlingTaskId = ref('');
+const operationOperator = ref('admin');
+const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
+const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 
 const prescriptions = ref<PrescriptionRecord[]>([]);
@@ -235,23 +220,6 @@ const hospitalPrescriptionNo = ref('');
 const hospitalQueryPhone = ref('');
 const hospitalOrder = ref<HospitalOrderRecord | null>(null);
 
-const activeWorkflowTasks = computed(() => {
-  if (activeView.value === 'reviews') return reviewTasks.value;
-  if (activeView.value === 'dispenses') return dispenseTasks.value;
-  if (activeView.value === 'rechecks') return recheckTasks.value;
-  return [];
-});
-const activeWorkflowLoading = computed(() => {
-  if (activeView.value === 'reviews') return reviewLoading.value;
-  if (activeView.value === 'dispenses') return dispenseLoading.value;
-  if (activeView.value === 'rechecks') return recheckLoading.value;
-  return false;
-});
-const activeWorkflowEmptyText = computed(() => {
-  if (activeView.value === 'reviews') return '暂无待审核任务';
-  if (activeView.value === 'dispenses') return '暂无待调剂任务';
-  return '暂无待复核任务';
-});
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
 const activeOpsCount = computed(() => {
   if (activeOpsDataset.value === 'outbox') return outboxRecords.value.length;
@@ -269,9 +237,9 @@ const activeLogisticsCount = computed(() => {
 const activeIntegrationCount = computed(() => integrationMessages.value.length + integrationRetryTasks.value.length);
 const currentViewTitle = computed(() => viewTitles[activeView.value]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
-  reviews: reviewTasks.value.length,
-  dispenses: dispenseTasks.value.length,
-  rechecks: recheckTasks.value.length,
+  reviews: workflowCounts.value.reviews,
+  dispenses: workflowCounts.value.dispenses,
+  rechecks: workflowCounts.value.rechecks,
   decoction: activeDecoctionCount.value,
   logistics: activeLogisticsCount.value,
   reports: reportOverview.value ? reportOverview.value.totalOrders : 0,
@@ -305,49 +273,11 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败';
 }
 
-async function refreshReviewTasks() {
-  reviewLoading.value = true;
-  workflowError.value = '';
-  try {
-    reviewTasks.value = await listReviewTasks();
-    showNotice('info', `已刷新审核任务：${reviewTasks.value.length} 条`);
-  } catch (error) {
-    reviewTasks.value = [];
-    workflowError.value = errorMessage(error);
-  } finally {
-    reviewLoading.value = false;
-  }
-}
-
-async function refreshRecheckTasks() {
-  recheckLoading.value = true;
-  workflowError.value = '';
-  try {
-    recheckTasks.value = await listRecheckTasks();
-    showNotice('info', `已刷新复核任务：${recheckTasks.value.length} 条`);
-  } catch (error) {
-    recheckTasks.value = [];
-    workflowError.value = errorMessage(error);
-  } finally {
-    recheckLoading.value = false;
-  }
-}
-
-async function refreshDispenseTasks() {
-  dispenseLoading.value = true;
-  workflowError.value = '';
-  try {
-    dispenseTasks.value = await listDispenseTasks();
-    showNotice('info', `已刷新调剂任务：${dispenseTasks.value.length} 条`);
-  } catch (error) {
-    dispenseTasks.value = [];
-    workflowError.value = errorMessage(error);
-  } finally {
-    dispenseLoading.value = false;
-  }
-}
-
 async function refreshCurrentTasks() {
+  if (activeView.value === 'reviews' || activeView.value === 'dispenses' || activeView.value === 'rechecks') {
+    await workflowTasksRef.value?.refreshCurrentTasks();
+    return;
+  }
   if (activeView.value === 'integration') {
     await refreshIntegrationMessages();
     return;
@@ -371,17 +301,6 @@ async function refreshCurrentTasks() {
   if (activeView.value === 'decoction') {
     await refreshDecoctionSimulator();
     return;
-  }
-  if (activeView.value === 'dispenses') {
-    await refreshDispenseTasks();
-    return;
-  }
-  if (activeView.value === 'rechecks') {
-    await refreshRecheckTasks();
-    return;
-  }
-  if (activeView.value === 'reviews') {
-    await refreshReviewTasks();
   }
 }
 
@@ -415,10 +334,6 @@ async function refreshDecoctionSimulator() {
   } finally {
     decoctionLoading.value = false;
   }
-}
-
-async function refreshAllWorkflowTasks() {
-  await Promise.all([refreshReviewTasks(), refreshDispenseTasks(), refreshRecheckTasks()]);
 }
 
 function normalizedOpsLimit() {
@@ -762,7 +677,7 @@ async function handlePackShipment(order: DeliveryOrderRecord) {
       payMethod: logisticsPayMethod.value.trim() || 'MONTHLY',
       pkgWeight: pkgWeight.value,
       pkgNum: pkgNum.value,
-      operator: operator.value.trim() || 'admin',
+      operator: operationOperator.value.trim() || 'admin',
     });
     showNotice('success', `${shipment.orderNo} 已打包，运单 ${shipment.logisticsNo}`);
     await refreshLogisticsRecords();
@@ -778,7 +693,7 @@ async function handleShipmentAction(shipment: ShipmentRecord, action: 'ship' | '
   logisticsError.value = '';
   try {
     const command = {
-      operator: operator.value.trim() || 'admin',
+      operator: operationOperator.value.trim() || 'admin',
       remark: traceContent.value.trim() || undefined,
     };
     const result = action === 'ship'
@@ -808,7 +723,7 @@ async function handleReceiveTrace() {
       traceContent: traceContent.value.trim() || undefined,
       rawPayload: JSON.stringify({ source: 'admin-web', opCode: traceOpCode.value.trim() }),
       traceTime: new Date().toISOString(),
-      operator: operator.value.trim() || 'admin',
+      operator: operationOperator.value.trim() || 'admin',
     });
     showNotice('success', `${shipment.logisticsNo} 轨迹已记录为 ${shipment.logisticsStatus}`);
     await refreshLogisticsRecords();
@@ -928,81 +843,12 @@ async function handleAddressSupplement() {
   }
 }
 
-async function handleReview(task: WorkflowTaskSnapshot, action: 'approve' | 'reject') {
-  if (!operator.value.trim()) {
-    workflowError.value = '处理人不能为空';
-    return;
-  }
-
-  handlingTaskId.value = task.taskId;
-  workflowError.value = '';
-  try {
-    const command = {
-      reviewer: operator.value.trim(),
-      reviewComment: comment.value.trim(),
-    };
-    const result = action === 'approve'
-      ? await approveReviewTask(task.taskId, command)
-      : await rejectReviewTask(task.taskId, command);
-    showNotice('success', `${result.orderNo} 已${action === 'approve' ? '审核通过' : '审核拒绝'}`);
-    await refreshAllWorkflowTasks();
-  } catch (error) {
-    workflowError.value = errorMessage(error);
-  } finally {
-    handlingTaskId.value = '';
-  }
-}
-
-async function handleRecheck(task: WorkflowTaskSnapshot) {
-  if (!operator.value.trim()) {
-    workflowError.value = '处理人不能为空';
-    return;
-  }
-
-  handlingTaskId.value = task.taskId;
-  workflowError.value = '';
-  try {
-    const result = await completeRecheckTask(task.taskId, {
-      reviewer: operator.value.trim(),
-      reviewComment: comment.value.trim(),
-    });
-    showNotice('success', `${result.orderNo} 已完成复核`);
-    await refreshRecheckTasks();
-  } catch (error) {
-    workflowError.value = errorMessage(error);
-  } finally {
-    handlingTaskId.value = '';
-  }
-}
-
-async function handleDispense(task: WorkflowTaskSnapshot) {
-  if (!operator.value.trim()) {
-    workflowError.value = '处理人不能为空';
-    return;
-  }
-
-  handlingTaskId.value = task.taskId;
-  workflowError.value = '';
-  try {
-    const result = await completeDispenseTask(task.taskId, {
-      reviewer: operator.value.trim(),
-      reviewComment: comment.value.trim(),
-    });
-    showNotice('success', `${result.orderNo} 已完成调剂`);
-    await refreshAllWorkflowTasks();
-  } catch (error) {
-    workflowError.value = errorMessage(error);
-  } finally {
-    handlingTaskId.value = '';
-  }
-}
-
 function newOperationId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
 async function handleBindPrescription() {
-  if (!operator.value.trim()) {
+  if (!operationOperator.value.trim()) {
     decoctionError.value = '操作人不能为空';
     return;
   }
@@ -1019,7 +865,7 @@ async function handleBindPrescription() {
       deviceCode: selectedDeviceCode.value,
       prescriptionNo: selectedPrescriptionNo.value,
       pailNo: pailNo.value.trim(),
-      operator: operator.value.trim(),
+      operator: operationOperator.value.trim(),
       timestamp: new Date().toISOString(),
       sign: 'dev-sign',
     });
@@ -1042,7 +888,7 @@ async function handleFinishDecoction(task: DecoctionTaskRecord) {
 }
 
 async function handleMesTask(task: DecoctionTaskRecord, action: 'start' | 'finish' | 'cancel' | 'terminate') {
-  if (!operator.value.trim()) {
+  if (!operationOperator.value.trim()) {
     decoctionError.value = '操作人不能为空';
     return;
   }
@@ -1052,7 +898,7 @@ async function handleMesTask(task: DecoctionTaskRecord, action: 'start' | 'finis
   try {
     const command = {
       operationId: newOperationId(`mes-${action}`),
-      operator: operator.value.trim(),
+      operator: operationOperator.value.trim(),
       timestamp: new Date().toISOString(),
       sign: 'dev-sign',
     };
@@ -1089,7 +935,7 @@ async function handleMesTask(task: DecoctionTaskRecord, action: 'start' | 'finis
 function eventCommand(prefix: string, extra: Record<string, unknown> = {}) {
   return {
     operationId: newOperationId(prefix),
-    operator: operator.value.trim(),
+    operator: operationOperator.value.trim(),
     timestamp: new Date().toISOString(),
     sign: 'dev-sign',
     remark: eventRemark.value.trim() || undefined,
@@ -1110,7 +956,7 @@ async function handleTaskError(task: DecoctionTaskRecord) {
 }
 
 async function handleTaskEvent(task: DecoctionTaskRecord, action: 'water' | 'temperature' | 'error') {
-  if (!operator.value.trim()) {
+  if (!operationOperator.value.trim()) {
     decoctionError.value = '操作人不能为空';
     return;
   }
@@ -1164,9 +1010,6 @@ async function refreshTaskEvents(taskNo = selectedEventTaskNo.value) {
 
 function switchView(view: ViewKey) {
   activeView.value = view;
-  if (view === 'reviews' && reviewTasks.value.length === 0) void refreshReviewTasks();
-  if (view === 'dispenses' && dispenseTasks.value.length === 0) void refreshDispenseTasks();
-  if (view === 'rechecks' && recheckTasks.value.length === 0) void refreshRecheckTasks();
   if (view === 'decoction' && decoctionTasks.value.length === 0) void refreshDecoctionSimulator();
   if (view === 'ops') {
     void refreshOpsHealth();
@@ -1176,10 +1019,6 @@ function switchView(view: ViewKey) {
   if (view === 'reports' && !reportOverview.value) void refreshReports();
   if (view === 'integration' && integrationMessages.value.length === 0) void refreshIntegrationMessages();
 }
-
-onMounted(() => {
-  void refreshAllWorkflowTasks();
-});
 </script>
 
 <template>
@@ -1193,98 +1032,13 @@ onMounted(() => {
     @refresh="refreshCurrentTasks"
     @switch-view="switchView"
   >
-      <section v-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'" class="workspace">
-        <div class="toolbar">
-          <label>
-            <span>处理人</span>
-            <input v-model="operator" placeholder="admin" />
-          </label>
-          <label class="grow">
-            <span>处理意见</span>
-            <input v-model="comment" placeholder="填写本次处理意见" />
-          </label>
-          <button
-            class="primary"
-            type="button"
-            :disabled="activeWorkflowLoading"
-            @click="refreshCurrentTasks"
-          >
-            {{ activeWorkflowLoading ? '刷新中' : '刷新' }}
-          </button>
-        </div>
-
-        <p v-if="workflowError" class="error-line">{{ workflowError }}</p>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>订单号</th>
-                <th>外部单号</th>
-                <th>任务类型</th>
-                <th>任务状态</th>
-                <th>订单状态</th>
-                <th>创建时间</th>
-                <th class="right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!activeWorkflowLoading && activeWorkflowTasks.length === 0">
-                <td colspan="7" class="empty">{{ activeWorkflowEmptyText }}</td>
-              </tr>
-              <tr v-for="task in activeWorkflowTasks" :key="task.taskId">
-                <td>
-                  <strong>{{ task.orderNo }}</strong>
-                  <small>{{ task.orderId }}</small>
-                </td>
-                <td>{{ task.externalOrderNo }}</td>
-                <td>{{ task.taskType }}</td>
-                <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
-                <td><StatusPill :value="task.orderStatus" :tone="statusTone(task.orderStatus)" /></td>
-                <td>{{ formatDate(task.createdAt) }}</td>
-                <td class="actions">
-                  <template v-if="activeView === 'reviews'">
-                    <button
-                      class="success"
-                      type="button"
-                      :disabled="handlingTaskId === task.taskId"
-                      @click="handleReview(task, 'approve')"
-                    >
-                      通过
-                    </button>
-                    <button
-                      class="danger"
-                      type="button"
-                      :disabled="handlingTaskId === task.taskId"
-                      @click="handleReview(task, 'reject')"
-                    >
-                      拒绝
-                    </button>
-                  </template>
-                  <button
-                    v-else-if="activeView === 'dispenses'"
-                    class="success"
-                    type="button"
-                    :disabled="handlingTaskId === task.taskId"
-                    @click="handleDispense(task)"
-                  >
-                    完成调剂
-                  </button>
-                  <button
-                    v-else
-                    class="success"
-                    type="button"
-                    :disabled="handlingTaskId === task.taskId"
-                    @click="handleRecheck(task)"
-                  >
-                    完成复核
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <WorkflowTasks
+        ref="workflowTasksRef"
+        v-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'"
+        :active-view="activeView"
+        @counts-changed="workflowCounts = $event"
+        @notice="showNotice"
+      />
 
       <OrderCenter v-else-if="activeView === 'orders'" @notice="showNotice" />
 
@@ -1826,6 +1580,10 @@ onMounted(() => {
         </div>
 
         <div class="toolbar event-toolbar">
+          <label>
+            <span>操作人</span>
+            <input v-model="operationOperator" placeholder="admin" />
+          </label>
           <template v-if="activeLogisticsDataset === 'ready'">
             <label>
               <span>物流公司</span>
@@ -2467,6 +2225,10 @@ onMounted(() => {
 
       <section v-else-if="activeView === 'decoction'" class="workspace">
         <div class="toolbar">
+          <label>
+            <span>操作人</span>
+            <input v-model="operationOperator" placeholder="admin" />
+          </label>
           <label class="grow">
             <span>可操作处方</span>
             <select v-model="selectedPrescriptionNo">
