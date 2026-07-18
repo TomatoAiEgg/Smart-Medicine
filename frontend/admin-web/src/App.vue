@@ -92,6 +92,8 @@ import type {
 import AppLayout from './app/AppLayout.vue';
 import { menuItems, viewTitles, type ViewKey } from './app/views';
 import StatusPill from './components/StatusPill.vue';
+import { dateInputToIso, defaultDate, formatDate, formatNumber } from './domain/formatters';
+import { statusTone } from './domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues' | 'integrationIssues';
@@ -308,49 +310,6 @@ function errorMessage(error: unknown) {
     return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
   }
   return error instanceof Error ? error.message : '请求失败';
-}
-
-function statusTone(status: string | null | undefined) {
-  if (!status) return 'neutral';
-  if (['APPROVED', 'COMPLETED', 'AUDIT_PASSED', 'RECHECKED', 'PASSED', 'SUCCESS', 'SENT', 'OK', 'SIGNED'].includes(status)) return 'success';
-  if (['REJECTED', 'AUDIT_FAILED', 'FAILED', 'DEAD', 'CANCELLED', 'TERMINATED', 'ERROR'].includes(status)) return 'danger';
-  if (['PENDING', 'CREATED', 'BOUND', 'DECOCTING', 'OCCUPIED', 'WORKING', 'NEW', 'RETRYING', 'PACKED', 'SHIPPED', 'IN_TRANSIT'].includes(status)) return 'warning';
-  if (['DECOCTED', 'IDLE'].includes(status)) return 'success';
-  return 'neutral';
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(date);
-}
-
-function formatNumber(value: number | null | undefined) {
-  return new Intl.NumberFormat('zh-CN').format(value || 0);
-}
-
-function defaultDate(offsetDays: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
-function dateInputToIso(value: string, endExclusive = false) {
-  if (!value.trim()) return undefined;
-  const date = new Date(`${value.trim()}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) return undefined;
-  if (endExclusive) {
-    date.setUTCDate(date.getUTCDate() + 1);
-  }
-  return date.toISOString();
 }
 
 async function queryOrder() {
