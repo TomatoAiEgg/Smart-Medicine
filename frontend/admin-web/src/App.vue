@@ -51,7 +51,6 @@ import {
   listOutbox,
 } from './api/ops';
 import { createAddressSupplement, queryPortalOrder } from './api/portal';
-import { downloadReportOverviewCsv, getReportOverview } from './api/report';
 import type {
   ApiAccessLogRecord,
   CallbackRecord,
@@ -72,16 +71,16 @@ import type {
   AddressSupplementRecord,
   PortalOrderRecord,
   PrescriptionRecord,
-  ReportOverview,
   ShipmentRecord,
   ShipmentTraceRecord,
 } from './api/types';
 import AppLayout from './app/AppLayout.vue';
 import { menuItems, viewTitles, type ViewKey } from './app/views';
 import StatusPill from './components/StatusPill.vue';
-import { dateInputToIso, defaultDate, formatDate, formatNumber } from './domain/formatters';
+import { formatDate, formatNumber } from './domain/formatters';
 import { statusTone } from './domain/status';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import ReportOverview from './features/reports/ReportOverview.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -94,6 +93,9 @@ const activeView = ref<ViewKey>('reviews');
 const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
+const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
+const reportTotalOrders = ref(0);
+const reportActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 
 const prescriptions = ref<PrescriptionRecord[]>([]);
@@ -181,14 +183,6 @@ const supplementReceiverZone = ref('');
 const supplementReceiverAddress = ref('');
 const supplementRemark = ref('');
 
-const reportFrom = ref(defaultDate(-13));
-const reportTo = ref(defaultDate(0));
-const reportTrendDays = ref(14);
-const reportLoading = ref(false);
-const reportExporting = ref(false);
-const reportError = ref('');
-const reportOverview = ref<ReportOverview | null>(null);
-
 const integrationLoading = ref(false);
 const integrationError = ref('');
 const integrationLimit = ref(50);
@@ -242,7 +236,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   rechecks: workflowCounts.value.rechecks,
   decoction: activeDecoctionCount.value,
   logistics: activeLogisticsCount.value,
-  reports: reportOverview.value ? reportOverview.value.totalOrders : 0,
+  reports: reportTotalOrders.value,
   integration: activeIntegrationCount.value,
   ops: activeOpsCount.value,
 }));
@@ -283,7 +277,7 @@ async function refreshCurrentTasks() {
     return;
   }
   if (activeView.value === 'reports') {
-    await refreshReports();
+    await reportOverviewRef.value?.refreshReports();
     return;
   }
   if (activeView.value === 'portal') {
@@ -433,61 +427,9 @@ function normalizedLogisticsLimit() {
   return Math.min(Math.trunc(logisticsLimit.value), 200);
 }
 
-function normalizedReportTrendDays() {
-  if (!Number.isFinite(reportTrendDays.value) || reportTrendDays.value <= 0) return 14;
-  return Math.min(Math.trunc(reportTrendDays.value), 60);
-}
-
 function normalizedIntegrationLimit() {
   if (!Number.isFinite(integrationLimit.value) || integrationLimit.value <= 0) return 50;
   return Math.min(Math.trunc(integrationLimit.value), 200);
-}
-
-async function refreshReports() {
-  reportLoading.value = true;
-  reportError.value = '';
-  const trendDays = normalizedReportTrendDays();
-  reportTrendDays.value = trendDays;
-  try {
-    reportOverview.value = await getReportOverview({
-      from: dateInputToIso(reportFrom.value),
-      to: dateInputToIso(reportTo.value, true),
-      trendDays,
-    });
-    showNotice('info', `已刷新报表统计：订单 ${formatNumber(reportOverview.value.totalOrders)} 单`);
-  } catch (error) {
-    reportOverview.value = null;
-    reportError.value = errorMessage(error);
-  } finally {
-    reportLoading.value = false;
-  }
-}
-
-async function exportReports() {
-  reportExporting.value = true;
-  reportError.value = '';
-  const trendDays = normalizedReportTrendDays();
-  reportTrendDays.value = trendDays;
-  try {
-    const blob = await downloadReportOverviewCsv({
-      from: dateInputToIso(reportFrom.value),
-      to: dateInputToIso(reportTo.value, true),
-      trendDays,
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `report-overview-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    showNotice('success', '报表 CSV 已导出');
-  } catch (error) {
-    reportError.value = errorMessage(error);
-  } finally {
-    reportExporting.value = false;
-  }
 }
 
 async function refreshIntegrationMessages() {
@@ -1010,13 +952,13 @@ async function refreshTaskEvents(taskNo = selectedEventTaskNo.value) {
 
 function switchView(view: ViewKey) {
   activeView.value = view;
+  if (view === 'reports') reportActivationKey.value += 1;
   if (view === 'decoction' && decoctionTasks.value.length === 0) void refreshDecoctionSimulator();
   if (view === 'ops') {
     void refreshOpsHealth();
     void refreshOpsRecords();
   }
   if (view === 'logistics') void refreshLogisticsRecords();
-  if (view === 'reports' && !reportOverview.value) void refreshReports();
   if (view === 'integration' && integrationMessages.value.length === 0) void refreshIntegrationMessages();
 }
 </script>
@@ -1032,6 +974,15 @@ function switchView(view: ViewKey) {
     @refresh="refreshCurrentTasks"
     @switch-view="switchView"
   >
+      <ReportOverview
+        v-show="activeView === 'reports'"
+        ref="reportOverviewRef"
+        :active="activeView === 'reports'"
+        :activation-key="reportActivationKey"
+        @count-changed="reportTotalOrders = $event"
+        @notice="showNotice"
+      />
+
       <WorkflowTasks
         ref="workflowTasksRef"
         v-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'"
@@ -1173,119 +1124,6 @@ function switchView(view: ViewKey) {
               {{ latestAddressSupplement.receiverProvince || '' }}{{ latestAddressSupplement.receiverCity || '' }}{{ latestAddressSupplement.receiverZone || '' }}{{ latestAddressSupplement.receiverAddress }}
             </strong>
           </div>
-        </div>
-      </section>
-
-      <section v-else-if="activeView === 'reports'" class="workspace">
-        <div class="toolbar">
-          <label>
-            <span>开始日期</span>
-            <input v-model="reportFrom" type="date" @keyup.enter="refreshReports" />
-          </label>
-          <label>
-            <span>结束日期</span>
-            <input v-model="reportTo" type="date" @keyup.enter="refreshReports" />
-          </label>
-          <label>
-            <span>趋势天数</span>
-            <input v-model.number="reportTrendDays" type="number" min="1" max="60" step="1" @keyup.enter="refreshReports" />
-          </label>
-          <button class="primary" type="button" :disabled="reportLoading" @click="refreshReports">
-            {{ reportLoading ? '刷新中' : '刷新' }}
-          </button>
-          <button type="button" :disabled="reportExporting" @click="exportReports">
-            {{ reportExporting ? '导出中' : '导出 CSV' }}
-          </button>
-        </div>
-
-        <p v-if="reportError" class="error-line">{{ reportError }}</p>
-
-        <div v-if="reportOverview" class="detail-grid report-metrics">
-          <div>
-            <span>订单总数</span>
-            <strong>{{ formatNumber(reportOverview.totalOrders) }}</strong>
-            <small>{{ reportOverview.from ? formatDate(reportOverview.from) : '-' }} / {{ reportOverview.to ? formatDate(reportOverview.to) : '-' }}</small>
-          </div>
-          <div>
-            <span>处方总数</span>
-            <strong>{{ formatNumber(reportOverview.totalPrescriptions) }}</strong>
-          </div>
-          <div>
-            <span>物流单</span>
-            <strong>{{ formatNumber(reportOverview.totalShipments) }}</strong>
-          </div>
-          <div>
-            <span>回调记录</span>
-            <strong>{{ formatNumber(reportOverview.totalCallbacks) }}</strong>
-          </div>
-          <div>
-            <span>待处理地址补录</span>
-            <strong>{{ formatNumber(reportOverview.pendingAddressSupplements) }}</strong>
-          </div>
-          <div>
-            <span>趋势窗口</span>
-            <strong>{{ reportOverview.trendDays }} 天</strong>
-          </div>
-        </div>
-
-        <div v-if="reportOverview" class="table-wrap report-table">
-          <table>
-            <thead>
-              <tr>
-                <th>订单状态</th>
-                <th>数量</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="reportOverview.orderStatusCounts.length === 0">
-                <td colspan="2" class="empty">暂无订单状态统计</td>
-              </tr>
-              <tr v-for="item in reportOverview.orderStatusCounts" :key="item.status">
-                <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
-                <td><strong>{{ formatNumber(item.count) }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="reportOverview" class="table-wrap report-table">
-          <table>
-            <thead>
-              <tr>
-                <th>回调状态</th>
-                <th>数量</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="reportOverview.callbackStatusCounts.length === 0">
-                <td colspan="2" class="empty">暂无回调状态统计</td>
-              </tr>
-              <tr v-for="item in reportOverview.callbackStatusCounts" :key="item.status">
-                <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
-                <td><strong>{{ formatNumber(item.count) }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="reportOverview" class="table-wrap report-table">
-          <table>
-            <thead>
-              <tr>
-                <th>日期</th>
-                <th>新增订单</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="reportOverview.dailyOrderCounts.length === 0">
-                <td colspan="2" class="empty">趋势窗口内暂无订单</td>
-              </tr>
-              <tr v-for="item in reportOverview.dailyOrderCounts" :key="item.day">
-                <td><strong>{{ item.day }}</strong></td>
-                <td><strong>{{ formatNumber(item.count) }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </section>
 
