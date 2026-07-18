@@ -89,9 +89,10 @@ import type {
   ShipmentTraceRecord,
   WorkflowTaskSnapshot,
 } from './api/types';
+import AppLayout from './app/AppLayout.vue';
+import { menuItems, viewTitles, type ViewKey } from './app/views';
 import StatusPill from './components/StatusPill.vue';
 
-type ViewKey = 'reviews' | 'dispenses' | 'rechecks' | 'orders' | 'decoction' | 'ops' | 'logistics' | 'portal' | 'reports' | 'integration';
 type NoticeTone = 'info' | 'success' | 'error';
 type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues' | 'integrationIssues';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
@@ -239,9 +240,6 @@ const hospitalPrescriptionNo = ref('');
 const hospitalQueryPhone = ref('');
 const hospitalOrder = ref<HospitalOrderRecord | null>(null);
 
-const pendingReviewCount = computed(() => reviewTasks.value.length);
-const pendingDispenseCount = computed(() => dispenseTasks.value.length);
-const pendingRecheckCount = computed(() => recheckTasks.value.length);
 const activeWorkflowTasks = computed(() => {
   if (activeView.value === 'reviews') return reviewTasks.value;
   if (activeView.value === 'dispenses') return dispenseTasks.value;
@@ -274,28 +272,17 @@ const activeLogisticsCount = computed(() => {
   return callbackRecords.value.length;
 });
 const activeIntegrationCount = computed(() => integrationMessages.value.length + integrationRetryTasks.value.length);
-const pageEyebrow = computed(() => {
-  if (activeView.value === 'orders') return 'Order Lookup';
-  if (activeView.value === 'portal') return 'Hospital Portal';
-  if (activeView.value === 'reports') return 'Report Overview';
-  if (activeView.value === 'integration') return 'External Integration';
-  if (activeView.value === 'decoction') return 'PDA / MES Simulator';
-  if (activeView.value === 'ops') return 'Ops Diagnostics';
-  if (activeView.value === 'logistics') return 'Logistics / Callback';
-  return 'Workflow Tasks';
-});
-const pageTitle = computed(() => {
-  if (activeView.value === 'reviews') return '审核任务处理';
-  if (activeView.value === 'dispenses') return '调剂任务处理';
-  if (activeView.value === 'rechecks') return '复核任务处理';
-  if (activeView.value === 'decoction') return '煎煮模拟';
-  if (activeView.value === 'ops') return '运维排错';
-  if (activeView.value === 'logistics') return '物流回调';
-  if (activeView.value === 'portal') return '门户查单';
-  if (activeView.value === 'reports') return '报表统计';
-  if (activeView.value === 'integration') return '集成适配';
-  return '订单查询';
-});
+const currentViewTitle = computed(() => viewTitles[activeView.value]);
+const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
+  reviews: reviewTasks.value.length,
+  dispenses: dispenseTasks.value.length,
+  rechecks: recheckTasks.value.length,
+  decoction: activeDecoctionCount.value,
+  logistics: activeLogisticsCount.value,
+  reports: reportOverview.value ? reportOverview.value.totalOrders : 0,
+  integration: activeIntegrationCount.value,
+  ops: activeOpsCount.value,
+}));
 
 const opsDatasetNames: Record<OpsDataset, string> = {
   outbox: 'Outbox',
@@ -1269,86 +1256,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">智</div>
-        <div>
-          <strong>智能药房</strong>
-          <span>SaaS 管理台</span>
-        </div>
-      </div>
-
-      <nav class="nav">
-        <button :class="{ active: activeView === 'reviews' }" type="button" @click="switchView('reviews')">
-          <span>审核任务</span>
-          <b>{{ pendingReviewCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'dispenses' }" type="button" @click="switchView('dispenses')">
-          <span>调剂任务</span>
-          <b>{{ pendingDispenseCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'rechecks' }" type="button" @click="switchView('rechecks')">
-          <span>复核任务</span>
-          <b>{{ pendingRecheckCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'decoction' }" type="button" @click="switchView('decoction')">
-          <span>煎煮模拟</span>
-          <b>{{ activeDecoctionCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'logistics' }" type="button" @click="switchView('logistics')">
-          <span>物流回调</span>
-          <b>{{ activeLogisticsCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'portal' }" type="button" @click="switchView('portal')">
-          <span>门户查单</span>
-        </button>
-        <button :class="{ active: activeView === 'reports' }" type="button" @click="switchView('reports')">
-          <span>报表统计</span>
-          <b>{{ reportOverview ? reportOverview.totalOrders : 0 }}</b>
-        </button>
-        <button :class="{ active: activeView === 'integration' }" type="button" @click="switchView('integration')">
-          <span>集成适配</span>
-          <b>{{ activeIntegrationCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'ops' }" type="button" @click="switchView('ops')">
-          <span>运维排错</span>
-          <b>{{ activeOpsCount }}</b>
-        </button>
-        <button :class="{ active: activeView === 'orders' }" type="button" @click="switchView('orders')">
-          <span>订单查询</span>
-        </button>
-      </nav>
-
-      <div class="service-panel">
-        <span>服务目标</span>
-        <code>order-service :18082</code>
-        <code>workflow-service :18085</code>
-        <code>decoction-service :18087</code>
-        <code>ops-service :18086</code>
-        <code>logistics-service :18088</code>
-        <code>callback-service :18089</code>
-        <code>portal-service :18090</code>
-        <code>report-service :18091</code>
-        <code>integration-service :18092</code>
-      </div>
-    </aside>
-
-    <main class="content">
-      <header class="topbar">
-        <div>
-          <p>{{ pageEyebrow }}</p>
-          <h1>{{ pageTitle }}</h1>
-        </div>
-        <button class="icon-button" type="button" title="刷新当前任务" @click="refreshCurrentTasks">
-          ↻
-        </button>
-      </header>
-
-      <div v-if="notice" class="notice" :class="notice.tone">
-        {{ notice.text }}
-      </div>
-
+  <AppLayout
+    :active-view="activeView"
+    :title="currentViewTitle.title"
+    :subtitle="currentViewTitle.subtitle"
+    :menu-items="menuItems"
+    :counts="menuCounts"
+    :notice="notice"
+    @refresh="refreshCurrentTasks"
+    @switch-view="switchView"
+  >
       <section v-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'" class="workspace">
         <div class="toolbar">
           <label>
@@ -3022,6 +2939,5 @@ onMounted(() => {
           </table>
         </div>
       </section>
-    </main>
-  </div>
+  </AppLayout>
 </template>
