@@ -63,6 +63,7 @@ import { menuItems, viewTitles, type ViewKey } from './app/views';
 import StatusPill from './components/StatusPill.vue';
 import { formatDate } from './domain/formatters';
 import { statusTone } from './domain/status';
+import DashboardHome from './features/dashboard/DashboardHome.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
@@ -72,10 +73,11 @@ type NoticeTone = 'info' | 'success' | 'error';
 type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 
-const activeView = ref<ViewKey>('reviews');
+const activeView = ref<ViewKey>('dashboard');
 
 const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
+const dashboardHomeRef = ref<InstanceType<typeof DashboardHome> | null>(null);
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
@@ -210,6 +212,10 @@ function errorMessage(error: unknown) {
 }
 
 async function refreshCurrentTasks() {
+  if (activeView.value === 'dashboard') {
+    await dashboardHomeRef.value?.refreshDashboard();
+    return;
+  }
   if (activeView.value === 'reviews' || activeView.value === 'dispenses' || activeView.value === 'rechecks') {
     await workflowTasksRef.value?.refreshCurrentTasks();
     return;
@@ -840,9 +846,11 @@ function switchView(view: ViewKey) {
         @notice="showNotice"
       />
 
+      <DashboardHome v-if="activeView === 'dashboard'" ref="dashboardHomeRef" @notice="showNotice" />
+
       <WorkflowTasks
         ref="workflowTasksRef"
-        v-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'"
+        v-else-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'"
         :active-view="activeView"
         @counts-changed="workflowCounts = $event"
         @notice="showNotice"

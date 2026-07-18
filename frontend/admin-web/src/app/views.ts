@@ -1,4 +1,5 @@
 export type ViewKey =
+  | 'dashboard'
   | 'orders'
   | 'reviews'
   | 'dispenses'
@@ -18,6 +19,7 @@ export interface MenuItem {
 }
 
 export const menuItems: MenuItem[] = [
+  { key: 'dashboard', label: '工作台', group: '总览' },
   { key: 'orders', label: '订单中心', group: '核心业务' },
   { key: 'reviews', label: '审核任务', group: '药房作业', showCount: true },
   { key: 'dispenses', label: '调剂任务', group: '药房作业', showCount: true },
@@ -31,6 +33,7 @@ export const menuItems: MenuItem[] = [
 ];
 
 export const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = {
+  dashboard: { title: '工作台', subtitle: '查看核心待处理事项和系统健康概览' },
   orders: { title: '订单中心', subtitle: '查询订单详情、处方和履约进度' },
   reviews: { title: '审核任务', subtitle: '处理待审核订单' },
   dispenses: { title: '调剂任务', subtitle: '处理待调剂处方任务' },
