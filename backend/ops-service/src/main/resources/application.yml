@@ -5,13 +5,13 @@ spring:
   application:
     name: ops-service
   datasource:
-    url: jdbc:postgresql://${ZHYF_DB_HOST:100.115.165.51}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
+    url: jdbc:postgresql://${ZHYF_DB_HOST:47.120.55.53}:${ZHYF_DB_PORT:15432}/${ZHYF_DB_NAME:zhyf_saas}
     username: ${ZHYF_DB_USERNAME:postgres}
-    password: ${ZHYF_DB_PASSWORD:123456}
+    password: ${ZHYF_DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

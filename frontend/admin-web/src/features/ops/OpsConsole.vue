@@ -330,7 +330,7 @@ defineExpose({
           <template v-if="activeOpsDataset === 'outbox'">
             <label>
               <span>状态</span>
-              <input v-model="opsStatus" placeholder="NEW / SENT / FAILED" @keyup.enter="refreshOpsRecords" />
+              <input v-model="opsStatus" placeholder="NEW / PUBLISH_FAILED / DEAD" @keyup.enter="refreshOpsRecords" />
             </label>
             <label>
               <span>事件类型</span>
@@ -416,16 +416,18 @@ defineExpose({
             <thead>
               <tr>
                 <th>事件</th>
+                <th>Topic/Tag</th>
                 <th>聚合对象</th>
                 <th>状态</th>
                 <th>重试</th>
                 <th>下次重试</th>
+                <th>失败原因</th>
                 <th>创建/发布时间</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!opsLoading && outboxRecords.length === 0">
-                <td colspan="6" class="empty">暂无 Outbox 记录</td>
+                <td colspan="8" class="empty">暂无 Outbox 记录</td>
               </tr>
               <tr v-for="record in outboxRecords" :key="record.id">
                 <td>
@@ -433,15 +435,20 @@ defineExpose({
                   <small>{{ record.eventId }}</small>
                 </td>
                 <td>
+                  <strong>{{ record.topic || '-' }}</strong>
+                  <small>{{ record.tag || '-' }}</small>
+                </td>
+                <td>
                   <strong>{{ record.aggregateType }}</strong>
                   <small>{{ record.aggregateId }}</small>
                 </td>
                 <td><StatusPill :value="record.status" :tone="statusTone(record.status)" /></td>
-                <td>{{ record.retryCount }}</td>
+                <td>{{ record.retryCount }} / {{ record.maxRetryCount }}</td>
                 <td>{{ formatDate(record.nextRetryAt) }}</td>
+                <td class="truncate">{{ record.lastError || '-' }}</td>
                 <td>
                   <strong>{{ formatDate(record.createdAt) }}</strong>
-                  <small>{{ formatDate(record.publishedAt) }}</small>
+                  <small>{{ formatDate(record.publishedAt || record.updatedAt) }}</small>
                 </td>
               </tr>
             </tbody>
@@ -454,24 +461,36 @@ defineExpose({
               <tr>
                 <th>消费组</th>
                 <th>事件</th>
+                <th>Topic/Tag</th>
                 <th>消息 ID</th>
                 <th>状态</th>
-                <th>创建时间</th>
+                <th>重试</th>
+                <th>失败原因</th>
+                <th>处理时间</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!opsLoading && messageConsumeRecords.length === 0">
-                <td colspan="5" class="empty">暂无消费日志</td>
+                <td colspan="8" class="empty">暂无消费日志</td>
               </tr>
               <tr v-for="record in messageConsumeRecords" :key="record.id">
                 <td><strong>{{ record.consumerGroup }}</strong></td>
                 <td>
                   <strong>{{ record.eventId }}</strong>
-                  <small>{{ record.id }}</small>
+                  <small>{{ record.aggregateId || record.id }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.topic || '-' }}</strong>
+                  <small>{{ record.tag || '-' }}</small>
                 </td>
                 <td>{{ record.messageId }}</td>
                 <td><StatusPill :value="record.status" :tone="statusTone(record.status)" /></td>
-                <td>{{ formatDate(record.createdAt) }}</td>
+                <td>{{ record.retryCount }}</td>
+                <td class="truncate">{{ record.lastError || '-' }}</td>
+                <td>
+                  <strong>{{ formatDate(record.consumeStartedAt || record.createdAt) }}</strong>
+                  <small>{{ formatDate(record.consumeFinishedAt || record.updatedAt) }}</small>
+                </td>
               </tr>
             </tbody>
           </table>

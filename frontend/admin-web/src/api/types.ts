@@ -210,12 +210,18 @@ export interface EventOutboxRecord {
   tenantId: string;
   eventId: string;
   eventType: string;
+  topic: string | null;
+  tag: string | null;
+  source: string | null;
   aggregateType: string;
   aggregateId: string;
   status: string;
   retryCount: number;
+  maxRetryCount: number;
   nextRetryAt: string | null;
+  lastError: string | null;
   createdAt: string;
+  updatedAt: string;
   publishedAt: string | null;
 }
 
@@ -224,8 +230,17 @@ export interface MessageConsumeRecord {
   consumerGroup: string;
   messageId: string;
   eventId: string;
+  topic: string | null;
+  tag: string | null;
+  aggregateId: string | null;
   status: string;
+  retryCount: number;
+  lastError: string | null;
+  traceEndpoint: string | null;
+  consumeStartedAt: string | null;
+  consumeFinishedAt: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface OrderValidationRecord {

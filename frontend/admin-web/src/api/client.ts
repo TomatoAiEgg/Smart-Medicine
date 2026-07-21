@@ -40,7 +40,7 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new ApiError('服务返回不是 JSON');
   }
 
-  if (payload.code !== '0') {
+  if (payload.code !== 'SUCCESS' && payload.code !== '0') {
     throw new ApiError(payload.message || '业务处理失败', payload.code);
   }
 

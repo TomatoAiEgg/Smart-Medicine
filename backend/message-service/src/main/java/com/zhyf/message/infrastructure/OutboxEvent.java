@@ -6,6 +6,8 @@ public record OutboxEvent(
         UUID id,
         String eventId,
         String eventType,
+        String topic,
+        String tag,
         String aggregateType,
         String aggregateId,
         String payload

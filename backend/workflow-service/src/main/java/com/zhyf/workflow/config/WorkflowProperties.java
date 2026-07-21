@@ -24,7 +24,7 @@ public class WorkflowProperties {
     }
 
     public static class RocketMq {
-        private static final String DEFAULT_NAME_SERVER = "100.115.165.51:9876";
+        private static final String DEFAULT_NAME_SERVER = "47.120.55.53:9876";
         private static final String DEFAULT_CONSUMER_GROUP = "zhyf-workflow-order-consumer";
         private static final String DEFAULT_ORDER_TOPIC = "zhyf-order-event";
 

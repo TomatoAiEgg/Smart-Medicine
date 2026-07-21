@@ -1,7 +1,7 @@
 param(
-    [string]$HostName = "100.115.165.51",
-    [string]$User = "tomatoegg"
+    [string]$HostName = "47.120.55.53",
+    [string]$User = "root"
 )
 
-Write-Warning "This script name is kept for compatibility. Use scripts/start-middleware-tunnel.ps1 for the current old-laptop middleware host."
+Write-Warning "This script name is kept for compatibility. Use scripts/start-middleware-tunnel.ps1 for the current cloud middleware host."
 & "$PSScriptRoot\start-middleware-tunnel.ps1" -HostName $HostName -User $User

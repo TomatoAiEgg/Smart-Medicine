@@ -11,6 +11,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 @ConditionalOnProperty(prefix = "zhyf.message", name = "publisher-type", havingValue = "rocketmq")
@@ -38,7 +39,7 @@ public class RocketMqOutboxPublisher implements OutboxPublisher, InitializingBea
     public void publish(OutboxEvent event) {
         Message message = new Message(
                 resolveTopic(event),
-                event.eventType(),
+                resolveTag(event),
                 event.aggregateId(),
                 event.payload().getBytes(StandardCharsets.UTF_8)
         );
@@ -62,6 +63,10 @@ public class RocketMqOutboxPublisher implements OutboxPublisher, InitializingBea
     }
 
     private String resolveTopic(OutboxEvent event) {
-        return properties.getOrderTopic();
+        return StringUtils.hasText(event.topic()) ? event.topic() : properties.getOrderTopic();
+    }
+
+    private String resolveTag(OutboxEvent event) {
+        return StringUtils.hasText(event.tag()) ? event.tag() : event.eventType();
     }
 }

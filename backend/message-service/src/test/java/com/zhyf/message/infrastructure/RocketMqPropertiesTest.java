@@ -15,7 +15,7 @@ class RocketMqPropertiesTest {
         properties.setConsumerGroup(null);
         properties.setOrderTopic("");
 
-        assertThat(properties.getNameServer()).isEqualTo("100.115.165.51:9876");
+        assertThat(properties.getNameServer()).isEqualTo("47.120.55.53:9876");
         assertThat(properties.getProducerGroup()).isEqualTo("zhyf-message-producer");
         assertThat(properties.getConsumerGroup()).isEqualTo("zhyf-message-order-consumer");
         assertThat(properties.getOrderTopic()).isEqualTo("zhyf-order-event");

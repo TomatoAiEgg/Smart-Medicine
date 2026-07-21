@@ -30,7 +30,7 @@ public class InstitutionAppClient {
         if (response == null) {
             throw new BusinessException("AUTH_EMPTY_RESPONSE", "机构配置服务无响应");
         }
-        if (!"0".equals(response.code())) {
+        if (!response.success()) {
             throw new BusinessException(response.code(), response.message());
         }
         return response.data();

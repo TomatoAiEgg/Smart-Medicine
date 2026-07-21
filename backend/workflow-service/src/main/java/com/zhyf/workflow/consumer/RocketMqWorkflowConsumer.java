@@ -69,8 +69,12 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
                 log.warn("skip workflow message without eventId msgId={} topic={}", message.getMsgId(), message.getTopic());
                 continue;
             }
-            if (!beginProcessing(eventId, message.getMsgId())) {
+            BeginResult beginResult = beginProcessing(eventId, message);
+            if (beginResult == BeginResult.SKIP) {
                 continue;
+            }
+            if (beginResult == BeginResult.RETRY_LATER) {
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
             try {
                 orderCreatedWorkflowService.createReviewTaskIfValidationPassed(
@@ -80,7 +84,12 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
                 );
                 consumeRepository.markSuccess(properties.getRocketmq().getConsumerGroup(), eventId, message.getMsgId());
             } catch (RuntimeException ex) {
-                consumeRepository.markFailed(properties.getRocketmq().getConsumerGroup(), eventId, message.getMsgId());
+                consumeRepository.markFailedRetryable(
+                        properties.getRocketmq().getConsumerGroup(),
+                        eventId,
+                        message.getMsgId(),
+                        ex.getMessage()
+                );
                 log.error("workflow consume ORDER_CREATED failed eventId={} msgId={}", eventId, message.getMsgId(), ex);
                 return ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
@@ -95,15 +104,39 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
         }
     }
 
-    private boolean beginProcessing(String eventId, String messageId) {
+    private BeginResult beginProcessing(String eventId, MessageExt message) {
         String consumerGroup = properties.getRocketmq().getConsumerGroup();
-        if (!consumeRepository.tryBegin(consumerGroup, eventId, messageId)) {
+        String aggregateId = message.getUserProperty("aggregateId");
+        if (!consumeRepository.tryBegin(
+                consumerGroup,
+                eventId,
+                message.getMsgId(),
+                message.getTopic(),
+                message.getTags(),
+                aggregateId
+        )) {
             String status = consumeRepository.findStatus(consumerGroup, eventId).orElse("UNKNOWN");
-            if ("SUCCESS".equalsIgnoreCase(status) || "PROCESSING".equalsIgnoreCase(status)) {
-                return false;
+            if ("SUCCESS".equalsIgnoreCase(status)
+                    || "SKIPPED".equalsIgnoreCase(status)
+                    || "DEAD".equalsIgnoreCase(status)
+                    || "FAILED_FATAL".equalsIgnoreCase(status)) {
+                return BeginResult.SKIP;
             }
-            return consumeRepository.markProcessing(consumerGroup, eventId, messageId) > 0;
+            return consumeRepository.markProcessing(
+                    consumerGroup,
+                    eventId,
+                    message.getMsgId(),
+                    message.getTopic(),
+                    message.getTags(),
+                    aggregateId
+            ) > 0 ? BeginResult.PROCESS : BeginResult.RETRY_LATER;
         }
-        return consumeRepository.markProcessing(consumerGroup, eventId, messageId) > 0;
+        return BeginResult.PROCESS;
+    }
+
+    private enum BeginResult {
+        PROCESS,
+        SKIP,
+        RETRY_LATER
     }
 }

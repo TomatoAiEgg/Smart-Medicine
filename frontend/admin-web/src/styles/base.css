@@ -346,6 +346,13 @@ td small {
   word-break: break-all;
 }
 
+td.truncate {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .right,
 .actions {
   text-align: right;

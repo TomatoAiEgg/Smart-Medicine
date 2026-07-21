@@ -68,19 +68,31 @@ public class RocketMqEventConsumer implements InitializingBean, DisposableBean, 
                 continue;
             }
 
-            if (!consumeRepository.tryBegin(properties.getConsumerGroup(), eventId, message.getMsgId())) {
+            if (!consumeRepository.tryBegin(
+                    properties.getConsumerGroup(),
+                    eventId,
+                    message.getMsgId(),
+                    message.getTopic(),
+                    eventType,
+                    aggregateId
+            )) {
                 String status = consumeRepository.findStatus(properties.getConsumerGroup(), eventId).orElse("UNKNOWN");
-                if ("SUCCESS".equalsIgnoreCase(status)) {
+                if ("SUCCESS".equalsIgnoreCase(status)
+                        || "SKIPPED".equalsIgnoreCase(status)
+                        || "DEAD".equalsIgnoreCase(status)
+                        || "FAILED_FATAL".equalsIgnoreCase(status)) {
                     continue;
                 }
-                if ("PROCESSING".equalsIgnoreCase(status)) {
-                    continue;
+                if (consumeRepository.markProcessing(
+                        properties.getConsumerGroup(),
+                        eventId,
+                        message.getMsgId(),
+                        message.getTopic(),
+                        eventType,
+                        aggregateId
+                ) == 0) {
+                    return ConsumeConcurrentlyStatus.RECONSUME_LATER;
                 }
-                if (consumeRepository.markProcessing(properties.getConsumerGroup(), eventId, message.getMsgId()) == 0) {
-                    continue;
-                }
-            } else if (consumeRepository.markProcessing(properties.getConsumerGroup(), eventId, message.getMsgId()) == 0) {
-                continue;
             }
 
             MessageEvent event = new MessageEvent(
@@ -93,10 +105,16 @@ public class RocketMqEventConsumer implements InitializingBean, DisposableBean, 
             );
 
             try {
-                dispatch(event);
-                consumeRepository.markSuccess(properties.getConsumerGroup(), eventId, message.getMsgId());
+                if (dispatch(event)) {
+                    consumeRepository.markSuccess(properties.getConsumerGroup(), eventId, message.getMsgId());
+                }
             } catch (RuntimeException ex) {
-                consumeRepository.markFailed(properties.getConsumerGroup(), eventId, message.getMsgId());
+                consumeRepository.markFailedRetryable(
+                        properties.getConsumerGroup(),
+                        eventId,
+                        message.getMsgId(),
+                        ex.getMessage()
+                );
                 log.error("consume rocketmq message failed eventId={} msgId={}", eventId, message.getMsgId(), ex);
                 return ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
@@ -111,15 +129,17 @@ public class RocketMqEventConsumer implements InitializingBean, DisposableBean, 
         }
     }
 
-    private void dispatch(MessageEvent event) {
+    private boolean dispatch(MessageEvent event) {
         Optional<MessageEventHandler> handler = handlers.stream()
                 .filter(candidate -> candidate.supports(event.eventType()))
                 .findFirst();
         if (handler.isEmpty()) {
             log.info("no handler for eventType={} eventId={} aggregateId={}",
                     event.eventType(), event.eventId(), event.aggregateId());
-            return;
+            consumeRepository.markSkipped(properties.getConsumerGroup(), event.eventId(), event.messageId());
+            return false;
         }
         handler.get().handle(event);
+        return true;
     }
 }

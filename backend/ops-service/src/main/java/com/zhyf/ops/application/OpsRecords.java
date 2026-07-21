@@ -13,12 +13,18 @@ public final class OpsRecords {
             UUID tenantId,
             String eventId,
             String eventType,
+            String topic,
+            String tag,
+            String source,
             String aggregateType,
             String aggregateId,
             String status,
             int retryCount,
+            int maxRetryCount,
             Instant nextRetryAt,
+            String lastError,
             Instant createdAt,
+            Instant updatedAt,
             Instant publishedAt
     ) {
     }
@@ -28,8 +34,17 @@ public final class OpsRecords {
             String consumerGroup,
             String messageId,
             String eventId,
+            String topic,
+            String tag,
+            String aggregateId,
             String status,
-            Instant createdAt
+            int retryCount,
+            String lastError,
+            String traceEndpoint,
+            Instant consumeStartedAt,
+            Instant consumeFinishedAt,
+            Instant createdAt,
+            Instant updatedAt
     ) {
     }
 

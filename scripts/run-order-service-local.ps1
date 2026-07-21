@@ -1,5 +1,5 @@
 param(
-    [string]$DbHost = "100.115.165.51",
+    [string]$DbHost = "47.120.55.53",
     [string]$DbPort = "15432",
     [string]$DbName = "zhyf_saas",
     [string]$DbUsername = "postgres"

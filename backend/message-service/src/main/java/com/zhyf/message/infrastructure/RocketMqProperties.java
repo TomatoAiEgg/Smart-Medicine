@@ -6,7 +6,7 @@ import org.springframework.util.StringUtils;
 @ConfigurationProperties(prefix = "zhyf.message.rocketmq")
 public class RocketMqProperties {
 
-    private static final String DEFAULT_NAME_SERVER = "100.115.165.51:9876";
+    private static final String DEFAULT_NAME_SERVER = "47.120.55.53:9876";
     private static final String DEFAULT_PRODUCER_GROUP = "zhyf-message-producer";
     private static final String DEFAULT_CONSUMER_GROUP = "zhyf-message-order-consumer";
     private static final String DEFAULT_ORDER_TOPIC = "zhyf-order-event";

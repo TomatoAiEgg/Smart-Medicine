@@ -31,7 +31,7 @@ public class CallbackClient {
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {
                     });
-            if (response == null || !"0".equals(response.code())) {
+            if (response == null || !response.success()) {
                 log.warn("callback record create failed orderId={} callbackType={} businessId={} response={}",
                         orderId, callbackType, businessId, response);
             }

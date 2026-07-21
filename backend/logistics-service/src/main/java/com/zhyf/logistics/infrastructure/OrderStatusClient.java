@@ -30,7 +30,7 @@ public class OrderStatusClient {
         if (response == null) {
             throw new BusinessException("ORDER_SERVICE_EMPTY_RESPONSE", "Order service returned empty response");
         }
-        if (!"0".equals(response.code())) {
+        if (!response.success()) {
             throw new BusinessException(response.code(), response.message());
         }
     }

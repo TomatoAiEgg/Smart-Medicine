@@ -16,7 +16,7 @@ class WorkflowPropertiesTest {
         properties.getRocketmq().setOrderTopic("");
 
         assertThat(properties.getOrderServiceBaseUrl()).isEqualTo("http://localhost:18082");
-        assertThat(properties.getRocketmq().getNameServer()).isEqualTo("100.115.165.51:9876");
+        assertThat(properties.getRocketmq().getNameServer()).isEqualTo("47.120.55.53:9876");
         assertThat(properties.getRocketmq().getConsumerGroup()).isEqualTo("zhyf-workflow-order-consumer");
         assertThat(properties.getRocketmq().getOrderTopic()).isEqualTo("zhyf-order-event");
     }

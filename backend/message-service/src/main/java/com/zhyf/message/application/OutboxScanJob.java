@@ -29,13 +29,16 @@ public class OutboxScanJob {
         if (!enabled) {
             return;
         }
-        List<OutboxEvent> events = outboxRepository.fetchNewEvents(20);
+        List<OutboxEvent> events = outboxRepository.fetchPublishableEvents(20);
         for (OutboxEvent event : events) {
+            if (!outboxRepository.markPublishing(event.id())) {
+                continue;
+            }
             try {
                 outboxPublisher.publish(event);
-                outboxRepository.markSent(event.id());
+                outboxRepository.markPublished(event.id());
             } catch (RuntimeException ex) {
-                outboxRepository.markFailed(event.id());
+                outboxRepository.markPublishFailed(event.id(), ex.getMessage());
             }
         }
     }

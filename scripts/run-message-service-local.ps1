@@ -1,9 +1,9 @@
 param(
-    [string]$DbHost = "100.115.165.51",
+    [string]$DbHost = "47.120.55.53",
     [string]$DbPort = "15432",
     [string]$DbName = "zhyf_saas",
     [string]$DbUsername = "postgres",
-    [string]$RocketMqNameServer = "100.115.165.51:9876"
+    [string]$RocketMqNameServer = "47.120.55.53:9876"
 )
 
 $env:JAVA_HOME = "D:\Javasource\javaTools\jdk-21.0.10"

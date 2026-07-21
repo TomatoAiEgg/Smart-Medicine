@@ -23,8 +23,9 @@ public class OpsQueryRepository {
 
     public List<OpsRecords.EventOutboxRecord> findEventOutbox(String status, String eventType, int limit) {
         QueryParts query = new QueryParts("""
-                select id, tenant_id, event_id, event_type, aggregate_type, aggregate_id, status,
-                       retry_count, next_retry_at, created_at, published_at
+                select id, tenant_id, event_id, event_type, topic, tag, source,
+                       aggregate_type, aggregate_id, status, retry_count, max_retry_count,
+                       next_retry_at, last_error, created_at, updated_at, published_at
                 from event_outbox
                 where 1 = 1
                 """);
@@ -42,7 +43,9 @@ public class OpsQueryRepository {
             int limit
     ) {
         QueryParts query = new QueryParts("""
-                select id, consumer_group, message_id, event_id, status, created_at
+                select id, consumer_group, message_id, event_id, topic, tag, aggregate_id,
+                       status, retry_count, last_error, trace_endpoint,
+                       consume_started_at, consume_finished_at, created_at, updated_at
                 from message_consume_log
                 where 1 = 1
                 """);
@@ -198,8 +201,8 @@ public class OpsQueryRepository {
         return new OpsRecords.OpsHealthOverview(
                 recentHours,
                 countByStatus("event_outbox", "status", "NEW"),
-                countByStatus("event_outbox", "status", "FAILED"),
-                countByStatus("message_consume_log", "status", "FAILED"),
+                countByStatus("event_outbox", "status", "PUBLISH_FAILED"),
+                countByStatuses("message_consume_log", "status", List.of("FAILED_RETRYABLE", "FAILED_FATAL", "DEAD")),
                 countByStatus("order_validation_record", "validation_status", "REJECTED"),
                 countByStatus("callback_record", "status", "FAILED"),
                 countByStatus("callback_record", "status", "DEAD"),
@@ -212,6 +215,13 @@ public class OpsQueryRepository {
     private long countByStatus(String table, String statusColumn, String status) {
         String sql = "select count(*) from " + table + " where " + statusColumn + " = ?";
         Long value = jdbcTemplate.queryForObject(sql, Long.class, status);
+        return value == null ? 0 : value;
+    }
+
+    private long countByStatuses(String table, String statusColumn, List<String> statuses) {
+        String placeholders = String.join(",", statuses.stream().map(ignored -> "?").toList());
+        String sql = "select count(*) from " + table + " where " + statusColumn + " in (" + placeholders + ")";
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, statuses.toArray());
         return value == null ? 0 : value;
     }
 
@@ -231,12 +241,18 @@ public class OpsQueryRepository {
                 rs.getObject("tenant_id", UUID.class),
                 rs.getString("event_id"),
                 rs.getString("event_type"),
+                rs.getString("topic"),
+                rs.getString("tag"),
+                rs.getString("source"),
                 rs.getString("aggregate_type"),
                 rs.getString("aggregate_id"),
                 rs.getString("status"),
                 rs.getInt("retry_count"),
+                rs.getInt("max_retry_count"),
                 instant(rs, "next_retry_at"),
+                rs.getString("last_error"),
                 instant(rs, "created_at"),
+                instant(rs, "updated_at"),
                 instant(rs, "published_at")
         );
     }
@@ -247,8 +263,17 @@ public class OpsQueryRepository {
                 rs.getString("consumer_group"),
                 rs.getString("message_id"),
                 rs.getString("event_id"),
+                rs.getString("topic"),
+                rs.getString("tag"),
+                rs.getString("aggregate_id"),
                 rs.getString("status"),
-                instant(rs, "created_at")
+                rs.getInt("retry_count"),
+                rs.getString("last_error"),
+                rs.getString("trace_endpoint"),
+                instant(rs, "consume_started_at"),
+                instant(rs, "consume_finished_at"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
         );
     }
 

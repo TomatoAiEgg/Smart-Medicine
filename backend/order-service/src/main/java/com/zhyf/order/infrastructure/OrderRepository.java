@@ -18,6 +18,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class OrderRepository {
 
+    private static final String OUTBOX_TOPIC = "zhyf-order-event";
+    private static final String OUTBOX_SOURCE = "order-service";
+
     private final JdbcTemplate jdbcTemplate;
 
     public OrderRepository(JdbcTemplate jdbcTemplate) {
@@ -369,10 +372,22 @@ public class OrderRepository {
     ) {
         String sql = """
                 insert into event_outbox (
-                    id, tenant_id, event_id, event_type, aggregate_type, aggregate_id, payload, status
-                ) values (?, ?, ?, ?, ?, ?, ?::jsonb, 'NEW')
+                    id, tenant_id, event_id, event_type, aggregate_type, aggregate_id, topic, tag, source, payload, status
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'NEW')
                 """;
-        jdbcTemplate.update(sql, id, tenantId, eventId, eventType, aggregateType, aggregateId, payload);
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                eventId,
+                eventType,
+                aggregateType,
+                aggregateId,
+                OUTBOX_TOPIC,
+                eventType,
+                OUTBOX_SOURCE,
+                payload
+        );
     }
 
     private InstitutionApp mapInstitutionApp(ResultSet rs, int rowNum) throws SQLException {
