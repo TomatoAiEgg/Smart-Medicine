@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -64,6 +65,40 @@ class OpsQueryRepositoryTest {
         assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from message_consume_log"));
         assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from callback_record"));
         assertThat(sqlCaptor.getAllValues()).anyMatch(sql -> sql.contains("from integration_retry_task"));
+    }
+
+    @Test
+    void shouldQueryOpenDeadLettersByDefault() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findDeadLetters(null, "zhyf-order-event", "event-1", 50);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from dead_letter_record");
+        assertThat(sql).contains("status = ?");
+        assertThat(sql).contains("topic = ?");
+        assertThat(sql).contains("event_id = ?");
+        assertThat(args).containsExactly("OPEN", "zhyf-order-event", "event-1", 50);
+    }
+
+    @Test
+    void shouldResetOutboxWhenReplayDeadLetter() {
+        UUID id = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), org.mockito.ArgumentMatchers.eq(Long.class), any(Object[].class)))
+                .thenReturn(1L);
+
+        int resetCount = repository.resetDeadLetterForReplay(id);
+
+        assertThat(resetCount).isEqualTo(1);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).queryForObject(
+                sqlCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq(Long.class),
+                any(Object[].class)
+        );
+        assertThat(sqlCaptor.getValue()).contains("update event_outbox");
+        assertThat(sqlCaptor.getValue()).contains("update message_consume_log");
     }
 
     private String capturedSql() {

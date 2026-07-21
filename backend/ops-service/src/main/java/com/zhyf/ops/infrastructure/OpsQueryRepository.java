@@ -57,6 +57,104 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapMessageConsumeRecord, query.args());
     }
 
+    public List<OpsRecords.DeadLetterRecord> findDeadLetters(
+            String status,
+            String topic,
+            String eventId,
+            int limit
+    ) {
+        QueryParts query = new QueryParts("""
+                select id, event_id, topic, tag, consumer_group, aggregate_id,
+                       error_message, retry_count, status, operator, remark,
+                       created_at, updated_at
+                from dead_letter_record
+                where 1 = 1
+                """);
+        if (StringUtils.hasText(status)) {
+            query.addTextFilter("status", status);
+        } else {
+            query.addTextFilter("status", "OPEN");
+        }
+        query.addTextFilter("topic", topic);
+        query.addTextFilter("event_id", eventId);
+        query.append(" order by updated_at desc, created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapDeadLetterRecord, query.args());
+    }
+
+    public List<OpsRecords.DeadLetterRecord> findDeadLetterById(UUID id) {
+        String sql = """
+                select id, event_id, topic, tag, consumer_group, aggregate_id,
+                       error_message, retry_count, status, operator, remark,
+                       created_at, updated_at
+                from dead_letter_record
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapDeadLetterRecord, id);
+    }
+
+    public int resetDeadLetterForReplay(UUID id) {
+        String sql = """
+                with target as (
+                    select event_id, consumer_group
+                    from dead_letter_record
+                    where id = ? and status = 'OPEN'
+                ),
+                outbox_reset as (
+                    update event_outbox o
+                    set status = 'NEW',
+                        retry_count = 0,
+                        next_retry_at = now(),
+                        last_error = null,
+                        published_at = null,
+                        updated_at = now()
+                    from target t
+                    where o.event_id = t.event_id
+                    returning 1
+                ),
+                consume_reset as (
+                    update message_consume_log m
+                    set status = 'FAILED_RETRYABLE',
+                        retry_count = 0,
+                        last_error = null,
+                        consume_started_at = null,
+                        consume_finished_at = null,
+                        updated_at = now()
+                    from target t
+                    where m.event_id = t.event_id
+                      and (t.consumer_group is null or m.consumer_group = t.consumer_group)
+                    returning 1
+                )
+                select count(*) from outbox_reset
+                """;
+        Long value = jdbcTemplate.queryForObject(sql, Long.class, id);
+        return value == null ? 0 : value.intValue();
+    }
+
+    public int markDeadLetterReplayed(UUID id, String operator, String remark) {
+        String sql = """
+                update dead_letter_record
+                set status = 'REPLAYED',
+                    operator = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ? and status = 'OPEN'
+                """;
+        return jdbcTemplate.update(sql, operator, remark, id);
+    }
+
+    public int closeDeadLetter(UUID id, String operator, String remark) {
+        String sql = """
+                update dead_letter_record
+                set status = 'CLOSED',
+                    operator = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ? and status = 'OPEN'
+                """;
+        return jdbcTemplate.update(sql, operator, remark, id);
+    }
+
     public List<OpsRecords.OrderValidationRecord> findOrderValidationRecords(
             UUID orderId,
             String validationStatus,
@@ -272,6 +370,24 @@ public class OpsQueryRepository {
                 rs.getString("trace_endpoint"),
                 instant(rs, "consume_started_at"),
                 instant(rs, "consume_finished_at"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private OpsRecords.DeadLetterRecord mapDeadLetterRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.DeadLetterRecord(
+                rs.getObject("id", UUID.class),
+                rs.getString("event_id"),
+                rs.getString("topic"),
+                rs.getString("tag"),
+                rs.getString("consumer_group"),
+                rs.getString("aggregate_id"),
+                rs.getString("error_message"),
+                rs.getInt("retry_count"),
+                rs.getString("status"),
+                rs.getString("operator"),
+                rs.getString("remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

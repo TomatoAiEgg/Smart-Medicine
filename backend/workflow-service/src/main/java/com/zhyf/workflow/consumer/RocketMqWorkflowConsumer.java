@@ -76,22 +76,27 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
             if (beginResult == BeginResult.RETRY_LATER) {
                 return ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
+            String payload = new String(message.getBody(), StandardCharsets.UTF_8);
             try {
                 orderCreatedWorkflowService.createReviewTaskIfValidationPassed(
                         eventId,
                         aggregateId,
-                        new String(message.getBody(), StandardCharsets.UTF_8)
+                        payload
                 );
                 consumeRepository.markSuccess(properties.getRocketmq().getConsumerGroup(), eventId, message.getMsgId());
             } catch (RuntimeException ex) {
-                consumeRepository.markFailedRetryable(
+                boolean dead = consumeRepository.markFailedRetryable(
                         properties.getRocketmq().getConsumerGroup(),
                         eventId,
                         message.getMsgId(),
+                        message.getTopic(),
+                        message.getTags(),
+                        aggregateId,
+                        payload,
                         ex.getMessage()
                 );
                 log.error("workflow consume ORDER_CREATED failed eventId={} msgId={}", eventId, message.getMsgId(), ex);
-                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+                return dead ? ConsumeConcurrentlyStatus.CONSUME_SUCCESS : ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
         }
         return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;

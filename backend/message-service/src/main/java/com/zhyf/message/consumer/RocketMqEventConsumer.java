@@ -95,13 +95,14 @@ public class RocketMqEventConsumer implements InitializingBean, DisposableBean, 
                 }
             }
 
+            String payload = new String(message.getBody(), java.nio.charset.StandardCharsets.UTF_8);
             MessageEvent event = new MessageEvent(
                     eventId,
                     eventType,
                     aggregateType,
                     aggregateId,
                     message.getMsgId(),
-                    new String(message.getBody(), java.nio.charset.StandardCharsets.UTF_8)
+                    payload
             );
 
             try {
@@ -109,14 +110,18 @@ public class RocketMqEventConsumer implements InitializingBean, DisposableBean, 
                     consumeRepository.markSuccess(properties.getConsumerGroup(), eventId, message.getMsgId());
                 }
             } catch (RuntimeException ex) {
-                consumeRepository.markFailedRetryable(
+                boolean dead = consumeRepository.markFailedRetryable(
                         properties.getConsumerGroup(),
                         eventId,
                         message.getMsgId(),
+                        message.getTopic(),
+                        eventType,
+                        aggregateId,
+                        payload,
                         ex.getMessage()
                 );
                 log.error("consume rocketmq message failed eventId={} msgId={}", eventId, message.getMsgId(), ex);
-                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+                return dead ? ConsumeConcurrentlyStatus.CONSUME_SUCCESS : ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
         }
         return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;

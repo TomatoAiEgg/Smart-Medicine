@@ -1,9 +1,12 @@
 package com.zhyf.ops.application;
 
+import com.zhyf.common.exception.BusinessException;
 import com.zhyf.ops.infrastructure.OpsQueryRepository;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class OpsQueryService {
@@ -30,6 +33,60 @@ public class OpsQueryService {
             int limit
     ) {
         return repository.findMessageConsumeLogs(status, consumerGroup, eventId, normalizeLimit(limit));
+    }
+
+    public List<OpsRecords.DeadLetterRecord> listDeadLetters(String status, String topic, String eventId, int limit) {
+        return repository.findDeadLetters(status, topic, eventId, normalizeLimit(limit));
+    }
+
+    @Transactional
+    public OpsRecords.DeadLetterOperationResult replayDeadLetter(UUID id, String operator, String remark) {
+        OpsRecords.DeadLetterRecord record = findDeadLetter(id);
+        if (!"OPEN".equals(record.status())) {
+            throw new BusinessException("DEAD_LETTER_STATUS_INVALID", "Only OPEN dead letter can be replayed");
+        }
+        int outboxResetCount = repository.resetDeadLetterForReplay(id);
+        if (outboxResetCount == 0) {
+            throw new BusinessException("DEAD_LETTER_OUTBOX_NOT_FOUND", "Outbox event not found for replay");
+        }
+        int updated = repository.markDeadLetterReplayed(
+                id,
+                normalizedOperator(operator),
+                normalizedRemark(remark, "manual replay")
+        );
+        if (updated == 0) {
+            throw new BusinessException("DEAD_LETTER_STATUS_INVALID", "Dead letter status changed");
+        }
+        return new OpsRecords.DeadLetterOperationResult(
+                record.id(),
+                record.eventId(),
+                "REPLAYED",
+                outboxResetCount,
+                "Dead letter replay submitted"
+        );
+    }
+
+    @Transactional
+    public OpsRecords.DeadLetterOperationResult closeDeadLetter(UUID id, String operator, String remark) {
+        OpsRecords.DeadLetterRecord record = findDeadLetter(id);
+        if (!"OPEN".equals(record.status())) {
+            throw new BusinessException("DEAD_LETTER_STATUS_INVALID", "Only OPEN dead letter can be closed");
+        }
+        int updated = repository.closeDeadLetter(
+                id,
+                normalizedOperator(operator),
+                normalizedRemark(remark, "manual close")
+        );
+        if (updated == 0) {
+            throw new BusinessException("DEAD_LETTER_STATUS_INVALID", "Dead letter status changed");
+        }
+        return new OpsRecords.DeadLetterOperationResult(
+                record.id(),
+                record.eventId(),
+                "CLOSED",
+                0,
+                "Dead letter closed"
+        );
     }
 
     public List<OpsRecords.OrderValidationRecord> listOrderValidationRecords(
@@ -92,5 +149,19 @@ public class OpsQueryService {
             return DEFAULT_HEALTH_HOURS;
         }
         return Math.min(recentHours, MAX_HEALTH_HOURS);
+    }
+
+    private OpsRecords.DeadLetterRecord findDeadLetter(UUID id) {
+        return repository.findDeadLetterById(id).stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("DEAD_LETTER_NOT_FOUND", "Dead letter not found"));
+    }
+
+    private String normalizedOperator(String operator) {
+        return StringUtils.hasText(operator) ? operator.trim() : "admin-console";
+    }
+
+    private String normalizedRemark(String remark, String defaultRemark) {
+        return StringUtils.hasText(remark) ? remark.trim() : defaultRemark;
     }
 }

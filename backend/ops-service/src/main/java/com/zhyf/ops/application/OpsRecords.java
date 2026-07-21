@@ -48,6 +48,32 @@ public final class OpsRecords {
     ) {
     }
 
+    public record DeadLetterRecord(
+            UUID id,
+            String eventId,
+            String topic,
+            String tag,
+            String consumerGroup,
+            String aggregateId,
+            String errorMessage,
+            int retryCount,
+            String status,
+            String operator,
+            String remark,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record DeadLetterOperationResult(
+            UUID id,
+            String eventId,
+            String status,
+            int outboxResetCount,
+            String message
+    ) {
+    }
+
     public record OrderValidationRecord(
             UUID id,
             UUID tenantId,

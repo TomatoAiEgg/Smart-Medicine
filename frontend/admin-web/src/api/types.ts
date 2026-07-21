@@ -243,6 +243,30 @@ export interface MessageConsumeRecord {
   updatedAt: string;
 }
 
+export interface DeadLetterRecord {
+  id: string;
+  eventId: string;
+  topic: string | null;
+  tag: string | null;
+  consumerGroup: string | null;
+  aggregateId: string | null;
+  errorMessage: string | null;
+  retryCount: number;
+  status: string;
+  operator: string | null;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeadLetterOperationResult {
+  id: string;
+  eventId: string;
+  status: string;
+  outboxResetCount: number;
+  message: string;
+}
+
 export interface OrderValidationRecord {
   id: string;
   tenantId: string;

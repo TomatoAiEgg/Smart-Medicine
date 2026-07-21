@@ -2,16 +2,20 @@
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import {
+  closeDeadLetter,
   getOpsHealthOverview,
   listApiAccessLogs,
+  listDeadLetters,
   listIntegrationRetryIssues,
   listLogisticsCallbackIssues as listCallbackIssues,
   listMessageConsumeLogs as listMessageConsumes,
   listOrderValidationRecords as listOrderValidations,
   listOutbox,
+  replayDeadLetter,
 } from '../../api/ops';
 import type {
   ApiAccessLogRecord,
+  DeadLetterRecord,
   EventOutboxRecord as OutboxEventRecord,
   IntegrationRetryIssueRecord as IntegrationRetryTaskRecord,
   LogisticsCallbackIssueRecord as CallbackRecord,
@@ -24,7 +28,14 @@ import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type OpsDataset = 'outbox' | 'consume' | 'validation' | 'access' | 'callbackIssues' | 'integrationIssues';
+type OpsDataset =
+  | 'outbox'
+  | 'consume'
+  | 'deadLetters'
+  | 'validation'
+  | 'access'
+  | 'callbackIssues'
+  | 'integrationIssues';
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -44,6 +55,7 @@ const opsHealthError = ref('');
 const opsLimit = ref(50);
 const opsHealthHours = ref(24);
 const opsStatus = ref('');
+const opsDeadLetterTopic = ref('');
 const opsEventType = ref('');
 const opsConsumerGroup = ref('');
 const opsEventId = ref('');
@@ -61,6 +73,7 @@ const opsIntegrationBusinessKey = ref('');
 const opsIntegrationSourceSystem = ref('');
 const outboxRecords = ref<OutboxEventRecord[]>([]);
 const messageConsumeRecords = ref<MessageConsumeRecord[]>([]);
+const deadLetterRecords = ref<DeadLetterRecord[]>([]);
 const orderValidationRecords = ref<OrderValidationRecord[]>([]);
 const apiAccessLogRecords = ref<ApiAccessLogRecord[]>([]);
 const logisticsCallbackIssueRecords = ref<CallbackRecord[]>([]);
@@ -70,6 +83,7 @@ const opsRecordsRequestId = ref(0);
 
 const opsDatasetNames: Record<OpsDataset, string> = {
   outbox: 'Outbox',
+  deadLetters: 'Dead Letter',
   consume: '消费日志',
   validation: '订单校验',
   access: '访问日志',
@@ -79,6 +93,7 @@ const opsDatasetNames: Record<OpsDataset, string> = {
 
 function datasetCount(dataset: OpsDataset) {
   if (dataset === 'outbox') return outboxRecords.value.length;
+  if (dataset === 'deadLetters') return deadLetterRecords.value.length;
   if (dataset === 'consume') return messageConsumeRecords.value.length;
   if (dataset === 'validation') return orderValidationRecords.value.length;
   if (dataset === 'access') return apiAccessLogRecords.value.length;
@@ -143,6 +158,13 @@ async function refreshOpsRecords() {
         eventId: opsEventId.value,
         limit,
       });
+    } else if (dataset === 'deadLetters') {
+      deadLetterRecords.value = await listDeadLetters({
+        status: opsStatus.value,
+        topic: opsDeadLetterTopic.value,
+        eventId: opsEventId.value,
+        limit,
+      });
     } else if (dataset === 'validation') {
       orderValidationRecords.value = await listOrderValidations({
         orderId: opsOrderId.value,
@@ -188,6 +210,7 @@ async function refreshOpsRecords() {
 
 function hasDatasetRecords(dataset: OpsDataset) {
   if (dataset === 'outbox') return outboxRecords.value.length > 0;
+  if (dataset === 'deadLetters') return deadLetterRecords.value.length > 0;
   if (dataset === 'consume') return messageConsumeRecords.value.length > 0;
   if (dataset === 'validation') return orderValidationRecords.value.length > 0;
   if (dataset === 'access') return apiAccessLogRecords.value.length > 0;
@@ -202,6 +225,26 @@ function switchOpsDataset(dataset: OpsDataset) {
 
 async function refreshOpsConsole() {
   await Promise.all([refreshOpsHealth(), refreshOpsRecords()]);
+}
+
+async function handleDeadLetterAction(record: DeadLetterRecord, action: 'replay' | 'close') {
+  opsLoading.value = true;
+  opsError.value = '';
+  const body = {
+    operator: 'admin-console',
+    remark: action === 'replay' ? 'manual replay from ops console' : 'manual close from ops console',
+  };
+  try {
+    const result = action === 'replay'
+      ? await replayDeadLetter(record.id, body)
+      : await closeDeadLetter(record.id, body);
+    emit('notice', 'success', `${result.eventId} ${result.status}`);
+    await Promise.all([refreshOpsHealth(), refreshOpsRecords()]);
+  } catch (error) {
+    opsError.value = errorMessage(error);
+  } finally {
+    opsLoading.value = false;
+  }
 }
 
 watch(activeOpsCount, (count) => emit('countChanged', count), { immediate: true });
@@ -237,6 +280,14 @@ defineExpose({
             @click="switchOpsDataset('consume')"
           >
             消费日志
+          </button>
+          <button
+            class="secondary"
+            :class="{ active: activeOpsDataset === 'deadLetters' }"
+            type="button"
+            @click="switchOpsDataset('deadLetters')"
+          >
+            死信
           </button>
           <button
             class="secondary"
@@ -345,6 +396,20 @@ defineExpose({
             <label>
               <span>消费组</span>
               <input v-model="opsConsumerGroup" placeholder="consumer group" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label class="grow">
+              <span>事件 ID</span>
+              <input v-model="opsEventId" placeholder="eventId" @keyup.enter="refreshOpsRecords" />
+            </label>
+          </template>
+          <template v-else-if="activeOpsDataset === 'deadLetters'">
+            <label>
+              <span>状态</span>
+              <input v-model="opsStatus" placeholder="默认 OPEN" @keyup.enter="refreshOpsRecords" />
+            </label>
+            <label>
+              <span>Topic</span>
+              <input v-model="opsDeadLetterTopic" placeholder="zhyf-order-event" @keyup.enter="refreshOpsRecords" />
             </label>
             <label class="grow">
               <span>事件 ID</span>
@@ -490,6 +555,68 @@ defineExpose({
                 <td>
                   <strong>{{ formatDate(record.consumeStartedAt || record.createdAt) }}</strong>
                   <small>{{ formatDate(record.consumeFinishedAt || record.updatedAt) }}</small>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else-if="activeOpsDataset === 'deadLetters'" class="table-wrap ops-table">
+          <table>
+            <thead>
+              <tr>
+                <th>事件</th>
+                <th>Topic/Tag</th>
+                <th>消费组</th>
+                <th>状态</th>
+                <th>重试</th>
+                <th>失败原因</th>
+                <th>处置</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!opsLoading && deadLetterRecords.length === 0">
+                <td colspan="8" class="empty">暂无死信记录</td>
+              </tr>
+              <tr v-for="record in deadLetterRecords" :key="record.id">
+                <td>
+                  <strong>{{ record.eventId }}</strong>
+                  <small>{{ record.aggregateId || record.id }}</small>
+                </td>
+                <td>
+                  <strong>{{ record.topic || '-' }}</strong>
+                  <small>{{ record.tag || '-' }}</small>
+                </td>
+                <td>{{ record.consumerGroup || '发布侧' }}</td>
+                <td>
+                  <StatusPill :value="record.status" :tone="statusTone(record.status)" />
+                  <small>{{ record.operator || '-' }}</small>
+                </td>
+                <td>{{ record.retryCount }}</td>
+                <td class="truncate">{{ record.errorMessage || record.remark || '-' }}</td>
+                <td>
+                  <div class="actions">
+                    <button
+                      class="secondary"
+                      type="button"
+                      :disabled="opsLoading || record.status !== 'OPEN'"
+                      @click="handleDeadLetterAction(record, 'replay')"
+                    >
+                      重放
+                    </button>
+                    <button
+                      type="button"
+                      :disabled="opsLoading || record.status !== 'OPEN'"
+                      @click="handleDeadLetterAction(record, 'close')"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </td>
+                <td>
+                  <strong>{{ formatDate(record.createdAt) }}</strong>
+                  <small>{{ formatDate(record.updatedAt) }}</small>
                 </td>
               </tr>
             </tbody>

@@ -6,14 +6,14 @@ services:
     environment:
       POSTGRES_DB: zhyf_saas
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_PASSWORD: ${ZHYF_POSTGRES_PASSWORD:-123456}
       TZ: Asia/Hong_Kong
     ports:
       - "15432:5432"
     volumes:
       - zhyf-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d zhyf_saas"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,13 +22,15 @@ services:
     image: redis:7-alpine
     container_name: zhyf-redis
     profiles: ["local-optional"]
-    command: ["redis-server", "--requirepass", "123456"]
+    command: ["redis-server", "--requirepass", "${ZHYF_REDIS_PASSWORD:-123456}"]
+    environment:
+      REDIS_PASSWORD: ${ZHYF_REDIS_PASSWORD:-123456}
     ports:
       - "16379:6379"
     volumes:
       - zhyf-redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "123456", "PING"]
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD PING"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,6 +43,76 @@ services:
     ports:
       - "9876:9876"
 
+  zhyf-rocketmq-broker:
+    image: apache/rocketmq:5.3.2
+    container_name: zhyf-rocketmq-broker
+    profiles: ["local-optional"]
+    depends_on:
+      - zhyf-rocketmq-namesrv
+    command: sh mqbroker -n zhyf-rocketmq-namesrv:9876
+    environment:
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m"
+      NAMESRV_ADDR: zhyf-rocketmq-namesrv:9876
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
+    volumes:
+      - zhyf-rocketmq-store:/home/rocketmq/store
+
+  zhyf-rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:1.0.0
+    container_name: zhyf-rocketmq-dashboard
+    profiles: ["local-optional"]
+    depends_on:
+      - zhyf-rocketmq-namesrv
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=zhyf-rocketmq-namesrv:9876"
+    ports:
+      - "18181:8080"
+
+  zhyf-nginx:
+    image: nginx:1.27-alpine
+    container_name: zhyf-nginx
+    profiles: ["local-optional"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "18000:80"
+    volumes:
+      - ../frontend/admin-web/dist:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/proxy_params:/etc/nginx/proxy_params:ro
+
+  zhyf-prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: zhyf-prometheus
+    profiles: ["local-optional"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - zhyf-prometheus-data:/prometheus
+
+  zhyf-grafana:
+    image: grafana/grafana:11.2.0
+    container_name: zhyf-grafana
+    profiles: ["local-optional"]
+    depends_on:
+      - zhyf-prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${ZHYF_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${ZHYF_GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "13000:3000"
+    volumes:
+      - zhyf-grafana-data:/var/lib/grafana
+
 volumes:
   zhyf-postgres-data:
   zhyf-redis-data:
+  zhyf-rocketmq-store:
+  zhyf-prometheus-data:
+  zhyf-grafana-data:

@@ -6,6 +6,9 @@ import com.zhyf.ops.application.OpsRecords;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,6 +40,40 @@ public class OpsQueryController {
             @RequestParam(defaultValue = "50") int limit
     ) {
         return ApiResponse.ok(queryService.listMessageConsumeLogs(status, consumerGroup, eventId, limit));
+    }
+
+    @GetMapping("/dead-letters")
+    public ApiResponse<List<OpsRecords.DeadLetterRecord>> listDeadLetters(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String topic,
+            @RequestParam(required = false) String eventId,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(queryService.listDeadLetters(status, topic, eventId, limit));
+    }
+
+    @PatchMapping("/dead-letters/{id}/replay")
+    public ApiResponse<OpsRecords.DeadLetterOperationResult> replayDeadLetter(
+            @PathVariable UUID id,
+            @RequestBody(required = false) DeadLetterOperationCommand command
+    ) {
+        return ApiResponse.ok(queryService.replayDeadLetter(
+                id,
+                command == null ? null : command.operator(),
+                command == null ? null : command.remark()
+        ));
+    }
+
+    @PatchMapping("/dead-letters/{id}/close")
+    public ApiResponse<OpsRecords.DeadLetterOperationResult> closeDeadLetter(
+            @PathVariable UUID id,
+            @RequestBody(required = false) DeadLetterOperationCommand command
+    ) {
+        return ApiResponse.ok(queryService.closeDeadLetter(
+                id,
+                command == null ? null : command.operator(),
+                command == null ? null : command.remark()
+        ));
     }
 
     @GetMapping("/order-validation-records")
@@ -96,5 +133,8 @@ public class OpsQueryController {
             @RequestParam(defaultValue = "24") int recentHours
     ) {
         return ApiResponse.ok(queryService.healthOverview(recentHours));
+    }
+
+    public record DeadLetterOperationCommand(String operator, String remark) {
     }
 }

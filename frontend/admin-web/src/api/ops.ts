@@ -1,6 +1,8 @@
 import { request } from './client';
 import type {
   ApiAccessLogRecord,
+  DeadLetterOperationResult,
+  DeadLetterRecord,
   EventOutboxRecord,
   IntegrationRetryIssueRecord,
   LogisticsCallbackIssueRecord,
@@ -12,6 +14,7 @@ import type {
 interface OpsQueryParams {
   limit?: number;
   status?: string;
+  topic?: string;
   eventType?: string;
   consumerGroup?: string;
   eventId?: string;
@@ -28,6 +31,11 @@ interface OpsQueryParams {
   businessKey?: string;
   sourceSystem?: string;
   recentHours?: number;
+}
+
+interface DeadLetterOperationRequest {
+  operator?: string;
+  remark?: string;
 }
 
 function buildQuery(params: OpsQueryParams) {
@@ -53,6 +61,26 @@ export function listMessageConsumeLogs(
   params: Pick<OpsQueryParams, 'status' | 'consumerGroup' | 'eventId' | 'limit'> = {},
 ) {
   return request<MessageConsumeRecord[]>(opsUrl('message-consume-logs', params));
+}
+
+export function listDeadLetters(params: Pick<OpsQueryParams, 'status' | 'topic' | 'eventId' | 'limit'> = {}) {
+  return request<DeadLetterRecord[]>(opsUrl('dead-letters', params));
+}
+
+export function replayDeadLetter(id: string, body: DeadLetterOperationRequest = {}) {
+  return request<DeadLetterOperationResult>(opsUrl(`dead-letters/${id}/replay`, {}), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function closeDeadLetter(id: string, body: DeadLetterOperationRequest = {}) {
+  return request<DeadLetterOperationResult>(opsUrl(`dead-letters/${id}/close`, {}), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 export function listOrderValidationRecords(

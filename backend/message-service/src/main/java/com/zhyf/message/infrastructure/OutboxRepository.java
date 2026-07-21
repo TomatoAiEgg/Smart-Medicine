@@ -53,29 +53,47 @@ public class OutboxRepository {
 
     public void markPublishFailed(UUID id, String error) {
         String sql = """
-                update event_outbox
-                set status = case
-                        when retry_count + 1 >= max_retry_count then 'DEAD'
-                        else 'PUBLISH_FAILED'
-                    end,
-                    retry_count = retry_count + 1,
-                    next_retry_at = case
-                        when retry_count + 1 >= max_retry_count then null
-                        else now() + interval '30 seconds' * least(10, retry_count + 1)
-                    end,
-                    last_error = ?,
-                    updated_at = now()
-                where id = ? and status = 'PUBLISHING'
+                with failed as (
+                    update event_outbox
+                    set status = case
+                            when retry_count + 1 >= max_retry_count then 'DEAD'
+                            else 'PUBLISH_FAILED'
+                        end,
+                        retry_count = retry_count + 1,
+                        next_retry_at = case
+                            when retry_count + 1 >= max_retry_count then null
+                            else now() + interval '30 seconds' * least(10, retry_count + 1)
+                        end,
+                        last_error = ?,
+                        updated_at = now()
+                    where id = ? and status = 'PUBLISHING'
+                    returning event_id, topic, tag, aggregate_id, payload, last_error, retry_count, status
+                )
+                insert into dead_letter_record (
+                    id, event_id, topic, tag, aggregate_id, payload_snapshot,
+                    error_message, retry_count, status
+                )
+                select ?, event_id, topic, tag, aggregate_id, payload,
+                       last_error, retry_count, 'OPEN'
+                from failed
+                where status = 'DEAD'
+                  and not exists (
+                    select 1
+                    from dead_letter_record d
+                    where d.event_id = failed.event_id
+                      and d.consumer_group is null
+                      and d.status = 'OPEN'
+                  )
                 """;
-        jdbcTemplate.update(sql, truncate(error), id);
+        jdbcTemplate.update(sql, truncate(error), id, UUID.randomUUID());
     }
 
     private void releaseStalePublishingEvents() {
         String sql = """
                 update event_outbox
                 set status = 'PUBLISH_FAILED',
-                    last_error = 'PUBLISHING timeout, released by scanner',
                     next_retry_at = now(),
+                    last_error = 'PUBLISHING timeout, released by scanner',
                     updated_at = now()
                 where status = 'PUBLISHING'
                   and updated_at < now() - interval '5 minutes'

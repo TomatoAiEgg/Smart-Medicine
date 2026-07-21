@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class MessageConsumeRepository {
 
+    private static final int MAX_RETRY_COUNT = 16;
+
     private final JdbcTemplate jdbcTemplate;
 
     public MessageConsumeRepository(JdbcTemplate jdbcTemplate) {
@@ -91,18 +93,69 @@ public class MessageConsumeRepository {
         return jdbcTemplate.update(sql, messageId, consumerGroup, eventId);
     }
 
-    public int markFailedRetryable(String consumerGroup, String eventId, String messageId, String error) {
+    public boolean markFailedRetryable(
+            String consumerGroup,
+            String eventId,
+            String messageId,
+            String topic,
+            String tag,
+            String aggregateId,
+            String payload,
+            String error
+    ) {
         String sql = """
-                update message_consume_log
-                set status = 'FAILED_RETRYABLE',
-                    message_id = coalesce(?, message_id),
-                    retry_count = retry_count + 1,
-                    last_error = ?,
-                    consume_finished_at = now(),
-                    updated_at = now()
-                where consumer_group = ? and event_id = ?
+                with failed as (
+                    update message_consume_log
+                    set status = case
+                            when retry_count + 1 >= ? then 'DEAD'
+                            else 'FAILED_RETRYABLE'
+                        end,
+                        message_id = coalesce(?, message_id),
+                        topic = coalesce(?, topic),
+                        tag = coalesce(?, tag),
+                        aggregate_id = coalesce(?, aggregate_id),
+                        retry_count = retry_count + 1,
+                        last_error = ?,
+                        consume_finished_at = now(),
+                        updated_at = now()
+                    where consumer_group = ? and event_id = ?
+                    returning event_id, topic, tag, consumer_group, aggregate_id, retry_count, last_error, status
+                ),
+                inserted as (
+                    insert into dead_letter_record (
+                        id, event_id, topic, tag, consumer_group, aggregate_id,
+                        payload_snapshot, error_message, retry_count, status
+                    )
+                    select ?, event_id, topic, tag, consumer_group, aggregate_id,
+                           coalesce(?::jsonb, '{}'::jsonb), last_error, retry_count, 'OPEN'
+                    from failed
+                    where status = 'DEAD'
+                      and not exists (
+                        select 1
+                        from dead_letter_record d
+                        where d.event_id = failed.event_id
+                          and d.consumer_group = failed.consumer_group
+                          and d.status = 'OPEN'
+                      )
+                    returning 1
+                )
+                select status from failed
                 """;
-        return jdbcTemplate.update(sql, messageId, truncate(error), consumerGroup, eventId);
+        String status = jdbcTemplate.query(
+                sql,
+                rs -> rs.next() ? rs.getString("status") : null,
+                MAX_RETRY_COUNT,
+                messageId,
+                topic,
+                tag,
+                aggregateId,
+                truncate(error),
+                consumerGroup,
+                eventId,
+                UUID.randomUUID(),
+                payload
+        );
+        return "DEAD".equals(status);
     }
 
     private String mapStatus(ResultSet rs, int rowNum) throws SQLException {
