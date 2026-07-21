@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: zhyf-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - zhyf-gateway:18080
+          - zhyf-auth-institution:18081
+          - zhyf-order-service:18082
+          - zhyf-message-service:18083
+          - zhyf-prescription-service:18084
+          - zhyf-workflow-service:18085
+          - zhyf-ops-service:18086
+          - zhyf-decoction-service:18087
+          - zhyf-logistics-service:18088
+          - zhyf-callback-service:18089
+          - zhyf-portal-service:18090
+          - zhyf-report-service:18091
+          - zhyf-integration-service:18092
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - zhyf-prometheus:9090

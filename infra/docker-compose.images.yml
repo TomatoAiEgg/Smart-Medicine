@@ -1,0 +1,424 @@
+x-backend-env: &backend-env
+  TZ: Asia/Hong_Kong
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+  ZHYF_DB_HOST: zhyf-postgres
+  ZHYF_DB_PORT: 5432
+  ZHYF_DB_NAME: zhyf_saas
+  ZHYF_DB_USERNAME: postgres
+  ZHYF_DB_PASSWORD: ${ZHYF_POSTGRES_PASSWORD:-123456}
+  ZHYF_ROCKETMQ_NAMESRV: zhyf-rocketmq-namesrv:9876
+  JAVA_TOOL_OPTIONS: ${ZHYF_JAVA_TOOL_OPTIONS:-}
+
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - zhyf
+  depends_on:
+    zhyf-postgres:
+      condition: service_healthy
+    zhyf-rocketmq-namesrv:
+      condition: service_started
+    zhyf-rocketmq-broker:
+      condition: service_started
+
+x-health-defaults: &health-defaults
+  interval: 15s
+  timeout: 5s
+  retries: 10
+  start_period: 45s
+
+services:
+  zhyf-postgres:
+    image: postgres:16-alpine
+    container_name: zhyf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zhyf_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ZHYF_POSTGRES_PASSWORD:-123456}
+      TZ: Asia/Hong_Kong
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - zhyf-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - zhyf
+
+  zhyf-redis:
+    image: redis:7-alpine
+    container_name: zhyf-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${ZHYF_REDIS_PASSWORD:-123456}"]
+    environment:
+      REDIS_PASSWORD: ${ZHYF_REDIS_PASSWORD:-123456}
+    ports:
+      - "127.0.0.1:16379:6379"
+    volumes:
+      - zhyf-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - zhyf
+
+  zhyf-rocketmq-namesrv:
+    image: apache/rocketmq:5.3.2
+    container_name: zhyf-rocketmq-namesrv
+    restart: unless-stopped
+    command: sh mqnamesrv
+    ports:
+      - "127.0.0.1:9876:9876"
+    networks:
+      - zhyf
+
+  zhyf-rocketmq-broker:
+    image: apache/rocketmq:5.3.2
+    container_name: zhyf-rocketmq-broker
+    restart: unless-stopped
+    depends_on:
+      - zhyf-rocketmq-namesrv
+    command: sh mqbroker -n zhyf-rocketmq-namesrv:9876
+    environment:
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx512m -Xmn128m"
+      NAMESRV_ADDR: zhyf-rocketmq-namesrv:9876
+    volumes:
+      - zhyf-rocketmq-store:/home/rocketmq/store
+    networks:
+      - zhyf
+
+  zhyf-auth-institution:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/auth-institution:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: auth-institution
+        JAR_FILE: backend/auth-institution/target/auth-institution-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-auth-institution
+    environment:
+      <<: *backend-env
+      AUTH_INSTITUTION_PORT: 18081
+      JAVA_OPTS: ${ZHYF_AUTH_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18081:18081"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18081/actuator/health >/dev/null"]
+
+  zhyf-order-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/order-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: order-service
+        JAR_FILE: backend/order-service/target/order-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-order-service
+    environment:
+      <<: *backend-env
+      ORDER_SERVICE_PORT: 18082
+      JAVA_OPTS: ${ZHYF_ORDER_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18082:18082"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18082/actuator/health >/dev/null"]
+
+  zhyf-prescription-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/prescription-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: prescription-service
+        JAR_FILE: backend/prescription-service/target/prescription-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-prescription-service
+    environment:
+      <<: *backend-env
+      PRESCRIPTION_SERVICE_PORT: 18084
+      JAVA_OPTS: ${ZHYF_PRESCRIPTION_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18084:18084"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18084/actuator/health >/dev/null"]
+
+  zhyf-message-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/message-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: message-service
+        JAR_FILE: backend/message-service/target/message-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-message-service
+    environment:
+      <<: *backend-env
+      MESSAGE_SERVICE_PORT: 18083
+      ZHYF_OUTBOX_SCAN_ENABLED: ${ZHYF_OUTBOX_SCAN_ENABLED:-true}
+      ZHYF_MESSAGE_PUBLISHER: ${ZHYF_MESSAGE_PUBLISHER:-rocketmq}
+      ZHYF_MESSAGE_CONSUMER_ENABLED: ${ZHYF_MESSAGE_CONSUMER_ENABLED:-true}
+      JAVA_OPTS: ${ZHYF_MESSAGE_JAVA_OPTS:--XX:InitialRAMPercentage=30 -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18083:18083"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18083/actuator/health >/dev/null"]
+
+  zhyf-workflow-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/workflow-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: workflow-service
+        JAR_FILE: backend/workflow-service/target/workflow-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-workflow-service
+    environment:
+      <<: *backend-env
+      WORKFLOW_SERVICE_PORT: 18085
+      ZHYF_WORKFLOW_CONSUMER_ENABLED: ${ZHYF_WORKFLOW_CONSUMER_ENABLED:-true}
+      ORDER_SERVICE_BASE_URL: http://zhyf-order-service:18082
+      JAVA_OPTS: ${ZHYF_WORKFLOW_JAVA_OPTS:--XX:InitialRAMPercentage=30 -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18085:18085"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18085/actuator/health >/dev/null"]
+
+  zhyf-ops-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/ops-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: ops-service
+        JAR_FILE: backend/ops-service/target/ops-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-ops-service
+    environment:
+      <<: *backend-env
+      OPS_SERVICE_PORT: 18086
+      JAVA_OPTS: ${ZHYF_OPS_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18086:18086"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18086/actuator/health >/dev/null"]
+
+  zhyf-decoction-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/decoction-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: decoction-service
+        JAR_FILE: backend/decoction-service/target/decoction-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-decoction-service
+    environment:
+      <<: *backend-env
+      DECOCTION_SERVICE_PORT: 18087
+      ORDER_SERVICE_BASE_URL: http://zhyf-order-service:18082
+      JAVA_OPTS: ${ZHYF_DECOCTION_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18087:18087"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18087/actuator/health >/dev/null"]
+
+  zhyf-logistics-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/logistics-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: logistics-service
+        JAR_FILE: backend/logistics-service/target/logistics-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-logistics-service
+    environment:
+      <<: *backend-env
+      LOGISTICS_SERVICE_PORT: 18088
+      ORDER_SERVICE_BASE_URL: http://zhyf-order-service:18082
+      CALLBACK_SERVICE_BASE_URL: http://zhyf-callback-service:18089
+      JAVA_OPTS: ${ZHYF_LOGISTICS_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18088:18088"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18088/actuator/health >/dev/null"]
+
+  zhyf-callback-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/callback-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: callback-service
+        JAR_FILE: backend/callback-service/target/callback-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-callback-service
+    environment:
+      <<: *backend-env
+      CALLBACK_SERVICE_PORT: 18089
+      JAVA_OPTS: ${ZHYF_CALLBACK_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18089:18089"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18089/actuator/health >/dev/null"]
+
+  zhyf-portal-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/portal-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: portal-service
+        JAR_FILE: backend/portal-service/target/portal-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-portal-service
+    environment:
+      <<: *backend-env
+      PORTAL_SERVICE_PORT: 18090
+      JAVA_OPTS: ${ZHYF_PORTAL_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18090:18090"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18090/actuator/health >/dev/null"]
+
+  zhyf-report-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/report-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: report-service
+        JAR_FILE: backend/report-service/target/report-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-report-service
+    environment:
+      <<: *backend-env
+      REPORT_SERVICE_PORT: 18091
+      JAVA_OPTS: ${ZHYF_REPORT_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18091:18091"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18091/actuator/health >/dev/null"]
+
+  zhyf-integration-service:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/integration-service:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: integration-service
+        JAR_FILE: backend/integration-service/target/integration-service-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-integration-service
+    environment:
+      <<: *backend-env
+      INTEGRATION_SERVICE_PORT: 18092
+      JAVA_OPTS: ${ZHYF_INTEGRATION_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18092:18092"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18092/actuator/health >/dev/null"]
+
+  zhyf-gateway:
+    <<: *service-common
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/gateway:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_NAME: gateway
+        JAR_FILE: backend/gateway/target/gateway-0.1.0-SNAPSHOT.jar
+    container_name: zhyf-gateway
+    environment:
+      <<: *backend-env
+      GATEWAY_PORT: 18080
+      AUTH_INSTITUTION_BASE_URL: http://zhyf-auth-institution:18081
+      ORDER_SERVICE_BASE_URL: http://zhyf-order-service:18082
+      JAVA_OPTS: ${ZHYF_GATEWAY_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
+    ports:
+      - "127.0.0.1:18080:18080"
+    healthcheck:
+      <<: *health-defaults
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18080/actuator/health >/dev/null"]
+
+  zhyf-admin-web:
+    image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/admin-web:${ZHYF_IMAGE_TAG:-dev}
+    build:
+      context: ..
+      dockerfile: frontend/admin-web/Dockerfile
+    container_name: zhyf-admin-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      zhyf-gateway:
+        condition: service_healthy
+      zhyf-order-service:
+        condition: service_healthy
+      zhyf-ops-service:
+        condition: service_healthy
+    networks:
+      - zhyf
+
+  zhyf-prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: zhyf-prometheus
+    restart: unless-stopped
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./prometheus/image-deploy.yml:/etc/prometheus/prometheus.yml:ro
+      - zhyf-prometheus-data:/prometheus
+    depends_on:
+      - zhyf-admin-web
+    networks:
+      - zhyf
+
+  zhyf-grafana:
+    image: grafana/grafana:11.2.0
+    container_name: zhyf-grafana
+    restart: unless-stopped
+    depends_on:
+      - zhyf-prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${ZHYF_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${ZHYF_GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "13000:3000"
+    volumes:
+      - zhyf-grafana-data:/var/lib/grafana
+    networks:
+      - zhyf
+
+networks:
+  zhyf:
+    name: zhyf
+
+volumes:
+  zhyf-postgres-data:
+  zhyf-redis-data:
+  zhyf-rocketmq-store:
+  zhyf-prometheus-data:
+  zhyf-grafana-data:
