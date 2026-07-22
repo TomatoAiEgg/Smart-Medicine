@@ -1,6 +1,9 @@
 param(
     [string]$ImageNamespace = "zhyf",
     [string]$Tag = "",
+    [string]$RuntimeImage = "eclipse-temurin:21-jre-alpine",
+    [string]$NodeImage = "node:24-alpine",
+    [string]$NginxImage = "nginx:1.27-alpine",
     [string[]]$Services = @(
         "auth-institution",
         "order-service",
@@ -43,6 +46,7 @@ foreach ($service in $Services) {
     $image = "$ImageNamespace/$service`:$Tag"
     docker build `
         --file backend/Dockerfile `
+        --build-arg "RUNTIME_IMAGE=$RuntimeImage" `
         --build-arg "SERVICE_NAME=$service" `
         --build-arg "JAR_FILE=backend/$service/target/$service-0.1.0-SNAPSHOT.jar" `
         --tag $image `
@@ -51,6 +55,8 @@ foreach ($service in $Services) {
 
 docker build `
     --file frontend/admin-web/Dockerfile `
+    --build-arg "NODE_IMAGE=$NodeImage" `
+    --build-arg "NGINX_IMAGE=$NginxImage" `
     --tag "$ImageNamespace/admin-web`:$Tag" `
     .
 

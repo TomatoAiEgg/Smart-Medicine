@@ -1,4 +1,5 @@
-FROM eclipse-temurin:21-jre-alpine
+ARG RUNTIME_IMAGE=eclipse-temurin:21-jre-alpine
+FROM ${RUNTIME_IMAGE}
 
 ARG JAR_FILE
 ARG SERVICE_NAME=zhyf-service

@@ -1,4 +1,7 @@
-FROM node:24-alpine AS build
+ARG NODE_IMAGE=node:24-alpine
+ARG NGINX_IMAGE=nginx:1.27-alpine
+
+FROM ${NODE_IMAGE} AS build
 
 WORKDIR /workspace
 
@@ -8,7 +11,7 @@ RUN npm install
 COPY frontend/admin-web/ ./
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM ${NGINX_IMAGE}
 
 COPY infra/nginx/image-deploy.conf /etc/nginx/conf.d/default.conf
 COPY infra/nginx/proxy_params /etc/nginx/proxy_params

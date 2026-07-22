@@ -29,7 +29,7 @@ x-health-defaults: &health-defaults
 
 services:
   zhyf-postgres:
-    image: postgres:16-alpine
+    image: ${ZHYF_POSTGRES_IMAGE:-postgres:16-alpine}
     container_name: zhyf-postgres
     restart: unless-stopped
     environment:
@@ -50,7 +50,7 @@ services:
       - zhyf
 
   zhyf-redis:
-    image: redis:7-alpine
+    image: ${ZHYF_REDIS_IMAGE:-redis:7-alpine}
     container_name: zhyf-redis
     restart: unless-stopped
     command: ["redis-server", "--requirepass", "${ZHYF_REDIS_PASSWORD:-123456}"]
@@ -69,7 +69,7 @@ services:
       - zhyf
 
   zhyf-rocketmq-namesrv:
-    image: apache/rocketmq:5.3.2
+    image: ${ZHYF_ROCKETMQ_IMAGE:-apache/rocketmq:5.3.2}
     container_name: zhyf-rocketmq-namesrv
     restart: unless-stopped
     command: sh mqnamesrv
@@ -79,7 +79,7 @@ services:
       - zhyf
 
   zhyf-rocketmq-broker:
-    image: apache/rocketmq:5.3.2
+    image: ${ZHYF_ROCKETMQ_IMAGE:-apache/rocketmq:5.3.2}
     container_name: zhyf-rocketmq-broker
     restart: unless-stopped
     depends_on:
@@ -100,6 +100,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: auth-institution
         JAR_FILE: backend/auth-institution/target/auth-institution-0.1.0-SNAPSHOT.jar
     container_name: zhyf-auth-institution
@@ -120,6 +121,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: order-service
         JAR_FILE: backend/order-service/target/order-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-order-service
@@ -140,6 +142,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: prescription-service
         JAR_FILE: backend/prescription-service/target/prescription-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-prescription-service
@@ -160,6 +163,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: message-service
         JAR_FILE: backend/message-service/target/message-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-message-service
@@ -183,6 +187,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: workflow-service
         JAR_FILE: backend/workflow-service/target/workflow-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-workflow-service
@@ -205,6 +210,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: ops-service
         JAR_FILE: backend/ops-service/target/ops-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-ops-service
@@ -225,6 +231,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: decoction-service
         JAR_FILE: backend/decoction-service/target/decoction-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-decoction-service
@@ -246,6 +253,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: logistics-service
         JAR_FILE: backend/logistics-service/target/logistics-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-logistics-service
@@ -268,6 +276,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: callback-service
         JAR_FILE: backend/callback-service/target/callback-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-callback-service
@@ -288,6 +297,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: portal-service
         JAR_FILE: backend/portal-service/target/portal-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-portal-service
@@ -308,6 +318,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: report-service
         JAR_FILE: backend/report-service/target/report-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-report-service
@@ -328,6 +339,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: integration-service
         JAR_FILE: backend/integration-service/target/integration-service-0.1.0-SNAPSHOT.jar
     container_name: zhyf-integration-service
@@ -348,6 +360,7 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
       args:
+        RUNTIME_IMAGE: ${ZHYF_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
         SERVICE_NAME: gateway
         JAR_FILE: backend/gateway/target/gateway-0.1.0-SNAPSHOT.jar
     container_name: zhyf-gateway
@@ -368,6 +381,9 @@ services:
     build:
       context: ..
       dockerfile: frontend/admin-web/Dockerfile
+      args:
+        NODE_IMAGE: ${ZHYF_NODE_IMAGE:-node:24-alpine}
+        NGINX_IMAGE: ${ZHYF_NGINX_IMAGE:-nginx:1.27-alpine}
     container_name: zhyf-admin-web
     restart: unless-stopped
     ports:
@@ -383,7 +399,7 @@ services:
       - zhyf
 
   zhyf-prometheus:
-    image: prom/prometheus:v2.54.1
+    image: ${ZHYF_PROMETHEUS_IMAGE:-prom/prometheus:v2.54.1}
     container_name: zhyf-prometheus
     restart: unless-stopped
     ports:
@@ -397,7 +413,7 @@ services:
       - zhyf
 
   zhyf-grafana:
-    image: grafana/grafana:11.2.0
+    image: ${ZHYF_GRAFANA_IMAGE:-grafana/grafana:11.2.0}
     container_name: zhyf-grafana
     restart: unless-stopped
     depends_on:
