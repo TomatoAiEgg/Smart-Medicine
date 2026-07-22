@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from 'vue';
 import AppLayout from './app/AppLayout.vue';
+import type { LayoutTab } from './app/AppLayout.vue';
 import { menuItems, viewTitles, type ViewKey } from './app/views';
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
@@ -17,6 +18,7 @@ type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 
 const activeView = ref<ViewKey>('dashboard');
+const openTabs = ref<ViewKey[]>([]);
 
 const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
@@ -44,6 +46,19 @@ const observabilityActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 
 const currentViewTitle = computed(() => viewTitles[activeView.value]);
+const menuLabelByKey = computed<Record<ViewKey, string>>(() => {
+  const labels = {} as Record<ViewKey, string>;
+  for (const item of menuItems) labels[item.key] = item.label;
+  return labels;
+});
+const layoutTabs = computed<LayoutTab[]>(() => [
+  { key: 'dashboard', label: 'Home', closable: false },
+  ...openTabs.value.map((key) => ({
+    key,
+    label: menuLabelByKey.value[key] ?? viewTitles[key].title,
+    closable: true,
+  })),
+]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reviews: workflowCounts.value.reviews,
   dispenses: workflowCounts.value.dispenses,
@@ -100,7 +115,7 @@ async function refreshCurrentTasks() {
   }
 }
 
-function switchView(view: ViewKey) {
+function activateView(view: ViewKey) {
   activeView.value = view;
   if (view === 'reports') reportActivationKey.value += 1;
   if (view === 'ops') opsActivationKey.value += 1;
@@ -108,6 +123,28 @@ function switchView(view: ViewKey) {
   if (view === 'integration') integrationActivationKey.value += 1;
   if (view === 'logistics') logisticsActivationKey.value += 1;
   if (view === 'decoction') decoctionActivationKey.value += 1;
+}
+
+function ensureOpenTab(view: ViewKey) {
+  if (view !== 'dashboard' && !openTabs.value.includes(view)) {
+    openTabs.value = [...openTabs.value, view];
+  }
+}
+
+function switchView(view: ViewKey) {
+  ensureOpenTab(view);
+  activateView(view);
+}
+
+function closeTab(view: ViewKey) {
+  const index = openTabs.value.indexOf(view);
+  if (index < 0) return;
+
+  openTabs.value = openTabs.value.filter((key) => key !== view);
+  if (activeView.value !== view) return;
+
+  const nextView = openTabs.value[index - 1] ?? openTabs.value[index] ?? 'dashboard';
+  activateView(nextView);
 }
 </script>
 
@@ -119,6 +156,8 @@ function switchView(view: ViewKey) {
     :menu-items="menuItems"
     :counts="menuCounts"
     :notice="notice"
+    :tabs="layoutTabs"
+    @close-tab="closeTab"
     @refresh="refreshCurrentTasks"
     @switch-view="switchView"
   >
