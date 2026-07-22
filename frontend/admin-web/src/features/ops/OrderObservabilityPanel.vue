@@ -1,25 +1,18 @@
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch, type PropType } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { getOrderObservability } from '../../api/ops';
 import type {
-  ApiAccessLogRecord,
   DeadLetterRecord,
   EventOutboxRecord,
-  IntegrationRetryIssueRecord,
   MessageConsumeRecord,
-  OperationLogRecord,
   OpsCallbackRecord,
-  OpsWorkflowTaskRecord,
   OrderObservabilityBundle,
-  OrderStatusLogRecord,
-  OrderValidationRecord,
 } from '../../api/types';
-import StatusPill from '../../components/StatusPill.vue';
 import { formatDate, formatNumber } from '../../domain/formatters';
-import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
+type LegacyTone = 'normal' | 'success' | 'warning' | 'danger';
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -55,6 +48,23 @@ function normalizedLimit() {
   return Math.min(Math.trunc(limit.value), 200);
 }
 
+function text(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '') return '-';
+  return String(value);
+}
+
+function time(value: string | null | undefined) {
+  return value ? formatDate(value) : '-';
+}
+
+function statusTone(status: string | null | undefined): LegacyTone {
+  const value = (status ?? '').toUpperCase();
+  if (['SUCCESS', 'COMPLETED', 'DONE', 'PUBLISHED', 'DELIVERED', 'ACKED'].includes(value)) return 'success';
+  if (['PENDING', 'PROCESSING', 'READY', 'RETRYING', 'OPEN'].includes(value)) return 'warning';
+  if (['FAILED', 'FAILED_RETRYABLE', 'FAILED_FATAL', 'DEAD', 'PUBLISH_FAILED', 'REJECTED'].includes(value)) return 'danger';
+  return 'normal';
+}
+
 function isFailedConsume(record: MessageConsumeRecord) {
   return failedConsumeStatuses.has(record.status);
 }
@@ -71,111 +81,6 @@ function isOpenDeadLetter(record: DeadLetterRecord) {
   return openDeadLetterStatuses.has(record.status);
 }
 
-type EvidenceItem =
-  | EventOutboxRecord
-  | MessageConsumeRecord
-  | OrderValidationRecord
-  | IntegrationRetryIssueRecord
-  | OperationLogRecord
-  | ApiAccessLogRecord;
-
-function itemTitle(item: EvidenceItem) {
-  if ('eventType' in item) return item.eventType;
-  if ('consumerGroup' in item) return item.consumerGroup;
-  if ('validationStatus' in item) return item.validationStatus;
-  if ('taskType' in item) return item.taskType;
-  if ('action' in item) return item.action;
-  return item.requestPath;
-}
-
-function itemSubtitle(item: EvidenceItem) {
-  if ('eventId' in item && item.eventId) return item.eventId;
-  if ('businessKey' in item) return item.businessKey || item.taskId;
-  if ('operator' in item) return item.operator || item.id;
-  if ('appKey' in item) return `${item.appKey} / ${item.requestIp}`;
-  return 'id' in item ? item.id : '-';
-}
-
-function itemStatus(item: EvidenceItem) {
-  if ('status' in item) return item.status;
-  if ('validationStatus' in item) return item.validationStatus;
-  if ('taskStatus' in item) return item.taskStatus;
-  if ('result' in item) return item.result;
-  return item.resultCode;
-}
-
-function itemDetail(item: EvidenceItem) {
-  if ('lastError' in item) return item.lastError || item.aggregateId || '-';
-  if ('validationMessage' in item) return item.validationMessage || '-';
-  if ('responseBody' in item) return item.responseBody || item.failureReason || item.requestUrl;
-  if ('reason' in item) return item.reason || item.eventId || '-';
-  return item.resultCode;
-}
-
-function itemTime(item: EvidenceItem) {
-  if ('updatedAt' in item && item.updatedAt) return item.updatedAt;
-  if ('taskUpdatedAt' in item) return item.taskUpdatedAt;
-  return item.createdAt;
-}
-
-const RecordTable = defineComponent({
-  name: 'RecordTable',
-  props: {
-    title: { type: String, required: true },
-    items: { type: Array as PropType<Array<EventOutboxRecord | MessageConsumeRecord>>, required: true },
-  },
-  setup(props) {
-    return () => h('div', { class: 'table-wrap ops-table' }, [
-      h('table', [
-        h('thead', [h('tr', [
-          h('th', props.title),
-          h('th', '状态'),
-          h('th', '重试'),
-          h('th', '错误/对象'),
-          h('th', '时间'),
-        ])]),
-        h('tbody', props.items.length === 0
-          ? [h('tr', [h('td', { class: 'empty', colspan: 5 }, `暂无${props.title}`)])]
-          : props.items.map((item) => h('tr', { key: item.id }, [
-            h('td', [h('strong', itemTitle(item)), h('small', itemSubtitle(item))]),
-            h('td', [h(StatusPill, { value: itemStatus(item), tone: statusTone(itemStatus(item)) })]),
-            h('td', 'retryCount' in item ? String(item.retryCount) : '-'),
-            h('td', { class: 'truncate' }, itemDetail(item)),
-            h('td', [h('strong', formatDate('createdAt' in item ? item.createdAt : null)), h('small', formatDate(itemTime(item)))]),
-          ]))),
-      ]),
-    ]);
-  },
-});
-
-const SimpleEvidenceTable = defineComponent({
-  name: 'SimpleEvidenceTable',
-  props: {
-    title: { type: String, required: true },
-    items: { type: Array as PropType<EvidenceItem[]>, required: true },
-  },
-  setup(props) {
-    return () => h('div', { class: 'table-wrap ops-table' }, [
-      h('table', [
-        h('thead', [h('tr', [
-          h('th', props.title),
-          h('th', '状态'),
-          h('th', '明细'),
-          h('th', '时间'),
-        ])]),
-        h('tbody', props.items.length === 0
-          ? [h('tr', [h('td', { class: 'empty', colspan: 4 }, `暂无${props.title}`)])]
-          : props.items.map((item) => h('tr', { key: itemSubtitle(item) }, [
-            h('td', [h('strong', itemTitle(item)), h('small', itemSubtitle(item))]),
-            h('td', [h(StatusPill, { value: itemStatus(item), tone: statusTone(itemStatus(item)) })]),
-            h('td', { class: 'truncate' }, itemDetail(item)),
-            h('td', formatDate(itemTime(item))),
-          ]))),
-      ]),
-    ]);
-  },
-});
-
 const failedConsumes = computed(() => bundle.value?.messageConsumeLogs.filter(isFailedConsume) ?? []);
 const failedCallbacks = computed(() => bundle.value?.callbackRecords.filter(isFailedCallback) ?? []);
 const failedOutbox = computed(() => bundle.value?.outboxEvents.filter(isFailedOutbox) ?? []);
@@ -188,18 +93,19 @@ const riskCount = computed(() => (
   + openDeadLetters.value.length
 ));
 
-const summaryItems = computed(() => {
+const totalEvidenceCount = computed(() => {
   const current = bundle.value;
-  return [
-    { label: '状态日志', value: current?.statusLogs.length ?? 0, tone: 'neutral' },
-    { label: '流程任务', value: current?.workflowTasks.length ?? 0, tone: 'neutral' },
-    { label: 'Outbox', value: current?.outboxEvents.length ?? 0, tone: failedOutbox.value.length > 0 ? 'danger' : 'success' },
-    { label: '消费日志', value: current?.messageConsumeLogs.length ?? 0, tone: failedConsumes.value.length > 0 ? 'danger' : 'success' },
-    { label: '回调记录', value: current?.callbackRecords.length ?? 0, tone: failedCallbacks.value.length > 0 ? 'danger' : 'success' },
-    { label: '开放死信', value: openDeadLetters.value.length, tone: openDeadLetters.value.length > 0 ? 'danger' : 'success' },
-    { label: '接入日志', value: current?.recentAccessLogs.length ?? 0, tone: 'neutral' },
-    { label: '风险项', value: riskCount.value, tone: riskCount.value > 0 ? 'danger' : 'success' },
-  ];
+  if (!current) return 0;
+  return current.statusLogs.length
+    + current.workflowTasks.length
+    + current.outboxEvents.length
+    + current.messageConsumeLogs.length
+    + current.callbackRecords.length
+    + current.deadLetters.length
+    + current.validationRecords.length
+    + current.integrationRetries.length
+    + current.operationLogs.length
+    + current.recentAccessLogs.length;
 });
 
 async function queryObservability() {
@@ -220,7 +126,7 @@ async function queryObservability() {
       externalOrderNo: trimmedExternalOrderNo,
       limit: limit.value,
     });
-    emit('notice', riskCount.value > 0 ? 'error' : 'success', `${bundle.value.order.orderNo} 链路证据已刷新`);
+    emit('notice', riskCount.value > 0 ? 'error' : 'success', `订单 ${bundle.value.order.orderNo} 链路已刷新`);
   } catch (error) {
     bundle.value = null;
     errorText.value = errorMessage(error);
@@ -248,177 +154,346 @@ defineExpose({
 </script>
 
 <template>
-  <section class="workspace observability-page">
-    <div class="toolbar observability-query">
-      <label>
-        <span>平台订单号</span>
-        <input v-model="orderNo" placeholder="ZHYF1784716810207" @keyup.enter="queryObservability" />
-      </label>
-      <label>
-        <span>HIS 外部订单号</span>
-        <input v-model="externalOrderNo" placeholder="HIS-BATCH-..." @keyup.enter="queryObservability" />
-      </label>
-      <label class="limit-label">
-        <span>条数</span>
-        <input v-model.number="limit" type="number" min="1" max="200" step="10" @keyup.enter="queryObservability" />
-      </label>
-      <button class="primary" type="button" :disabled="loading" @click="queryObservability">
-        {{ loading ? '查询中' : '查询链路' }}
-      </button>
+  <section class="legacy-page">
+    <div class="legacy-head-title clearfix">
+      <h1>订单链路查询</h1>
     </div>
 
-    <p v-if="errorText" class="error-line">{{ errorText }}</p>
+    <div class="legacy-panel">
+      <ul class="legacy-search">
+        <li>
+          平台订单号：
+          <input
+            v-model="orderNo"
+            class="legacy-input input-large"
+            placeholder="ZHYF1784716810207"
+            @keyup.enter="queryObservability"
+          />
+        </li>
+        <li>
+          HIS外部订单号：
+          <input
+            v-model="externalOrderNo"
+            class="legacy-input input-large"
+            placeholder="HIS订单号"
+            @keyup.enter="queryObservability"
+          />
+        </li>
+        <li>
+          查询条数：
+          <input
+            v-model.number="limit"
+            class="legacy-input input-small"
+            type="number"
+            min="1"
+            max="200"
+            step="10"
+            @keyup.enter="queryObservability"
+          />
+        </li>
+        <li>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="queryObservability">
+            {{ loading ? '查询中' : '查询' }}
+          </button>
+        </li>
+      </ul>
 
-    <div v-if="bundle" class="observability-header">
-      <div>
-        <span>平台订单</span>
-        <strong>{{ bundle.order.orderNo }}</strong>
-        <small>{{ bundle.order.id }}</small>
-      </div>
-      <div>
-        <span>HIS 外部订单</span>
-        <strong>{{ bundle.order.externalOrderNo }}</strong>
-        <small>{{ bundle.order.institutionId }}</small>
-      </div>
-      <div>
-        <span>订单状态</span>
-        <StatusPill :value="bundle.order.status" :tone="statusTone(bundle.order.status)" />
-        <small>{{ formatDate(bundle.order.updatedAt) }}</small>
-      </div>
-      <div>
-        <span>链路风险</span>
-        <strong :class="riskCount > 0 ? 'risk-danger' : 'risk-ok'">
-          {{ riskCount > 0 ? `${riskCount} 项待处理` : '无开放风险' }}
-        </strong>
-        <small>{{ formatDate(bundle.order.createdAt) }}</small>
-      </div>
+      <p v-if="errorText" class="legacy-error">{{ errorText }}</p>
+
+      <template v-if="bundle">
+        <table class="legacy-main-table">
+          <tbody>
+            <tr class="legacy-main-head">
+              <th colspan="8">订单基本信息</th>
+            </tr>
+            <tr class="legacy-main-info">
+              <td class="legacy-label">平台订单号</td>
+              <td>{{ text(bundle.order.orderNo) }}</td>
+              <td class="legacy-label">HIS外部订单号</td>
+              <td>{{ text(bundle.order.externalOrderNo) }}</td>
+              <td class="legacy-label">机构ID</td>
+              <td>{{ text(bundle.order.institutionId) }}</td>
+              <td class="legacy-label">订单状态</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(bundle.order.status)}`">
+                  {{ text(bundle.order.status) }}
+                </span>
+              </td>
+            </tr>
+            <tr class="legacy-main-info">
+              <td class="legacy-label">创建时间</td>
+              <td>{{ time(bundle.order.createdAt) }}</td>
+              <td class="legacy-label">更新时间</td>
+              <td>{{ time(bundle.order.updatedAt) }}</td>
+              <td class="legacy-label">链路记录</td>
+              <td>{{ formatNumber(totalEvidenceCount) }}</td>
+              <td class="legacy-label">开放风险</td>
+              <td>
+                <span :class="riskCount > 0 ? 'legacy-red' : 'legacy-green'">
+                  {{ riskCount > 0 ? `${riskCount} 项待处理` : '无开放风险' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>变更时间</th>
+              <th>原状态</th>
+              <th>新状态</th>
+              <th>操作来源</th>
+              <th>操作人</th>
+              <th>原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.statusLogs.length === 0" class="legacy-main-info">
+              <td colspan="6" class="legacy-empty">没有状态轨迹</td>
+            </tr>
+            <tr v-for="log in bundle.statusLogs" :key="log.id" class="legacy-main-info">
+              <td>{{ time(log.createdAt) }}</td>
+              <td>{{ text(log.fromStatus) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(log.toStatus)}`">
+                  {{ text(log.toStatus) }}
+                </span>
+              </td>
+              <td>{{ text(log.operatorType) }} / {{ text(log.source) }}</td>
+              <td>{{ text(log.operatorId) }}</td>
+              <td class="legacy-left">{{ text(log.reason) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>任务类型</th>
+              <th>任务状态</th>
+              <th>来源事件</th>
+              <th>处理人</th>
+              <th>处理意见</th>
+              <th>创建时间</th>
+              <th>完成/更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.workflowTasks.length === 0" class="legacy-main-info">
+              <td colspan="7" class="legacy-empty">没有流程任务</td>
+            </tr>
+            <tr v-for="task in bundle.workflowTasks" :key="task.id" class="legacy-main-info">
+              <td>{{ text(task.taskType) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(task.taskStatus)}`">
+                  {{ text(task.taskStatus) }}
+                </span>
+              </td>
+              <td class="legacy-left">{{ text(task.sourceEventId) }}</td>
+              <td>{{ text(task.assignedTo) }}</td>
+              <td class="legacy-left">{{ text(task.reviewComment) }}</td>
+              <td>{{ time(task.createdAt) }}</td>
+              <td>{{ time(task.completedAt || task.updatedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>消息类型</th>
+              <th>事件ID</th>
+              <th>Topic/Tag</th>
+              <th>业务对象</th>
+              <th>状态</th>
+              <th>重试</th>
+              <th>错误信息</th>
+              <th>创建/更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.outboxEvents.length === 0" class="legacy-main-info">
+              <td colspan="8" class="legacy-empty">没有 Outbox 消息</td>
+            </tr>
+            <tr v-for="event in bundle.outboxEvents" :key="event.id" class="legacy-main-info">
+              <td>{{ text(event.eventType) }}</td>
+              <td class="legacy-left">{{ text(event.eventId) }}</td>
+              <td>{{ text(event.topic) }} / {{ text(event.tag) }}</td>
+              <td>{{ text(event.aggregateType) }}：{{ text(event.aggregateId) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(event.status)}`">
+                  {{ text(event.status) }}
+                </span>
+              </td>
+              <td>{{ event.retryCount }} / {{ event.maxRetryCount }}</td>
+              <td class="legacy-left">{{ text(event.lastError) }}</td>
+              <td>{{ time(event.createdAt) }}<br />{{ time(event.updatedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>消费组</th>
+              <th>消息ID</th>
+              <th>事件ID</th>
+              <th>Topic/Tag</th>
+              <th>状态</th>
+              <th>重试</th>
+              <th>错误信息</th>
+              <th>消费时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.messageConsumeLogs.length === 0" class="legacy-main-info">
+              <td colspan="8" class="legacy-empty">没有消费日志</td>
+            </tr>
+            <tr v-for="consume in bundle.messageConsumeLogs" :key="consume.id" class="legacy-main-info">
+              <td>{{ text(consume.consumerGroup) }}</td>
+              <td class="legacy-left">{{ text(consume.messageId) }}</td>
+              <td class="legacy-left">{{ text(consume.eventId) }}</td>
+              <td>{{ text(consume.topic) }} / {{ text(consume.tag) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(consume.status)}`">
+                  {{ text(consume.status) }}
+                </span>
+              </td>
+              <td>{{ consume.retryCount }}</td>
+              <td class="legacy-left">{{ text(consume.lastError) }}</td>
+              <td>{{ time(consume.consumeStartedAt) }}<br />{{ time(consume.consumeFinishedAt || consume.updatedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>回调类型</th>
+              <th>业务对象</th>
+              <th>请求地址</th>
+              <th>状态</th>
+              <th>重试</th>
+              <th>响应内容</th>
+              <th>创建/更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.callbackRecords.length === 0" class="legacy-main-info">
+              <td colspan="7" class="legacy-empty">没有回调记录</td>
+            </tr>
+            <tr v-for="record in bundle.callbackRecords" :key="record.id" class="legacy-main-info">
+              <td>{{ text(record.callbackType) }}</td>
+              <td>{{ text(record.businessId) }}</td>
+              <td class="legacy-left">{{ text(record.requestUrl) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.status)}`">
+                  {{ text(record.status) }}
+                </span>
+              </td>
+              <td>{{ record.retryCount }}<br />{{ time(record.nextRetryAt) }}</td>
+              <td class="legacy-left">{{ text(record.responseBody) }}</td>
+              <td>{{ time(record.createdAt) }}<br />{{ time(record.updatedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>死信事件</th>
+              <th>Topic/Tag</th>
+              <th>消费组</th>
+              <th>业务对象</th>
+              <th>状态</th>
+              <th>重试</th>
+              <th>错误信息</th>
+              <th>创建/更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.deadLetters.length === 0" class="legacy-main-info">
+              <td colspan="8" class="legacy-empty">没有死信记录</td>
+            </tr>
+            <tr v-for="record in bundle.deadLetters" :key="record.id" class="legacy-main-info">
+              <td class="legacy-left">{{ text(record.eventId) }}</td>
+              <td>{{ text(record.topic) }} / {{ text(record.tag) }}</td>
+              <td>{{ text(record.consumerGroup) }}</td>
+              <td>{{ text(record.aggregateId) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.status)}`">
+                  {{ text(record.status) }}
+                </span>
+              </td>
+              <td>{{ record.retryCount }}</td>
+              <td class="legacy-left">{{ text(record.errorMessage || record.remark) }}</td>
+              <td>{{ time(record.createdAt) }}<br />{{ time(record.updatedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="legacy-main-table">
+          <thead>
+            <tr class="legacy-main-head">
+              <th>日志类型</th>
+              <th>对象</th>
+              <th>结果/状态</th>
+              <th>说明</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="bundle.validationRecords.length === 0 && bundle.integrationRetries.length === 0 && bundle.operationLogs.length === 0 && bundle.recentAccessLogs.length === 0" class="legacy-main-info">
+              <td colspan="5" class="legacy-empty">没有补充日志</td>
+            </tr>
+            <tr v-for="record in bundle.validationRecords" :key="`validation-${record.id}`" class="legacy-main-info">
+              <td>订单校验</td>
+              <td>{{ text(record.orderId) }}<br />{{ text(record.eventId) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.validationStatus)}`">
+                  {{ text(record.validationStatus) }}
+                </span>
+              </td>
+              <td class="legacy-left">{{ text(record.validationMessage) }}</td>
+              <td>{{ time(record.createdAt) }}</td>
+            </tr>
+            <tr v-for="record in bundle.integrationRetries" :key="`integration-${record.taskId}`" class="legacy-main-info">
+              <td>集成重试</td>
+              <td>{{ text(record.businessKey) }}<br />{{ text(record.targetSystem) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.taskStatus)}`">
+                  {{ text(record.taskStatus) }}
+                </span>
+              </td>
+              <td class="legacy-left">{{ text(record.failureReason || record.responseBody || record.requestUrl) }}</td>
+              <td>{{ time(record.taskCreatedAt) }}<br />{{ time(record.taskUpdatedAt) }}</td>
+            </tr>
+            <tr v-for="record in bundle.operationLogs" :key="`operation-${record.id}`" class="legacy-main-info">
+              <td>操作日志</td>
+              <td>{{ text(record.operator) }}<br />{{ text(record.eventId || record.orderId) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.result)}`">
+                  {{ text(record.result) }}
+                </span>
+              </td>
+              <td class="legacy-left">{{ text(record.action) }}：{{ text(record.reason) }}</td>
+              <td>{{ time(record.createdAt) }}</td>
+            </tr>
+            <tr v-for="record in bundle.recentAccessLogs" :key="`access-${record.id}`" class="legacy-main-info">
+              <td>访问日志</td>
+              <td>{{ text(record.appKey) }}<br />{{ text(record.requestIp) }}</td>
+              <td>
+                <span class="legacy-status" :class="`legacy-status-${statusTone(record.resultCode)}`">
+                  {{ text(record.resultCode) }}
+                </span>
+              </td>
+              <td class="legacy-left">{{ text(record.requestPath) }}</td>
+              <td>{{ time(record.createdAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
     </div>
-
-    <div v-if="bundle" class="observability-metrics">
-      <div v-for="item in summaryItems" :key="item.label" :class="`metric-${item.tone}`">
-        <span>{{ item.label }}</span>
-        <strong>{{ formatNumber(item.value) }}</strong>
-      </div>
-    </div>
-
-    <template v-if="bundle">
-      <section class="observability-section">
-        <h2>订单状态时间线</h2>
-        <div class="timeline">
-          <div v-for="log in bundle.statusLogs" :key="log.id" class="timeline-item">
-            <span>{{ formatDate(log.createdAt) }}</span>
-            <strong>{{ log.fromStatus || '开始' }} -> {{ log.toStatus }}</strong>
-            <small>{{ log.operatorType }} / {{ log.source }} / {{ log.reason || '-' }}</small>
-          </div>
-          <div v-if="bundle.statusLogs.length === 0" class="empty">暂无状态日志</div>
-        </div>
-      </section>
-
-      <section class="observability-section">
-        <h2>流程任务</h2>
-        <div class="table-wrap ops-table">
-          <table>
-            <thead>
-              <tr>
-                <th>任务</th>
-                <th>状态</th>
-                <th>事件</th>
-                <th>处理人</th>
-                <th>时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="bundle.workflowTasks.length === 0">
-                <td colspan="5" class="empty">暂无流程任务</td>
-              </tr>
-              <tr v-for="task in bundle.workflowTasks" :key="task.id">
-                <td><strong>{{ task.taskType }}</strong><small>{{ task.id }}</small></td>
-                <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
-                <td>{{ task.sourceEventId }}</td>
-                <td>{{ task.assignedTo || '-' }}<small>{{ task.reviewComment || '-' }}</small></td>
-                <td><strong>{{ formatDate(task.createdAt) }}</strong><small>{{ formatDate(task.completedAt || task.updatedAt) }}</small></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="observability-section">
-        <h2>消息链路</h2>
-        <div class="observability-split">
-          <RecordTable title="Outbox" :items="bundle.outboxEvents" />
-          <RecordTable title="消费日志" :items="bundle.messageConsumeLogs" />
-        </div>
-      </section>
-
-      <section class="observability-section">
-        <h2>回调和死信</h2>
-        <div class="table-wrap ops-table">
-          <table>
-            <thead>
-              <tr>
-                <th>类型</th>
-                <th>业务对象</th>
-                <th>状态</th>
-                <th>重试</th>
-                <th>响应</th>
-                <th>时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="bundle.callbackRecords.length === 0">
-                <td colspan="6" class="empty">暂无回调记录</td>
-              </tr>
-              <tr v-for="record in bundle.callbackRecords" :key="record.id">
-                <td><strong>{{ record.callbackType }}</strong><small>{{ record.id }}</small></td>
-                <td>{{ record.businessId }}<small>{{ record.requestUrl || '-' }}</small></td>
-                <td><StatusPill :value="record.status" :tone="statusTone(record.status)" /></td>
-                <td>{{ record.retryCount }}<small>{{ formatDate(record.nextRetryAt) }}</small></td>
-                <td class="truncate">{{ record.responseBody || '-' }}</td>
-                <td><strong>{{ formatDate(record.createdAt) }}</strong><small>{{ formatDate(record.updatedAt) }}</small></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="table-wrap ops-table">
-          <table>
-            <thead>
-              <tr>
-                <th>事件</th>
-                <th>Topic/消费组</th>
-                <th>状态</th>
-                <th>重试</th>
-                <th>错误</th>
-                <th>时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="bundle.deadLetters.length === 0">
-                <td colspan="6" class="empty">暂无死信</td>
-              </tr>
-              <tr v-for="record in bundle.deadLetters" :key="record.id">
-                <td><strong>{{ record.eventId }}</strong><small>{{ record.aggregateId || record.id }}</small></td>
-                <td>{{ record.topic || '-' }}<small>{{ record.consumerGroup || '-' }}</small></td>
-                <td><StatusPill :value="record.status" :tone="statusTone(record.status)" /></td>
-                <td>{{ record.retryCount }}</td>
-                <td class="truncate">{{ record.errorMessage || record.remark || '-' }}</td>
-                <td><strong>{{ formatDate(record.createdAt) }}</strong><small>{{ formatDate(record.updatedAt) }}</small></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="observability-section">
-        <h2>接入和补偿证据</h2>
-        <div class="observability-split">
-          <SimpleEvidenceTable title="订单校验" :items="bundle.validationRecords" />
-          <SimpleEvidenceTable title="集成重试" :items="bundle.integrationRetries" />
-          <SimpleEvidenceTable title="操作日志" :items="bundle.operationLogs" />
-          <SimpleEvidenceTable title="访问日志" :items="bundle.recentAccessLogs" />
-        </div>
-      </section>
-    </template>
   </section>
 </template>
