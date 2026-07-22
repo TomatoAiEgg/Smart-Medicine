@@ -4,7 +4,7 @@ param(
     [string]$AppSecret = "demo-secret"
 )
 
-$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
+$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()
 $body = @{
     externalOrderNo = "EXT-" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     patientName = "Smoke Patient"

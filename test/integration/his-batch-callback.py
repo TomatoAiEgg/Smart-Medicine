@@ -153,7 +153,7 @@ def build_order_payload(batch_id: str, index: int) -> Dict[str, Any]:
 def create_order(index: int, args: argparse.Namespace, app_secret: str, batch_id: str) -> OrderResult:
     payload = build_order_payload(batch_id, index)
     body = compact_json(payload)
-    timestamp = str(int(time.time()))
+    timestamp = str(int(time.time() * 1000))
     signature = sign_body(args.app_key, app_secret, timestamp, body)
     headers = {
         'X-App-Key': args.app_key,

@@ -51,7 +51,7 @@ if (!appSecret) {
   throw new Error('Missing Apifox environment variable: appSecret');
 }
 
-const timestamp = Math.floor(Date.now() / 1000).toString();
+const timestamp = Date.now().toString();
 const rawBody = pm.request.body && pm.request.body.raw ? pm.request.body.raw : '';
 const bodyHash = CryptoJS.SHA256(rawBody).toString(CryptoJS.enc.Hex);
 const source = `${appKey}\n${timestamp}\n${bodyHash}`;
