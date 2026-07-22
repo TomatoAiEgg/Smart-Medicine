@@ -346,6 +346,86 @@ export interface OpsHealthOverview {
   recentAccessCount: number;
 }
 
+export interface OrderIdentityRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderStatusLogRecord {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  fromStatus: string | null;
+  toStatus: string;
+  operatorType: string;
+  operatorId: string | null;
+  source: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface OpsWorkflowTaskRecord {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  taskType: string;
+  taskStatus: string;
+  sourceEventId: string;
+  assignedTo: string | null;
+  reviewComment: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface OpsCallbackRecord {
+  id: string;
+  tenantId: string;
+  orderId: string | null;
+  callbackType: string;
+  businessId: string;
+  requestUrl: string | null;
+  responseBody: string | null;
+  status: string;
+  retryCount: number;
+  nextRetryAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OperationLogRecord {
+  id: string;
+  tenantId: string;
+  orderId: string | null;
+  prescriptionId: string | null;
+  eventId: string | null;
+  operator: string | null;
+  action: string;
+  result: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface OrderObservabilityBundle {
+  order: OrderIdentityRecord;
+  statusLogs: OrderStatusLogRecord[];
+  workflowTasks: OpsWorkflowTaskRecord[];
+  outboxEvents: EventOutboxRecord[];
+  messageConsumeLogs: MessageConsumeRecord[];
+  deadLetters: DeadLetterRecord[];
+  validationRecords: OrderValidationRecord[];
+  callbackRecords: OpsCallbackRecord[];
+  integrationRetries: IntegrationRetryIssueRecord[];
+  operationLogs: OperationLogRecord[];
+  recentAccessLogs: ApiAccessLogRecord[];
+}
+
 export interface DeliveryOrderRecord {
   tenantId: string;
   orderId: string;

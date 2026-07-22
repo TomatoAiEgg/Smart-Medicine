@@ -7,6 +7,7 @@ import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
@@ -27,16 +28,19 @@ const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
+const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
 const logisticsCount = ref(0);
 const decoctionCount = ref(0);
+const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
+const observabilityActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 
 const currentViewTitle = computed(() => viewTitles[activeView.value]);
@@ -48,6 +52,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logistics: logisticsCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
+  observability: observabilityCount.value,
   ops: opsCount.value,
 }));
 
@@ -85,6 +90,10 @@ async function refreshCurrentTasks() {
     await opsConsoleRef.value?.refreshOpsConsole();
     return;
   }
+  if (activeView.value === 'observability') {
+    await orderObservabilityRef.value?.refreshOrderObservability();
+    return;
+  }
   if (activeView.value === 'decoction') {
     await decoctionWorkspaceRef.value?.refreshDecoctionSimulator();
     return;
@@ -95,6 +104,7 @@ function switchView(view: ViewKey) {
   activeView.value = view;
   if (view === 'reports') reportActivationKey.value += 1;
   if (view === 'ops') opsActivationKey.value += 1;
+  if (view === 'observability') observabilityActivationKey.value += 1;
   if (view === 'integration') integrationActivationKey.value += 1;
   if (view === 'logistics') logisticsActivationKey.value += 1;
   if (view === 'decoction') decoctionActivationKey.value += 1;
@@ -127,6 +137,15 @@ function switchView(view: ViewKey) {
         :active="activeView === 'ops'"
         :activation-key="opsActivationKey"
         @count-changed="opsCount = $event"
+        @notice="showNotice"
+      />
+
+      <OrderObservabilityPanel
+        v-show="activeView === 'observability'"
+        ref="orderObservabilityRef"
+        :active="activeView === 'observability'"
+        :activation-key="observabilityActivationKey"
+        @count-changed="observabilityCount = $event"
         @notice="showNotice"
       />
 

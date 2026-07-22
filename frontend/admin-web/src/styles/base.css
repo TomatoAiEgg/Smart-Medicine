@@ -461,6 +461,129 @@ td.truncate {
   overflow-wrap: anywhere;
 }
 
+.observability-page {
+  gap: 18px;
+}
+
+.observability-query {
+  flex-wrap: wrap;
+}
+
+.observability-query label {
+  min-width: 220px;
+}
+
+.observability-header,
+.observability-metrics {
+  display: grid;
+  gap: 12px;
+}
+
+.observability-header {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.observability-header > div,
+.observability-metrics > div {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #dbe1e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.observability-header span,
+.observability-metrics span {
+  color: #667386;
+  font-size: 13px;
+}
+
+.observability-header strong,
+.observability-metrics strong {
+  overflow-wrap: anywhere;
+}
+
+.observability-header small {
+  color: #768295;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.observability-metrics {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.observability-metrics strong {
+  font-size: 22px;
+}
+
+.metric-success {
+  border-color: #b9dece !important;
+  background: #f2fbf7 !important;
+}
+
+.metric-danger {
+  border-color: #efc2c2 !important;
+  background: #fff5f5 !important;
+}
+
+.risk-ok {
+  color: #145138;
+}
+
+.risk-danger {
+  color: #8d2c2c;
+}
+
+.observability-section {
+  display: grid;
+  gap: 12px;
+}
+
+.observability-section h2 {
+  margin: 0;
+  color: #25364b;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.timeline {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dbe1e6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 150px minmax(180px, 0.8fr) minmax(260px, 1.4fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f8fafb;
+}
+
+.timeline-item span,
+.timeline-item small {
+  color: #667386;
+  font-size: 12px;
+}
+
+.timeline-item strong,
+.timeline-item small {
+  overflow-wrap: anywhere;
+}
+
+.observability-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .devices-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
@@ -504,6 +627,16 @@ td.truncate {
   }
 
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .observability-header,
+  .observability-metrics,
+  .observability-split {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-item {
     grid-template-columns: 1fr;
   }
 }

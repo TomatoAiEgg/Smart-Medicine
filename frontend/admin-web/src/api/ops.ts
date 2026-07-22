@@ -7,6 +7,7 @@ import type {
   IntegrationRetryIssueRecord,
   LogisticsCallbackIssueRecord,
   MessageConsumeRecord,
+  OrderObservabilityBundle,
   OrderValidationRecord,
   OpsHealthOverview,
 } from './types';
@@ -26,6 +27,7 @@ interface OpsQueryParams {
   callbackType?: string;
   businessId?: string;
   orderNo?: string;
+  externalOrderNo?: string;
   taskStatus?: string;
   taskType?: string;
   businessKey?: string;
@@ -107,4 +109,10 @@ export function listIntegrationRetryIssues(
 
 export function getOpsHealthOverview(params: Pick<OpsQueryParams, 'recentHours'> = {}) {
   return request<OpsHealthOverview>(opsUrl('health-overview', params));
+}
+
+export function getOrderObservability(
+  params: Pick<OpsQueryParams, 'orderNo' | 'externalOrderNo' | 'limit'>,
+) {
+  return request<OrderObservabilityBundle>(opsUrl('order-observability', params));
 }

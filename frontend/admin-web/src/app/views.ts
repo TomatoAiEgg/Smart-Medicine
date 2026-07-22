@@ -9,6 +9,7 @@ export type ViewKey =
   | 'portal'
   | 'reports'
   | 'integration'
+  | 'observability'
   | 'ops';
 
 export interface MenuItem {
@@ -29,6 +30,7 @@ export const menuItems: MenuItem[] = [
   { key: 'portal', label: '门户查单', group: '门户集成' },
   { key: 'integration', label: '集成任务', group: '门户集成', showCount: true },
   { key: 'reports', label: '报表统计', group: '统计运维', showCount: true },
+  { key: 'observability', label: '链路监控', group: '统计运维', showCount: true },
   { key: 'ops', label: '运维审计', group: '统计运维', showCount: true },
 ];
 
@@ -43,5 +45,6 @@ export const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = 
   portal: { title: '门户查单', subtitle: '医院查单和地址补录申请' },
   integration: { title: '集成任务', subtitle: '外围消息、地址回推和重试任务' },
   reports: { title: '报表统计', subtitle: '查看核心指标、状态分布和趋势导出' },
+  observability: { title: '链路监控', subtitle: '按订单聚合访问、状态、MQ、回调、死信和补偿证据' },
   ops: { title: '运维审计', subtitle: '查询事件、消费、校验、访问和失败任务' },
 };
