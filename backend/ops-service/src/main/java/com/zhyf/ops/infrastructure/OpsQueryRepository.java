@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -21,6 +22,40 @@ public class OpsQueryRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    public Optional<OpsRecords.OrderIdentityRecord> findOrderIdentity(String orderNo, String externalOrderNo) {
+        QueryParts query = new QueryParts("""
+                select id, tenant_id, institution_id, order_no, external_order_no, status, created_at, updated_at
+                from order_main
+                where 1 = 1
+                """);
+        query.addTextFilter("order_no", orderNo);
+        query.addTextFilter("external_order_no", externalOrderNo);
+        query.append(" order by created_at desc limit 1");
+        return jdbcTemplate.query(query.sql(), this::mapOrderIdentityRecord, query.args()).stream().findFirst();
+    }
+
+    public List<OpsRecords.OrderStatusLogRecord> findOrderStatusLogs(UUID orderId, int limit) {
+        String sql = """
+                select id, tenant_id, order_id, from_status, to_status, operator_type,
+                       operator_id, source, reason, created_at
+                from order_status_log
+                where order_id = ?
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapOrderStatusLogRecord, orderId, limit);
+    }
+
+    public List<OpsRecords.WorkflowTaskRecord> findWorkflowTasks(UUID orderId, int limit) {
+        String sql = """
+                select id, tenant_id, order_id, task_type, task_status, source_event_id,
+                       assigned_to, review_comment, created_at, updated_at, completed_at
+                from workflow_task
+                where order_id = ?
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapWorkflowTaskRecord, orderId, limit);
+    }
+
     public List<OpsRecords.EventOutboxRecord> findEventOutbox(String status, String eventType, int limit) {
         QueryParts query = new QueryParts("""
                 select id, tenant_id, event_id, event_type, topic, tag, source,
@@ -31,6 +66,20 @@ public class OpsQueryRepository {
                 """);
         query.addTextFilter("status", status);
         query.addTextFilter("event_type", eventType);
+        query.append(" order by created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapEventOutboxRecord, query.args());
+    }
+
+    public List<OpsRecords.EventOutboxRecord> findEventOutboxByAggregateId(String aggregateId, int limit) {
+        QueryParts query = new QueryParts("""
+                select id, tenant_id, event_id, event_type, topic, tag, source,
+                       aggregate_type, aggregate_id, status, retry_count, max_retry_count,
+                       next_retry_at, last_error, created_at, updated_at, published_at
+                from event_outbox
+                where aggregate_id = ?
+                """);
+        query.add(aggregateId);
         query.append(" order by created_at desc limit ?");
         query.add(limit);
         return jdbcTemplate.query(query.sql(), this::mapEventOutboxRecord, query.args());
@@ -57,6 +106,20 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapMessageConsumeRecord, query.args());
     }
 
+    public List<OpsRecords.MessageConsumeRecord> findMessageConsumeLogsByAggregateId(String aggregateId, int limit) {
+        QueryParts query = new QueryParts("""
+                select id, consumer_group, message_id, event_id, topic, tag, aggregate_id,
+                       status, retry_count, last_error, trace_endpoint,
+                       consume_started_at, consume_finished_at, created_at, updated_at
+                from message_consume_log
+                where aggregate_id = ?
+                """);
+        query.add(aggregateId);
+        query.append(" order by created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapMessageConsumeRecord, query.args());
+    }
+
     public List<OpsRecords.DeadLetterRecord> findDeadLetters(
             String status,
             String topic,
@@ -77,6 +140,20 @@ public class OpsQueryRepository {
         }
         query.addTextFilter("topic", topic);
         query.addTextFilter("event_id", eventId);
+        query.append(" order by updated_at desc, created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapDeadLetterRecord, query.args());
+    }
+
+    public List<OpsRecords.DeadLetterRecord> findDeadLettersByAggregateId(String aggregateId, int limit) {
+        QueryParts query = new QueryParts("""
+                select id, event_id, topic, tag, consumer_group, aggregate_id,
+                       error_message, retry_count, status, operator, remark,
+                       created_at, updated_at
+                from dead_letter_record
+                where aggregate_id = ?
+                """);
+        query.add(aggregateId);
         query.append(" order by updated_at desc, created_at desc limit ?");
         query.add(limit);
         return jdbcTemplate.query(query.sql(), this::mapDeadLetterRecord, query.args());
@@ -188,6 +265,43 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapApiAccessLogRecord, query.args());
     }
 
+    public List<OpsRecords.ApiAccessLogRecord> findRecentApiAccessLogsByInstitution(UUID institutionId, int limit) {
+        String sql = """
+                select id, tenant_id, institution_id, app_key, request_path, request_ip, result_code, created_at
+                from api_access_log
+                where institution_id = ?
+                   or app_key in (
+                       select app_key
+                       from institution_app
+                       where institution_id = ?
+                   )
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapApiAccessLogRecord, institutionId, institutionId, limit);
+    }
+
+    public List<OpsRecords.CallbackRecord> findCallbackRecordsByOrderId(UUID orderId, int limit) {
+        String sql = """
+                select id, tenant_id, order_id, callback_type, business_id, request_url,
+                       response_body, status, retry_count, next_retry_at, created_at, updated_at
+                from callback_record
+                where order_id = ?
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapCallbackRecord, orderId, limit);
+    }
+
+    public List<OpsRecords.OperationLogRecord> findOperationLogsByOrderId(UUID orderId, int limit) {
+        String sql = """
+                select id, tenant_id, order_id, prescription_id, event_id, operator,
+                       action, result, reason, created_at
+                from operation_log
+                where order_id = ?
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapOperationLogRecord, orderId, limit);
+    }
+
     public List<OpsRecords.LogisticsCallbackIssueRecord> findLogisticsCallbackIssues(
             String callbackStatus,
             String callbackType,
@@ -295,6 +409,46 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapIntegrationRetryIssueRecord, query.args());
     }
 
+    public List<OpsRecords.IntegrationRetryIssueRecord> findIntegrationRetriesByBusinessKeys(
+            List<String> businessKeys,
+            int limit
+    ) {
+        if (businessKeys == null || businessKeys.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(",", businessKeys.stream().map(ignored -> "?").toList());
+        QueryParts query = new QueryParts("""
+                select
+                    t.id as task_id,
+                    t.message_id,
+                    t.task_type,
+                    t.target_system,
+                    t.business_key,
+                    t.request_url,
+                    t.response_body,
+                    t.task_status,
+                    t.retry_count,
+                    t.next_retry_at,
+                    t.created_at as task_created_at,
+                    t.updated_at as task_updated_at,
+                    t.processed_at,
+                    m.source_type,
+                    m.source_system,
+                    m.external_message_id,
+                    m.message_type,
+                    m.process_status,
+                    m.failure_reason
+                from integration_retry_task t
+                join integration_message m on m.id = t.message_id
+                where t.business_key in (
+                """);
+        query.append(placeholders);
+        query.append(") order by t.updated_at desc, t.created_at desc limit ?");
+        businessKeys.forEach(query::add);
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapIntegrationRetryIssueRecord, query.args());
+    }
+
     public OpsRecords.OpsHealthOverview loadHealthOverview(int recentHours) {
         return new OpsRecords.OpsHealthOverview(
                 recentHours,
@@ -355,6 +509,50 @@ public class OpsQueryRepository {
         );
     }
 
+    private OpsRecords.OrderIdentityRecord mapOrderIdentityRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.OrderIdentityRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("status"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private OpsRecords.OrderStatusLogRecord mapOrderStatusLogRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.OrderStatusLogRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("from_status"),
+                rs.getString("to_status"),
+                rs.getString("operator_type"),
+                rs.getString("operator_id"),
+                rs.getString("source"),
+                rs.getString("reason"),
+                instant(rs, "created_at")
+        );
+    }
+
+    private OpsRecords.WorkflowTaskRecord mapWorkflowTaskRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.WorkflowTaskRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("task_type"),
+                rs.getString("task_status"),
+                rs.getString("source_event_id"),
+                rs.getString("assigned_to"),
+                rs.getString("review_comment"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at"),
+                instant(rs, "completed_at")
+        );
+    }
+
     private OpsRecords.MessageConsumeRecord mapMessageConsumeRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OpsRecords.MessageConsumeRecord(
                 rs.getObject("id", UUID.class),
@@ -372,6 +570,38 @@ public class OpsQueryRepository {
                 instant(rs, "consume_finished_at"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private OpsRecords.CallbackRecord mapCallbackRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.CallbackRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("callback_type"),
+                rs.getString("business_id"),
+                rs.getString("request_url"),
+                rs.getString("response_body"),
+                rs.getString("status"),
+                rs.getInt("retry_count"),
+                instant(rs, "next_retry_at"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private OpsRecords.OperationLogRecord mapOperationLogRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new OpsRecords.OperationLogRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("event_id"),
+                rs.getString("operator"),
+                rs.getString("action"),
+                rs.getString("result"),
+                rs.getString("reason"),
+                instant(rs, "created_at")
         );
     }
 

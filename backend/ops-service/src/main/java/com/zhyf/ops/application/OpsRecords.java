@@ -1,6 +1,7 @@
 package com.zhyf.ops.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public final class OpsRecords {
@@ -85,6 +86,77 @@ public final class OpsRecords {
     ) {
     }
 
+    public record OrderIdentityRecord(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String orderNo,
+            String externalOrderNo,
+            String status,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record OrderStatusLogRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            String fromStatus,
+            String toStatus,
+            String operatorType,
+            String operatorId,
+            String source,
+            String reason,
+            Instant createdAt
+    ) {
+    }
+
+    public record WorkflowTaskRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            String taskType,
+            String taskStatus,
+            String sourceEventId,
+            String assignedTo,
+            String reviewComment,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant completedAt
+    ) {
+    }
+
+    public record CallbackRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            String callbackType,
+            String businessId,
+            String requestUrl,
+            String responseBody,
+            String status,
+            int retryCount,
+            Instant nextRetryAt,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record OperationLogRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID prescriptionId,
+            String eventId,
+            String operator,
+            String action,
+            String result,
+            String reason,
+            Instant createdAt
+    ) {
+    }
+
     public record ApiAccessLogRecord(
             UUID id,
             UUID tenantId,
@@ -155,6 +227,21 @@ public final class OpsRecords {
             long failedIntegrationRetries,
             long deadIntegrationRetries,
             long recentAccessCount
+    ) {
+    }
+
+    public record OrderObservabilityBundle(
+            OrderIdentityRecord order,
+            List<OrderStatusLogRecord> statusLogs,
+            List<WorkflowTaskRecord> workflowTasks,
+            List<EventOutboxRecord> outboxEvents,
+            List<MessageConsumeRecord> messageConsumeLogs,
+            List<DeadLetterRecord> deadLetters,
+            List<OrderValidationRecord> validationRecords,
+            List<CallbackRecord> callbackRecords,
+            List<IntegrationRetryIssueRecord> integrationRetries,
+            List<OperationLogRecord> operationLogs,
+            List<ApiAccessLogRecord> recentAccessLogs
     ) {
     }
 }

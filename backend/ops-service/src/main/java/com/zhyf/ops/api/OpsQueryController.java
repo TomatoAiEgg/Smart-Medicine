@@ -135,6 +135,15 @@ public class OpsQueryController {
         return ApiResponse.ok(queryService.healthOverview(recentHours));
     }
 
+    @GetMapping("/order-observability")
+    public ApiResponse<OpsRecords.OrderObservabilityBundle> orderObservability(
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String externalOrderNo,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(queryService.loadOrderObservability(orderNo, externalOrderNo, limit));
+    }
+
     public record DeadLetterOperationCommand(String operator, String remark) {
     }
 }

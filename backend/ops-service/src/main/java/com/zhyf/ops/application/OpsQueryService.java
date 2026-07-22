@@ -137,6 +137,44 @@ public class OpsQueryService {
         return repository.loadHealthOverview(normalizeHealthHours(recentHours));
     }
 
+    public OpsRecords.OrderObservabilityBundle loadOrderObservability(
+            String orderNo,
+            String externalOrderNo,
+            int limit
+    ) {
+        String normalizedOrderNo = normalizeText(orderNo);
+        String normalizedExternalOrderNo = normalizeText(externalOrderNo);
+        if (!StringUtils.hasText(normalizedOrderNo) && !StringUtils.hasText(normalizedExternalOrderNo)) {
+            throw new BusinessException(
+                    "ORDER_OBSERVABILITY_KEY_REQUIRED",
+                    "orderNo or externalOrderNo is required"
+            );
+        }
+        int normalizedLimit = normalizeLimit(limit);
+        OpsRecords.OrderIdentityRecord order = repository.findOrderIdentity(
+                normalizedOrderNo,
+                normalizedExternalOrderNo
+        ).orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "Order not found"));
+        String aggregateId = order.id().toString();
+        List<String> businessKeys = List.of(order.orderNo(), order.externalOrderNo()).stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        return new OpsRecords.OrderObservabilityBundle(
+                order,
+                repository.findOrderStatusLogs(order.id(), normalizedLimit),
+                repository.findWorkflowTasks(order.id(), normalizedLimit),
+                repository.findEventOutboxByAggregateId(aggregateId, normalizedLimit),
+                repository.findMessageConsumeLogsByAggregateId(aggregateId, normalizedLimit),
+                repository.findDeadLettersByAggregateId(aggregateId, normalizedLimit),
+                repository.findOrderValidationRecords(order.id(), null, normalizedLimit),
+                repository.findCallbackRecordsByOrderId(order.id(), normalizedLimit),
+                repository.findIntegrationRetriesByBusinessKeys(businessKeys, normalizedLimit),
+                repository.findOperationLogsByOrderId(order.id(), normalizedLimit),
+                repository.findRecentApiAccessLogsByInstitution(order.institutionId(), normalizedLimit)
+        );
+    }
+
     private int normalizeLimit(int limit) {
         if (limit <= 0) {
             return DEFAULT_LIMIT;
@@ -163,5 +201,9 @@ public class OpsQueryService {
 
     private String normalizedRemark(String remark, String defaultRemark) {
         return StringUtils.hasText(remark) ? remark.trim() : defaultRemark;
+    }
+
+    private String normalizeText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

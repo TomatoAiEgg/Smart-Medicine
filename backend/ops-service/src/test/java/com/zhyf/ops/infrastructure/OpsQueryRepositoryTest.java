@@ -20,6 +20,60 @@ class OpsQueryRepositoryTest {
     private final OpsQueryRepository repository = new OpsQueryRepository(jdbcTemplate);
 
     @Test
+    void shouldQueryOrderIdentityByOrderKeys() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findOrderIdentity("ZHYF1", "HIS-1");
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from order_main");
+        assertThat(sql).contains("order_no = ?");
+        assertThat(sql).contains("external_order_no = ?");
+        assertThat(args).containsExactly("ZHYF1", "HIS-1");
+    }
+
+    @Test
+    void shouldQueryOrderMessageEvidenceByAggregateId() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findMessageConsumeLogsByAggregateId("order-id-1", 20);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from message_consume_log");
+        assertThat(sql).contains("aggregate_id = ?");
+        assertThat(args).containsExactly("order-id-1", 20);
+    }
+
+    @Test
+    void shouldQueryRecentAccessLogsByInstitutionAndAppKey() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        UUID institutionId = UUID.randomUUID();
+
+        repository.findRecentApiAccessLogsByInstitution(institutionId, 10);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from api_access_log");
+        assertThat(sql).contains("from institution_app");
+        assertThat(args).containsExactly(institutionId, institutionId, 10);
+    }
+
+    @Test
+    void shouldQueryIntegrationRetriesByBusinessKeys() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findIntegrationRetriesByBusinessKeys(List.of("ZHYF1", "HIS-1"), 30);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from integration_retry_task t");
+        assertThat(sql).contains("where t.business_key in");
+        assertThat(args).containsExactly("ZHYF1", "HIS-1", 30);
+    }
+
+    @Test
     void shouldJoinCallbackBusinessIdByShipmentIdOrLogisticsNo() {
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
 
