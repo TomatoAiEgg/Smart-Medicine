@@ -16,13 +16,19 @@ const emit = defineEmits<{
 const startTime = ref('2026-07-14 11:00:00');
 const endTime = ref('2026-07-21 12:00:00');
 const institution = ref('');
+const hospitalType = ref('');
+const orderStatus = ref('');
+const decoctionCenter = ref('良益堂煎药中心');
 const prescriptionType = ref('');
 const deliveryType = ref('');
 const logisticsCompany = ref('');
 const province = ref('');
 const orderNo = ref('');
+const hospitalPrescriptionNo = ref('');
 const patientName = ref('');
 const receiverPhone = ref('');
+const batchNo = ref('');
+const orderRemark = ref('');
 const order = ref<OrderCreateResult | null>(null);
 const orderProgress = ref<OrderProgressSnapshot | null>(null);
 const orderLoading = ref(false);
@@ -39,6 +45,31 @@ function rowValue(value: string | number | boolean | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'boolean') return value ? '是' : '否';
   return String(value);
+}
+
+function firstPrescriptionNo() {
+  return orderProgress.value?.prescriptions[0]?.prescriptionNo ?? order.value?.orderNo ?? '-';
+}
+
+function firstExternalPrescriptionNo() {
+  return hospitalPrescriptionNo.value || orderProgress.value?.prescriptions[0]?.externalPrescriptionNo || order.value?.externalOrderNo;
+}
+
+function orderTime() {
+  return formatDate(orderProgress.value?.createdAt || orderProgress.value?.updatedAt);
+}
+
+function receiverSummary() {
+  const pieces = [receiverPhone.value, province.value].filter((item) => item.trim().length > 0);
+  return pieces.length > 0 ? pieces.join(' / ') : '-';
+}
+
+function resultCount() {
+  return order.value ? 1 : 0;
+}
+
+function scrollToOrderDetail() {
+  document.getElementById('order-detail-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function queryOrder() {
@@ -83,6 +114,8 @@ async function queryOrder() {
         <select v-model="institution" class="legacy-input input-large">
           <option value="">请选择</option>
           <option value="良益堂煎药中心">良益堂煎药中心</option>
+          <option value="广州良益堂（康正堂店）">广州良益堂（康正堂店）</option>
+          <option value="代煎代配药房">代煎代配药房</option>
         </select>
       </li>
       <li>
@@ -91,6 +124,32 @@ async function queryOrder() {
           <option value="">请选择</option>
           <option value="代煎">代煎</option>
           <option value="自煎">自煎</option>
+        </select>
+      </li>
+      <li>
+        门诊住院：
+        <select v-model="hospitalType" class="legacy-input">
+          <option value="">请选择</option>
+          <option value="门诊">门诊</option>
+          <option value="住院">住院</option>
+        </select>
+      </li>
+      <li>
+        订单状态：
+        <select v-model="orderStatus" class="legacy-input">
+          <option value="">请选择</option>
+          <option value="待审核">待审核</option>
+          <option value="调剂中">调剂中</option>
+          <option value="复核完成">复核完成</option>
+          <option value="煎煮中">煎煮中</option>
+          <option value="物流发货">物流发货</option>
+        </select>
+      </li>
+      <li>
+        煎煮中心：
+        <select v-model="decoctionCenter" class="legacy-input input-large">
+          <option value="良益堂煎药中心">良益堂煎药中心</option>
+          <option value="良益堂煎煮中心">良益堂煎煮中心</option>
         </select>
       </li>
       <li>
@@ -121,6 +180,10 @@ async function queryOrder() {
           placeholder="例如 ZHYF1782395865216"
           @keyup.enter="queryOrder"
         />
+      </li>
+      <li>
+        机构处方号：
+        <input v-model="hospitalPrescriptionNo" class="legacy-input input-large" />
       </li>
       <li>
         病人姓名：
@@ -157,36 +220,52 @@ async function queryOrder() {
             <th>剂数</th>
             <th>处方金额</th>
             <th>送货方式</th>
-            <th>订单状态</th>
+            <th>收货信息</th>
+            <th>送货时间</th>
+            <th>状态</th>
+            <th>批次</th>
+            <th>订单备注</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!order" class="legacy-main-info">
-            <td colspan="12" class="legacy-empty">
+            <td colspan="17" class="legacy-empty">
               {{ orderLoading ? '正在查询处方订单' : '请输入平台订单号后查询' }}
             </td>
           </tr>
           <tr v-else class="legacy-main-info">
-            <td>{{ rowValue(order.orderNo) }}</td>
-            <td>{{ formatDate(orderProgress?.updatedAt) }}</td>
-            <td>良益堂煎药中心</td>
+            <td>{{ firstPrescriptionNo() }}</td>
+            <td>{{ orderTime() }}</td>
+            <td>{{ rowValue(decoctionCenter) }}</td>
             <td>{{ rowValue(institution || order.externalOrderNo) }}</td>
-            <td>门诊</td>
-            <td>{{ rowValue(order.externalOrderNo) }}</td>
+            <td>{{ rowValue(hospitalType || '门诊') }}</td>
+            <td>{{ rowValue(firstExternalPrescriptionNo()) }}</td>
             <td>{{ rowValue(patientName) }}</td>
             <td>{{ rowValue(prescriptionType || '代煎') }}</td>
             <td>{{ rowValue(orderProgress?.prescriptions.length) }}</td>
             <td>-</td>
             <td>{{ rowValue(deliveryType) }}</td>
+            <td class="legacy-left">{{ receiverSummary() }}</td>
+            <td>-</td>
             <td>
-              <StatusPill :value="order.status" :tone="statusTone(order.status)" />
+              <StatusPill :value="orderStatus || order.status" :tone="statusTone(order.status)" />
+            </td>
+            <td>{{ rowValue(batchNo) }}</td>
+            <td class="legacy-left">{{ rowValue(orderRemark) }}</td>
+            <td>
+              <button class="legacy-link-btn" type="button" @click="scrollToOrderDetail">查看详情</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="order" class="detail-grid">
+    <p class="legacy-page-summary">
+      显示第 {{ resultCount() }} 至 {{ resultCount() }} 项记录，共 {{ resultCount() }} 项
+    </p>
+
+    <div v-if="order" id="order-detail-panel" class="detail-grid">
       <div>
         <span>订单 ID</span>
         <strong>{{ order.orderId }}</strong>
