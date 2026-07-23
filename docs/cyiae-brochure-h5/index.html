@@ -296,7 +296,7 @@
       position: fixed;
       z-index: 20;
       left: 50%;
-      bottom: calc(18px + var(--safe-bottom));
+      bottom: calc(48px + var(--safe-bottom));
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -336,6 +336,40 @@
 
     .counter {
       font-variant-numeric: tabular-nums;
+    }
+
+    .site-footer {
+      position: fixed;
+      z-index: 19;
+      left: 50%;
+      bottom: calc(12px + var(--safe-bottom));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: min(92vw, 720px);
+      padding: 7px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 10px 24px rgba(16, 72, 111, 0.1);
+      color: rgba(18, 50, 71, 0.74);
+      font-size: 12px;
+      text-align: center;
+      transform: translateX(-50%);
+      backdrop-filter: blur(14px);
+    }
+
+    .site-footer a {
+      color: var(--brand-blue-dark);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .site-footer a:hover,
+    .site-footer a:focus-visible {
+      text-decoration: underline;
+      outline: none;
     }
 
     .sr-only {
@@ -383,7 +417,7 @@
       }
 
       .slide {
-        padding: calc(72px + var(--safe-top)) 10px calc(62px + var(--safe-bottom));
+        padding: calc(72px + var(--safe-top)) 10px calc(92px + var(--safe-bottom));
       }
 
       .page-shell {
@@ -414,8 +448,15 @@
       }
 
       .bottom-hint {
-        bottom: calc(12px + var(--safe-bottom));
+        bottom: calc(44px + var(--safe-bottom));
         padding: 8px 12px;
+      }
+
+      .site-footer {
+        bottom: calc(8px + var(--safe-bottom));
+        width: min(96vw, 520px);
+        padding: 6px 10px;
+        font-size: 11px;
       }
     }
 
@@ -527,6 +568,11 @@
       </svg>
       <span><span class="counter" id="counter">01 / 12</span> · 向下滑动浏览</span>
     </div>
+
+    <footer class="site-footer">
+      <span>© 广州诚友工业自动化设备有限公司</span>
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">粤ICP备16054707号-2</a>
+    </footer>
 
     <p class="sr-only" id="liveStatus" aria-live="polite">当前第 1 页，共 12 页。</p>
   </main>
