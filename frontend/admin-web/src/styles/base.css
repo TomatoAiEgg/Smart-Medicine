@@ -2191,6 +2191,81 @@ body {
   font-weight: 650;
 }
 
+.legacy-content .legacy-main-table.workflow-main-table {
+  min-width: 1720px;
+}
+
+.legacy-content .legacy-main-table.workflow-review-table {
+  min-width: 1540px;
+}
+
+.legacy-content .legacy-main-table.workflow-dispense-table {
+  min-width: 1680px;
+}
+
+.legacy-content .legacy-main-table.workflow-recheck-table {
+  min-width: 1840px;
+}
+
+.workflow-action-cell {
+  white-space: nowrap;
+}
+
+.workflow-pass-btn {
+  border-color: rgba(29, 122, 101, 0.34);
+  color: var(--admin-green);
+  background: #edf8f5;
+}
+
+.workflow-pass-btn:hover {
+  background: #dff1ec;
+}
+
+.workflow-reject-btn {
+  margin-left: 6px;
+  border-color: rgba(190, 65, 65, 0.32);
+  color: #a13b3b;
+  background: #fff0f0;
+}
+
+.workflow-reject-btn:hover {
+  background: #ffe1e1;
+}
+
+.workflow-inline-input {
+  width: 118px;
+  height: 28px;
+  text-align: center;
+}
+
+.workflow-task-detail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.workflow-task-detail div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-surface);
+  box-shadow: 0 2px 8px rgba(30, 48, 76, 0.04);
+}
+
+.workflow-task-detail span {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.workflow-task-detail strong {
+  overflow-wrap: anywhere;
+  color: var(--admin-text);
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .legacy-shell {
     grid-template-rows: 56px auto minmax(0, 1fr);
@@ -2214,5 +2289,9 @@ body {
   .legacy-input,
   .legacy-input.input-large {
     width: 100%;
+  }
+
+  .workflow-task-detail {
+    grid-template-columns: 1fr;
   }
 }
