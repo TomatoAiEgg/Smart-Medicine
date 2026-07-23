@@ -2266,6 +2266,49 @@ body {
   font-size: 14px;
 }
 
+.logistics-mode-search {
+  align-items: center;
+  padding-top: 10px;
+}
+
+.logistics-mode-item {
+  gap: 8px;
+}
+
+.logistics-mode-item .legacy-link-btn.active {
+  color: #ffffff;
+  border-color: var(--admin-blue);
+  background: var(--admin-blue);
+}
+
+.legacy-content .legacy-main-table.logistics-main-table {
+  min-width: 2100px;
+}
+
+.legacy-content .legacy-main-table.logistics-callback-table {
+  min-width: 1080px;
+}
+
+.legacy-content .legacy-main-table.logistics-trace-table {
+  min-width: 960px;
+}
+
+.logistics-action-cell {
+  white-space: nowrap;
+}
+
+.logistics-action-cell .legacy-link-btn + .legacy-link-btn {
+  margin-left: 6px;
+}
+
+.logistics-trace-panel {
+  margin-top: 12px;
+}
+
+.logistics-trace-content .legacy-input {
+  width: 320px;
+}
+
 @media (max-width: 900px) {
   .legacy-shell {
     grid-template-rows: 56px auto minmax(0, 1fr);
