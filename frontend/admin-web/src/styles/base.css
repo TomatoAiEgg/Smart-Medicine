@@ -2309,6 +2309,48 @@ body {
   width: 320px;
 }
 
+.decoction-mode-search {
+  align-items: center;
+  padding-top: 10px;
+}
+
+.legacy-content .legacy-main-table.decoction-main-table {
+  min-width: 1560px;
+}
+
+.legacy-content .legacy-main-table.decoction-device-table {
+  min-width: 1680px;
+}
+
+.legacy-content .legacy-main-table.decoction-pail-table {
+  min-width: 760px;
+}
+
+.legacy-content .legacy-main-table.decoction-print-table {
+  min-width: 1120px;
+}
+
+.legacy-content .legacy-main-table.decoction-event-table {
+  min-width: 1320px;
+}
+
+.legacy-content .legacy-main-table.decoction-event-record-table {
+  min-width: 980px;
+}
+
+.decoction-action-cell {
+  min-width: 380px;
+  white-space: normal;
+}
+
+.decoction-action-cell .legacy-link-btn {
+  margin: 2px;
+}
+
+.decoction-event-panel {
+  margin-top: 12px;
+}
+
 @media (max-width: 900px) {
   .legacy-shell {
     grid-template-rows: 56px auto minmax(0, 1fr);
