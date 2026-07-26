@@ -47,8 +47,8 @@ defineExpose({
 </script>
 
 <template>
-  <section class="workspace">
-    <div class="toolbar">
+  <section class="legacy-page dashboard-home-page">
+    <div class="legacy-search-panel dashboard-action-panel">
       <button class="primary" type="button" :disabled="healthLoading" @click="refreshDashboard">
         {{ healthLoading ? '刷新中' : '刷新' }}
       </button>
@@ -56,7 +56,7 @@ defineExpose({
 
     <p v-if="healthError" class="error-line">{{ healthError }}</p>
 
-    <div v-if="health" class="detail-grid">
+    <div v-if="health" class="legacy-detail-grid dashboard-health-summary">
       <div>
         <span>Outbox 待发</span>
         <strong>{{ formatNumber(health.pendingOutbox) }}</strong>

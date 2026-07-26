@@ -106,8 +106,8 @@ defineExpose({
 </script>
 
 <template>
-  <section class="workspace">
-    <div class="toolbar">
+  <section class="legacy-page portal-lookup-page">
+    <div class="legacy-search-panel portal-query-panel">
       <label>
         <span>平台订单号</span>
         <input v-model="portalOrderNo" placeholder="ZHYF..." @keyup.enter="handlePortalQuery" />
@@ -127,7 +127,7 @@ defineExpose({
 
     <p v-if="portalError" class="error-line">{{ portalError }}</p>
 
-    <div v-if="portalOrder" class="detail-grid">
+    <div v-if="portalOrder" class="legacy-detail-grid portal-order-summary">
       <div>
         <span>医院</span>
         <strong>{{ portalOrder.institutionName }}</strong>
@@ -162,7 +162,7 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="portalOrder" class="toolbar event-toolbar">
+    <div v-if="portalOrder" class="legacy-search-panel legacy-event-panel portal-address-panel">
       <label>
         <span>收件人</span>
         <input v-model="supplementReceiverName" placeholder="收件人姓名" />
@@ -196,8 +196,8 @@ defineExpose({
       </button>
     </div>
 
-    <div v-if="portalOrder" class="table-wrap">
-      <table>
+    <div v-if="portalOrder" class="legacy-panel portal-prescription-panel">
+      <table class="legacy-main-table portal-prescription-table">
         <thead>
           <tr>
             <th>处方号</th>
@@ -209,7 +209,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="portalOrder.prescriptions.length === 0">
-            <td colspan="5" class="empty">暂无处方记录</td>
+            <td colspan="5" class="legacy-empty">暂无处方记录</td>
           </tr>
           <tr v-for="prescription in portalOrder.prescriptions" :key="prescription.prescriptionNo">
             <td>{{ prescription.prescriptionNo }}</td>
@@ -222,7 +222,7 @@ defineExpose({
       </table>
     </div>
 
-    <div v-if="latestAddressSupplement" class="detail-grid">
+    <div v-if="latestAddressSupplement" class="legacy-detail-grid portal-supplement-result">
       <div>
         <span>补录状态</span>
         <StatusPill :value="latestAddressSupplement.supplementStatus" :tone="statusTone(latestAddressSupplement.supplementStatus)" />

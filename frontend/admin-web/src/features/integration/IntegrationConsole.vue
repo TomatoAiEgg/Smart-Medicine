@@ -233,8 +233,8 @@ defineExpose({
 </script>
 
 <template>
-  <section class="workspace">
-    <div class="toolbar">
+  <section class="legacy-page integration-console-page">
+    <div class="legacy-search-panel integration-query-panel">
       <label>
         <span>来源类型</span>
         <input v-model="integrationSourceType" placeholder="COMMUNITY_HOSPITAL / ADDRESS_PUSH" @keyup.enter="refreshIntegrationMessages" />
@@ -271,7 +271,7 @@ defineExpose({
       </button>
     </div>
 
-    <div class="toolbar event-toolbar">
+    <div class="legacy-search-panel legacy-event-panel integration-action-panel">
       <label>
         <span>区域</span>
         <input v-model="communityAreaCode" placeholder="LG" />
@@ -301,7 +301,7 @@ defineExpose({
       </button>
     </div>
 
-    <div class="toolbar event-toolbar">
+    <div class="legacy-search-panel legacy-event-panel integration-action-panel">
       <label>
         <span>补录 ID</span>
         <input v-model="addressSupplementId" placeholder="UUID" />
@@ -331,7 +331,7 @@ defineExpose({
       </button>
     </div>
 
-    <div class="toolbar event-toolbar">
+    <div class="legacy-search-panel legacy-event-panel integration-action-panel">
       <label>
         <span>社康编码</span>
         <input v-model="communityCode" placeholder="CH-001" />
@@ -357,7 +357,7 @@ defineExpose({
       </button>
     </div>
 
-    <div class="toolbar event-toolbar">
+    <div class="legacy-search-panel legacy-event-panel integration-action-panel">
       <label>
         <span>处方号</span>
         <input v-model="hospitalPrescriptionNo" placeholder="RX..." @keyup.enter="handleHospitalPrescriptionQuery" />
@@ -373,7 +373,7 @@ defineExpose({
 
     <p v-if="integrationError" class="error-line">{{ integrationError }}</p>
 
-    <div v-if="hospitalOrder" class="detail-grid">
+    <div v-if="hospitalOrder" class="legacy-detail-grid integration-order-summary">
       <div>
         <span>医院</span>
         <strong>{{ hospitalOrder.institutionName }}</strong>
@@ -410,8 +410,8 @@ defineExpose({
       </div>
     </div>
 
-    <div class="table-wrap integration-table">
-      <table>
+    <div class="legacy-panel integration-table">
+      <table class="legacy-main-table integration-main-table">
         <thead>
           <tr>
             <th>任务/目标</th>
@@ -424,7 +424,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="!integrationLoading && integrationRetryTasks.length === 0">
-            <td colspan="6" class="empty">暂无集成重试任务</td>
+            <td colspan="6" class="legacy-empty">暂无集成重试任务</td>
           </tr>
           <tr v-for="task in integrationRetryTasks" :key="task.taskId">
             <td>
@@ -450,8 +450,8 @@ defineExpose({
       </table>
     </div>
 
-    <div class="table-wrap integration-table">
-      <table>
+    <div class="legacy-panel integration-table">
+      <table class="legacy-main-table integration-main-table">
         <thead>
           <tr>
             <th>来源/外部消息</th>
@@ -464,7 +464,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="!integrationLoading && integrationMessages.length === 0">
-            <td colspan="6" class="empty">暂无集成适配消息</td>
+            <td colspan="6" class="legacy-empty">暂无集成适配消息</td>
           </tr>
           <tr v-for="message in integrationMessages" :key="message.messageId">
             <td>

@@ -263,8 +263,8 @@ defineExpose({
 </script>
 
 <template>
-        <section class="workspace">
-        <div class="toolbar ops-tabs">
+        <section class="legacy-page ops-console-page">
+        <div class="legacy-search-panel ops-tabs">
           <button
             class="secondary"
             :class="{ active: activeOpsDataset === 'outbox' }"
@@ -330,7 +330,7 @@ defineExpose({
           </button>
         </div>
 
-        <div class="toolbar">
+        <div class="legacy-search-panel ops-health-panel">
           <label>
             <span>健康窗口</span>
             <input v-model.number="opsHealthHours" type="number" min="1" max="168" step="1" @keyup.enter="refreshOpsHealth" />
@@ -342,7 +342,7 @@ defineExpose({
 
         <p v-if="opsHealthError" class="error-line">{{ opsHealthError }}</p>
 
-        <div v-if="opsHealth" class="detail-grid">
+        <div v-if="opsHealth" class="legacy-detail-grid ops-health-summary">
           <div>
             <span>窗口</span>
             <strong>{{ opsHealth.recentHours }} 小时</strong>
@@ -377,7 +377,7 @@ defineExpose({
           </div>
         </div>
 
-        <div class="toolbar event-toolbar">
+        <div class="legacy-search-panel legacy-event-panel ops-filter-panel">
           <template v-if="activeOpsDataset === 'outbox'">
             <label>
               <span>状态</span>
@@ -476,8 +476,8 @@ defineExpose({
 
         <p v-if="opsError" class="error-line">{{ opsError }}</p>
 
-        <div v-if="activeOpsDataset === 'outbox'" class="table-wrap ops-table">
-          <table>
+        <div v-if="activeOpsDataset === 'outbox'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>事件</th>
@@ -492,7 +492,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && outboxRecords.length === 0">
-                <td colspan="8" class="empty">暂无 Outbox 记录</td>
+                <td colspan="8" class="legacy-empty">暂无 Outbox 记录</td>
               </tr>
               <tr v-for="record in outboxRecords" :key="record.id">
                 <td>
@@ -520,8 +520,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else-if="activeOpsDataset === 'consume'" class="table-wrap ops-table">
-          <table>
+        <div v-else-if="activeOpsDataset === 'consume'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>消费组</th>
@@ -536,7 +536,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && messageConsumeRecords.length === 0">
-                <td colspan="8" class="empty">暂无消费日志</td>
+                <td colspan="8" class="legacy-empty">暂无消费日志</td>
               </tr>
               <tr v-for="record in messageConsumeRecords" :key="record.id">
                 <td><strong>{{ record.consumerGroup }}</strong></td>
@@ -561,8 +561,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else-if="activeOpsDataset === 'deadLetters'" class="table-wrap ops-table">
-          <table>
+        <div v-else-if="activeOpsDataset === 'deadLetters'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>事件</th>
@@ -577,7 +577,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && deadLetterRecords.length === 0">
-                <td colspan="8" class="empty">暂无死信记录</td>
+                <td colspan="8" class="legacy-empty">暂无死信记录</td>
               </tr>
               <tr v-for="record in deadLetterRecords" :key="record.id">
                 <td>
@@ -623,8 +623,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else-if="activeOpsDataset === 'validation'" class="table-wrap ops-table">
-          <table>
+        <div v-else-if="activeOpsDataset === 'validation'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>订单</th>
@@ -636,7 +636,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && orderValidationRecords.length === 0">
-                <td colspan="5" class="empty">暂无订单校验记录</td>
+                <td colspan="5" class="legacy-empty">暂无订单校验记录</td>
               </tr>
               <tr v-for="record in orderValidationRecords" :key="record.id">
                 <td>
@@ -652,8 +652,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else-if="activeOpsDataset === 'access'" class="table-wrap ops-table">
-          <table>
+        <div v-else-if="activeOpsDataset === 'access'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>机构应用</th>
@@ -665,7 +665,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && apiAccessLogRecords.length === 0">
-                <td colspan="5" class="empty">暂无访问日志</td>
+                <td colspan="5" class="legacy-empty">暂无访问日志</td>
               </tr>
               <tr v-for="record in apiAccessLogRecords" :key="record.id">
                 <td>
@@ -681,8 +681,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else-if="activeOpsDataset === 'callbackIssues'" class="table-wrap ops-table">
-          <table>
+        <div v-else-if="activeOpsDataset === 'callbackIssues'" class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>回调</th>
@@ -696,7 +696,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && logisticsCallbackIssueRecords.length === 0">
-                <td colspan="7" class="empty">暂无物流回调失败记录</td>
+                <td colspan="7" class="legacy-empty">暂无物流回调失败记录</td>
               </tr>
               <tr v-for="record in logisticsCallbackIssueRecords" :key="record.callbackId">
                 <td>
@@ -729,8 +729,8 @@ defineExpose({
           </table>
         </div>
 
-        <div v-else class="table-wrap ops-table">
-          <table>
+        <div v-else class="legacy-panel ops-table">
+          <table class="legacy-main-table ops-main-table">
             <thead>
               <tr>
                 <th>任务</th>
@@ -744,7 +744,7 @@ defineExpose({
             </thead>
             <tbody>
               <tr v-if="!opsLoading && integrationRetryIssueRecords.length === 0">
-                <td colspan="7" class="empty">暂无集成失败任务</td>
+                <td colspan="7" class="legacy-empty">暂无集成失败任务</td>
               </tr>
               <tr v-for="record in integrationRetryIssueRecords" :key="record.taskId">
                 <td>

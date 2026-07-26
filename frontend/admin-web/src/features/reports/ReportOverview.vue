@@ -105,8 +105,8 @@ defineExpose({
 </script>
 
 <template>
-  <section class="workspace">
-    <div class="toolbar">
+  <section class="legacy-page report-overview-page">
+    <div class="legacy-search-panel report-query-panel">
       <label>
         <span>开始日期</span>
         <input v-model="reportFrom" type="date" @keyup.enter="refreshReports" />
@@ -129,7 +129,7 @@ defineExpose({
 
     <p v-if="reportError" class="error-line">{{ reportError }}</p>
 
-    <div v-if="reportOverview" class="detail-grid report-metrics">
+    <div v-if="reportOverview" class="legacy-detail-grid report-metrics">
       <div>
         <span>订单总数</span>
         <strong>{{ formatNumber(reportOverview.totalOrders) }}</strong>
@@ -157,8 +157,8 @@ defineExpose({
       </div>
     </div>
 
-    <div v-if="reportOverview" class="table-wrap report-table">
-      <table>
+    <div v-if="reportOverview" class="legacy-panel report-table">
+      <table class="legacy-main-table report-main-table">
         <thead>
           <tr>
             <th>订单状态</th>
@@ -167,7 +167,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="reportOverview.orderStatusCounts.length === 0">
-            <td colspan="2" class="empty">暂无订单状态统计</td>
+            <td colspan="2" class="legacy-empty">暂无订单状态统计</td>
           </tr>
           <tr v-for="item in reportOverview.orderStatusCounts" :key="item.status">
             <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
@@ -177,8 +177,8 @@ defineExpose({
       </table>
     </div>
 
-    <div v-if="reportOverview" class="table-wrap report-table">
-      <table>
+    <div v-if="reportOverview" class="legacy-panel report-table">
+      <table class="legacy-main-table report-main-table">
         <thead>
           <tr>
             <th>回调状态</th>
@@ -187,7 +187,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="reportOverview.callbackStatusCounts.length === 0">
-            <td colspan="2" class="empty">暂无回调状态统计</td>
+            <td colspan="2" class="legacy-empty">暂无回调状态统计</td>
           </tr>
           <tr v-for="item in reportOverview.callbackStatusCounts" :key="item.status">
             <td><StatusPill :value="item.status" :tone="statusTone(item.status)" /></td>
@@ -197,8 +197,8 @@ defineExpose({
       </table>
     </div>
 
-    <div v-if="reportOverview" class="table-wrap report-table">
-      <table>
+    <div v-if="reportOverview" class="legacy-panel report-table">
+      <table class="legacy-main-table report-main-table">
         <thead>
           <tr>
             <th>日期</th>
@@ -207,7 +207,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="reportOverview.dailyOrderCounts.length === 0">
-            <td colspan="2" class="empty">趋势窗口内暂无订单</td>
+            <td colspan="2" class="legacy-empty">趋势窗口内暂无订单</td>
           </tr>
           <tr v-for="item in reportOverview.dailyOrderCounts" :key="item.day">
             <td><strong>{{ item.day }}</strong></td>

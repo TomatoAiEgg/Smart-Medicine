@@ -2955,6 +2955,165 @@ tbody tr:hover td {
   min-width: 980px;
 }
 
+.legacy-search-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+  padding: 11px 13px 3px;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: var(--admin-surface);
+}
+
+.legacy-search-panel label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 8px;
+  color: #2b3a4d;
+  font-size: 13px;
+  line-height: 30px;
+  white-space: nowrap;
+}
+
+.legacy-search-panel label.grow {
+  flex: 0 0 auto;
+}
+
+.legacy-search-panel label span {
+  color: #2b3a4d;
+  font-size: 13px;
+}
+
+.legacy-search-panel input,
+.legacy-search-panel select {
+  width: 150px;
+}
+
+.legacy-search-panel .grow input,
+.legacy-search-panel .grow select,
+.legacy-search-panel .payload-input input {
+  width: 240px;
+}
+
+.legacy-search-panel .limit-label input {
+  width: 86px;
+}
+
+.legacy-search-panel > button,
+.legacy-panel .actions button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid #8a96a8;
+  border-radius: 4px;
+  color: #ffffff;
+  background: #748096;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 20px;
+}
+
+.legacy-search-panel > button:hover,
+.legacy-panel .actions button:hover {
+  background: #647188;
+}
+
+.legacy-search-panel > button.primary {
+  border-color: var(--admin-primary);
+  background: var(--admin-primary);
+}
+
+.legacy-search-panel > button.primary:hover {
+  background: #1f5fa3;
+}
+
+.legacy-search-panel > button.secondary,
+.legacy-panel .actions button.secondary {
+  border-color: #8a96a8;
+  background: #748096;
+}
+
+.legacy-search-panel.ops-tabs {
+  align-items: flex-start;
+}
+
+.legacy-search-panel.ops-tabs button.active {
+  border-color: var(--admin-primary);
+  color: #ffffff;
+  background: var(--admin-primary);
+}
+
+.legacy-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.legacy-detail-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: var(--admin-surface);
+}
+
+.legacy-detail-grid > div.wide {
+  grid-column: span 2;
+}
+
+.legacy-detail-grid span,
+.legacy-detail-grid strong,
+.legacy-detail-grid small {
+  display: block;
+  min-width: 0;
+}
+
+.legacy-detail-grid span {
+  margin-bottom: 6px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.legacy-detail-grid strong {
+  color: var(--admin-text);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.legacy-detail-grid small {
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.legacy-panel + .legacy-panel,
+.legacy-detail-grid + .legacy-panel,
+.legacy-panel + .legacy-detail-grid {
+  margin-top: 10px;
+}
+
+.legacy-content .legacy-main-table.portal-prescription-table {
+  min-width: 760px;
+}
+
+.legacy-content .legacy-main-table.report-main-table {
+  min-width: 520px;
+}
+
+.legacy-content .legacy-main-table.integration-main-table {
+  min-width: 1180px;
+}
+
+.legacy-content .legacy-main-table.ops-main-table {
+  min-width: 1180px;
+}
+
 @media (max-width: 900px) {
   .legacy-shell {
     grid-template-rows: 50px auto minmax(0, 1fr);
@@ -2972,7 +3131,29 @@ tbody tr:hover td {
 
   .legacy-search li,
   .legacy-input,
-  .legacy-input.input-large {
+  .legacy-input.input-large,
+  .legacy-search-panel label,
+  .legacy-search-panel input,
+  .legacy-search-panel select,
+  .legacy-search-panel .grow input,
+  .legacy-search-panel .grow select,
+  .legacy-search-panel .payload-input input,
+  .legacy-search-panel .limit-label input,
+  .legacy-search-panel > button {
     width: 100%;
+  }
+
+  .legacy-search-panel label {
+    align-items: stretch;
+    flex-direction: column;
+    white-space: normal;
+  }
+
+  .legacy-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .legacy-detail-grid > div.wide {
+    grid-column: auto;
   }
 }
