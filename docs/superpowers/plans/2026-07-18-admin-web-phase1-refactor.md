@@ -61,7 +61,7 @@ Verify:
 - Create: `frontend/admin-web/src/app/AppLayout.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create view metadata**
+- [x] **Step 1: Create view metadata**
 
 Create `frontend/admin-web/src/app/views.ts`:
 
@@ -114,7 +114,7 @@ export const viewTitles: Record<ViewKey, { title: string; subtitle: string }> = 
 };
 ```
 
-- [ ] **Step 2: Create the app layout component**
+- [x] **Step 2: Create the app layout component**
 
 Create `frontend/admin-web/src/app/AppLayout.vue`:
 
@@ -184,7 +184,7 @@ defineEmits<{
 </template>
 ```
 
-- [ ] **Step 3: Wire layout into `App.vue` without moving pages yet**
+- [x] **Step 3: Wire layout into `App.vue` without moving pages yet**
 
 Modify the imports and layout wrapper in `frontend/admin-web/src/App.vue`:
 
@@ -227,7 +227,7 @@ Wrap the existing template content inside:
 
 Remove the old inline `<aside class="sidebar">`, `<nav class="nav">`, `.brand`, `.topbar`, and notice markup from `App.vue`.
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run:
 
@@ -246,7 +246,7 @@ Expected: build succeeds. If Vue reports missing props or duplicate `ViewKey`, f
 - Create: `frontend/admin-web/src/domain/status.ts`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Extract formatters**
+- [x] **Step 1: Extract formatters**
 
 Create `frontend/admin-web/src/domain/formatters.ts`:
 
@@ -277,7 +277,7 @@ export function dateInputToIso(value: string, endExclusive = false) {
 }
 ```
 
-- [ ] **Step 2: Extract status tone helper**
+- [x] **Step 2: Extract status tone helper**
 
 Create `frontend/admin-web/src/domain/status.ts`:
 
@@ -297,7 +297,7 @@ export function statusTone(status: string | null | undefined) {
 }
 ```
 
-- [ ] **Step 3: Replace local helpers in `App.vue`**
+- [x] **Step 3: Replace local helpers in `App.vue`**
 
 Import:
 
@@ -308,7 +308,7 @@ import { statusTone } from './domain/status';
 
 Delete the local `statusTone`, `formatDate`, `formatNumber`, `defaultDate`, and `dateInputToIso` functions from `App.vue`.
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run:
 
@@ -326,7 +326,7 @@ Expected: build succeeds and no duplicate function declarations remain.
 - Create: `frontend/admin-web/src/features/orders/OrderCenter.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create `OrderCenter.vue`**
+- [x] **Step 1: Create `OrderCenter.vue`**
 
 Move the order state and `queryOrder` logic from `App.vue` into `frontend/admin-web/src/features/orders/OrderCenter.vue`. The component must:
 
@@ -393,7 +393,7 @@ async function queryOrder() {
 </script>
 ```
 
-- [ ] **Step 2: Render the component from `App.vue`**
+- [x] **Step 2: Render the component from `App.vue`**
 
 Import:
 
@@ -409,7 +409,7 @@ Replace the old orders section with:
 
 Delete order-specific state and `queryOrder` from `App.vue`.
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run:
 
@@ -427,7 +427,7 @@ Expected: build succeeds and the order center still compiles with existing API t
 - Create: `frontend/admin-web/src/features/workflow/WorkflowTasks.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create `WorkflowTasks.vue`**
+- [x] **Step 1: Create `WorkflowTasks.vue`**
 
 Move review, dispense, and recheck task state and handlers from `App.vue` into `frontend/admin-web/src/features/workflow/WorkflowTasks.vue`.
 
@@ -462,7 +462,7 @@ The component must own:
 - `refreshReviewTasks`, `refreshDispenseTasks`, `refreshRecheckTasks`, `refreshCurrentTasks`, `refreshAllWorkflowTasks`
 - `handleReview`, `handleDispense`, `handleRecheck`
 
-- [ ] **Step 2: Render workflow component from `App.vue`**
+- [x] **Step 2: Render workflow component from `App.vue`**
 
 Import:
 
@@ -482,11 +482,11 @@ Replace the old workflow section with:
 
 Delete workflow-specific state and handlers from `App.vue`.
 
-- [ ] **Step 3: Adjust menu counts**
+- [x] **Step 3: Adjust menu counts**
 
 If counts cannot be lifted cleanly in this step, set workflow menu counts to `0` temporarily and keep the counts visible inside the workflow page. Do not add complex global state just for badges.
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run:
 
@@ -504,7 +504,7 @@ Expected: build succeeds; review, dispense, and recheck views compile through on
 - Create: `frontend/admin-web/src/features/reports/ReportOverview.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create `ReportOverview.vue`**
+- [x] **Step 1: Create `ReportOverview.vue`**
 
 Move report state and handlers from `App.vue` into `frontend/admin-web/src/features/reports/ReportOverview.vue`.
 
@@ -524,7 +524,7 @@ import type { ReportOverview } from '../../api/types';
 import { dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 ```
 
-- [ ] **Step 2: Render report component from `App.vue`**
+- [x] **Step 2: Render report component from `App.vue`**
 
 Import:
 
@@ -540,7 +540,7 @@ Replace the old reports section with:
 
 Delete report-specific state and handlers from `App.vue`.
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run:
 
@@ -558,7 +558,7 @@ Expected: build succeeds and CSV export code remains in the report feature.
 - Create: `frontend/admin-web/src/features/ops/OpsConsole.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create `OpsConsole.vue`**
+- [x] **Step 1: Create `OpsConsole.vue`**
 
 Move ops state and handlers from `App.vue` into `frontend/admin-web/src/features/ops/OpsConsole.vue`.
 
@@ -586,7 +586,7 @@ import {
 
 It must reuse `formatDate`, `formatNumber`, and `statusTone` from `domain`.
 
-- [ ] **Step 2: Render ops component from `App.vue`**
+- [x] **Step 2: Render ops component from `App.vue`**
 
 Import:
 
@@ -602,7 +602,7 @@ Replace the old ops section with:
 
 Delete ops-specific state and handlers from `App.vue`.
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run:
 
@@ -620,7 +620,7 @@ Expected: build succeeds and ops query tabs compile in the new feature component
 - Create: `frontend/admin-web/src/features/dashboard/DashboardHome.vue`
 - Modify: `frontend/admin-web/src/App.vue`
 
-- [ ] **Step 1: Create dashboard component**
+- [x] **Step 1: Create dashboard component**
 
 Create `frontend/admin-web/src/features/dashboard/DashboardHome.vue` using `getOpsHealthOverview`. The page must show real health overview data only. Do not add fake pending task numbers.
 
@@ -633,7 +633,7 @@ Required cards:
 - 集成失败/死信
 - 最近访问量
 
-- [ ] **Step 2: Render dashboard first**
+- [x] **Step 2: Render dashboard first**
 
 Change the default active view in `App.vue`:
 
@@ -647,7 +647,7 @@ Render:
 <DashboardHome v-if="activeView === 'dashboard'" @notice="showNotice" />
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run:
 
@@ -665,7 +665,7 @@ Expected: build succeeds and first screen is a real backend-backed dashboard.
 - Modify: `docs/00_项目总览/上下文管理.md`
 - Modify: `docs/99_项目记录/项目记录.md`
 
-- [ ] **Step 1: Update project docs**
+- [x] **Step 1: Update project docs**
 
 Add one 2026-07-18 entry stating:
 
@@ -674,7 +674,7 @@ Add one 2026-07-18 entry stating:
 - `App.vue` now keeps remaining phase-two pages: decoction, logistics, portal, integration.
 - Verification command and result.
 
-- [ ] **Step 2: Run final frontend verification**
+- [x] **Step 2: Run final frontend verification**
 
 Run:
 
@@ -685,7 +685,7 @@ pnpm build
 
 Expected: exit code 0.
 
-- [ ] **Step 3: Run repository diff checks**
+- [x] **Step 3: Run repository diff checks**
 
 Run:
 
@@ -696,7 +696,7 @@ git status --short
 
 Expected: no diff-check errors; status contains only files related to this frontend refactor and docs update before commit.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Run:
 
