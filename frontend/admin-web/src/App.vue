@@ -17,8 +17,16 @@ import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 
-const activeView = ref<ViewKey>('dashboard');
-const openTabs = ref<ViewKey[]>([]);
+function initialViewFromUrl(): ViewKey {
+  if (typeof window === 'undefined') return 'dashboard';
+  const view = new URLSearchParams(window.location.search).get('view');
+  if (view && Object.prototype.hasOwnProperty.call(viewTitles, view)) return view as ViewKey;
+  return 'dashboard';
+}
+
+const initialView = initialViewFromUrl();
+const activeView = ref<ViewKey>(initialView);
+const openTabs = ref<ViewKey[]>(initialView === 'dashboard' ? [] : [initialView]);
 
 const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
@@ -52,7 +60,7 @@ const menuLabelByKey = computed<Record<ViewKey, string>>(() => {
   return labels;
 });
 const layoutTabs = computed<LayoutTab[]>(() => [
-  { key: 'dashboard', label: 'Home', closable: false },
+  { key: 'dashboard', label: '首页', closable: false },
   ...openTabs.value.map((key) => ({
     key,
     label: menuLabelByKey.value[key] ?? viewTitles[key].title,
@@ -117,6 +125,15 @@ async function refreshCurrentTasks() {
 
 function activateView(view: ViewKey) {
   activeView.value = view;
+  if (typeof window !== 'undefined') {
+    const url = new URL(window.location.href);
+    if (view === 'dashboard') {
+      url.searchParams.delete('view');
+    } else {
+      url.searchParams.set('view', view);
+    }
+    window.history.replaceState(null, '', url);
+  }
   if (view === 'reports') reportActivationKey.value += 1;
   if (view === 'ops') opsActivationKey.value += 1;
   if (view === 'observability') observabilityActivationKey.value += 1;
