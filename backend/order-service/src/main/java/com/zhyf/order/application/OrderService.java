@@ -341,6 +341,24 @@ public class OrderService {
                 writeJson(prescriptionUpdatePayload(oldPrescription, command, decoctionCount, boilTimes,
                         isWithin, perPackNum, perPackDose))
         );
+        String eventPayload = """
+                {"tenantId":"%s","orderId":"%s","orderNo":"%s","externalOrderNo":"%s","prescriptionIds":%s,"sourceAction":"ORDER_PRESCRIPTION_UPDATE"}
+                """.formatted(
+                current.tenantId(),
+                current.orderId(),
+                current.orderNo(),
+                current.externalOrderNo(),
+                writeJson(List.of(prescriptionId))
+        );
+        orderRepository.insertOutbox(
+                UUID.randomUUID(),
+                current.tenantId(),
+                UUID.randomUUID().toString(),
+                "ORDER_PRESCRIPTION_UPDATED",
+                "ORDER",
+                current.orderId().toString(),
+                eventPayload
+        );
         return getAdminOrderDetail(orderNo.trim()).prescriptions().stream()
                 .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
                 .findFirst()

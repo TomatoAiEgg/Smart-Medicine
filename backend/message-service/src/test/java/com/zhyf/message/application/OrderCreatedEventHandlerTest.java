@@ -32,6 +32,29 @@ class OrderCreatedEventHandlerTest {
     }
 
     @Test
+    void shouldRecordPassedWhenPrescriptionUpdatedEventIsValid() {
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String payload = """
+                {"tenantId":"%s","orderId":"%s","orderNo":"ZHYF1","externalOrderNo":"EXT1","prescriptionIds":["%s"],"sourceAction":"ORDER_PRESCRIPTION_UPDATE"}
+                """.formatted(tenantId, orderId, UUID.randomUUID());
+
+        handler.handle(new MessageEvent(
+                "event-prescription-updated",
+                "ORDER_PRESCRIPTION_UPDATED",
+                "ORDER",
+                orderId.toString(),
+                "msg-prescription-updated",
+                payload
+        ));
+
+        assertThat(repository.validationStatus).isEqualTo("PASSED");
+        assertThat(repository.validationMessage).isEqualTo("处方修改后基础校验通过");
+        assertThat(repository.tenantId).isEqualTo(tenantId);
+        assertThat(repository.orderId).isEqualTo(orderId);
+    }
+
+    @Test
     void shouldRecordRejectedWhenOrderCreatedEventMissesBusinessFields() {
         UUID tenantId = UUID.randomUUID();
         UUID orderId = UUID.randomUUID();

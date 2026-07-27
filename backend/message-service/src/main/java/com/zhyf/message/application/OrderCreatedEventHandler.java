@@ -29,7 +29,8 @@ public class OrderCreatedEventHandler implements MessageEventHandler {
 
     @Override
     public boolean supports(String eventType) {
-        return "ORDER_CREATED".equalsIgnoreCase(eventType);
+        return "ORDER_CREATED".equalsIgnoreCase(eventType)
+                || "ORDER_PRESCRIPTION_UPDATED".equalsIgnoreCase(eventType);
     }
 
     @Override
@@ -47,7 +48,7 @@ public class OrderCreatedEventHandler implements MessageEventHandler {
             UUID resolvedOrderId = parseUuid(event.aggregateId(), "aggregateId");
             List<String> errors = validate(tenantId, payloadOrderId, resolvedOrderId, orderNo, externalOrderNo, prescriptionIds);
             String status = errors.isEmpty() ? "PASSED" : "REJECTED";
-            String message = errors.isEmpty() ? "基础校验通过" : String.join("；", errors);
+            String message = errors.isEmpty() ? passedMessage(event.eventType()) : String.join("；", errors);
 
             recordRepository.insert(
                     UUID.randomUUID(),
@@ -58,11 +59,18 @@ public class OrderCreatedEventHandler implements MessageEventHandler {
                     message,
                     event.payload()
             );
-            log.info("handled order created event eventId={} messageId={} aggregateId={} validationStatus={}",
-                    event.eventId(), event.messageId(), event.aggregateId(), status);
+            log.info("handled order validation event eventId={} eventType={} messageId={} aggregateId={} validationStatus={}",
+                    event.eventId(), event.eventType(), event.messageId(), event.aggregateId(), status);
         } catch (Exception ex) {
-            throw new IllegalStateException("order created event handling failed, eventId=" + event.eventId(), ex);
+            throw new IllegalStateException("order validation event handling failed, eventId=" + event.eventId(), ex);
         }
+    }
+
+    private String passedMessage(String eventType) {
+        if ("ORDER_PRESCRIPTION_UPDATED".equalsIgnoreCase(eventType)) {
+            return "处方修改后基础校验通过";
+        }
+        return "基础校验通过";
     }
 
     private List<String> validate(
