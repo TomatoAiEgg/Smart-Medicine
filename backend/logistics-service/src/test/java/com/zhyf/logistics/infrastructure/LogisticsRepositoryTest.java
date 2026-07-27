@@ -77,9 +77,15 @@ class LogisticsRepositoryTest {
                 "ZHYF1",
                 "EXT1",
                 "DECOCTED",
+                "demo hospital",
+                "patient",
                 "receiver",
                 "13800000000",
-                "address"
+                "address",
+                "DEFAULT",
+                null,
+                Instant.parse("2026-07-08T00:00:00Z"),
+                "OUTPATIENT"
         );
     }
 
@@ -91,6 +97,16 @@ class LogisticsRepositoryTest {
                 tenantId,
                 orderId,
                 "ZHYF1",
+                "EXT1",
+                Instant.parse("2026-07-08T00:00:00Z"),
+                "demo hospital",
+                "patient",
+                "receiver",
+                "13800000000",
+                "address",
+                "DEFAULT",
+                null,
+                "OUTPATIENT",
                 "SF-1",
                 "SF",
                 "PACKED",

@@ -91,9 +91,9 @@ const logisticsDatasetNames: Record<LogisticsDataset, string> = {
 
 const filterContractHint = computed(() => {
   if (activeLogisticsDataset.value === 'ready') {
-    return '当前待打包接口仅支持条数；开始/结束时间、机构、平台订单号/处方号、病人姓名、收货人、收货电话、门诊住院、订单状态、送货方式、物流公司、物流单号、操作人等待后端筛选契约。';
+    return '待打包列表已接入时间、机构、平台订单号/处方号、病人姓名、收货人、收货电话、门诊住院和送货方式筛选。';
   }
-  return '当前发货查询接口仅支持订单状态、平台订单号、条数；开始/结束时间、机构、处方号、病人姓名、收货人、收货电话、门诊住院、送货方式、物流公司、物流单号、操作人等待后端筛选契约。';
+  return '发货查询已接入时间、机构、平台订单号/处方号、病人姓名、收货人、收货电话、门诊住院、订单状态、送货方式、物流公司和物流单号筛选。';
 });
 
 const tracePanelTitle = computed(() => (
@@ -116,6 +116,24 @@ function errorMessage(error: unknown) {
 function normalizedLogisticsLimit() {
   if (!Number.isFinite(logisticsLimit.value) || logisticsLimit.value <= 0) return 50;
   return Math.min(Math.trunc(logisticsLimit.value), 200);
+}
+
+function logisticsQueryParams(limit: number) {
+  return {
+    startTime: startTime.value,
+    endTime: endTime.value,
+    institution: institution.value,
+    orderNo: logisticsOrderNo.value,
+    patientName: patientName.value,
+    receiverName: consignee.value,
+    receiverPhone: receiverPhone.value,
+    hospitalType: hospitalType.value,
+    status: logisticsStatus.value,
+    deliveryType: deliveryType.value,
+    logisticsCompany: queryLogisticsCompany.value,
+    logisticsNo: queryLogisticsNo.value,
+    limit,
+  };
 }
 
 function normalizedPkgWeight() {
@@ -166,16 +184,13 @@ async function refreshLogisticsRecords() {
   const limit = normalizedLogisticsLimit();
   logisticsLimit.value = limit;
   try {
+    const queryParams = logisticsQueryParams(limit);
     if (dataset === 'ready') {
-      const records = await listReadyDeliveryOrders(limit);
+      const records = await listReadyDeliveryOrders(queryParams);
       if (requestId !== logisticsRequestId.value) return;
       readyDeliveryOrders.value = records;
     } else if (dataset === 'shipments') {
-      const records = await listShipments({
-        status: logisticsStatus.value,
-        orderNo: logisticsOrderNo.value,
-        limit,
-      });
+      const records = await listShipments(queryParams);
       if (requestId !== logisticsRequestId.value) return;
       shipments.value = records;
     } else {
@@ -387,7 +402,7 @@ defineExpose({
         </li>
         <li>
           平台订单号/处方号：
-          <input v-model="logisticsOrderNo" class="legacy-input input-large" placeholder="订单号可查询，处方号待接入" @keyup.enter="refreshLogisticsRecords" />
+          <input v-model="logisticsOrderNo" class="legacy-input input-large" placeholder="订单号 / 处方号" @keyup.enter="refreshLogisticsRecords" />
         </li>
         <li>
           病人姓名：
@@ -434,7 +449,7 @@ defineExpose({
         </li>
         <li>
           物流单号：
-          <input v-model="queryLogisticsNo" class="legacy-input input-large" placeholder="等待后端筛选契约" />
+          <input v-model="queryLogisticsNo" class="legacy-input input-large" placeholder="运单号" />
         </li>
         <li>
           条数：
@@ -559,6 +574,7 @@ defineExpose({
             </tr>
             <tr v-for="item in readyDeliveryOrders" :key="item.orderId" class="legacy-main-info">
               <td>{{ item.orderNo }}</td>
+              <td>{{ formatDate(item.orderCreatedAt) }}</td>
               <td>-</td>
               <td>-</td>
               <td>-</td>
@@ -566,13 +582,12 @@ defineExpose({
               <td>-</td>
               <td>-</td>
               <td>-</td>
+              <td>{{ rowValue(item.patientName) }}</td>
               <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
+              <td>{{ rowValue(item.addressType) }}</td>
               <td>{{ item.receiverName }}</td>
               <td>{{ item.receiverPhone }}</td>
-              <td>-</td>
+              <td>{{ formatDate(item.deliveryTime) }}</td>
               <td class="legacy-left">{{ item.receiverAddress }}</td>
               <td>{{ rowValue(item.externalOrderNo) }}</td>
               <td><StatusPill :value="item.orderStatus" :tone="statusTone(item.orderStatus)" /></td>
@@ -591,7 +606,7 @@ defineExpose({
             </tr>
             <tr v-for="shipment in shipments" :key="shipment.shipmentId" class="legacy-main-info">
               <td>{{ shipment.orderNo }}</td>
-              <td>{{ formatDate(shipment.createdAt) }}</td>
+              <td>{{ formatDate(shipment.orderCreatedAt) }}</td>
               <td>{{ rowValue(shipment.pkgNum) }}</td>
               <td>{{ shipment.logisticsCompany }}</td>
               <td>{{ shipment.logisticsNo }}</td>
@@ -599,14 +614,14 @@ defineExpose({
               <td>{{ formatDate(shipment.outboundTime) }}</td>
               <td>{{ formatDate(shipment.signTime) }}</td>
               <td>{{ rowValue(shipment.pkgWeight) }}</td>
-              <td>-</td>
+              <td>{{ rowValue(shipment.patientName) }}</td>
               <td>{{ paymentLabel(shipment.payMethod) }}</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td class="legacy-left">-</td>
-              <td>-</td>
+              <td>{{ rowValue(shipment.addressType) }}</td>
+              <td>{{ rowValue(shipment.receiverName) }}</td>
+              <td>{{ rowValue(shipment.receiverPhone) }}</td>
+              <td>{{ formatDate(shipment.deliveryTime) }}</td>
+              <td class="legacy-left">{{ rowValue(shipment.receiverAddress) }}</td>
+              <td>{{ rowValue(shipment.externalOrderNo) }}</td>
               <td><StatusPill :value="shipment.logisticsStatus" :tone="statusTone(shipment.logisticsStatus)" /></td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn" type="button" @click="refreshShipmentTraces(shipment)">轨迹</button>

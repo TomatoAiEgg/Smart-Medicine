@@ -46,12 +46,12 @@ public class LogisticsService {
         this.clock = clock;
     }
 
-    public List<LogisticsRecords.DeliveryOrderRecord> listReadyOrders(int limit) {
-        return repository.findDecoctedOrders(normalizeLimit(limit));
+    public List<LogisticsRecords.DeliveryOrderRecord> listReadyOrders(LogisticsShipmentQuery query) {
+        return repository.findDecoctedOrders(normalizeQuery(query));
     }
 
-    public List<LogisticsRecords.ShipmentRecord> listShipments(String status, String orderNo, int limit) {
-        return repository.findShipments(status, orderNo, normalizeLimit(limit));
+    public List<LogisticsRecords.ShipmentRecord> listShipments(LogisticsShipmentQuery query) {
+        return repository.findShipments(normalizeQuery(query));
     }
 
     public List<LogisticsRecords.ShipmentTraceRecord> listTraces(UUID shipmentId) {
@@ -205,6 +205,15 @@ public class LogisticsService {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    private LogisticsShipmentQuery normalizeQuery(LogisticsShipmentQuery query) {
+        if (query == null) {
+            return new LogisticsShipmentQuery(
+                    null, null, null, null, null, null, null, null, null, null, null, null, DEFAULT_LIMIT
+            );
+        }
+        return query.withLimit(normalizeLimit(query.limit()));
     }
 
     private void requireText(String value, String code, String message) {

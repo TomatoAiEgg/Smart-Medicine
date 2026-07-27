@@ -9,8 +9,18 @@ import type {
 } from './types';
 
 interface LogisticsQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
   status?: string;
   orderNo?: string;
+  patientName?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  hospitalType?: string;
+  deliveryType?: string;
+  logisticsCompany?: string;
+  logisticsNo?: string;
   limit?: number;
 }
 
@@ -24,8 +34,9 @@ function buildQuery(params: LogisticsQueryParams) {
   return query.toString();
 }
 
-export function listReadyDeliveryOrders(limit = 50) {
-  return request<DeliveryOrderRecord[]>(`/logistics-api/api/admin/logistics/orders/ready?limit=${limit}`);
+export function listReadyDeliveryOrders(params: LogisticsQueryParams = {}) {
+  const query = buildQuery(params);
+  return request<DeliveryOrderRecord[]>(`/logistics-api/api/admin/logistics/orders/ready${query ? `?${query}` : ''}`);
 }
 
 export function listShipments(params: LogisticsQueryParams = {}) {

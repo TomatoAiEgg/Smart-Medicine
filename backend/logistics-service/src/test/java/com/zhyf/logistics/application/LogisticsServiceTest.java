@@ -105,9 +105,15 @@ class LogisticsServiceTest {
                 "ZHYF1",
                 "EXT1",
                 status,
+                "demo hospital",
+                "patient",
                 "receiver",
                 "13800000000",
-                "address"
+                "address",
+                "DEFAULT",
+                null,
+                Instant.now(clock),
+                "OUTPATIENT"
         );
     }
 
@@ -121,6 +127,16 @@ class LogisticsServiceTest {
                 order.tenantId(),
                 order.orderId(),
                 order.orderNo(),
+                order.externalOrderNo(),
+                order.orderCreatedAt(),
+                order.institutionName(),
+                order.patientName(),
+                order.receiverName(),
+                order.receiverPhone(),
+                order.receiverAddress(),
+                order.addressType(),
+                order.deliveryTime(),
+                order.hospitalTypes(),
                 "SF-1",
                 "SF",
                 status,

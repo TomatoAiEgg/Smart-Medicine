@@ -1,6 +1,7 @@
 package com.zhyf.logistics.infrastructure;
 
 import com.zhyf.logistics.application.LogisticsRecords;
+import com.zhyf.logistics.application.LogisticsShipmentQuery;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,51 +25,44 @@ public class LogisticsRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<LogisticsRecords.DeliveryOrderRecord> findDecoctedOrders(int limit) {
-        String sql = """
-                select tenant_id, id as order_id, order_no, external_order_no, status as order_status,
-                       receiver_name, receiver_phone, receiver_address
-                from order_main o
-                where o.status = 'DECOCTED'
-                  and not exists (select 1 from shipment s where s.order_id = o.id)
-                order by o.created_at asc
-                limit ?
-                """;
-        return jdbcTemplate.query(sql, this::mapDeliveryOrder, limit);
+    public List<LogisticsRecords.DeliveryOrderRecord> findDecoctedOrders(LogisticsShipmentQuery query) {
+        QueryParts parts = new QueryParts(baseReadyOrderQuery() + " where o.status = 'DECOCTED'");
+        parts.append(" and not exists (select 1 from shipment s where s.order_id = o.id)");
+        addOrderFilters(parts, query);
+        parts.append(" order by o.created_at asc limit ?");
+        parts.add(query.limit());
+        return jdbcTemplate.query(parts.sql(), this::mapDeliveryOrder, parts.args());
     }
 
     public Optional<LogisticsRecords.DeliveryOrderRecord> findOrderByOrderNo(String orderNo) {
-        String sql = """
-                select tenant_id, id as order_id, order_no, external_order_no, status as order_status,
-                       receiver_name, receiver_phone, receiver_address
-                from order_main
-                where order_no = ?
-                """;
+        String sql = baseReadyOrderQuery() + " where o.order_no = ?";
         return jdbcTemplate.query(sql, this::mapDeliveryOrder, orderNo).stream().findFirst();
     }
 
     public Optional<LogisticsRecords.ShipmentRecord> findShipmentByOrderId(UUID orderId) {
-        String sql = baseShipmentQuery() + " where order_id = ?";
+        String sql = baseShipmentQuery() + " where s.order_id = ?";
         return jdbcTemplate.query(sql, this::mapShipment, orderId).stream().findFirst();
     }
 
     public Optional<LogisticsRecords.ShipmentRecord> findShipmentById(UUID shipmentId) {
-        String sql = baseShipmentQuery() + " where id = ?";
+        String sql = baseShipmentQuery() + " where s.id = ?";
         return jdbcTemplate.query(sql, this::mapShipment, shipmentId).stream().findFirst();
     }
 
     public Optional<LogisticsRecords.ShipmentRecord> findShipmentByLogisticsNo(String logisticsNo) {
-        String sql = baseShipmentQuery() + " where logistics_no = ?";
+        String sql = baseShipmentQuery() + " where s.logistics_no = ?";
         return jdbcTemplate.query(sql, this::mapShipment, logisticsNo).stream().findFirst();
     }
 
-    public List<LogisticsRecords.ShipmentRecord> findShipments(String status, String orderNo, int limit) {
-        QueryParts query = new QueryParts(baseShipmentQuery() + " where 1 = 1");
-        query.addTextFilter("logistics_status", status);
-        query.addTextFilter("order_no", orderNo);
-        query.append(" order by created_at desc limit ?");
-        query.add(limit);
-        return jdbcTemplate.query(query.sql(), this::mapShipment, query.args());
+    public List<LogisticsRecords.ShipmentRecord> findShipments(LogisticsShipmentQuery params) {
+        QueryParts parts = new QueryParts(baseShipmentQuery() + " where 1 = 1");
+        parts.addTextFilter("s.logistics_status", params.status());
+        parts.addLikeFilter("s.logistics_company", params.logisticsCompany());
+        parts.addLikeFilter("s.logistics_no", params.logisticsNo());
+        addOrderFilters(parts, params);
+        parts.append(" order by s.created_at desc limit ?");
+        parts.add(params.limit());
+        return jdbcTemplate.query(parts.sql(), this::mapShipment, parts.args());
     }
 
     public int createShipment(
@@ -159,11 +153,81 @@ public class LogisticsRepository {
 
     private String baseShipmentQuery() {
         return """
-                select id as shipment_id, tenant_id, order_id, order_no, logistics_no,
-                       logistics_company, logistics_status, pay_method, pkg_weight, pkg_num,
-                       package_time, outbound_time, sign_time, created_at, updated_at
-                from shipment
+                select s.id as shipment_id,
+                       s.tenant_id,
+                       s.order_id,
+                       s.order_no,
+                       o.external_order_no,
+                       o.created_at as order_created_at,
+                       i.institution_name,
+                       o.patient_name,
+                       o.receiver_name,
+                       o.receiver_phone,
+                       o.receiver_address,
+                       o.address_type,
+                       o.delivery_time,
+                       ps.hospital_types,
+                       s.logistics_no,
+                       s.logistics_company,
+                       s.logistics_status,
+                       s.pay_method,
+                       s.pkg_weight,
+                       s.pkg_num,
+                       s.package_time,
+                       s.outbound_time,
+                       s.sign_time,
+                       s.created_at,
+                       s.updated_at
+                from shipment s
+                join order_main o on o.id = s.order_id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select string_agg(distinct p.hospital_type, ', ' order by p.hospital_type) as hospital_types
+                    from prescription p
+                    where p.order_id = o.id
+                      and p.hospital_type is not null
+                      and p.hospital_type <> ''
+                ) ps on true
                 """;
+    }
+
+    private String baseReadyOrderQuery() {
+        return """
+                select o.tenant_id,
+                       o.id as order_id,
+                       o.order_no,
+                       o.external_order_no,
+                       o.status as order_status,
+                       i.institution_name,
+                       o.patient_name,
+                       o.receiver_name,
+                       o.receiver_phone,
+                       o.receiver_address,
+                       o.address_type,
+                       o.delivery_time,
+                       o.created_at as order_created_at,
+                       ps.hospital_types
+                from order_main o
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select string_agg(distinct p.hospital_type, ', ' order by p.hospital_type) as hospital_types
+                    from prescription p
+                    where p.order_id = o.id
+                      and p.hospital_type is not null
+                      and p.hospital_type <> ''
+                ) ps on true
+                """;
+    }
+
+    private void addOrderFilters(QueryParts query, LogisticsShipmentQuery params) {
+        query.addRangeFilter("o.created_at", params.startTime(), params.endTime());
+        query.addLikeFilter("i.institution_name", params.institution());
+        query.addKeywordFilter(params.orderNo());
+        query.addLikeFilter("o.patient_name", params.patientName());
+        query.addLikeFilter("o.receiver_name", params.receiverName());
+        query.addLikeFilter("o.receiver_phone", params.receiverPhone());
+        query.addEqualsFilter("o.address_type", params.deliveryType());
+        query.addExistsPrescriptionEquals("p.hospital_type", params.hospitalType());
     }
 
     private LogisticsRecords.DeliveryOrderRecord mapDeliveryOrder(ResultSet rs, int rowNum) throws SQLException {
@@ -173,9 +237,15 @@ public class LogisticsRepository {
                 rs.getString("order_no"),
                 rs.getString("external_order_no"),
                 rs.getString("order_status"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
                 rs.getString("receiver_name"),
                 rs.getString("receiver_phone"),
-                rs.getString("receiver_address")
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                instant(rs, "delivery_time"),
+                instant(rs, "order_created_at"),
+                rs.getString("hospital_types")
         );
     }
 
@@ -185,6 +255,16 @@ public class LogisticsRepository {
                 rs.getObject("tenant_id", UUID.class),
                 rs.getObject("order_id", UUID.class),
                 rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                instant(rs, "order_created_at"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                instant(rs, "delivery_time"),
+                rs.getString("hospital_types"),
                 rs.getString("logistics_no"),
                 rs.getString("logistics_company"),
                 rs.getString("logistics_status"),
@@ -223,7 +303,7 @@ public class LogisticsRepository {
         return value == null ? null : OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 
-    private static final class QueryParts {
+    private final class QueryParts {
         private final StringBuilder sql;
         private final List<Object> args = new ArrayList<>();
 
@@ -234,7 +314,60 @@ public class LogisticsRepository {
         private void addTextFilter(String column, String value) {
             if (StringUtils.hasText(value)) {
                 append(" and " + column + " = ?");
-                add(value);
+                add(value.trim());
+            }
+        }
+
+        private void addRangeFilter(String column, Instant from, Instant to) {
+            if (from != null) {
+                append(" and " + column + " >= ?");
+                add(offsetDateTime(from));
+            }
+            if (to != null) {
+                append(" and " + column + " <= ?");
+                add(offsetDateTime(to));
+            }
+        }
+
+        private void addLikeFilter(String column, String value) {
+            if (StringUtils.hasText(value)) {
+                append(" and " + column + " ilike ?");
+                add("%" + value.trim() + "%");
+            }
+        }
+
+        private void addEqualsFilter(String column, String value) {
+            if (StringUtils.hasText(value)) {
+                append(" and " + column + " = ?");
+                add(value.trim());
+            }
+        }
+
+        private void addExistsPrescriptionEquals(String column, String value) {
+            if (StringUtils.hasText(value)) {
+                append(" and exists (select 1 from prescription p where p.order_id = o.id and " + column + " = ?)");
+                add(value.trim());
+            }
+        }
+
+        private void addKeywordFilter(String value) {
+            if (StringUtils.hasText(value)) {
+                append("""
+                         and (
+                            o.order_no ilike ?
+                            or o.external_order_no ilike ?
+                            or exists (
+                                select 1 from prescription p
+                                where p.order_id = o.id
+                                  and (p.prescription_no ilike ? or p.external_prescription_no ilike ?)
+                            )
+                        )
+                        """);
+                String pattern = "%" + value.trim() + "%";
+                add(pattern);
+                add(pattern);
+                add(pattern);
+                add(pattern);
             }
         }
 

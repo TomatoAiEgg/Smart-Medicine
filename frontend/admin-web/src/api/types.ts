@@ -652,9 +652,15 @@ export interface DeliveryOrderRecord {
   orderNo: string;
   externalOrderNo: string;
   orderStatus: string;
+  institutionName: string | null;
+  patientName: string | null;
   receiverName: string;
   receiverPhone: string;
   receiverAddress: string;
+  addressType: string | null;
+  deliveryTime: string | null;
+  orderCreatedAt: string;
+  hospitalTypes: string | null;
 }
 
 export interface ShipmentRecord {
@@ -662,6 +668,16 @@ export interface ShipmentRecord {
   tenantId: string;
   orderId: string;
   orderNo: string;
+  externalOrderNo: string;
+  orderCreatedAt: string;
+  institutionName: string | null;
+  patientName: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  deliveryTime: string | null;
+  hospitalTypes: string | null;
   logisticsNo: string;
   logisticsCompany: string;
   logisticsStatus: string;
