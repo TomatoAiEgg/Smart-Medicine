@@ -5,6 +5,7 @@ export type ImplementedViewKey =
   | 'orders'
   | 'reviews'
   | 'dispenses'
+  | 'dispensePrint'
   | 'rechecks'
   | 'recheckScan'
   | 'decoction'
@@ -360,11 +361,11 @@ export const menuItems = [
     priority: 'P1',
     implemented: true,
     subtitle: '处理待调剂处方任务',
-    componentKey: 'dispenses',
+    componentKey: 'dispensePrint',
     showCount: true,
-    plannedComponent: 'features/workflow/DispenseTasks.vue',
-    coreActions: ['调剂任务', '打印', '完成'],
-    apiDependencies: ['调剂任务', '打印记录', '完成动作'],
+    plannedComponent: 'features/workflow/DispensePrintWorkspace.vue',
+    coreActions: ['调剂任务', '打印预览', '完成调剂/打印'],
+    apiDependencies: ['调剂任务', '订单进度', '完成动作'],
   },
   {
     key: 'rechecks',

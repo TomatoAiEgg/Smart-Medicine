@@ -14,6 +14,7 @@ import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
+import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
@@ -29,6 +30,7 @@ const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
 const dashboardHomeRef = ref<InstanceType<typeof DashboardHome> | null>(null);
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
+const dispensePrintRef = ref<InstanceType<typeof DispensePrintWorkspace> | null>(null);
 const recheckScanRef = ref<InstanceType<typeof RecheckScanWorkspace> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
@@ -102,6 +104,10 @@ function updateRecheckCount(count: number) {
   workflowCounts.value = { ...workflowCounts.value, rechecks: count };
 }
 
+function updateDispenseCount(count: number) {
+  workflowCounts.value = { ...workflowCounts.value, dispenses: count };
+}
+
 function ensureOpenTab(view: ViewKey) {
   if (view !== 'dashboard' && !openTabs.value.includes(view)) {
     openTabs.value = [...openTabs.value, view];
@@ -129,6 +135,10 @@ async function refreshCurrentTasks() {
   }
   if (workflowRouteKey.value) {
     await workflowTasksRef.value?.refreshCurrentTasks();
+    return;
+  }
+  if (componentKey === 'dispensePrint') {
+    await dispensePrintRef.value?.refreshDispenseTasks();
     return;
   }
   if (componentKey === 'recheckScan') {
@@ -265,6 +275,13 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'recheckScan'"
       :mode="recheckScanMode"
       @count-changed="updateRecheckCount"
+      @notice="showNotice"
+    />
+
+    <DispensePrintWorkspace
+      v-else-if="currentComponentKey === 'dispensePrint'"
+      ref="dispensePrintRef"
+      @count-changed="updateDispenseCount"
       @notice="showNotice"
     />
 
