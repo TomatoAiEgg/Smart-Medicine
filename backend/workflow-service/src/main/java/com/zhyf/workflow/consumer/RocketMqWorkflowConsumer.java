@@ -47,7 +47,7 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
         consumer.setNamesrvAddr(properties.getRocketmq().getNameServer());
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
         consumer.setAllocateMessageQueueStrategy(new AllocateMessageQueueAveragely());
-        consumer.subscribe(properties.getRocketmq().getOrderTopic(), "ORDER_CREATED");
+        consumer.subscribe(properties.getRocketmq().getOrderTopic(), "ORDER_CREATED || ORDER_PRESCRIPTION_UPDATED");
         consumer.registerMessageListener(this);
         log.info("starting workflow RocketMQ consumer nameServer={} group={} topic={}",
                 properties.getRocketmq().getNameServer(),
@@ -79,6 +79,7 @@ public class RocketMqWorkflowConsumer implements InitializingBean, DisposableBea
             String payload = new String(message.getBody(), StandardCharsets.UTF_8);
             try {
                 orderCreatedWorkflowService.createReviewTaskIfValidationPassed(
+                        message.getTags(),
                         eventId,
                         aggregateId,
                         payload

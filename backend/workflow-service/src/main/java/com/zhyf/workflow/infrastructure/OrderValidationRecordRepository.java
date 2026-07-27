@@ -27,6 +27,15 @@ public class OrderValidationRecordRepository {
         return jdbcTemplate.query(sql, this::mapRecord, orderId).stream().findFirst();
     }
 
+    public Optional<OrderValidationRecord> findByEventId(String eventId) {
+        String sql = """
+                select tenant_id, order_id, event_id, validation_status, validation_message, raw_payload::text as raw_payload
+                from order_validation_record
+                where event_id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapRecord, eventId).stream().findFirst();
+    }
+
     private OrderValidationRecord mapRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OrderValidationRecord(
                 rs.getObject("tenant_id", UUID.class),

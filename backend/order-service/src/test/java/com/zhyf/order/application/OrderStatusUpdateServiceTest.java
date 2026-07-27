@@ -50,6 +50,31 @@ class OrderStatusUpdateServiceTest {
     }
 
     @Test
+    void shouldUpdateAuditPassedOrderToAuditFailedForPrescriptionRecheckReject() {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        OrderSnapshot order = new OrderSnapshot(
+                orderId,
+                tenantId,
+                UUID.randomUUID(),
+                "ZHYF1",
+                "EXT1",
+                "AUDIT_PASSED",
+                Instant.now()
+        );
+        when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.updateOrderStatus(orderId, "AUDIT_FAILED")).thenReturn(1);
+
+        OrderStatusUpdateResult result = service.updateStatus(
+                orderId,
+                new OrderStatusUpdateCommand("AUDIT_FAILED", "AUDIT", "workflow-service-review-reject")
+        );
+
+        assertThat(result.fromStatus()).isEqualTo("AUDIT_PASSED");
+        assertThat(result.toStatus()).isEqualTo("AUDIT_FAILED");
+    }
+
+    @Test
     void shouldRejectUnsupportedTargetStatus() {
         UUID orderId = UUID.randomUUID();
 

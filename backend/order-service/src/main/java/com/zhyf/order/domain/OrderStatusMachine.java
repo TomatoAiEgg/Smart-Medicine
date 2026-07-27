@@ -15,6 +15,7 @@ public class OrderStatusMachine {
             ),
             OrderStatus.AUDIT_PASSED, Set.of(
                     OrderStatus.RECHECKED,
+                    OrderStatus.AUDIT_FAILED,
                     OrderStatus.CANCELLED
             ),
             OrderStatus.RECHECKED, Set.of(

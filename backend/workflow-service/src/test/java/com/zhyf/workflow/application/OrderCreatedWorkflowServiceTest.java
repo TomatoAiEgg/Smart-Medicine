@@ -35,7 +35,7 @@ class OrderCreatedWorkflowServiceTest {
         String payload = """
                 {"tenantId":"%s","orderId":"%s","orderNo":"ZHYF1","externalOrderNo":"EXT1","prescriptionIds":["rx1"]}
                 """.formatted(tenantId, orderId);
-        when(validationRecordRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(
+        when(validationRecordRepository.findByEventId(eventId)).thenReturn(Optional.of(
                 new OrderValidationRecordRepository.OrderValidationRecord(
                         tenantId,
                         orderId,
@@ -59,7 +59,7 @@ class OrderCreatedWorkflowServiceTest {
         String payload = """
                 {"tenantId":"%s","orderId":"%s","orderNo":"ZHYF1","externalOrderNo":"EXT1","prescriptionIds":["rx1"]}
                 """.formatted(tenantId, orderId);
-        when(validationRecordRepository.findLatestByOrderId(orderId))
+        when(validationRecordRepository.findByEventId(eventId))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(new OrderValidationRecordRepository.OrderValidationRecord(
                         tenantId,
@@ -83,7 +83,7 @@ class OrderCreatedWorkflowServiceTest {
         String payload = """
                 {"tenantId":"%s","orderId":"%s","orderNo":"ZHYF1","externalOrderNo":"EXT1","prescriptionIds":["rx1"]}
                 """.formatted(tenantId, orderId);
-        when(validationRecordRepository.findLatestByOrderId(orderId)).thenReturn(Optional.of(
+        when(validationRecordRepository.findByEventId(eventId)).thenReturn(Optional.of(
                 new OrderValidationRecordRepository.OrderValidationRecord(
                         tenantId,
                         orderId,
@@ -97,5 +97,39 @@ class OrderCreatedWorkflowServiceTest {
         service.createReviewTaskIfValidationPassed(eventId, orderId.toString(), payload);
 
         verifyNoInteractions(taskRepository);
+    }
+
+    @Test
+    void shouldCreateReviewTaskForPrescriptionUpdatedEventAndCancelPendingReviewTasks() {
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String eventId = "event-prescription-updated";
+        String payload = """
+                {"tenantId":"%s","orderId":"%s","orderNo":"ZHYF1","externalOrderNo":"EXT1","prescriptionIds":["rx1"],"sourceAction":"ORDER_PRESCRIPTION_UPDATE"}
+                """.formatted(tenantId, orderId);
+        when(validationRecordRepository.findByEventId(eventId)).thenReturn(Optional.of(
+                new OrderValidationRecordRepository.OrderValidationRecord(
+                        tenantId,
+                        orderId,
+                        eventId,
+                        "PASSED",
+                        "处方修改后基础校验通过",
+                        payload
+                )
+        ));
+
+        service.createReviewTaskIfValidationPassed("ORDER_PRESCRIPTION_UPDATED", eventId, orderId.toString(), payload);
+
+        verify(taskRepository).cancelPendingReviewTasksByOrderId(
+                orderId,
+                "workflow-service",
+                "处方修改后重新生成审方任务"
+        );
+        verify(taskRepository).cancelPendingDownstreamTasksByOrderId(
+                orderId,
+                "workflow-service",
+                "处方修改后废弃旧处方待办"
+        );
+        verify(taskRepository).createOrderReviewTask(any(UUID.class), eq(tenantId), eq(orderId), eq(eventId), eq(payload));
     }
 }

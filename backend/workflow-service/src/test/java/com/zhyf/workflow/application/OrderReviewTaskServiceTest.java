@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.zhyf.common.exception.BusinessException;
@@ -73,6 +74,80 @@ class OrderReviewTaskServiceTest {
         assertThat(result.reviewer()).isEqualTo("reviewer1");
         assertThat(result.completedAt()).isEqualTo(now);
         verify(dispenseTaskService).createPendingDispenseTask(task, "order-review-approved");
+    }
+
+    @Test
+    void shouldApprovePrescriptionRecheckTaskWithoutRepeatingStatusWhenOrderAlreadyPassed() {
+        UUID taskId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        WorkflowTaskSnapshot task = new WorkflowTaskSnapshot(
+                taskId,
+                tenantId,
+                orderId,
+                "ORDER_REVIEW",
+                "PENDING",
+                "event-prescription-updated",
+                null,
+                null,
+                "ZHYF1",
+                "EXT1",
+                "AUDIT_PASSED",
+                "PASSED",
+                "处方修改后基础校验通过",
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        when(taskRepository.findReviewTaskById(taskId)).thenReturn(java.util.Optional.of(task));
+        when(taskRepository.updateWorkflowTaskReviewResult(taskId, "APPROVED", "reviewer1", "ok")).thenReturn(1);
+
+        OrderReviewResult result = service.approve(taskId, new OrderReviewCommand("reviewer1", "ok"));
+
+        assertThat(result.taskId()).isEqualTo(taskId);
+        assertThat(result.orderStatus()).isEqualTo("AUDIT_PASSED");
+        assertThat(result.taskStatus()).isEqualTo("APPROVED");
+        verifyNoInteractions(orderStatusClient);
+        verify(dispenseTaskService).createPendingDispenseTask(task, "order-review-approved");
+    }
+
+    @Test
+    void shouldRejectPrescriptionRecheckTaskAndMarkPassedOrderAuditFailed() {
+        UUID taskId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        WorkflowTaskSnapshot task = new WorkflowTaskSnapshot(
+                taskId,
+                tenantId,
+                orderId,
+                "ORDER_REVIEW",
+                "PENDING",
+                "event-prescription-updated",
+                null,
+                null,
+                "ZHYF1",
+                "EXT1",
+                "AUDIT_PASSED",
+                "PASSED",
+                "处方修改后基础校验通过",
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        when(taskRepository.findReviewTaskById(taskId)).thenReturn(java.util.Optional.of(task));
+        when(orderStatusClient.updateStatus(
+                orderId,
+                "AUDIT_FAILED",
+                "AUDIT",
+                "workflow-service-review-reject"
+        )).thenReturn(new OrderStatusClient.OrderStatusUpdateResult(orderId, "ZHYF1", "AUDIT_PASSED", "AUDIT_FAILED"));
+        when(taskRepository.updateWorkflowTaskReviewResult(taskId, "REJECTED", "reviewer1", "bad")).thenReturn(1);
+
+        OrderReviewResult result = service.reject(taskId, new OrderReviewCommand("reviewer1", "bad"));
+
+        assertThat(result.orderStatus()).isEqualTo("AUDIT_FAILED");
+        assertThat(result.taskStatus()).isEqualTo("REJECTED");
+        verify(dispenseTaskService, never()).createPendingDispenseTask(any(WorkflowTaskSnapshot.class), any(String.class));
     }
 }
 

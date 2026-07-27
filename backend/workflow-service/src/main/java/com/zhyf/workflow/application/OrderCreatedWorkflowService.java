@@ -52,10 +52,14 @@ public class OrderCreatedWorkflowService {
     }
 
     public void createReviewTaskIfValidationPassed(String eventId, String aggregateId, String payload) {
+        createReviewTaskIfValidationPassed("ORDER_CREATED", eventId, aggregateId, payload);
+    }
+
+    public void createReviewTaskIfValidationPassed(String eventType, String eventId, String aggregateId, String payload) {
         Assert.isTrue(StringUtils.hasText(eventId), "eventId is required");
         Assert.isTrue(StringUtils.hasText(aggregateId), "aggregateId is required");
         UUID orderId = UUID.fromString(aggregateId);
-        OrderValidationRecordRepository.OrderValidationRecord validation = findValidationRecord(orderId);
+        OrderValidationRecordRepository.OrderValidationRecord validation = findValidationRecord(eventId, orderId);
         if (!"PASSED".equals(validation.validationStatus())) {
             return;
         }
@@ -67,7 +71,19 @@ public class OrderCreatedWorkflowService {
         }
         String payloadOrderId = text(payloadNode, "orderId");
         if (!orderId.toString().equals(payloadOrderId)) {
-            throw new IllegalStateException("ORDER_CREATED orderId mismatch, eventId=" + eventId);
+            throw new IllegalStateException(eventType + " orderId mismatch, eventId=" + eventId);
+        }
+        if (isPrescriptionUpdatedEvent(eventType)) {
+            taskRepository.cancelPendingReviewTasksByOrderId(
+                    orderId,
+                    "workflow-service",
+                    "处方修改后重新生成审方任务"
+            );
+            taskRepository.cancelPendingDownstreamTasksByOrderId(
+                    orderId,
+                    "workflow-service",
+                    "处方修改后废弃旧处方待办"
+            );
         }
         taskRepository.createOrderReviewTask(
                 UUID.randomUUID(),
@@ -78,17 +94,25 @@ public class OrderCreatedWorkflowService {
         );
     }
 
+    private boolean isPrescriptionUpdatedEvent(String eventType) {
+        return "ORDER_PRESCRIPTION_UPDATED".equalsIgnoreCase(eventType);
+    }
+
     private String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
         return value == null || value.isNull() ? null : value.asText();
     }
 
-    private OrderValidationRecordRepository.OrderValidationRecord findValidationRecord(UUID orderId) {
+    private OrderValidationRecordRepository.OrderValidationRecord findValidationRecord(String eventId, UUID orderId) {
         int attempts = Math.max(validationLookupAttempts, 1);
         for (int attempt = 1; attempt <= attempts; attempt++) {
-            var record = validationRecordRepository.findLatestByOrderId(orderId);
+            var record = validationRecordRepository.findByEventId(eventId);
             if (record.isPresent()) {
-                return record.get();
+                OrderValidationRecordRepository.OrderValidationRecord validation = record.get();
+                if (!orderId.equals(validation.orderId())) {
+                    throw new IllegalStateException("order validation record orderId mismatch, eventId=" + eventId);
+                }
+                return validation;
             }
             if (attempt < attempts) {
                 sleepBeforeRetry(orderId);

@@ -54,6 +54,36 @@ public class WorkflowTaskRepository {
         return jdbcTemplate.update(sql, taskId, tenantId, orderId, sourceEventId, payload);
     }
 
+    public int cancelPendingReviewTasksByOrderId(UUID orderId, String assignedTo, String reviewComment) {
+        String sql = """
+                update workflow_task
+                set task_status = 'CANCELLED',
+                    assigned_to = ?,
+                    review_comment = ?,
+                    completed_at = now(),
+                    updated_at = now()
+                where order_id = ?
+                  and task_type = 'ORDER_REVIEW'
+                  and task_status = 'PENDING'
+                """;
+        return jdbcTemplate.update(sql, assignedTo, reviewComment, orderId);
+    }
+
+    public int cancelPendingDownstreamTasksByOrderId(UUID orderId, String assignedTo, String reviewComment) {
+        String sql = """
+                update workflow_task
+                set task_status = 'CANCELLED',
+                    assigned_to = ?,
+                    review_comment = ?,
+                    completed_at = now(),
+                    updated_at = now()
+                where order_id = ?
+                  and task_type in ('PRESCRIPTION_DISPENSE', 'PRESCRIPTION_RECHECK')
+                  and task_status = 'PENDING'
+                """;
+        return jdbcTemplate.update(sql, assignedTo, reviewComment, orderId);
+    }
+
     public int createWorkflowTask(
             UUID taskId,
             UUID tenantId,
@@ -140,7 +170,7 @@ public class WorkflowTaskRepository {
                 left join lateral (
                     select validation_status, validation_message
                     from order_validation_record r
-                    where r.order_id = t.order_id
+                    where r.event_id = t.source_event_id
                     order by r.created_at desc
                     limit 1
                 ) v on true

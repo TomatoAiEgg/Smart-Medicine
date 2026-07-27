@@ -73,12 +73,7 @@ public class OrderReviewTaskService {
         OrderStatus targetStatus = approved ? OrderStatus.AUDIT_PASSED : OrderStatus.AUDIT_FAILED;
         String taskStatus = approved ? "APPROVED" : "REJECTED";
         String source = approved ? "workflow-service-review-approve" : "workflow-service-review-reject";
-        OrderStatusClient.OrderStatusUpdateResult orderResult = orderStatusClient.updateStatus(
-                task.orderId(),
-                targetStatus.name(),
-                "AUDIT",
-                source
-        );
+        OrderStatusClient.OrderStatusUpdateResult orderResult = updateOrderStatus(task, approved, targetStatus, source);
 
         int taskUpdated = taskRepository.updateWorkflowTaskReviewResult(
                 task.taskId(),
@@ -108,5 +103,31 @@ public class OrderReviewTaskService {
 
     private String normalizeComment(String comment) {
         return StringUtils.hasText(comment) ? comment : null;
+    }
+
+    private OrderStatusClient.OrderStatusUpdateResult updateOrderStatus(
+            WorkflowTaskSnapshot task,
+            boolean approved,
+            OrderStatus targetStatus,
+            String source
+    ) {
+        if (approved && isPrescriptionRecheckTask(task) && OrderStatus.AUDIT_PASSED.name().equals(task.orderStatus())) {
+            return new OrderStatusClient.OrderStatusUpdateResult(
+                    task.orderId(),
+                    task.orderNo(),
+                    OrderStatus.AUDIT_PASSED.name(),
+                    OrderStatus.AUDIT_PASSED.name()
+            );
+        }
+        return orderStatusClient.updateStatus(
+                task.orderId(),
+                targetStatus.name(),
+                "AUDIT",
+                source
+        );
+    }
+
+    private boolean isPrescriptionRecheckTask(WorkflowTaskSnapshot task) {
+        return "处方修改后基础校验通过".equals(task.validationMessage());
     }
 }

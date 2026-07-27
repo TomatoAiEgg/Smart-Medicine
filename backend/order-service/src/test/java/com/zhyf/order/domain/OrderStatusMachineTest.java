@@ -19,6 +19,7 @@ class OrderStatusMachineTest {
     @Test
     void shouldAllowFulfillmentPath() {
         assertThat(statusMachine.canTransition(OrderStatus.AUDIT_PASSED, OrderStatus.RECHECKED)).isTrue();
+        assertThat(statusMachine.canTransition(OrderStatus.AUDIT_PASSED, OrderStatus.AUDIT_FAILED)).isTrue();
         assertThat(statusMachine.canTransition(OrderStatus.RECHECKED, OrderStatus.DECOCTING)).isTrue();
         assertThat(statusMachine.canTransition(OrderStatus.DECOCTING, OrderStatus.CANCELLED)).isTrue();
         assertThat(statusMachine.canTransition(OrderStatus.DECOCTING, OrderStatus.DECOCTED)).isTrue();
