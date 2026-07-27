@@ -10,7 +10,8 @@ import {
   listReviewTasks,
   rejectReviewTask,
 } from '../../api/workflow';
-import type { WorkflowTaskSnapshot } from '../../api/types';
+import { getOrderProgress } from '../../api/order';
+import type { OrderProgressSnapshot, WorkflowTaskSnapshot } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { formatDate } from '../../domain/formatters';
 
@@ -53,6 +54,11 @@ const patientName = ref('');
 const dosageRange = ref('');
 const dispenseUserId = ref('');
 const recheckUserId = ref('');
+const selectedReviewTask = ref<WorkflowTaskSnapshot | null>(null);
+const reviewOrderProgress = ref<OrderProgressSnapshot | null>(null);
+const reviewProgressLoading = ref(false);
+const reviewProgressError = ref('');
+const reviewDetailNotice = ref('');
 
 const activeWorkflowTasks = computed(() => {
   if (props.activeView === 'reviews') return reviewTasks.value;
@@ -121,6 +127,62 @@ function batchText() {
 
 function prescriptionList(task: WorkflowTaskSnapshot) {
   return `${task.orderNo}-${task.taskId.slice(0, 8)}`;
+}
+
+function validationText(task: WorkflowTaskSnapshot) {
+  const status = rowValue(task.validationStatus);
+  const message = rowValue(task.validationMessage);
+  return `${status} / ${message}`;
+}
+
+function taskTypeText(type: string) {
+  const labels: Record<string, string> = {
+    REVIEW: '审核',
+    DISPENSE: '调剂',
+    RECHECK: '复核',
+    ORDER_REVIEW: '订单审核',
+    PRESCRIPTION_DISPENSE: '处方调剂',
+    PRESCRIPTION_RECHECK: '处方复核',
+  };
+  return labels[type] || type;
+}
+
+function taskStatusText(status: string) {
+  const labels: Record<string, string> = {
+    PENDING: '待处理',
+    IN_PROGRESS: '处理中',
+    COMPLETED: '已完成',
+    REJECTED: '已拒绝',
+    CANCELLED: '已取消',
+  };
+  return labels[status] || status;
+}
+
+async function loadReviewOrderProgress(task: WorkflowTaskSnapshot) {
+  reviewProgressLoading.value = true;
+  reviewProgressError.value = '';
+  reviewOrderProgress.value = null;
+  try {
+    reviewOrderProgress.value = await getOrderProgress(task.orderNo);
+  } catch (error) {
+    reviewProgressError.value = errorMessage(error);
+  } finally {
+    reviewProgressLoading.value = false;
+  }
+}
+
+function selectReviewTask(task: WorkflowTaskSnapshot) {
+  selectedReviewTask.value = task;
+  reviewDetailNotice.value = '';
+  workflowError.value = '';
+  void loadReviewOrderProgress(task);
+}
+
+function backToReviewList() {
+  selectedReviewTask.value = null;
+  reviewOrderProgress.value = null;
+  reviewProgressError.value = '';
+  reviewDetailNotice.value = '';
 }
 
 function currentCounts(): WorkflowCounts {
@@ -203,7 +265,7 @@ function shouldRefreshActiveTasks() {
   return recheckTasks.value.length === 0;
 }
 
-async function handleReview(task: WorkflowTaskSnapshot, action: 'approve' | 'reject') {
+async function submitReview(task: WorkflowTaskSnapshot, action: 'approve' | 'reject', reviewComment: string) {
   if (!operator.value.trim()) {
     workflowError.value = '处理人不能为空';
     return;
@@ -211,21 +273,37 @@ async function handleReview(task: WorkflowTaskSnapshot, action: 'approve' | 'rej
 
   handlingTaskId.value = task.taskId;
   workflowError.value = '';
+  reviewDetailNotice.value = '';
   try {
     const command = {
       reviewer: operator.value.trim(),
-      reviewComment: comment.value.trim(),
+      reviewComment,
     };
     const result = action === 'approve'
       ? await approveReviewTask(task.taskId, command)
       : await rejectReviewTask(task.taskId, command);
     emit('notice', 'success', `${result.orderNo} 已${action === 'approve' ? '审核通过' : '审核拒绝'}`);
+    backToReviewList();
     await refreshAllWorkflowTasks();
   } catch (error) {
     workflowError.value = errorMessage(error);
   } finally {
     handlingTaskId.value = '';
   }
+}
+
+async function handleReviewFailure(task: WorkflowTaskSnapshot) {
+  await submitReview(task, 'reject', comment.value.trim() || '审核失败');
+}
+
+async function handleBatchApproval(task: WorkflowTaskSnapshot, batch: '早批次' | '晚批次') {
+  const batchNo = batch === '早批次' ? 1 : 3;
+  await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`);
+}
+
+function handlePendingReviewAction(actionName: '备注' | '拆单' | '修改地址') {
+  reviewDetailNotice.value = `${actionName}后端接口待补契约，当前未提交任何变更。`;
+  emit('notice', 'info', reviewDetailNotice.value);
 }
 
 async function handleDispense(task: WorkflowTaskSnapshot) {
@@ -279,6 +357,7 @@ onMounted(() => {
 watch(
   () => props.activeView,
   () => {
+    if (props.activeView !== 'reviews') backToReviewList();
     if (shouldRefreshActiveTasks()) void refreshCurrentTasks();
   },
 );
@@ -290,6 +369,175 @@ defineExpose({
 
 <template>
   <section class="legacy-page workflow-page">
+    <template v-if="activeView === 'reviews' && selectedReviewTask">
+      <div class="review-detail-workbench">
+        <div class="review-detail-toolbar">
+          <button class="legacy-btn" type="button" @click="backToReviewList">返回列表</button>
+          <button
+            class="legacy-btn review-danger-btn"
+            type="button"
+            :disabled="handlingTaskId === selectedReviewTask.taskId"
+            @click="handleReviewFailure(selectedReviewTask)"
+          >
+            审核失败
+          </button>
+          <button
+            class="legacy-btn legacy-btn-primary"
+            type="button"
+            :disabled="handlingTaskId === selectedReviewTask.taskId"
+            @click="handleBatchApproval(selectedReviewTask, '早批次')"
+          >
+            早批次通过
+          </button>
+          <button
+            class="legacy-btn legacy-btn-primary"
+            type="button"
+            :disabled="handlingTaskId === selectedReviewTask.taskId"
+            @click="handleBatchApproval(selectedReviewTask, '晚批次')"
+          >
+            晚批次通过
+          </button>
+          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('备注')">备注</button>
+          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('拆单')">拆单</button>
+          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('修改地址')">修改地址</button>
+        </div>
+
+        <div class="review-detail-command">
+          <label>
+            处理人：
+            <input v-model="operator" class="legacy-input" placeholder="admin" />
+          </label>
+          <label>
+            审核失败意见：
+            <input v-model="comment" class="legacy-input input-large" placeholder="填写审核失败原因" />
+          </label>
+          <span>后端批次字段待补契约，早/晚批次当前仅写入 reviewComment。</span>
+        </div>
+
+        <p v-if="workflowError" class="error-line">{{ workflowError }}</p>
+        <p v-if="reviewDetailNotice" class="review-detail-notice">{{ reviewDetailNotice }}</p>
+
+        <section class="review-detail-section">
+          <h3>提示信息</h3>
+          <div class="review-detail-grid">
+            <div>
+              <span>校验状态</span>
+              <strong>{{ rowValue(selectedReviewTask.validationStatus) }}</strong>
+            </div>
+            <div>
+              <span>校验提示</span>
+              <strong>{{ rowValue(selectedReviewTask.validationMessage) }}</strong>
+            </div>
+            <div>
+              <span>任务提示</span>
+              <strong>{{ validationText(selectedReviewTask) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="review-detail-section">
+          <h3>订单信息</h3>
+          <div class="review-detail-grid">
+            <div>
+              <span>平台订单号</span>
+              <strong>{{ rowValue(reviewOrderProgress?.orderNo ?? selectedReviewTask.orderNo) }}</strong>
+            </div>
+            <div>
+              <span>订单 ID</span>
+              <strong>{{ rowValue(reviewOrderProgress?.orderId ?? selectedReviewTask.orderId) }}</strong>
+            </div>
+            <div>
+              <span>外部订单号</span>
+              <strong>{{ rowValue(reviewOrderProgress?.externalOrderNo ?? selectedReviewTask.externalOrderNo) }}</strong>
+            </div>
+            <div>
+              <span>订单状态</span>
+              <strong>{{ rowValue(reviewOrderProgress?.orderStatus ?? selectedReviewTask.orderStatus) }}</strong>
+            </div>
+            <div>
+              <span>创建时间</span>
+              <strong>{{ formatDate(reviewOrderProgress?.createdAt ?? selectedReviewTask.createdAt) }}</strong>
+            </div>
+            <div>
+              <span>更新时间</span>
+              <strong>{{ formatDate(reviewOrderProgress?.updatedAt ?? selectedReviewTask.updatedAt) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="review-detail-section">
+          <h3>处方信息 / 流程信息</h3>
+          <p v-if="reviewProgressLoading" class="legacy-empty">正在加载订单进度</p>
+          <p v-else-if="reviewProgressError" class="error-line">订单进度加载失败：{{ reviewProgressError }}</p>
+          <template v-else-if="reviewOrderProgress">
+            <h4>处方信息</h4>
+            <table class="legacy-main-table review-detail-table">
+              <thead>
+                <tr class="legacy-main-head">
+                  <th>平台处方号</th>
+                  <th>机构处方号</th>
+                  <th>处方状态</th>
+                  <th>明细数</th>
+                  <th>创建时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="reviewOrderProgress.prescriptions.length === 0" class="legacy-main-info">
+                  <td colspan="5" class="legacy-empty">暂无处方进度</td>
+                </tr>
+                <tr v-for="prescription in reviewOrderProgress.prescriptions" :key="prescription.prescriptionId" class="legacy-main-info">
+                  <td>{{ rowValue(prescription.prescriptionNo) }}</td>
+                  <td>{{ rowValue(prescription.externalPrescriptionNo) }}</td>
+                  <td>{{ rowValue(prescription.prescriptionStatus) }}</td>
+                  <td>{{ prescription.detailCount }}</td>
+                  <td>{{ formatDate(prescription.createdAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4>流程信息</h4>
+            <table class="legacy-main-table review-detail-table">
+              <thead>
+                <tr class="legacy-main-head">
+                  <th>环节</th>
+                  <th>状态</th>
+                  <th>处理人</th>
+                  <th>意见</th>
+                  <th>创建时间</th>
+                  <th>完成时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="reviewOrderProgress.workflowTasks.length === 0" class="legacy-main-info">
+                  <td colspan="6" class="legacy-empty">暂无流程进度</td>
+                </tr>
+                <tr v-for="workflowTask in reviewOrderProgress.workflowTasks" :key="workflowTask.taskId" class="legacy-main-info">
+                  <td>{{ taskTypeText(workflowTask.taskType) }}</td>
+                  <td>{{ taskStatusText(workflowTask.taskStatus) }}</td>
+                  <td>{{ rowValue(workflowTask.operator) }}</td>
+                  <td class="legacy-left">{{ rowValue(workflowTask.comment) }}</td>
+                  <td>{{ formatDate(workflowTask.createdAt) }}</td>
+                  <td>{{ formatDate(workflowTask.completedAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
+          <p v-else class="legacy-empty">选择审核任务后加载订单进度</p>
+        </section>
+
+        <section class="review-detail-section review-placeholder-section">
+          <h3>药品信息</h3>
+          <p>等待后端详情接口</p>
+        </section>
+
+        <section class="review-detail-section review-placeholder-section">
+          <h3>费用汇总</h3>
+          <p>等待后端详情接口</p>
+        </section>
+      </div>
+    </template>
+
+    <template v-else>
     <ul class="legacy-search workflow-search">
       <template v-if="activeView !== 'reviews'">
         <li>
@@ -515,17 +763,9 @@ defineExpose({
                   class="legacy-link-btn workflow-pass-btn"
                   type="button"
                   :disabled="handlingTaskId === task.taskId"
-                  @click="handleReview(task, 'approve')"
+                  @click="selectReviewTask(task)"
                 >
-                  通过
-                </button>
-                <button
-                  class="legacy-link-btn workflow-reject-btn"
-                  type="button"
-                  :disabled="handlingTaskId === task.taskId"
-                  @click="handleReview(task, 'reject')"
-                >
-                  拒绝
+                  查看详情
                 </button>
               </td>
             </template>
@@ -616,5 +856,115 @@ defineExpose({
         <strong>{{ comment }}</strong>
       </div>
     </div>
+    </template>
   </section>
 </template>
+
+<style scoped>
+.review-detail-workbench {
+  display: grid;
+  gap: 12px;
+}
+
+.review-detail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.review-detail-command {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d8e0ea;
+  background: #f8fafc;
+}
+
+.review-detail-command label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.review-detail-command span,
+.review-detail-notice {
+  color: #8a5a00;
+}
+
+.review-danger-btn {
+  border-color: #d73a49;
+  color: #b4232f;
+}
+
+.review-detail-section {
+  padding: 12px;
+  border: 1px solid #d8e0ea;
+  background: #fff;
+}
+
+.review-detail-section h3,
+.review-detail-section h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.review-detail-section h4 {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.review-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.review-detail-grid div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #edf1f5;
+  background: #fbfcfe;
+}
+
+.review-detail-grid span {
+  display: block;
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.review-detail-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.review-detail-table {
+  min-width: 720px;
+  margin-bottom: 8px;
+}
+
+.review-placeholder-section p {
+  margin: 0;
+  color: #667085;
+}
+
+@media (max-width: 720px) {
+  .review-detail-toolbar,
+  .review-detail-command {
+    align-items: stretch;
+  }
+
+  .review-detail-command label {
+    width: 100%;
+  }
+}
+</style>
