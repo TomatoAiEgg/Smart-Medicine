@@ -9,6 +9,7 @@ import {
   listCanOperatePrescriptions,
   listDecoctionDevices,
   listDeviceWorkRecords,
+  listPendingMesTasks,
   listTaskEvents,
   recordTaskError,
   recordTemperature,
@@ -56,6 +57,7 @@ const operatorModel = computed({
 const prescriptions = ref<PrescriptionRecord[]>([]);
 const decoctionDevices = ref<DeviceRecord[]>([]);
 const decoctionTasks = ref<DecoctionTaskRecord[]>([]);
+const pendingMesTasks = ref<DecoctionTaskRecord[]>([]);
 const decoctionEvents = ref<DecoctionTaskEventRecord[]>([]);
 const decoctionWorkRecords = ref<DeviceWorkRecord[]>([]);
 const decoctionLoading = ref(false);
@@ -82,6 +84,7 @@ const selectedEventTaskNo = ref('');
 const handlingDecoctionTaskNo = ref('');
 
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
+const pendingMesTaskCount = computed(() => pendingMesTasks.value.length);
 
 const selectedEventTask = computed(() => (
   decoctionTasks.value.find((task) => task.taskNo === selectedEventTaskNo.value) ?? null
@@ -212,13 +215,15 @@ async function refreshDecoctionSimulator() {
   decoctionLoading.value = true;
   decoctionError.value = '';
   try {
-    const [nextPrescriptions, nextDevices, nextTasks] = await Promise.all([
+    const [nextPrescriptions, nextDevices, nextPendingTasks, nextTasks] = await Promise.all([
       listCanOperatePrescriptions(),
       listDecoctionDevices(),
+      listPendingMesTasks(),
       listActiveMesTasks(),
     ]);
     prescriptions.value = nextPrescriptions;
     decoctionDevices.value = nextDevices;
+    pendingMesTasks.value = nextPendingTasks;
     decoctionTasks.value = nextTasks;
 
     if (!prescriptions.value.some((prescription) => prescription.prescriptionNo === selectedPrescriptionNo.value)) {
@@ -236,10 +241,11 @@ async function refreshDecoctionSimulator() {
       decoctionEvents.value = [];
       decoctionWorkRecords.value = [];
     }
-    emit('notice', 'info', `已刷新煎煮作业：可操作处方 ${prescriptions.value.length} 条，设备 ${decoctionDevices.value.length} 台，活动任务 ${decoctionTasks.value.length} 条`);
+    emit('notice', 'info', `已刷新煎煮作业：可操作处方 ${prescriptions.value.length} 条，设备 ${decoctionDevices.value.length} 台，待 MES 开始 ${pendingMesTasks.value.length} 条，活动任务 ${decoctionTasks.value.length} 条`);
   } catch (error) {
     prescriptions.value = [];
     decoctionDevices.value = [];
+    pendingMesTasks.value = [];
     decoctionTasks.value = [];
     decoctionEvents.value = [];
     decoctionWorkRecords.value = [];
@@ -527,6 +533,25 @@ defineExpose({
     </ul>
 
     <p v-if="decoctionError" class="error-line">{{ decoctionError }}</p>
+
+    <ul class="legacy-stats decoction-stats">
+      <li>
+        <strong>{{ prescriptions.length }}</strong>
+        <span>可操作处方</span>
+      </li>
+      <li>
+        <strong>{{ decoctionDevices.length }}</strong>
+        <span>设备数</span>
+      </li>
+      <li>
+        <strong>{{ pendingMesTaskCount }}</strong>
+        <span>待 MES 开始</span>
+      </li>
+      <li>
+        <strong>{{ activeDecoctionCount }}</strong>
+        <span>活动任务</span>
+      </li>
+    </ul>
 
     <div class="legacy-panel">
       <table
@@ -838,6 +863,10 @@ defineExpose({
 
 .decoction-operate-search {
   border-color: rgba(35, 104, 181, 0.22);
+}
+
+.decoction-stats {
+  margin-bottom: 10px;
 }
 
 .decoction-main-table {

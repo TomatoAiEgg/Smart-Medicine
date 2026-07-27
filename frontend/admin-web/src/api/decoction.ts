@@ -29,6 +29,10 @@ export function listActiveMesTasks() {
   return request<DecoctionTaskRecord[]>('/decoction-api/simulator/mes/tasks/active');
 }
 
+export function listPendingMesTasks() {
+  return request<DecoctionTaskRecord[]>('/decoction-api/simulator/mes/tasks/pending');
+}
+
 export function startMesTask(taskNo: string, command: MesTaskOperationCommand) {
   return request<DecoctionTaskRecord>(`/decoction-api/simulator/mes/tasks/${encodeURIComponent(taskNo)}/start`, {
     method: 'POST',
