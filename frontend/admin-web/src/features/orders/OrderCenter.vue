@@ -9,6 +9,7 @@ import {
   listAdminOrders,
   updateAdminOrderAddress,
 } from '../../api/order';
+import { signShipment } from '../../api/logistics';
 import type {
   AdminOrderDetail,
   AdminOrderDetailDrug,
@@ -18,6 +19,8 @@ import type {
   AdminOrderCancelCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
+  ShipmentActionCommand,
+  ShipmentProgress,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { formatDate } from '../../domain/formatters';
@@ -45,8 +48,13 @@ interface CancelForm {
   operator: string;
   reason: string;
 }
+interface SignForm {
+  operator: string;
+  remark: string;
+}
 type NumericValue = string | number | null | undefined;
 const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
+const SIGNABLE_SHIPMENT_STATUSES = new Set(['PACKED', 'SHIPPED', 'IN_TRANSIT']);
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -83,6 +91,8 @@ const addressModalOpen = ref(false);
 const addressSubmitting = ref(false);
 const cancelModalOpen = ref(false);
 const cancelSubmitting = ref(false);
+const signModalOpen = ref(false);
+const signSubmitting = ref(false);
 const addressForm = ref<AddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -98,6 +108,10 @@ const addressForm = ref<AddressForm>({
 const cancelForm = ref<CancelForm>({
   operator: 'admin',
   reason: '',
+});
+const signForm = ref<SignForm>({
+  operator: 'admin',
+  remark: '',
 });
 
 const orderRows = computed(() => orderPage.value?.records ?? []);
@@ -144,6 +158,15 @@ const canCancelOrder = computed(() => (
   && !detailLoading.value
   && !cancelSubmitting.value
   && CANCELLABLE_ORDER_STATUSES.has(orderDetail.value.orderStatus)
+));
+const signableShipment = computed<ShipmentProgress | null>(() => (
+  shipments.value.find((shipment) => SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) ?? null
+));
+const canSignOrder = computed(() => (
+  !!orderDetail.value
+  && !!signableShipment.value
+  && !detailLoading.value
+  && !signSubmitting.value
 ));
 const pageSummary = computed(() => {
   const total = resultCount.value;
@@ -470,6 +493,58 @@ async function submitCancelOrder() {
   }
 }
 
+function openSignModal() {
+  if (!orderDetail.value) {
+    orderError.value = '请先查看一条订单详情后再签收';
+    return;
+  }
+  if (!signableShipment.value) {
+    orderError.value = '当前订单没有可签收物流单';
+    return;
+  }
+  signForm.value = {
+    operator: signForm.value.operator || 'admin',
+    remark: '',
+  };
+  signModalOpen.value = true;
+}
+
+function closeSignModal() {
+  if (signSubmitting.value) return;
+  signModalOpen.value = false;
+}
+
+async function submitSignOrder() {
+  if (!orderDetail.value || !signableShipment.value) return;
+  const targetOrderNo = orderDetail.value.orderNo;
+  const targetShipment = signableShipment.value;
+  const command: ShipmentActionCommand = {
+    operator: signForm.value.operator.trim() || 'admin',
+    remark: signForm.value.remark.trim() || '订单中心手动签收',
+  };
+  signSubmitting.value = true;
+  orderError.value = '';
+  try {
+    await signShipment(targetShipment.shipmentId, command);
+    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+      getOrder(targetOrderNo),
+      getAdminOrderDetail(targetOrderNo),
+      getOrderProgress(targetOrderNo),
+      queryOrder(),
+    ]);
+    order.value = nextOrder;
+    orderDetail.value = nextDetail;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = targetOrderNo;
+    signModalOpen.value = false;
+    emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    signSubmitting.value = false;
+  }
+}
+
 async function queryOrder() {
   orderLoading.value = true;
   orderError.value = '';
@@ -687,7 +762,7 @@ async function goNextPage() {
       <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
       <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
       <button class="legacy-btn" type="button" disabled title="等待后端手工走流程契约">走流程</button>
-      <button class="legacy-btn" type="button" disabled title="等待后端签收契约">签收</button>
+      <button class="legacy-btn" type="button" :disabled="!canSignOrder" title="先查看有可签收物流单的订单详情" @click="openSignModal">签收</button>
     </div>
 
     <p v-if="orderError" class="error-line">{{ orderError }}</p>
@@ -858,6 +933,47 @@ async function goNextPage() {
           <button class="legacy-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">返回</button>
           <button class="legacy-btn legacy-btn-export" type="button" :disabled="cancelSubmitting" @click="submitCancelOrder">
             {{ cancelSubmitting ? '取消中' : '确认取消' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="signModalOpen" class="legacy-modal-mask">
+      <section class="legacy-modal cancel-modal">
+        <div class="legacy-modal-head">
+          <h2>订单签收</h2>
+          <button class="legacy-link-btn" type="button" :disabled="signSubmitting" @click="closeSignModal">关闭</button>
+        </div>
+        <div class="cancel-warning">
+          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <span>签收会通过物流服务推进订单状态，并生成物流轨迹和签收回调。</span>
+        </div>
+        <div class="address-form-grid">
+          <label>
+            <span>物流单号</span>
+            <input class="legacy-input" :value="rowValue(signableShipment?.logisticsNo)" disabled />
+          </label>
+          <label>
+            <span>物流公司</span>
+            <input class="legacy-input" :value="rowValue(signableShipment?.logisticsCompany)" disabled />
+          </label>
+          <label>
+            <span>物流状态</span>
+            <input class="legacy-input" :value="statusText(signableShipment?.logisticsStatus)" disabled />
+          </label>
+          <label>
+            <span>操作人</span>
+            <input v-model="signForm.operator" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>签收备注</span>
+            <input v-model="signForm.remark" class="legacy-input" placeholder="可选" />
+          </label>
+        </div>
+        <div class="legacy-modal-actions">
+          <button class="legacy-btn" type="button" :disabled="signSubmitting" @click="closeSignModal">返回</button>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="signSubmitting" @click="submitSignOrder">
+            {{ signSubmitting ? '签收中' : '确认签收' }}
           </button>
         </div>
       </section>
