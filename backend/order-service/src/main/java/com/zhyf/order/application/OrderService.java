@@ -127,6 +127,7 @@ public class OrderService {
                 query.prescriptionType(),
                 query.hospitalType(),
                 query.orderStatus(),
+                query.excludeOrderStatus(),
                 query.decoctionCenter(),
                 query.deliveryType(),
                 query.logisticsCompany(),
@@ -149,6 +150,7 @@ public class OrderService {
                 query.prescriptionType(),
                 query.hospitalType(),
                 query.orderStatus(),
+                query.excludeOrderStatus(),
                 query.decoctionCenter(),
                 query.deliveryType(),
                 query.logisticsCompany(),
@@ -434,6 +436,202 @@ public class OrderService {
                 .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+    }
+
+    @Transactional
+    public AdminPrescriptionActionResult initializeAdminPrescription(
+            String orderNo,
+            UUID prescriptionId,
+            AdminPrescriptionActionCommand command
+    ) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        if (prescriptionId == null) {
+            throw new BusinessException("PRESCRIPTION_ID_REQUIRED", "处方 ID 不能为空");
+        }
+        AdminOrderDetail current = getAdminOrderDetail(orderNo.trim());
+        AdminOrderDetail.Prescription prescription = findDetailPrescription(current, prescriptionId);
+        OrderStatus currentOrderStatus = parseOrderStatus(current.orderStatus());
+        PrescriptionStatus currentPrescriptionStatus = parsePrescriptionStatus(prescription.prescriptionStatus());
+        if (OrderStatus.SIGNED.equals(currentOrderStatus)) {
+            throw new BusinessException("PRESCRIPTION_INITIALIZE_NOT_ALLOWED", "已签收订单不允许初始化处方");
+        }
+        if (OrderStatus.CREATED.equals(currentOrderStatus) && PrescriptionStatus.CREATED.equals(currentPrescriptionStatus)) {
+            throw new BusinessException("PRESCRIPTION_INITIALIZE_NOT_REQUIRED", "当前处方已经是初始状态");
+        }
+        String operator = command == null ? "admin" : defaultText(command.operator(), "admin");
+        String reason = command == null ? "订单操作初始化处方" : defaultText(command.reason(), "订单操作初始化处方");
+        int resetPrescription = orderRepository.updatePrescriptionStatus(
+                current.orderId(),
+                prescriptionId,
+                PrescriptionStatus.CREATED.name()
+        );
+        boolean orderStatusChanged = !OrderStatus.CREATED.equals(currentOrderStatus);
+        if (resetPrescription == 0 && !orderStatusChanged) {
+            throw new BusinessException("PRESCRIPTION_INITIALIZE_CONFLICT", "处方状态已变更，请刷新后重试");
+        }
+        if (orderStatusChanged) {
+            int updatedOrder = orderRepository.updateOrderStatusIfCurrent(
+                    current.orderId(),
+                    currentOrderStatus.name(),
+                    OrderStatus.CREATED.name()
+            );
+            if (updatedOrder == 0) {
+                throw new BusinessException("PRESCRIPTION_INITIALIZE_CONFLICT", "订单状态已变更，请刷新后重试");
+            }
+            orderRepository.cancelPendingWorkflowTasks(current.orderId(), operator, reason);
+            orderRepository.cancelActiveDecoctionTasksByOrderId(current.orderId(), operator, reason);
+            orderRepository.deleteShipmentRuntimeByOrderId(current.orderId());
+            orderRepository.insertOrderStatusLog(
+                    UUID.randomUUID(),
+                    current.tenantId(),
+                    current.orderId(),
+                    currentOrderStatus.name(),
+                    OrderStatus.CREATED.name(),
+                    "ADMIN",
+                    "admin-prescription-initialize"
+            );
+        }
+        String eventId = UUID.randomUUID().toString();
+        orderRepository.insertOutbox(
+                UUID.randomUUID(),
+                current.tenantId(),
+                eventId,
+                ORDER_INITIALIZE_EVENT_TYPE,
+                "ORDER",
+                current.orderId().toString(),
+                writeJson(prescriptionActionPayload(current, prescriptionId, "PRESCRIPTION_INITIALIZE"))
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                prescriptionId,
+                operator,
+                "PRESCRIPTION_INITIALIZE",
+                resetPrescription > 0 || orderStatusChanged ? "SUCCESS" : "UNCHANGED",
+                reason,
+                writeJson(Map.of(
+                        "fromPrescriptionStatus", currentPrescriptionStatus.name(),
+                        "toPrescriptionStatus", PrescriptionStatus.CREATED.name(),
+                        "fromOrderStatus", currentOrderStatus.name(),
+                        "toOrderStatus", orderStatusChanged ? OrderStatus.CREATED.name() : currentOrderStatus.name(),
+                        "eventId", eventId
+                ))
+        );
+        return new AdminPrescriptionActionResult(
+                current.orderId(),
+                current.orderNo(),
+                prescriptionId,
+                prescription.prescriptionNo(),
+                currentPrescriptionStatus.name(),
+                PrescriptionStatus.CREATED.name(),
+                orderStatusChanged,
+                currentOrderStatus.name(),
+                orderStatusChanged ? OrderStatus.CREATED.name() : currentOrderStatus.name(),
+                eventId,
+                Instant.now()
+        );
+    }
+
+    @Transactional
+    public AdminPrescriptionActionResult cancelAdminPrescription(
+            String orderNo,
+            UUID prescriptionId,
+            AdminPrescriptionActionCommand command
+    ) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        if (prescriptionId == null) {
+            throw new BusinessException("PRESCRIPTION_ID_REQUIRED", "处方 ID 不能为空");
+        }
+        AdminOrderDetail current = getAdminOrderDetail(orderNo.trim());
+        AdminOrderDetail.Prescription prescription = findDetailPrescription(current, prescriptionId);
+        OrderStatus currentOrderStatus = parseOrderStatus(current.orderStatus());
+        PrescriptionStatus currentPrescriptionStatus = parsePrescriptionStatus(prescription.prescriptionStatus());
+        if (OrderStatus.SIGNED.equals(currentOrderStatus)
+                || OrderStatus.CANCELLED.equals(currentOrderStatus)
+                || OrderStatus.AUDIT_FAILED.equals(currentOrderStatus)) {
+            throw new BusinessException("PRESCRIPTION_CANCEL_NOT_ALLOWED", "当前订单状态不允许取消处方");
+        }
+        if (PrescriptionStatus.CANCELLED.equals(currentPrescriptionStatus)) {
+            throw new BusinessException("PRESCRIPTION_CANCEL_NOT_REQUIRED", "当前处方已经取消");
+        }
+        String operator = command == null ? "admin" : defaultText(command.operator(), "admin");
+        String reason = command == null ? "订单操作取消处方" : defaultText(command.reason(), "订单操作取消处方");
+        int cancelledPrescription = orderRepository.updatePrescriptionStatus(
+                current.orderId(),
+                prescriptionId,
+                PrescriptionStatus.CANCELLED.name()
+        );
+        if (cancelledPrescription == 0) {
+            throw new BusinessException("PRESCRIPTION_CANCEL_CONFLICT", "处方状态已变更，请刷新后重试");
+        }
+        int activePrescriptionCount = orderRepository.countActivePrescriptionsByOrderId(current.orderId());
+        boolean orderStatusChanged = activePrescriptionCount == 0;
+        if (orderStatusChanged) {
+            int updatedOrder = orderRepository.updateOrderStatusIfCurrent(
+                    current.orderId(),
+                    currentOrderStatus.name(),
+                    OrderStatus.CANCELLED.name()
+            );
+            if (updatedOrder == 0) {
+                throw new BusinessException("PRESCRIPTION_CANCEL_CONFLICT", "订单状态已变更，请刷新后重试");
+            }
+            orderRepository.cancelPendingWorkflowTasks(current.orderId(), operator, reason);
+            orderRepository.insertOrderStatusLog(
+                    UUID.randomUUID(),
+                    current.tenantId(),
+                    current.orderId(),
+                    currentOrderStatus.name(),
+                    OrderStatus.CANCELLED.name(),
+                    "ADMIN",
+                    "admin-prescription-cancel"
+            );
+        }
+        String eventId = UUID.randomUUID().toString();
+        orderRepository.insertOutbox(
+                UUID.randomUUID(),
+                current.tenantId(),
+                eventId,
+                orderStatusChanged ? "ORDER_CANCELLED" : "PRESCRIPTION_CANCELLED",
+                "ORDER",
+                current.orderId().toString(),
+                writeJson(prescriptionActionPayload(current, prescriptionId, "PRESCRIPTION_CANCEL"))
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                prescriptionId,
+                operator,
+                "PRESCRIPTION_CANCEL",
+                "SUCCESS",
+                reason,
+                writeJson(Map.of(
+                        "fromPrescriptionStatus", currentPrescriptionStatus.name(),
+                        "toPrescriptionStatus", PrescriptionStatus.CANCELLED.name(),
+                        "fromOrderStatus", currentOrderStatus.name(),
+                        "toOrderStatus", orderStatusChanged ? OrderStatus.CANCELLED.name() : currentOrderStatus.name(),
+                        "activePrescriptionCount", activePrescriptionCount,
+                        "eventId", eventId
+                ))
+        );
+        return new AdminPrescriptionActionResult(
+                current.orderId(),
+                current.orderNo(),
+                prescriptionId,
+                prescription.prescriptionNo(),
+                currentPrescriptionStatus.name(),
+                PrescriptionStatus.CANCELLED.name(),
+                orderStatusChanged,
+                currentOrderStatus.name(),
+                orderStatusChanged ? OrderStatus.CANCELLED.name() : currentOrderStatus.name(),
+                eventId,
+                Instant.now()
+        );
     }
 
     @Transactional
@@ -867,6 +1065,36 @@ public class OrderService {
         } catch (IllegalArgumentException ex) {
             throw new BusinessException("ORDER_STATUS_INVALID", "订单状态不支持取消操作");
         }
+    }
+
+    private PrescriptionStatus parsePrescriptionStatus(String status) {
+        try {
+            return PrescriptionStatus.valueOf(status);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException("PRESCRIPTION_STATUS_INVALID", "处方状态不支持当前操作");
+        }
+    }
+
+    private AdminOrderDetail.Prescription findDetailPrescription(AdminOrderDetail current, UUID prescriptionId) {
+        return current.prescriptions().stream()
+                .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+    }
+
+    private Map<String, Object> prescriptionActionPayload(
+            AdminOrderDetail current,
+            UUID prescriptionId,
+            String sourceAction
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("tenantId", current.tenantId());
+        payload.put("orderId", current.orderId());
+        payload.put("orderNo", current.orderNo());
+        payload.put("externalOrderNo", current.externalOrderNo());
+        payload.put("prescriptionIds", List.of(prescriptionId));
+        payload.put("sourceAction", sourceAction);
+        return payload;
     }
 
     private boolean canAdminCancel(OrderStatus status) {

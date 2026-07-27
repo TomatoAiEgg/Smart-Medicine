@@ -311,6 +311,8 @@ public class OrderRepository {
                     o.receiver_zone,
                     o.receiver_address,
                     o.address_type,
+                    p.id as prescription_id,
+                    p.status as prescription_status,
                     p.prescription_no as prescription_nos,
                     p.external_prescription_no as external_prescription_nos,
                     coalesce(p.prescription_type, '') as prescription_types,
@@ -318,6 +320,7 @@ public class OrderRepository {
                     1 as prescription_count,
                     coalesce(pd.detail_count, 0) as detail_count,
                     p.dose_count,
+                    p.is_within,
                     p.total_amount,
                     o.delivery_time,
                     o.batch_no,
@@ -391,6 +394,8 @@ public class OrderRepository {
                     o.receiver_zone,
                     o.receiver_address,
                     o.address_type,
+                    p.id as prescription_id,
+                    p.status as prescription_status,
                     p.prescription_no as prescription_nos,
                     p.external_prescription_no as external_prescription_nos,
                     coalesce(p.prescription_type, '') as prescription_types,
@@ -398,6 +403,7 @@ public class OrderRepository {
                     1 as prescription_count,
                     coalesce(pd.detail_count, 0) as detail_count,
                     p.dose_count,
+                    p.is_within,
                     p.total_amount,
                     o.delivery_time,
                     o.batch_no,
@@ -513,6 +519,7 @@ public class OrderRepository {
         filters.addLikeFilter("i.institution_name", query.institution());
         filters.addLikeFilter("i.storage_type", query.decoctionCenter());
         filters.addEqualsFilter("o.status", query.orderStatus());
+        filters.addNotEqualsFilter("o.status", query.excludeOrderStatus());
         filters.addLikeFilter("o.patient_name", query.patientName());
         filters.addLikeFilter("o.receiver_phone", query.receiverPhone());
         filters.addLikeFilter("o.receiver_province", query.province());
@@ -877,6 +884,29 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, status, orderId, status);
     }
 
+    public int updatePrescriptionStatus(UUID orderId, UUID prescriptionId, String status) {
+        String sql = """
+                update prescription
+                set status = ?,
+                    updated_at = now()
+                where order_id = ?
+                  and id = ?
+                  and status <> ?
+                """;
+        return jdbcTemplate.update(sql, status, orderId, prescriptionId, status);
+    }
+
+    public int countActivePrescriptionsByOrderId(UUID orderId) {
+        String sql = """
+                select count(*)
+                from prescription
+                where order_id = ?
+                  and status <> 'CANCELLED'
+                """;
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, orderId);
+        return count == null ? 0 : count;
+    }
+
     public int cancelPendingWorkflowTasks(UUID orderId, String operator, String reason) {
         String sql = """
                 update workflow_task
@@ -1235,6 +1265,8 @@ public class OrderRepository {
                 rs.getString("receiver_zone"),
                 rs.getString("receiver_address"),
                 rs.getString("address_type"),
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("prescription_status"),
                 rs.getString("prescription_nos"),
                 rs.getString("external_prescription_nos"),
                 rs.getString("prescription_types"),
@@ -1242,6 +1274,7 @@ public class OrderRepository {
                 rs.getInt("prescription_count"),
                 rs.getInt("detail_count"),
                 integer(rs, "dose_count"),
+                integer(rs, "is_within"),
                 rs.getBigDecimal("total_amount"),
                 instant(rs, "delivery_time"),
                 rs.getString("batch_no"),
@@ -1440,6 +1473,14 @@ public class OrderRepository {
             String trimmed = trimmed(value);
             if (trimmed != null) {
                 append(" and " + column + " = ?");
+                add(trimmed);
+            }
+        }
+
+        private void addNotEqualsFilter(String column, String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append(" and " + column + " <> ?");
                 add(trimmed);
             }
         }

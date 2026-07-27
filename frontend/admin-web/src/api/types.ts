@@ -19,6 +19,7 @@ export interface AdminOrderQueryParams {
   prescriptionType?: string;
   hospitalType?: string;
   orderStatus?: string;
+  excludeOrderStatus?: string;
   decoctionCenter?: string;
   deliveryType?: string;
   logisticsCompany?: string;
@@ -49,6 +50,8 @@ export interface AdminOrderListItem {
   receiverZone: string | null;
   receiverAddress: string | null;
   addressType: string | null;
+  prescriptionId: string;
+  prescriptionStatus: string;
   prescriptionNos: string;
   externalPrescriptionNos: string;
   prescriptionTypes: string;
@@ -56,6 +59,7 @@ export interface AdminOrderListItem {
   prescriptionCount: number;
   detailCount: number;
   doseCount: number | null;
+  isWithin: number | null;
   totalAmount: number | string | null;
   deliveryTime: string | null;
   batchNo: string | null;
@@ -198,6 +202,25 @@ export interface AdminOrderInitializeResult {
   deletedShipmentCount: number;
   eventId: string;
   initializedAt: string;
+}
+
+export interface AdminPrescriptionActionCommand {
+  operator?: string;
+  reason?: string;
+}
+
+export interface AdminPrescriptionActionResult {
+  orderId: string;
+  orderNo: string;
+  prescriptionId: string;
+  prescriptionNo: string;
+  fromPrescriptionStatus: string;
+  toPrescriptionStatus: string;
+  orderStatusChanged: boolean;
+  fromOrderStatus: string;
+  toOrderStatus: string;
+  eventId: string;
+  operatedAt: string;
 }
 
 export interface AdminPrescriptionUpdateCommand {

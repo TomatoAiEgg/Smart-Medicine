@@ -16,6 +16,8 @@ import type {
   AdminOrderReceiptPage,
   AdminOrderReceiptQueryParams,
   AdminOrderReceiptResult,
+  AdminPrescriptionActionCommand,
+  AdminPrescriptionActionResult,
   AdminPrescriptionUpdateCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
@@ -97,6 +99,34 @@ export function cancelAdminOrder(orderNo: string, command: AdminOrderCancelComma
 export function initializeAdminOrder(orderNo: string, command: AdminOrderInitializeCommand) {
   return request<AdminOrderInitializeResult>(
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/initialize`,
+    {
+      method: 'POST',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function initializeAdminPrescription(
+  orderNo: string,
+  prescriptionId: string,
+  command: AdminPrescriptionActionCommand,
+) {
+  return request<AdminPrescriptionActionResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/prescriptions/${encodeURIComponent(prescriptionId)}/initialize`,
+    {
+      method: 'POST',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function cancelAdminPrescription(
+  orderNo: string,
+  prescriptionId: string,
+  command: AdminPrescriptionActionCommand,
+) {
+  return request<AdminPrescriptionActionResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/prescriptions/${encodeURIComponent(prescriptionId)}/cancel`,
     {
       method: 'POST',
       body: JSON.stringify(command),

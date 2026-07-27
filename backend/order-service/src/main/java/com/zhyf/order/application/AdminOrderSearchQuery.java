@@ -9,6 +9,7 @@ public record AdminOrderSearchQuery(
         String prescriptionType,
         String hospitalType,
         String orderStatus,
+        String excludeOrderStatus,
         String decoctionCenter,
         String deliveryType,
         String logisticsCompany,

@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'ops'
   | 'addressModify'
   | 'prescriptionModify'
+  | 'orderManageAction'
   | 'orderReceipt';
 
 export interface AppRouteItem {
@@ -450,11 +451,12 @@ export const menuItems = [
     path: '/orders/manage-actions',
     legacyRoute: 'order/listManageOrder.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '取消、回退、补偿等管理动作',
+    componentKey: 'orderManageAction',
     plannedComponent: 'features/orders/OrderManageAction.vue',
-    coreActions: ['锁定', '解锁', '取消', '初始化', '补偿'],
-    apiDependencies: ['订单操作', '状态机', '操作审计'],
+    coreActions: ['处方初始化', '取消处方', '操作审计'],
+    apiDependencies: ['订单操作列表', '处方级初始化', '处方级取消', '操作审计'],
   },
   {
     key: 'orderPrescriptionReprints',

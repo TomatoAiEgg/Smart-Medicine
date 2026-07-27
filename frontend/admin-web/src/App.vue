@@ -10,6 +10,7 @@ import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import AddressModify from './features/orders/AddressModify.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import OrderManageAction from './features/orders/OrderManageAction.vue';
 import OrderReceipt from './features/orders/OrderReceipt.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
@@ -44,6 +45,7 @@ const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
+const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
@@ -59,6 +61,7 @@ const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
 const prescriptionModifyActivationKey = ref(0);
+const orderManageActionActivationKey = ref(0);
 const orderReceiptActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
@@ -136,6 +139,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
+  if (componentKey === 'orderManageAction') orderManageActionActivationKey.value += 1;
   if (componentKey === 'orderReceipt') orderReceiptActivationKey.value += 1;
 }, { immediate: true });
 
@@ -179,6 +183,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'prescriptionModify') {
     await prescriptionModifyRef.value?.refreshPrescriptionOrders();
+    return;
+  }
+  if (componentKey === 'orderManageAction') {
+    await orderManageActionRef.value?.refreshOrderManageActions();
     return;
   }
   if (componentKey === 'orderReceipt') {
@@ -333,6 +341,14 @@ function closeTab(view: ViewKey) {
       ref="prescriptionModifyRef"
       active
       :activation-key="prescriptionModifyActivationKey"
+      @notice="showNotice"
+    />
+
+    <OrderManageAction
+      v-else-if="currentComponentKey === 'orderManageAction'"
+      ref="orderManageActionRef"
+      active
+      :activation-key="orderManageActionActivationKey"
       @notice="showNotice"
     />
 

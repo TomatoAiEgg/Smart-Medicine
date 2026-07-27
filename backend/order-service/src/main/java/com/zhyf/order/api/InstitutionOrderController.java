@@ -18,6 +18,8 @@ import com.zhyf.order.application.AdminOrderReceiptResult;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
+import com.zhyf.order.application.AdminPrescriptionActionCommand;
+import com.zhyf.order.application.AdminPrescriptionActionResult;
 import com.zhyf.order.application.AdminPrescriptionUpdateCommand;
 import com.zhyf.order.application.OrderCreateCommand;
 import com.zhyf.order.application.OrderCreateResult;
@@ -94,6 +96,7 @@ public class InstitutionOrderController {
             @RequestParam(required = false) String prescriptionType,
             @RequestParam(required = false) String hospitalType,
             @RequestParam(required = false) String orderStatus,
+            @RequestParam(required = false) String excludeOrderStatus,
             @RequestParam(required = false) String decoctionCenter,
             @RequestParam(required = false) String deliveryType,
             @RequestParam(required = false) String logisticsCompany,
@@ -112,6 +115,7 @@ public class InstitutionOrderController {
                 prescriptionType,
                 hospitalType,
                 orderStatus,
+                excludeOrderStatus,
                 decoctionCenter,
                 deliveryType,
                 logisticsCompany,
@@ -134,6 +138,7 @@ public class InstitutionOrderController {
             @RequestParam(required = false) String prescriptionType,
             @RequestParam(required = false) String hospitalType,
             @RequestParam(required = false) String orderStatus,
+            @RequestParam(required = false) String excludeOrderStatus,
             @RequestParam(required = false) String decoctionCenter,
             @RequestParam(required = false) String deliveryType,
             @RequestParam(required = false) String logisticsCompany,
@@ -150,6 +155,7 @@ public class InstitutionOrderController {
                 prescriptionType,
                 hospitalType,
                 orderStatus,
+                excludeOrderStatus,
                 decoctionCenter,
                 deliveryType,
                 logisticsCompany,
@@ -222,6 +228,24 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderCancelCommand command
     ) {
         return ApiResponse.ok(orderService.cancelAdminOrder(orderNo, command));
+    }
+
+    @PostMapping("/admin/orders/{orderNo}/prescriptions/{prescriptionId}/initialize")
+    public ApiResponse<AdminPrescriptionActionResult> initializePrescription(
+            @PathVariable String orderNo,
+            @PathVariable UUID prescriptionId,
+            @RequestBody(required = false) AdminPrescriptionActionCommand command
+    ) {
+        return ApiResponse.ok(orderService.initializeAdminPrescription(orderNo, prescriptionId, command));
+    }
+
+    @PostMapping("/admin/orders/{orderNo}/prescriptions/{prescriptionId}/cancel")
+    public ApiResponse<AdminPrescriptionActionResult> cancelPrescription(
+            @PathVariable String orderNo,
+            @PathVariable UUID prescriptionId,
+            @RequestBody(required = false) AdminPrescriptionActionCommand command
+    ) {
+        return ApiResponse.ok(orderService.cancelAdminPrescription(orderNo, prescriptionId, command));
     }
 
     @PostMapping("/admin/orders/{orderNo}/initialize")
