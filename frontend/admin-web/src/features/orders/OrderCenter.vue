@@ -11,7 +11,18 @@ import {
   updateAdminOrderAddress,
   updateAdminPrescription,
 } from '../../api/order';
-import { signShipment } from '../../api/logistics';
+import {
+  bindPrescription,
+  finishMesTask,
+  listDecoctionDevices,
+  startMesTask,
+} from '../../api/decoction';
+import { packShipment, shipShipment, signShipment } from '../../api/logistics';
+import {
+  approveReviewTask,
+  completeDispenseTask,
+  completeRecheckTask,
+} from '../../api/workflow';
 import type {
   AdminOrderDetail,
   AdminOrderDetailDrug,
@@ -24,8 +35,13 @@ import type {
   OrderProgressSnapshot,
   AdminOrderQueryParams,
   AdminPrescriptionUpdateCommand,
+  DecoctionProgress,
+  MesTaskOperationCommand,
+  PackShipmentCommand,
   ShipmentActionCommand,
   ShipmentProgress,
+  SimulatorOperationCommand,
+  WorkflowProgress,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { formatDate } from '../../domain/formatters';
@@ -78,6 +94,8 @@ type FormNumberValue = number | '' | null;
 const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
 const EDITABLE_PRESCRIPTION_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED']);
 const SIGNABLE_SHIPMENT_STATUSES = new Set(['PACKED', 'SHIPPED', 'IN_TRANSIT']);
+const ADVANCE_FLOW_TASK_TYPES = new Set(['ORDER_REVIEW', 'PRESCRIPTION_DISPENSE', 'PRESCRIPTION_RECHECK']);
+const ADVANCE_FLOW_ORDER_STATUSES = new Set(['RECHECKED', 'DECOCTING', 'DECOCTED', 'PACKED', 'SHIPPED', 'IN_TRANSIT']);
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -119,6 +137,7 @@ const cancelModalOpen = ref(false);
 const cancelSubmitting = ref(false);
 const signModalOpen = ref(false);
 const signSubmitting = ref(false);
+const flowSubmitting = ref(false);
 const addressForm = ref<AddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -226,6 +245,18 @@ const canSignOrder = computed(() => (
   && !!signableShipment.value
   && !detailLoading.value
   && !signSubmitting.value
+));
+const hasAdvanceFlowAction = computed(() => (
+  workflowTasks.value.some((task) => ADVANCE_FLOW_TASK_TYPES.has(task.taskType) && task.taskStatus === 'PENDING')
+  || ADVANCE_FLOW_ORDER_STATUSES.has(primaryOrderStatus.value)
+));
+const canAdvanceFlow = computed(() => (
+  !!orderDetail.value
+  && !!orderProgress.value
+  && hasAdvanceFlowAction.value
+  && !orderLoading.value
+  && !detailLoading.value
+  && !flowSubmitting.value
 ));
 const pageSummary = computed(() => {
   const total = resultCount.value;
@@ -442,6 +473,183 @@ function callbackTypeText(type: string) {
 
 function scrollToOrderDetail() {
   document.getElementById('order-detail-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function pendingWorkflowTask(taskType: string) {
+  return workflowTasks.value.find((task) => task.taskType === taskType && task.taskStatus === 'PENDING') ?? null;
+}
+
+function latestDecoctionTask() {
+  const activeTask = decoctionTasks.value.find((task) => task.taskStatus === 'DECOCTING')
+    ?? decoctionTasks.value.find((task) => task.taskStatus === 'BOUND');
+  return activeTask ?? decoctionTasks.value[0] ?? null;
+}
+
+function latestShipment() {
+  return shipments.value[0] ?? null;
+}
+
+function firstActivePrescriptionNo() {
+  return prescriptions.value.find((prescription) => prescription.prescriptionStatus !== 'CANCELLED')?.prescriptionNo
+    ?? detailPrescriptions.value.find((prescription) => prescription.prescriptionStatus !== 'CANCELLED')?.prescriptionNo
+    ?? null;
+}
+
+function flowOperationId(action: string) {
+  return `order-center-${action}-${Date.now()}`;
+}
+
+function reviewCommand(action: string) {
+  return {
+    reviewer: 'admin',
+    reviewComment: `订单中心走流程：${action}`,
+  };
+}
+
+function mesCommand(action: string): MesTaskOperationCommand {
+  return {
+    operationId: flowOperationId(action),
+    operator: 'admin',
+    timestamp: new Date().toISOString(),
+    sign: 'order-center-flow',
+  };
+}
+
+async function refreshSelectedOrder(targetOrderNo: string) {
+  const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+    getOrder(targetOrderNo),
+    getAdminOrderDetail(targetOrderNo),
+    getOrderProgress(targetOrderNo),
+    queryOrder(),
+  ]);
+  order.value = nextOrder;
+  orderDetail.value = nextDetail;
+  orderProgress.value = nextProgress;
+  selectedOrderNo.value = targetOrderNo;
+}
+
+async function bindNextDecoctionTask(targetOrderNo: string) {
+  const prescriptionNo = firstActivePrescriptionNo();
+  if (!prescriptionNo) {
+    throw new Error('当前订单没有可绑定煎药任务的处方');
+  }
+  const devices = await listDecoctionDevices();
+  const idleDevice = devices.find((device) => device.deviceStatus === 'IDLE') ?? devices[0];
+  if (!idleDevice) {
+    throw new Error('当前没有可用煎药设备');
+  }
+  const command: SimulatorOperationCommand = {
+    operationId: flowOperationId('bind'),
+    deviceCode: idleDevice.deviceCode,
+    prescriptionNo,
+    pailNo: `FLOW-${Date.now()}`,
+    operator: 'admin',
+    timestamp: new Date().toISOString(),
+    sign: 'order-center-flow',
+  };
+  await bindPrescription(command);
+  await refreshSelectedOrder(targetOrderNo);
+  emit('notice', 'success', `订单 ${targetOrderNo} 已绑定煎药任务`);
+}
+
+async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgress) {
+  if (task.taskStatus === 'BOUND') {
+    await startMesTask(task.taskNo, mesCommand('start'));
+    await refreshSelectedOrder(targetOrderNo);
+    emit('notice', 'success', `订单 ${targetOrderNo} 已开始煎药`);
+    return;
+  }
+  if (task.taskStatus === 'DECOCTING') {
+    await finishMesTask(task.taskNo, mesCommand('finish'));
+    await refreshSelectedOrder(targetOrderNo);
+    emit('notice', 'success', `订单 ${targetOrderNo} 已完成煎药`);
+    return;
+  }
+  throw new Error('当前煎药任务状态不支持走流程');
+}
+
+async function advanceShipmentFlow(targetOrderNo: string) {
+  const shipment = latestShipment();
+  if (!shipment) {
+    const command: PackShipmentCommand = {
+      orderNo: targetOrderNo,
+      logisticsCompany: '订单中心手工物流',
+      operator: 'admin',
+    };
+    await packShipment(command);
+    await refreshSelectedOrder(targetOrderNo);
+    emit('notice', 'success', `订单 ${targetOrderNo} 已打包`);
+    return;
+  }
+  const command: ShipmentActionCommand = {
+    operator: 'admin',
+    remark: '订单中心走流程',
+  };
+  if (shipment.logisticsStatus === 'PACKED') {
+    await shipShipment(shipment.shipmentId, command);
+    await refreshSelectedOrder(targetOrderNo);
+    emit('notice', 'success', `订单 ${targetOrderNo} 已发货`);
+    return;
+  }
+  if (SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) {
+    await signShipment(shipment.shipmentId, command);
+    await refreshSelectedOrder(targetOrderNo);
+    emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
+    return;
+  }
+  throw new Error('当前物流状态不支持走流程');
+}
+
+async function advanceOrderFlow() {
+  if (!orderDetail.value || !orderProgress.value) {
+    orderError.value = '请先查看一条订单详情后再走流程';
+    return;
+  }
+  const targetOrderNo = orderDetail.value.orderNo;
+  const orderStatus = orderProgress.value.orderStatus;
+  flowSubmitting.value = true;
+  orderError.value = '';
+  try {
+    const reviewTask = pendingWorkflowTask('ORDER_REVIEW') as WorkflowProgress | null;
+    if (reviewTask) {
+      await approveReviewTask(reviewTask.taskId, reviewCommand('审方通过'));
+      await refreshSelectedOrder(targetOrderNo);
+      emit('notice', 'success', `订单 ${targetOrderNo} 已审方通过`);
+      return;
+    }
+    const dispenseTask = pendingWorkflowTask('PRESCRIPTION_DISPENSE') as WorkflowProgress | null;
+    if (dispenseTask) {
+      await completeDispenseTask(dispenseTask.taskId, reviewCommand('完成调剂'));
+      await refreshSelectedOrder(targetOrderNo);
+      emit('notice', 'success', `订单 ${targetOrderNo} 已完成调剂`);
+      return;
+    }
+    const recheckTask = pendingWorkflowTask('PRESCRIPTION_RECHECK') as WorkflowProgress | null;
+    if (recheckTask) {
+      await completeRecheckTask(recheckTask.taskId, reviewCommand('完成复核'));
+      await refreshSelectedOrder(targetOrderNo);
+      emit('notice', 'success', `订单 ${targetOrderNo} 已完成复核`);
+      return;
+    }
+    if (orderStatus === 'RECHECKED' || orderStatus === 'DECOCTING') {
+      const task = latestDecoctionTask();
+      if (task) {
+        await advanceDecoctionTask(targetOrderNo, task);
+      } else {
+        await bindNextDecoctionTask(targetOrderNo);
+      }
+      return;
+    }
+    if (['DECOCTED', 'PACKED', 'SHIPPED', 'IN_TRANSIT'].includes(orderStatus)) {
+      await advanceShipmentFlow(targetOrderNo);
+      return;
+    }
+    orderError.value = '当前订单没有可自动推进的下一步';
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    flowSubmitting.value = false;
+  }
 }
 
 function openAddressModal() {
@@ -969,7 +1177,9 @@ async function goNextPage() {
       <button class="legacy-btn" type="button" :disabled="!canEditPrescription" title="先查看可修改处方的订单详情" @click="openPrescriptionModal">处方修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
       <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
-      <button class="legacy-btn" type="button" disabled title="等待后端手工走流程契约">走流程</button>
+      <button class="legacy-btn" type="button" :disabled="!canAdvanceFlow" title="按当前订单进度推进下一步" @click="advanceOrderFlow">
+        {{ flowSubmitting ? '推进中' : '走流程' }}
+      </button>
       <button class="legacy-btn" type="button" :disabled="!canSignOrder" title="先查看有可签收物流单的订单详情" @click="openSignModal">签收</button>
     </div>
 
