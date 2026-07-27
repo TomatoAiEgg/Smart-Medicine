@@ -1,11 +1,15 @@
 package com.zhyf.order.infrastructure;
 
+import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminOrderPage;
+import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.domain.InstitutionApp;
 import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.OrderSnapshot;
 import com.zhyf.order.domain.WorkflowTaskSnapshot;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.sql.ResultSet;
@@ -90,6 +94,109 @@ public class OrderRepository {
                         findCallbackProgress(header.orderId()),
                         findStatusLogProgress(header.orderId())
                 ));
+    }
+
+    public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
+        QueryParts filters = adminOrderFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.patient_name,
+                    o.patient_phone,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    p.prescription_no as prescription_nos,
+                    p.external_prescription_no as external_prescription_nos,
+                    coalesce(p.prescription_type, '') as prescription_types,
+                    1 as prescription_count,
+                    coalesce(pd.detail_count, 0) as detail_count,
+                    latest_shipment.logistics_company,
+                    latest_shipment.logistics_no,
+                    latest_shipment.logistics_status,
+                    latest_shipment.latest_trace_time,
+                    o.created_at,
+                    o.updated_at
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select count(d.id)::int as detail_count
+                    from prescription_detail d
+                    where d.prescription_id = p.id
+                ) pd on true
+                left join lateral (
+                    select
+                        s.logistics_company,
+                        s.logistics_no,
+                        s.logistics_status,
+                        t.trace_time as latest_trace_time
+                    from shipment s
+                    left join lateral (
+                        select st.trace_time
+                        from shipment_trace st
+                        where st.shipment_id = s.id
+                        order by st.created_at desc
+                        limit 1
+                    ) t on true
+                    where s.order_id = o.id
+                    order by s.created_at desc
+                    limit 1
+                ) latest_shipment on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by o.created_at desc, p.prescription_no desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminOrderPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderListItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    private QueryParts adminOrderFilters(AdminOrderSearchQuery query) {
+        QueryParts filters = new QueryParts("");
+        filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        filters.addLikeFilter("i.institution_name", query.institution());
+        filters.addLikeFilter("i.storage_type", query.decoctionCenter());
+        filters.addEqualsFilter("o.status", query.orderStatus());
+        filters.addLikeFilter("o.patient_name", query.patientName());
+        filters.addLikeFilter("o.receiver_phone", query.receiverPhone());
+        filters.addLikeFilter("o.receiver_province", query.province());
+        filters.addEqualsFilter("o.address_type", query.deliveryType());
+        filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addExistsShipmentLike("s.logistics_company", query.logisticsCompany());
+        filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
+        filters.addKeywordFilter(query.keyword());
+        return filters;
     }
 
     private List<OrderProgressSnapshot.PrescriptionProgress> findPrescriptionProgress(UUID orderId) {
@@ -301,6 +408,7 @@ public class OrderRepository {
             UUID orderId,
             String prescriptionNo,
             String externalPrescriptionNo,
+            String prescriptionType,
             String status,
             String doctorName,
             String diagnosis,
@@ -309,11 +417,11 @@ public class OrderRepository {
         String sql = """
                 insert into prescription (
                     id, tenant_id, institution_id, order_id, prescription_no,
-                    external_prescription_no, status, doctor_name, diagnosis, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    external_prescription_no, prescription_type, status, doctor_name, diagnosis, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderId, prescriptionNo,
-                externalPrescriptionNo, status, doctorName, diagnosis, rawPayload);
+                externalPrescriptionNo, prescriptionType, status, doctorName, diagnosis, rawPayload);
     }
 
     public void insertPrescriptionDetail(
@@ -541,8 +649,136 @@ public class OrderRepository {
         );
     }
 
+    private AdminOrderListItem mapAdminOrderListItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderListItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("patient_name"),
+                rs.getString("patient_phone"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                rs.getString("prescription_nos"),
+                rs.getString("external_prescription_nos"),
+                rs.getString("prescription_types"),
+                rs.getInt("prescription_count"),
+                rs.getInt("detail_count"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_status"),
+                instant(rs, "latest_trace_time"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private OffsetDateTime offsetDateTime(Instant value) {
+        return value == null ? null : OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
+    }
+
+    private final class QueryParts {
+        private final StringBuilder sql;
+        private final List<Object> args = new ArrayList<>();
+
+        private QueryParts(String baseSql) {
+            this.sql = new StringBuilder(baseSql);
+        }
+
+        private void addRangeFilter(String column, Instant from, Instant to) {
+            if (from != null) {
+                append(" and " + column + " >= ?");
+                add(offsetDateTime(from));
+            }
+            if (to != null) {
+                append(" and " + column + " <= ?");
+                add(offsetDateTime(to));
+            }
+        }
+
+        private void addLikeFilter(String column, String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append(" and " + column + " ilike ?");
+                add("%" + trimmed + "%");
+            }
+        }
+
+        private void addEqualsFilter(String column, String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append(" and " + column + " = ?");
+                add(trimmed);
+            }
+        }
+
+        private void addExistsShipmentLike(String column, String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append(" and exists (select 1 from shipment s where s.order_id = o.id and " + column + " ilike ?)");
+                add("%" + trimmed + "%");
+            }
+        }
+
+        private void addKeywordFilter(String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append("""
+                         and (
+                            o.order_no ilike ?
+                            or o.external_order_no ilike ?
+                            or p.prescription_no ilike ?
+                            or p.external_prescription_no ilike ?
+                        )
+                        """);
+                String pattern = "%" + trimmed + "%";
+                add(pattern);
+                add(pattern);
+                add(pattern);
+                add(pattern);
+            }
+        }
+
+        private String trimmed(String value) {
+            return value == null || value.isBlank() ? null : value.trim();
+        }
+
+        private void append(String value) {
+            sql.append(value);
+        }
+
+        private void add(Object value) {
+            args.add(value);
+        }
+
+        private void addAll(List<Object> values) {
+            args.addAll(values);
+        }
+
+        private String sql() {
+            return sql.toString();
+        }
+
+        private List<Object> argsList() {
+            return args;
+        }
+
+        private Object[] args() {
+            return args.toArray();
+        }
     }
 }

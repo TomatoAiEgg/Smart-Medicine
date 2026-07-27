@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ApiError } from '../../api/client';
-import { getOrder, getOrderProgress } from '../../api/order';
-import type { OrderCreateResult, OrderProgressSnapshot } from '../../api/types';
+import { getOrder, getOrderProgress, listAdminOrders } from '../../api/order';
+import type { AdminOrderListItem, AdminOrderPage, OrderCreateResult, OrderProgressSnapshot } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
@@ -32,9 +32,15 @@ const patientName = ref('');
 const receiverPhone = ref('');
 const order = ref<OrderCreateResult | null>(null);
 const orderProgress = ref<OrderProgressSnapshot | null>(null);
+const orderPage = ref<AdminOrderPage | null>(null);
 const orderLoading = ref(false);
+const detailLoading = ref(false);
 const orderError = ref('');
+const selectedOrderNo = ref('');
+const page = ref(1);
+const pageSize = ref(20);
 
+const orderRows = computed(() => orderPage.value?.records ?? []);
 const prescriptions = computed(() => orderProgress.value?.prescriptions ?? []);
 const workflowTasks = computed(() => orderProgress.value?.workflowTasks ?? []);
 const dispenseRecords = computed(() => orderProgress.value?.dispenseRecords ?? []);
@@ -42,15 +48,21 @@ const decoctionTasks = computed(() => orderProgress.value?.decoctionTasks ?? [])
 const shipments = computed(() => orderProgress.value?.shipments ?? []);
 const callbacks = computed(() => orderProgress.value?.callbacks ?? []);
 const statusLogs = computed(() => orderProgress.value?.statusLogs ?? []);
-const resultCount = computed(() => (order.value ? 1 : 0));
+const resultCount = computed(() => orderPage.value?.total ?? 0);
 const primaryOrderStatus = computed(() => orderProgress.value?.orderStatus ?? order.value?.status ?? '');
-const prescriptionNos = computed(() => joinValues(prescriptions.value.map((item) => item.prescriptionNo)));
-const externalPrescriptionNos = computed(() => joinValues(prescriptions.value.map((item) => item.externalPrescriptionNo)));
 const orderCreatedAt = computed(() => formatDate(orderProgress.value?.createdAt));
 const orderUpdatedAt = computed(() => formatDate(orderProgress.value?.updatedAt));
-const pageSummary = computed(() => (
-  `显示第 ${resultCount.value} 至 ${resultCount.value} 项记录，共 ${resultCount.value} 项`
+const hasPreviousPage = computed(() => page.value > 1 && !orderLoading.value);
+const hasNextPage = computed(() => (
+  !orderLoading.value && page.value * pageSize.value < resultCount.value
 ));
+const pageSummary = computed(() => {
+  const total = resultCount.value;
+  if (total === 0) return '显示第 0 至 0 项记录，共 0 项';
+  const start = (page.value - 1) * pageSize.value + 1;
+  const end = Math.min(start + orderRows.value.length - 1, total);
+  return `显示第 ${start} 至 ${end} 项记录，共 ${total} 项`;
+});
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -65,13 +77,29 @@ function rowValue(value: string | number | boolean | null | undefined) {
   return String(value);
 }
 
-function waitingValue() {
-  return WAITING_API;
+function receiverSummary(row: AdminOrderListItem) {
+  const address = [row.receiverProvince, row.receiverCity, row.receiverZone, row.receiverAddress]
+    .filter((item): item is string => !!item && item.trim().length > 0)
+    .join('');
+  const pieces = [row.receiverName, row.receiverPhone, address]
+    .filter((item): item is string => !!item && item.trim().length > 0);
+  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
 }
 
-function joinValues(values: string[]) {
-  const validValues = values.filter((value) => value.trim().length > 0);
-  return validValues.length > 0 ? validValues.join('、') : EMPTY_VALUE;
+function deliveryTypeText(type: string | null | undefined) {
+  const labels: Record<string, string> = {
+    HOSPITAL: '送医院',
+    PATIENT: '送个人',
+    PICKUP: '自提',
+    '送医院': '送医院',
+    '送个人': '送个人',
+    '自提': '自提',
+  };
+  return type ? labels[type] ?? type : EMPTY_VALUE;
+}
+
+function waitingValue() {
+  return WAITING_API;
 }
 
 function statusText(status: string | null | undefined) {
@@ -134,29 +162,79 @@ function scrollToOrderDetail() {
 }
 
 async function queryOrder() {
-  const trimmed = orderNo.value.trim();
-  if (!trimmed) {
-    orderError.value = '请输入平台订单号。当前后端只支持按平台订单号查询。';
-    order.value = null;
-    orderProgress.value = null;
-    return;
-  }
-
   orderLoading.value = true;
   orderError.value = '';
   try {
-    const [nextOrder, nextProgress] = await Promise.all([getOrder(trimmed), getOrderProgress(trimmed)]);
-    order.value = nextOrder;
-    orderProgress.value = nextProgress;
-    orderNo.value = trimmed;
-    emit('notice', 'success', `已查询到订单 ${nextOrder.orderNo}`);
+    const nextPage = await listAdminOrders({
+      startTime: startTime.value,
+      endTime: endTime.value,
+      institution: institution.value,
+      prescriptionType: prescriptionType.value,
+      hospitalType: hospitalType.value,
+      orderStatus: orderStatus.value,
+      decoctionCenter: decoctionCenter.value,
+      deliveryType: deliveryType.value,
+      logisticsCompany: logisticsCompany.value,
+      province: province.value,
+      keyword: orderNo.value,
+      hospitalPrescriptionNo: hospitalPrescriptionNo.value,
+      patientName: patientName.value,
+      receiverPhone: receiverPhone.value,
+      page: page.value,
+      pageSize: pageSize.value,
+    });
+    orderPage.value = nextPage;
+    page.value = nextPage.page;
+    pageSize.value = nextPage.pageSize;
+    order.value = null;
+    orderProgress.value = null;
+    selectedOrderNo.value = '';
+    emit('notice', 'success', `已查询到 ${nextPage.total} 条处方订单记录`);
   } catch (error) {
+    orderPage.value = null;
     order.value = null;
     orderProgress.value = null;
     orderError.value = errorMessage(error);
   } finally {
     orderLoading.value = false;
   }
+}
+
+async function searchFirstPage() {
+  page.value = 1;
+  await queryOrder();
+}
+
+async function loadOrderDetail(row: AdminOrderListItem) {
+  detailLoading.value = true;
+  orderError.value = '';
+  try {
+    const [nextOrder, nextProgress] = await Promise.all([getOrder(row.orderNo), getOrderProgress(row.orderNo)]);
+    order.value = nextOrder;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = row.orderNo;
+    emit('notice', 'success', `已加载订单 ${nextOrder.orderNo} 详情`);
+    scrollToOrderDetail();
+  } catch (error) {
+    order.value = null;
+    orderProgress.value = null;
+    selectedOrderNo.value = '';
+    orderError.value = errorMessage(error);
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
+async function goPreviousPage() {
+  if (!hasPreviousPage.value) return;
+  page.value -= 1;
+  await queryOrder();
+}
+
+async function goNextPage() {
+  if (!hasNextPage.value) return;
+  page.value += 1;
+  await queryOrder();
 }
 </script>
 
@@ -222,9 +300,9 @@ async function queryOrder() {
         送货方式：
         <select v-model="deliveryType" class="legacy-input">
           <option value="">请选择</option>
-          <option value="送医院">送医院</option>
-          <option value="送个人">送个人</option>
-          <option value="自提">自提</option>
+          <option value="HOSPITAL">送医院</option>
+          <option value="PATIENT">送个人</option>
+          <option value="PICKUP">自提</option>
         </select>
       </li>
       <li>
@@ -245,8 +323,8 @@ async function queryOrder() {
         <input
           v-model="orderNo"
           class="legacy-input input-large"
-          placeholder="当前仅平台订单号可查询"
-          @keyup.enter="queryOrder"
+          placeholder="平台订单号/处方号"
+          @keyup.enter="searchFirstPage"
         />
       </li>
       <li>
@@ -262,7 +340,16 @@ async function queryOrder() {
         <input v-model="receiverPhone" class="legacy-input input-large" />
       </li>
       <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="orderLoading" @click="queryOrder">
+        条数：
+        <select v-model.number="pageSize" class="legacy-input">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+      </li>
+      <li>
+        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="orderLoading" @click="searchFirstPage">
           {{ orderLoading ? '查询中' : '查询' }}
         </button>
       </li>
@@ -274,7 +361,7 @@ async function queryOrder() {
     </ul>
 
     <p class="order-contract-hint">
-      当前后端只支持“平台订单号”查询；开始/结束时间、机构、处方类型、门诊住院、订单状态、煎煮中心、送货方式、物流公司、省份、处方号、机构处方号、病人姓名、收货电话等待后端分页查询契约。
+      当前列表已接入后端处方维度分页查询；门诊住院、金额、剂数、送货时间、批次、订单备注仍等待后端结构化字段。
     </p>
 
     <div class="order-action-bar">
@@ -312,39 +399,53 @@ async function queryOrder() {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="!order" class="legacy-main-info">
+          <tr v-if="orderRows.length === 0" class="legacy-main-info">
             <td colspan="17" class="legacy-empty">
-              {{ orderLoading ? '正在查询处方订单' : '请输入平台订单号后查询' }}
+              {{ orderLoading ? '正在查询处方订单' : '请输入筛选条件后查询' }}
             </td>
           </tr>
-          <tr v-else class="legacy-main-info">
-            <td>{{ prescriptionNos }}</td>
-            <td>{{ orderCreatedAt }}</td>
+          <tr v-for="row in orderRows" :key="`${row.orderId}-${row.prescriptionNos}`" class="legacy-main-info">
+            <td>{{ rowValue(row.prescriptionNos) }}</td>
+            <td>{{ formatDate(row.createdAt) }}</td>
+            <td>{{ rowValue(row.storageType) }}</td>
+            <td>{{ rowValue(row.institutionName) }}</td>
             <td>{{ waitingValue() }}</td>
+            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ rowValue(row.prescriptionTypes) }}</td>
+            <td>{{ rowValue(row.detailCount) }}</td>
             <td>{{ waitingValue() }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td>{{ externalPrescriptionNos }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td>{{ waitingValue() }}</td>
-            <td class="legacy-left">{{ waitingValue() }}</td>
+            <td>{{ deliveryTypeText(row.addressType) }}</td>
+            <td class="legacy-left">{{ receiverSummary(row) }}</td>
             <td>{{ waitingValue() }}</td>
             <td>
-              <StatusPill :value="statusText(primaryOrderStatus)" :tone="statusTone(primaryOrderStatus)" />
+              <StatusPill :value="statusText(row.orderStatus)" :tone="statusTone(row.orderStatus)" />
             </td>
             <td>{{ waitingValue() }}</td>
             <td class="legacy-left">{{ waitingValue() }}</td>
             <td>
-              <button class="legacy-link-btn" type="button" @click="scrollToOrderDetail">查看详情</button>
+              <button
+                class="legacy-link-btn"
+                type="button"
+                :disabled="detailLoading && selectedOrderNo === row.orderNo"
+                @click="loadOrderDetail(row)"
+              >
+                {{ detailLoading && selectedOrderNo === row.orderNo ? '加载中' : '查看详情' }}
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <p class="legacy-page-summary">{{ pageSummary }}</p>
+    <div class="order-page-footer">
+      <p class="legacy-page-summary">{{ pageSummary }}</p>
+      <div class="order-page-actions">
+        <button class="legacy-btn" type="button" :disabled="!hasPreviousPage" @click="goPreviousPage">上一页</button>
+        <span>第 {{ page }} 页</span>
+        <button class="legacy-btn" type="button" :disabled="!hasNextPage" @click="goNextPage">下一页</button>
+      </div>
+    </div>
 
     <section id="order-detail-panel" class="order-detail-workbench">
       <section class="order-detail-section">
@@ -352,7 +453,7 @@ async function queryOrder() {
           <h2>提示信息</h2>
         </div>
         <p class="order-detail-note">
-          本页已按老订单详情拆分为只读工作台。当前 API 只返回订单基础字段和履约进度；药品明细、金额、收货地址、患者、医生、机构、分页筛选和导出动作等待后端契约。
+          本页已按老订单详情拆分为只读工作台。列表筛选已接入后端分页查询；药品明细、金额、门诊住院、批次、订单备注和导出动作等待后端契约。
         </p>
       </section>
 
@@ -688,6 +789,26 @@ async function queryOrder() {
   min-width: 1860px;
 }
 
+.order-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.order-page-footer .legacy-page-summary {
+  margin: 0;
+}
+
+.order-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
 .order-detail-workbench {
   display: grid;
   gap: 12px;
@@ -803,6 +924,11 @@ async function queryOrder() {
 }
 
 @media (max-width: 640px) {
+  .order-page-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .order-detail-grid,
   .amount-grid,
   .progress-summary-grid {

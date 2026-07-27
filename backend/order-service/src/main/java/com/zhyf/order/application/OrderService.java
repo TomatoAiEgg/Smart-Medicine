@@ -73,6 +73,30 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
     }
 
+    public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        AdminOrderSearchQuery normalized = new AdminOrderSearchQuery(
+                query.startTime(),
+                query.endTime(),
+                query.institution(),
+                query.prescriptionType(),
+                query.hospitalType(),
+                query.orderStatus(),
+                query.decoctionCenter(),
+                query.deliveryType(),
+                query.logisticsCompany(),
+                query.province(),
+                query.keyword(),
+                query.hospitalPrescriptionNo(),
+                query.patientName(),
+                query.receiverPhone(),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminOrders(normalized);
+    }
+
     private OrderCreateResult createNewOrder(
             InstitutionApp app,
             String externalOrderNo,
@@ -160,6 +184,7 @@ public class OrderService {
                 orderId,
                 prescriptionNo,
                 externalPrescriptionNo,
+                readText(node, "prescriptionType", "prescriType", "type"),
                 PrescriptionStatus.CREATED.name(),
                 readText(node, "doctorName", "doctor"),
                 readText(node, "diagnosis"),

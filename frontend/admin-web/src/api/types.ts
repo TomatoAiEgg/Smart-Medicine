@@ -12,6 +12,63 @@ export interface OrderCreateResult {
   duplicated: boolean;
 }
 
+export interface AdminOrderQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  orderStatus?: string;
+  decoctionCenter?: string;
+  deliveryType?: string;
+  logisticsCompany?: string;
+  province?: string;
+  keyword?: string;
+  hospitalPrescriptionNo?: string;
+  patientName?: string;
+  receiverPhone?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderListItem {
+  orderId: string;
+  tenantId: string;
+  institutionId: string;
+  institutionName: string;
+  storageType: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  prescriptionNos: string;
+  externalPrescriptionNos: string;
+  prescriptionTypes: string;
+  prescriptionCount: number;
+  detailCount: number;
+  logisticsCompany: string | null;
+  logisticsNo: string | null;
+  logisticsStatus: string | null;
+  latestTraceTime: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrderPage {
+  records: AdminOrderListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface OrderProgressSnapshot {
   orderId: string;
   tenantId: string;
