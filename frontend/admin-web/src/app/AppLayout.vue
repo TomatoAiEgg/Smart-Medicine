@@ -6,20 +6,21 @@ export interface LayoutTab {
   key: ViewKey;
   label: string;
   closable: boolean;
+  path: string;
 }
 
 const props = defineProps<{
   activeView: ViewKey;
   title: string;
   subtitle: string;
-  menuItems: MenuItem[];
+  homePath: string;
+  menuItems: readonly MenuItem[];
   counts: Partial<Record<ViewKey, number>>;
   notice: { tone: 'info' | 'success' | 'error'; text: string } | null;
   tabs: LayoutTab[];
 }>();
 
 defineEmits<{
-  switchView: [view: ViewKey];
   refresh: [];
   closeTab: [view: ViewKey];
 }>();
@@ -86,15 +87,17 @@ function toggleGroup(groupName: string) {
     </header>
 
     <aside class="legacy-west">
-      <button
-        type="button"
-        class="legacy-home-link"
-        :class="{ active: activeView === 'dashboard' }"
-        @click="$emit('switchView', 'dashboard')"
-      >
-        <span>首页</span>
-        <b>«</b>
-      </button>
+      <RouterLink v-slot="{ navigate }" :to="homePath" custom>
+        <button
+          type="button"
+          class="legacy-home-link"
+          :class="{ active: activeView === 'dashboard' }"
+          @click="navigate"
+        >
+          <span>首页</span>
+          <b>«</b>
+        </button>
+      </RouterLink>
 
       <nav class="legacy-accordion">
         <section
@@ -110,16 +113,22 @@ function toggleGroup(groupName: string) {
           </button>
 
           <div class="legacy-menu-items">
-            <button
+            <RouterLink
               v-for="item in group.items"
               :key="item.key"
-              type="button"
-              :class="{ active: activeView === item.key }"
-              @click="$emit('switchView', item.key)"
+              v-slot="{ navigate }"
+              :to="item.path"
+              custom
             >
-              <span>{{ item.label }}</span>
-              <b v-if="item.showCount">{{ counts[item.key] ?? 0 }}</b>
-            </button>
+              <button
+                type="button"
+                :class="{ active: activeView === item.key }"
+                @click="navigate"
+              >
+                <span>{{ item.label }}</span>
+                <b v-if="item.showCount">{{ counts[item.key as ViewKey] ?? 0 }}</b>
+              </button>
+            </RouterLink>
           </div>
         </section>
       </nav>
@@ -142,9 +151,11 @@ function toggleGroup(groupName: string) {
           class="legacy-tab"
           :class="{ active: activeView === tab.key }"
         >
-          <button type="button" class="legacy-tab-main" @click="$emit('switchView', tab.key)">
-            {{ tab.label }}
-          </button>
+          <RouterLink v-slot="{ navigate }" :to="tab.path" custom>
+            <button type="button" class="legacy-tab-main" @click="navigate">
+              {{ tab.label }}
+            </button>
+          </RouterLink>
           <button
             v-if="tab.closable"
             type="button"

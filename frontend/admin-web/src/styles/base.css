@@ -3114,6 +3114,106 @@ tbody tr:hover td {
   min-width: 1180px;
 }
 
+.pending-menu-page {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+}
+
+.pending-menu-summary,
+.pending-menu-grid > div,
+.pending-menu-section {
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: var(--admin-surface);
+}
+
+.pending-menu-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.pending-menu-summary div {
+  display: grid;
+  gap: 5px;
+}
+
+.pending-menu-summary strong {
+  color: var(--admin-primary-dark);
+  font-size: 18px;
+}
+
+.pending-menu-summary span {
+  width: max-content;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #8a5a10;
+  background: #fff1d6;
+  font-weight: 650;
+}
+
+.pending-menu-summary p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 22px;
+}
+
+.pending-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pending-menu-grid > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 13px;
+}
+
+.pending-menu-grid span,
+.pending-menu-section h2 {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.pending-menu-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--admin-text);
+  font-size: 14px;
+}
+
+.pending-menu-section {
+  padding: 14px 16px;
+}
+
+.pending-menu-section h2 {
+  margin: 0 0 10px;
+  color: var(--admin-primary-dark);
+  font-size: 14px;
+}
+
+.pending-menu-section ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pending-menu-section li {
+  padding: 4px 9px;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 4px;
+  color: #2b3a4d;
+  background: var(--admin-surface-soft);
+}
+
 @media (max-width: 900px) {
   .legacy-shell {
     grid-template-rows: 50px auto minmax(0, 1fr);
@@ -3155,5 +3255,14 @@ tbody tr:hover td {
 
   .legacy-detail-grid > div.wide {
     grid-column: auto;
+  }
+
+  .pending-menu-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pending-menu-grid {
+    grid-template-columns: 1fr;
   }
 }

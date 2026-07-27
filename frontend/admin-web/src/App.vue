@@ -1,8 +1,9 @@
-﻿<script setup lang="ts">
-import { computed, ref } from 'vue';
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AppLayout from './app/AppLayout.vue';
 import type { LayoutTab } from './app/AppLayout.vue';
-import { menuItems, viewTitles, type ViewKey } from './app/views';
+import { isViewKey, menuItems, routeByKey, type ImplementedViewKey, type ViewKey } from './app/views';
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
@@ -10,23 +11,17 @@ import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue'
 import OrderCenter from './features/orders/OrderCenter.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
+import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
+type WorkflowViewKey = Extract<ViewKey, 'reviews' | 'dispenses' | 'rechecks'>;
 
-function initialViewFromUrl(): ViewKey {
-  if (typeof window === 'undefined') return 'dashboard';
-  const view = new URLSearchParams(window.location.search).get('view');
-  if (view && Object.prototype.hasOwnProperty.call(viewTitles, view)) return view as ViewKey;
-  return 'dashboard';
-}
-
-const initialView = initialViewFromUrl();
-const activeView = ref<ViewKey>(initialView);
-const openTabs = ref<ViewKey[]>(initialView === 'dashboard' ? [] : [initialView]);
+const route = useRoute();
+const router = useRouter();
 
 const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
@@ -52,19 +47,33 @@ const logisticsActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
+const openTabs = ref<ViewKey[]>([]);
 
-const currentViewTitle = computed(() => viewTitles[activeView.value]);
-const menuLabelByKey = computed<Record<ViewKey, string>>(() => {
-  const labels = {} as Record<ViewKey, string>;
-  for (const item of menuItems) labels[item.key] = item.label;
-  return labels;
+function routeKeyFromMeta(value: unknown): ViewKey {
+  return typeof value === 'string' && isViewKey(value) ? value : 'dashboard';
+}
+
+const activeView = computed<ViewKey>(() => routeKeyFromMeta(route.meta.routeKey));
+const currentRouteItem = computed(() => routeByKey[activeView.value]);
+const currentViewTitle = computed(() => ({
+  title: currentRouteItem.value.label,
+  subtitle: currentRouteItem.value.subtitle,
+}));
+const currentComponentKey = computed<ImplementedViewKey | undefined>(() => currentRouteItem.value.componentKey);
+const workflowRouteKey = computed<WorkflowViewKey | null>(() => {
+  const key = currentComponentKey.value;
+  if (key === 'reviews' || key === 'dispenses' || key === 'rechecks') return key;
+  return null;
 });
+const homePath = routeByKey.dashboard.path;
+
 const layoutTabs = computed<LayoutTab[]>(() => [
-  { key: 'dashboard', label: '首页', closable: false },
+  { key: 'dashboard', label: '首页', closable: false, path: routeByKey.dashboard.path },
   ...openTabs.value.map((key) => ({
     key,
-    label: menuLabelByKey.value[key] ?? viewTitles[key].title,
+    label: routeByKey[key].label,
     closable: true,
+    path: routeByKey[key].path,
   })),
 ]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
@@ -79,67 +88,8 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   ops: opsCount.value,
 }));
 
-
 function showNotice(tone: NoticeTone, text: string) {
   notice.value = { tone, text };
-}
-
-async function refreshCurrentTasks() {
-  if (activeView.value === 'dashboard') {
-    await dashboardHomeRef.value?.refreshDashboard();
-    return;
-  }
-  if (activeView.value === 'reviews' || activeView.value === 'dispenses' || activeView.value === 'rechecks') {
-    await workflowTasksRef.value?.refreshCurrentTasks();
-    return;
-  }
-  if (activeView.value === 'integration') {
-    await integrationConsoleRef.value?.refreshIntegrationMessages();
-    return;
-  }
-  if (activeView.value === 'reports') {
-    await reportOverviewRef.value?.refreshReports();
-    return;
-  }
-  if (activeView.value === 'portal') {
-    await portalLookupRef.value?.handlePortalQuery();
-    return;
-  }
-  if (activeView.value === 'logistics') {
-    await logisticsFulfillmentRef.value?.refreshLogisticsRecords();
-    return;
-  }
-  if (activeView.value === 'ops') {
-    await opsConsoleRef.value?.refreshOpsConsole();
-    return;
-  }
-  if (activeView.value === 'observability') {
-    await orderObservabilityRef.value?.refreshOrderObservability();
-    return;
-  }
-  if (activeView.value === 'decoction') {
-    await decoctionWorkspaceRef.value?.refreshDecoctionSimulator();
-    return;
-  }
-}
-
-function activateView(view: ViewKey) {
-  activeView.value = view;
-  if (typeof window !== 'undefined') {
-    const url = new URL(window.location.href);
-    if (view === 'dashboard') {
-      url.searchParams.delete('view');
-    } else {
-      url.searchParams.set('view', view);
-    }
-    window.history.replaceState(null, '', url);
-  }
-  if (view === 'reports') reportActivationKey.value += 1;
-  if (view === 'ops') opsActivationKey.value += 1;
-  if (view === 'observability') observabilityActivationKey.value += 1;
-  if (view === 'integration') integrationActivationKey.value += 1;
-  if (view === 'logistics') logisticsActivationKey.value += 1;
-  if (view === 'decoction') decoctionActivationKey.value += 1;
 }
 
 function ensureOpenTab(view: ViewKey) {
@@ -148,9 +98,58 @@ function ensureOpenTab(view: ViewKey) {
   }
 }
 
-function switchView(view: ViewKey) {
+watch(activeView, (view) => {
   ensureOpenTab(view);
-  activateView(view);
+}, { immediate: true });
+
+watch(currentComponentKey, (componentKey) => {
+  if (componentKey === 'reports') reportActivationKey.value += 1;
+  if (componentKey === 'ops') opsActivationKey.value += 1;
+  if (componentKey === 'observability') observabilityActivationKey.value += 1;
+  if (componentKey === 'integration') integrationActivationKey.value += 1;
+  if (componentKey === 'logistics') logisticsActivationKey.value += 1;
+  if (componentKey === 'decoction') decoctionActivationKey.value += 1;
+}, { immediate: true });
+
+async function refreshCurrentTasks() {
+  const componentKey = currentComponentKey.value;
+  if (componentKey === 'dashboard') {
+    await dashboardHomeRef.value?.refreshDashboard();
+    return;
+  }
+  if (workflowRouteKey.value) {
+    await workflowTasksRef.value?.refreshCurrentTasks();
+    return;
+  }
+  if (componentKey === 'integration') {
+    await integrationConsoleRef.value?.refreshIntegrationMessages();
+    return;
+  }
+  if (componentKey === 'reports') {
+    await reportOverviewRef.value?.refreshReports();
+    return;
+  }
+  if (componentKey === 'portal') {
+    await portalLookupRef.value?.handlePortalQuery();
+    return;
+  }
+  if (componentKey === 'logistics') {
+    await logisticsFulfillmentRef.value?.refreshLogisticsRecords();
+    return;
+  }
+  if (componentKey === 'ops') {
+    await opsConsoleRef.value?.refreshOpsConsole();
+    return;
+  }
+  if (componentKey === 'observability') {
+    await orderObservabilityRef.value?.refreshOrderObservability();
+    return;
+  }
+  if (componentKey === 'decoction') {
+    await decoctionWorkspaceRef.value?.refreshDecoctionSimulator();
+    return;
+  }
+  showNotice('info', `${currentRouteItem.value.label} 页面待实现，暂无可刷新数据`);
 }
 
 function closeTab(view: ViewKey) {
@@ -161,7 +160,7 @@ function closeTab(view: ViewKey) {
   if (activeView.value !== view) return;
 
   const nextView = openTabs.value[index - 1] ?? openTabs.value[index] ?? 'dashboard';
-  activateView(nextView);
+  void router.push(routeByKey[nextView].path);
 }
 </script>
 
@@ -170,83 +169,92 @@ function closeTab(view: ViewKey) {
     :active-view="activeView"
     :title="currentViewTitle.title"
     :subtitle="currentViewTitle.subtitle"
+    :home-path="homePath"
     :menu-items="menuItems"
     :counts="menuCounts"
     :notice="notice"
     :tabs="layoutTabs"
     @close-tab="closeTab"
     @refresh="refreshCurrentTasks"
-    @switch-view="switchView"
   >
-      <ReportOverview
-        v-show="activeView === 'reports'"
-        ref="reportOverviewRef"
-        :active="activeView === 'reports'"
-        :activation-key="reportActivationKey"
-        @count-changed="reportTotalOrders = $event"
-        @notice="showNotice"
-      />
+    <ReportOverview
+      v-show="currentComponentKey === 'reports'"
+      ref="reportOverviewRef"
+      :active="currentComponentKey === 'reports'"
+      :activation-key="reportActivationKey"
+      @count-changed="reportTotalOrders = $event"
+      @notice="showNotice"
+    />
 
-      <OpsConsole
-        v-show="activeView === 'ops'"
-        ref="opsConsoleRef"
-        :active="activeView === 'ops'"
-        :activation-key="opsActivationKey"
-        @count-changed="opsCount = $event"
-        @notice="showNotice"
-      />
+    <OpsConsole
+      v-show="currentComponentKey === 'ops'"
+      ref="opsConsoleRef"
+      :active="currentComponentKey === 'ops'"
+      :activation-key="opsActivationKey"
+      @count-changed="opsCount = $event"
+      @notice="showNotice"
+    />
 
-      <OrderObservabilityPanel
-        v-show="activeView === 'observability'"
-        ref="orderObservabilityRef"
-        :active="activeView === 'observability'"
-        :activation-key="observabilityActivationKey"
-        @count-changed="observabilityCount = $event"
-        @notice="showNotice"
-      />
+    <OrderObservabilityPanel
+      v-show="currentComponentKey === 'observability'"
+      ref="orderObservabilityRef"
+      :active="currentComponentKey === 'observability'"
+      :activation-key="observabilityActivationKey"
+      @count-changed="observabilityCount = $event"
+      @notice="showNotice"
+    />
 
-      <PortalLookup v-show="activeView === 'portal'" ref="portalLookupRef" @notice="showNotice" />
+    <PortalLookup
+      v-show="currentComponentKey === 'portal'"
+      ref="portalLookupRef"
+      @notice="showNotice"
+    />
 
-      <IntegrationConsole
-        v-show="activeView === 'integration'"
-        ref="integrationConsoleRef"
-        :active="activeView === 'integration'"
-        :activation-key="integrationActivationKey"
-        @count-changed="integrationCount = $event"
-        @notice="showNotice"
-      />
+    <IntegrationConsole
+      v-show="currentComponentKey === 'integration'"
+      ref="integrationConsoleRef"
+      :active="currentComponentKey === 'integration'"
+      :activation-key="integrationActivationKey"
+      @count-changed="integrationCount = $event"
+      @notice="showNotice"
+    />
 
-      <LogisticsFulfillment
-        v-show="activeView === 'logistics'"
-        ref="logisticsFulfillmentRef"
-        v-model:operation-operator="operationOperator"
-        :active="activeView === 'logistics'"
-        :activation-key="logisticsActivationKey"
-        @count-changed="logisticsCount = $event"
-        @notice="showNotice"
-      />
+    <LogisticsFulfillment
+      v-show="currentComponentKey === 'logistics'"
+      ref="logisticsFulfillmentRef"
+      v-model:operation-operator="operationOperator"
+      :active="currentComponentKey === 'logistics'"
+      :activation-key="logisticsActivationKey"
+      @count-changed="logisticsCount = $event"
+      @notice="showNotice"
+    />
 
-      <DecoctionWorkspace
-        v-show="activeView === 'decoction'"
-        ref="decoctionWorkspaceRef"
-        v-model:operation-operator="operationOperator"
-        :active="activeView === 'decoction'"
-        :activation-key="decoctionActivationKey"
-        @count-changed="decoctionCount = $event"
-        @notice="showNotice"
-      />
+    <DecoctionWorkspace
+      v-show="currentComponentKey === 'decoction'"
+      ref="decoctionWorkspaceRef"
+      v-model:operation-operator="operationOperator"
+      :active="currentComponentKey === 'decoction'"
+      :activation-key="decoctionActivationKey"
+      @count-changed="decoctionCount = $event"
+      @notice="showNotice"
+    />
 
-      <DashboardHome v-if="activeView === 'dashboard'" ref="dashboardHomeRef" @notice="showNotice" />
+    <DashboardHome
+      v-if="currentComponentKey === 'dashboard'"
+      ref="dashboardHomeRef"
+      @notice="showNotice"
+    />
 
-      <WorkflowTasks
-        ref="workflowTasksRef"
-        v-else-if="activeView === 'reviews' || activeView === 'dispenses' || activeView === 'rechecks'"
-        :active-view="activeView"
-        @counts-changed="workflowCounts = $event"
-        @notice="showNotice"
-      />
+    <WorkflowTasks
+      v-else-if="workflowRouteKey !== null"
+      ref="workflowTasksRef"
+      :active-view="workflowRouteKey"
+      @counts-changed="workflowCounts = $event"
+      @notice="showNotice"
+    />
 
-      <OrderCenter v-else-if="activeView === 'orders'" @notice="showNotice" />
+    <OrderCenter v-else-if="currentComponentKey === 'orders'" @notice="showNotice" />
 
+    <PendingMenuPage v-else :item="currentRouteItem" />
   </AppLayout>
 </template>
