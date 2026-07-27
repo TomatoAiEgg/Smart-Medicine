@@ -11,6 +11,7 @@ export type ImplementedViewKey =
   | 'decoction'
   | 'logistics'
   | 'logisticsInfo'
+  | 'logisticsUnreceivedFollowups'
   | 'portal'
   | 'reports'
   | 'integration'
@@ -326,11 +327,12 @@ export const menuItems = [
     path: '/logistics/unreceived-followups',
     legacyRoute: 'logistics/listUnreceiptedOrderInfo.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '超时未签收订单跟进',
+    componentKey: 'logisticsUnreceivedFollowups',
     plannedComponent: 'features/logistics/UnreceivedFollowup.vue',
-    coreActions: ['未签收筛选', '处理', '关闭'],
-    apiDependencies: ['未签收查询', '跟进记录'],
+    coreActions: ['未签收筛选', '轨迹跟进', '手动签收'],
+    apiDependencies: ['物流单查询', '物流轨迹', '签收接口'],
   },
   {
     key: 'orders',

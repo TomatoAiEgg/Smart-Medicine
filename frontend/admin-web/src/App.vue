@@ -9,6 +9,7 @@ import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import LogisticsInfo from './features/logistics/LogisticsInfo.vue';
+import UnreceivedFollowup from './features/logistics/UnreceivedFollowup.vue';
 import AddressModify from './features/orders/AddressModify.vue';
 import ManualProcess from './features/orders/ManualProcess.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
@@ -46,6 +47,7 @@ const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const logisticsInfoRef = ref<InstanceType<typeof LogisticsInfo> | null>(null);
+const unreceivedFollowupRef = ref<InstanceType<typeof UnreceivedFollowup> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
@@ -61,12 +63,14 @@ const opsCount = ref(0);
 const integrationCount = ref(0);
 const logisticsCount = ref(0);
 const logisticsInfoCount = ref(0);
+const unreceivedFollowupCount = ref(0);
 const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const logisticsInfoActivationKey = ref(0);
+const unreceivedFollowupActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
@@ -116,6 +120,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   decoction: decoctionCount.value,
   logistics: logisticsCount.value,
   logisticsTraces: logisticsInfoCount.value,
+  logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
   observability: observabilityCount.value,
@@ -151,6 +156,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'integration') integrationActivationKey.value += 1;
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
   if (componentKey === 'logisticsInfo') logisticsInfoActivationKey.value += 1;
+  if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
@@ -197,6 +203,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logisticsInfo') {
     await logisticsInfoRef.value?.refreshLogisticsInfos();
+    return;
+  }
+  if (componentKey === 'logisticsUnreceivedFollowups') {
+    await unreceivedFollowupRef.value?.refreshUnreceivedFollowups();
     return;
   }
   if (componentKey === 'addressModify') {
@@ -424,6 +434,16 @@ function closeTab(view: ViewKey) {
       active
       :activation-key="logisticsInfoActivationKey"
       @count-changed="logisticsInfoCount = $event"
+      @notice="showNotice"
+    />
+
+    <UnreceivedFollowup
+      v-else-if="currentComponentKey === 'logisticsUnreceivedFollowups'"
+      ref="unreceivedFollowupRef"
+      v-model:operation-operator="operationOperator"
+      active
+      :activation-key="unreceivedFollowupActivationKey"
+      @count-changed="unreceivedFollowupCount = $event"
       @notice="showNotice"
     />
 
