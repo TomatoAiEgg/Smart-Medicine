@@ -19,7 +19,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,11 @@ public class OrderService {
     private static final ZoneId DEFAULT_PAYLOAD_ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter LEGACY_DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final Set<OrderStatus> ADMIN_CANCELLABLE_STATUSES = EnumSet.of(
+            OrderStatus.CREATED,
+            OrderStatus.AUDIT_PASSED,
+            OrderStatus.RECHECKED
+    );
 
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -187,12 +194,16 @@ public class OrderService {
         String normalizedOrderNo = orderNo.trim();
         AdminOrderDetail current = getAdminOrderDetail(normalizedOrderNo);
         OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
-        if (isTerminalStatus(currentStatus)) {
+        if (!canAdminCancel(currentStatus)) {
             throw new BusinessException("ORDER_CANCEL_NOT_ALLOWED", "当前订单状态不允许取消");
         }
-        int updated = orderRepository.updateOrderStatus(current.orderId(), OrderStatus.CANCELLED.name());
+        int updated = orderRepository.updateOrderStatusIfCurrent(
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.CANCELLED.name()
+        );
         if (updated == 0) {
-            throw new BusinessException("ORDER_CANCEL_FAILED", "订单取消失败");
+            throw new BusinessException("ORDER_CANCEL_CONFLICT", "订单状态已变更，请刷新后重试");
         }
         int cancelledPrescriptions = orderRepository.updatePrescriptionsStatusByOrderId(
                 current.orderId(),
@@ -429,10 +440,8 @@ public class OrderService {
         }
     }
 
-    private boolean isTerminalStatus(OrderStatus status) {
-        return status == OrderStatus.CANCELLED
-                || status == OrderStatus.SIGNED
-                || status == OrderStatus.AUDIT_FAILED;
+    private boolean canAdminCancel(OrderStatus status) {
+        return ADMIN_CANCELLABLE_STATUSES.contains(status);
     }
 
     private Instant readAddressDeliveryTime(String text) {

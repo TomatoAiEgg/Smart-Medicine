@@ -673,6 +673,16 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, status, orderId);
     }
 
+    public int updateOrderStatusIfCurrent(UUID orderId, String currentStatus, String targetStatus) {
+        String sql = """
+                update order_main
+                set status = ?, updated_at = now()
+                where id = ?
+                  and status = ?
+                """;
+        return jdbcTemplate.update(sql, targetStatus, orderId, currentStatus);
+    }
+
     public int updatePrescriptionsStatusByOrderId(UUID orderId, String status) {
         String sql = """
                 update prescription

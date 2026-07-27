@@ -46,6 +46,7 @@ interface CancelForm {
   reason: string;
 }
 type NumericValue = string | number | null | undefined;
+const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -142,7 +143,7 @@ const canCancelOrder = computed(() => (
   !!orderDetail.value
   && !detailLoading.value
   && !cancelSubmitting.value
-  && !['CANCELLED', 'SIGNED', 'AUDIT_FAILED'].includes(orderDetail.value.orderStatus)
+  && CANCELLABLE_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
 const pageSummary = computed(() => {
   const total = resultCount.value;
