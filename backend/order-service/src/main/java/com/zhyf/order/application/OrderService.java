@@ -301,8 +301,15 @@ public class OrderService {
                 "DECOCTION_COUNT_INVALID",
                 "煎煮剂数不能小于 0"
         );
-        if (isDecoctionPrescription(prescriptionType) && (decoctionCount == null || decoctionCount == 0)) {
-            throw new BusinessException("DECOCTION_COUNT_REQUIRED", "代煎处方的煎煮剂数必须大于 0");
+        Integer boilTimes = requireNonNegative(command.boilTimes(), "BOIL_TIMES_INVALID", "几煎不能小于 0");
+        Integer perPackNum = requireNonNegative(command.perPackNum(), "PER_PACK_NUM_INVALID", "每剂包数不能小于 0");
+        Integer perPackDose = requireNonNegative(command.perPackDose(), "PER_PACK_DOSE_INVALID", "每剂剂量不能小于 0");
+        Integer isWithin = validateIsWithin(command.isWithin());
+        if (boilTimes != null && doseCount != null) {
+            decoctionCount = boilTimes * doseCount;
+        }
+        if (isDecoctionPrescription(prescriptionType) && (boilTimes == null || boilTimes == 0)) {
+            throw new BusinessException("BOIL_TIMES_REQUIRED", "代煎处方的几煎必须大于 0");
         }
         int updated = orderRepository.updatePrescription(
                 current.orderId(),
@@ -311,6 +318,10 @@ public class OrderService {
                 hospitalType,
                 doseCount,
                 decoctionCount,
+                boilTimes,
+                isWithin,
+                perPackNum,
+                perPackDose,
                 cleanText(command.medicationMethod()),
                 cleanText(command.medicationInstruction()),
                 cleanText(command.prescriptionRemark())
@@ -327,7 +338,8 @@ public class OrderService {
                 "ORDER_PRESCRIPTION_UPDATE",
                 "SUCCESS",
                 cleanText(command.reason()),
-                writeJson(prescriptionUpdatePayload(oldPrescription, command))
+                writeJson(prescriptionUpdatePayload(oldPrescription, command, decoctionCount, boilTimes,
+                        isWithin, perPackNum, perPackDose))
         );
         return getAdminOrderDetail(orderNo.trim()).prescriptions().stream()
                 .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
@@ -498,6 +510,10 @@ public class OrderService {
                 readText(node, "hospitalType", "isHos"),
                 readInteger(node, "doseCount", "amount", "herbsNum", "herbs_num"),
                 readInteger(node, "decoctionCount", "decoctAmount", "decoct_amount"),
+                readInteger(node, "boilTimes", "boil_times"),
+                readInteger(node, "isWithin", "is_within", "recipeUsage"),
+                readInteger(node, "perPackNum", "per_pack_num"),
+                readInteger(node, "perPackDose", "per_pack_dose"),
                 readDecimal(node, "decoctionUnitPrice", "decoctUnitPrice", "decoct_unit_price"),
                 readDecimal(node, "decoctionTotalPrice", "decoctTotalPrice", "decoct_total_price"),
                 readDecimal(node, "totalAmount", "totalMoney", "total_money"),
@@ -605,6 +621,13 @@ public class OrderService {
         return value;
     }
 
+    private Integer validateIsWithin(Integer value) {
+        if (value != null && value != 0 && value != 1) {
+            throw new BusinessException("IS_WITHIN_INVALID", "服用方式只能是内服或外用");
+        }
+        return value;
+    }
+
     private boolean isDecoctionPrescription(String prescriptionType) {
         return "2".equals(prescriptionType)
                 || "DECOCTION".equals(prescriptionType)
@@ -613,7 +636,12 @@ public class OrderService {
 
     private Map<String, Object> prescriptionUpdatePayload(
             AdminOrderDetail.Prescription oldPrescription,
-            AdminPrescriptionUpdateCommand command
+            AdminPrescriptionUpdateCommand command,
+            Integer decoctionCount,
+            Integer boilTimes,
+            Integer isWithin,
+            Integer perPackNum,
+            Integer perPackDose
     ) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("old", prescriptionSnapshot(oldPrescription));
@@ -621,7 +649,11 @@ public class OrderService {
         next.put("prescriptionType", command.prescriptionType());
         next.put("hospitalType", command.hospitalType());
         next.put("doseCount", command.doseCount());
-        next.put("decoctionCount", command.decoctionCount());
+        next.put("decoctionCount", decoctionCount);
+        next.put("boilTimes", boilTimes);
+        next.put("isWithin", isWithin);
+        next.put("perPackNum", perPackNum);
+        next.put("perPackDose", perPackDose);
         next.put("medicationMethod", command.medicationMethod());
         next.put("medicationInstruction", command.medicationInstruction());
         next.put("prescriptionRemark", command.prescriptionRemark());
@@ -635,6 +667,10 @@ public class OrderService {
         snapshot.put("hospitalType", prescription.hospitalType());
         snapshot.put("doseCount", prescription.doseCount());
         snapshot.put("decoctionCount", prescription.decoctionCount());
+        snapshot.put("boilTimes", prescription.boilTimes());
+        snapshot.put("isWithin", prescription.isWithin());
+        snapshot.put("perPackNum", prescription.perPackNum());
+        snapshot.put("perPackDose", prescription.perPackDose());
         snapshot.put("medicationMethod", prescription.medicationMethod());
         snapshot.put("medicationInstruction", prescription.medicationInstruction());
         snapshot.put("prescriptionRemark", prescription.prescriptionRemark());

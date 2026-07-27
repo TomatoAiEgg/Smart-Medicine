@@ -122,6 +122,10 @@ export interface AdminPrescriptionUpdateCommand {
   hospitalType?: string;
   doseCount?: number | null;
   decoctionCount?: number | null;
+  boilTimes?: number | null;
+  isWithin?: number | null;
+  perPackNum?: number | null;
+  perPackDose?: number | null;
   medicationMethod?: string;
   medicationInstruction?: string;
   prescriptionRemark?: string;
@@ -167,6 +171,10 @@ export interface AdminOrderDetailPrescription {
   hospitalType: string | null;
   doseCount: number | null;
   decoctionCount: number | null;
+  boilTimes: number | null;
+  isWithin: number | null;
+  perPackNum: number | null;
+  perPackDose: number | null;
   decoctionUnitPrice: number | string | null;
   decoctionTotalPrice: number | string | null;
   totalAmount: number | string | null;

@@ -59,6 +59,10 @@ interface PrescriptionForm {
   hospitalType: string;
   doseCount: FormNumberValue;
   decoctionCount: FormNumberValue;
+  boilTimes: FormNumberValue;
+  isWithin: FormNumberValue;
+  perPackNum: FormNumberValue;
+  perPackDose: FormNumberValue;
   medicationMethod: string;
   medicationInstruction: string;
   prescriptionRemark: string;
@@ -137,6 +141,10 @@ const prescriptionForm = ref<PrescriptionForm>({
   hospitalType: '',
   doseCount: null,
   decoctionCount: null,
+  boilTimes: null,
+  isWithin: null,
+  perPackNum: null,
+  perPackDose: null,
   medicationMethod: '',
   medicationInstruction: '',
   prescriptionRemark: '',
@@ -148,6 +156,13 @@ const signForm = ref<SignForm>({
   remark: '',
 });
 
+const calculatedPrescriptionDecoctionCount = computed(() => {
+  const doseCount = formNumber(prescriptionForm.value.doseCount);
+  const boilTimes = formNumber(prescriptionForm.value.boilTimes);
+  return doseCount !== null && boilTimes !== null
+    ? doseCount * boilTimes
+    : prescriptionForm.value.decoctionCount;
+});
 const orderRows = computed(() => orderPage.value?.records ?? []);
 const detailPrescriptions = computed(() => orderDetail.value?.prescriptions ?? []);
 const editableDetailPrescriptions = computed(() => (
@@ -280,6 +295,12 @@ function hospitalTypeText(type: string | null | undefined) {
     其他: '其他',
   };
   return type ? labels[type] ?? type : EMPTY_VALUE;
+}
+
+function isWithinText(type: number | null | undefined) {
+  if (type === 0) return '内服';
+  if (type === 1) return '外用';
+  return EMPTY_VALUE;
 }
 
 function batchText(batchNo: string | null | undefined) {
@@ -497,6 +518,10 @@ function fillPrescriptionForm(prescription: AdminOrderDetailPrescription) {
     hospitalType: prescription.hospitalType ?? '',
     doseCount: prescription.doseCount,
     decoctionCount: prescription.decoctionCount,
+    boilTimes: prescription.boilTimes,
+    isWithin: prescription.isWithin,
+    perPackNum: prescription.perPackNum,
+    perPackDose: prescription.perPackDose,
     medicationMethod: prescription.medicationMethod ?? '',
     medicationInstruction: prescription.medicationInstruction ?? '',
     prescriptionRemark: prescription.prescriptionRemark ?? '',
@@ -546,11 +571,17 @@ async function submitPrescriptionUpdate() {
     orderError.value = '请选择要修改的处方';
     return;
   }
+  const doseCount = formNumber(prescriptionForm.value.doseCount);
+  const boilTimes = formNumber(prescriptionForm.value.boilTimes);
   const command: AdminPrescriptionUpdateCommand = {
     prescriptionType: prescriptionForm.value.prescriptionType,
     hospitalType: prescriptionForm.value.hospitalType,
-    doseCount: formNumber(prescriptionForm.value.doseCount),
-    decoctionCount: formNumber(prescriptionForm.value.decoctionCount),
+    doseCount,
+    decoctionCount: formNumber(calculatedPrescriptionDecoctionCount.value),
+    boilTimes,
+    isWithin: formNumber(prescriptionForm.value.isWithin),
+    perPackNum: formNumber(prescriptionForm.value.perPackNum),
+    perPackDose: formNumber(prescriptionForm.value.perPackDose),
     medicationMethod: prescriptionForm.value.medicationMethod.trim(),
     medicationInstruction: prescriptionForm.value.medicationInstruction.trim(),
     prescriptionRemark: prescriptionForm.value.prescriptionRemark.trim(),
@@ -561,8 +592,8 @@ async function submitPrescriptionUpdate() {
     orderError.value = '处方类型不能为空';
     return;
   }
-  if (command.prescriptionType === 'DECOCTION' && (!command.decoctionCount || command.decoctionCount <= 0)) {
-    orderError.value = '代煎处方的煎煮剂数必须大于 0';
+  if (command.prescriptionType === 'DECOCTION' && (!command.boilTimes || command.boilTimes <= 0)) {
+    orderError.value = '代煎处方的几煎必须大于 0';
     return;
   }
   prescriptionSubmitting.value = true;
@@ -1128,8 +1159,28 @@ async function goNextPage() {
             <input v-model.number="prescriptionForm.doseCount" class="legacy-input" type="number" min="0" />
           </label>
           <label>
+            <span>几煎</span>
+            <input v-model.number="prescriptionForm.boilTimes" class="legacy-input" type="number" min="0" />
+          </label>
+          <label>
             <span>煎煮剂数</span>
-            <input v-model.number="prescriptionForm.decoctionCount" class="legacy-input" type="number" min="0" />
+            <input class="legacy-input" type="number" min="0" :value="calculatedPrescriptionDecoctionCount ?? ''" disabled />
+          </label>
+          <label>
+            <span>服用方式</span>
+            <select v-model.number="prescriptionForm.isWithin" class="legacy-input">
+              <option :value="null">请选择</option>
+              <option :value="0">内服</option>
+              <option :value="1">外用</option>
+            </select>
+          </label>
+          <label>
+            <span>每剂包数</span>
+            <input v-model.number="prescriptionForm.perPackNum" class="legacy-input" type="number" min="0" />
+          </label>
+          <label>
+            <span>每剂剂量</span>
+            <input v-model.number="prescriptionForm.perPackDose" class="legacy-input" type="number" min="0" />
           </label>
           <label>
             <span>操作人</span>
@@ -1331,6 +1382,10 @@ async function goNextPage() {
                   <th>剂数</th>
                   <th>处方金额</th>
                   <th>煎煮剂数</th>
+                  <th>几煎</th>
+                  <th>服用方式</th>
+                  <th>每剂包数</th>
+                  <th>每剂剂量</th>
                   <th>医生</th>
                   <th>诊断</th>
                   <th>科室/病区/床号</th>
@@ -1342,7 +1397,7 @@ async function goNextPage() {
               </thead>
               <tbody>
                 <tr v-if="detailPrescriptions.length === 0">
-                  <td colspan="15" class="empty">暂无处方信息</td>
+                  <td colspan="19" class="empty">暂无处方信息</td>
                 </tr>
                 <tr v-for="item in detailPrescriptions" :key="item.prescriptionId">
                   <td>{{ rowValue(item.prescriptionNo) }}</td>
@@ -1355,6 +1410,10 @@ async function goNextPage() {
                   <td>{{ rowValue(item.doseCount) }}</td>
                   <td>{{ moneyValue(item.totalAmount) }}</td>
                   <td>{{ rowValue(item.decoctionCount) }}</td>
+                  <td>{{ rowValue(item.boilTimes) }}</td>
+                  <td>{{ isWithinText(item.isWithin) }}</td>
+                  <td>{{ rowValue(item.perPackNum) }}</td>
+                  <td>{{ rowValue(item.perPackDose) }}</td>
                   <td>{{ rowValue(item.doctorName) }}</td>
                   <td class="legacy-left">{{ rowValue(item.diagnosis) }}</td>
                   <td class="legacy-left">{{ rowValue([item.departmentName, item.wardName, item.bedNo].filter(Boolean).join(' / ')) }}</td>
