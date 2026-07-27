@@ -4,6 +4,10 @@ import type {
   AdminOrderAddressUpdateResult,
   AdminBatchOrderReceiptCommand,
   AdminBatchOrderReceiptResult,
+  AdminManualProcessCommand,
+  AdminManualProcessPage,
+  AdminManualProcessQueryParams,
+  AdminManualProcessResult,
   AdminOrderCancelCommand,
   AdminOrderCancelResult,
   AdminOrderDetail,
@@ -54,6 +58,24 @@ export function listAdminPrescriptionReprints(params: AdminPrescriptionReprintQu
     ? `/order-api/api/admin/prescription-reprints?${query}`
     : '/order-api/api/admin/prescription-reprints';
   return request<AdminPrescriptionReprintPage>(url);
+}
+
+export function listAdminManualProcessOrders(params: AdminManualProcessQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/manual-process-orders?${query}`
+    : '/order-api/api/admin/manual-process-orders';
+  return request<AdminManualProcessPage>(url);
+}
+
+export function manualProcessAdminOrder(orderNo: string, command: AdminManualProcessCommand) {
+  return request<AdminManualProcessResult>(
+    `/order-api/api/admin/manual-process-orders/${encodeURIComponent(orderNo)}/process`,
+    {
+      method: 'POST',
+      body: JSON.stringify(command),
+    },
+  );
 }
 
 export function getAdminPrescriptionPrintPayload(prescriptionNo: string) {

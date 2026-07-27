@@ -19,6 +19,7 @@ export type ImplementedViewKey =
   | 'prescriptionModify'
   | 'orderManageAction'
   | 'prescriptionReprint'
+  | 'manualProcess'
   | 'orderReceipt';
 
 export interface AppRouteItem {
@@ -506,8 +507,9 @@ export const menuItems = [
     path: '/orders/manual-process',
     legacyRoute: 'order/listProcessOrder.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '手工推进流程和补齐数据',
+    componentKey: 'manualProcess',
     plannedComponent: 'features/orders/ManualProcess.vue',
     coreActions: ['手工推进流程', '补齐数据'],
     apiDependencies: ['手工流程推进', '状态机', '操作审计'],

@@ -144,6 +144,89 @@ export interface AdminBatchOrderReceiptResult {
   items: AdminOrderReceiptResult[];
 }
 
+export interface AdminManualProcessQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  isWithin?: number | string;
+  processType?: string;
+  deliveryType?: string;
+  orderNo?: string;
+  prescriptionNo?: string;
+  hospitalPrescriptionNo?: string;
+  patientName?: string;
+  doseRange?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminManualProcessItem {
+  orderId: string;
+  tenantId: string;
+  institutionId: string;
+  institutionName: string;
+  storageType: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  patientNames: string | null;
+  hospitalTypes: string | null;
+  prescriptionTypes: string | null;
+  prescriptionNos: string | null;
+  externalPrescriptionNos: string | null;
+  doseCounts: string | null;
+  prescriptionCount: number;
+  deliveryTime: string | null;
+  orderRemark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminManualProcessPage {
+  records: AdminManualProcessItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminManualProcessCommand {
+  operator?: string;
+  auditor?: string;
+  auditTime?: string;
+  dispenser?: string;
+  dispenseTime?: string;
+  rechecker?: string;
+  recheckTime?: string;
+  pailNo?: string;
+  soakTimeStart?: string;
+  boilTimeStart?: string;
+  outboundTime?: string;
+  signTime?: string;
+  remark?: string;
+}
+
+export interface AdminManualProcessResult {
+  orderId: string;
+  orderNo: string;
+  fromStatus: string;
+  toStatus: string;
+  workflowTaskCount: number;
+  dispenseRecordCount: number;
+  decoctionTaskCount: number;
+  logisticsNo: string;
+  callbackSuppressed: boolean;
+  processedAt: string;
+}
+
 export interface AdminPrescriptionReprintQueryParams {
   startTime?: string;
   endTime?: string;

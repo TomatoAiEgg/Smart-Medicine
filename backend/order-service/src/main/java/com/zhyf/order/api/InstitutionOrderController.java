@@ -18,6 +18,10 @@ import com.zhyf.order.application.AdminOrderReceiptResult;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
+import com.zhyf.order.application.AdminManualProcessCommand;
+import com.zhyf.order.application.AdminManualProcessPage;
+import com.zhyf.order.application.AdminManualProcessQuery;
+import com.zhyf.order.application.AdminManualProcessResult;
 import com.zhyf.order.application.AdminPrescriptionActionCommand;
 import com.zhyf.order.application.AdminPrescriptionActionResult;
 import com.zhyf.order.application.AdminPrescriptionPrintPayload;
@@ -220,6 +224,51 @@ public class InstitutionOrderController {
             @PathVariable String prescriptionNo
     ) {
         return ApiResponse.ok(orderService.getAdminPrescriptionPrintPayload(prescriptionNo));
+    }
+
+    @GetMapping("/admin/manual-process-orders")
+    public ApiResponse<AdminManualProcessPage> listManualProcessOrders(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) Integer isWithin,
+            @RequestParam(required = false) String processType,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String hospitalPrescriptionNo,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String doseRange,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminManualProcessOrders(new AdminManualProcessQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                isWithin,
+                processType,
+                deliveryType,
+                orderNo,
+                prescriptionNo,
+                hospitalPrescriptionNo,
+                patientName,
+                doseRange,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/manual-process-orders/{orderNo}/process")
+    public ApiResponse<AdminManualProcessResult> manualProcessOrder(
+            @PathVariable String orderNo,
+            @RequestBody(required = false) AdminManualProcessCommand command
+    ) {
+        return ApiResponse.ok(orderService.manualProcessAdminOrder(orderNo, command));
     }
 
     @GetMapping("/admin/orders/{orderNo}")

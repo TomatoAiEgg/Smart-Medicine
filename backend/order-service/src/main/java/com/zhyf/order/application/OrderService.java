@@ -66,6 +66,9 @@ public class OrderService {
             OrderStatus.SIGNED
     );
     private static final String ORDER_INITIALIZE_EVENT_TYPE = "ORDER_PRESCRIPTION_UPDATED";
+    private static final String MANUAL_PROCESS_SOURCE = "admin-manual-process";
+    private static final String MANUAL_PROCESS_LOGISTICS_COMPANY = "默认物流";
+    private static final String MANUAL_PROCESS_DEVICE = "MANUAL-PROCESS";
 
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -150,6 +153,29 @@ public class OrderService {
                 pageSize
         );
         return orderRepository.searchAdminOrders(normalized);
+    }
+
+    public AdminManualProcessPage listAdminManualProcessOrders(AdminManualProcessQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        AdminManualProcessQuery normalized = new AdminManualProcessQuery(
+                query.startTime(),
+                query.endTime(),
+                query.institution(),
+                query.prescriptionType(),
+                query.hospitalType(),
+                query.isWithin(),
+                defaultText(query.processType(), "PENDING"),
+                query.deliveryType(),
+                query.orderNo(),
+                query.prescriptionNo(),
+                query.hospitalPrescriptionNo(),
+                query.patientName(),
+                cleanText(query.doseRange()),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminManualProcessOrders(normalized);
     }
 
     public String exportAdminOrdersCsv(AdminOrderSearchQuery query) {
@@ -307,6 +333,147 @@ public class OrderService {
                 prescription.medicationInstruction(),
                 prescription.prescriptionRemark(),
                 prescription.details(),
+                Instant.now()
+        );
+    }
+
+    @Transactional
+    public AdminManualProcessResult manualProcessAdminOrder(String orderNo, AdminManualProcessCommand command) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        AdminOrderDetail current = getAdminOrderDetail(orderNo.trim());
+        OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
+        if (!OrderStatus.CREATED.equals(currentStatus)) {
+            throw new BusinessException("ORDER_MANUAL_PROCESS_NOT_ALLOWED", "只有待审核订单允许走流程补录");
+        }
+
+        ManualProcessContext context = manualProcessContext(command);
+        int updated = orderRepository.updateOrderStatusAndAppendRemarkIfCurrent(
+                current.orderId(),
+                OrderStatus.CREATED.name(),
+                OrderStatus.SIGNED.name(),
+                context.remark()
+        );
+        if (updated == 0) {
+            throw new BusinessException("ORDER_MANUAL_PROCESS_CONFLICT", "订单状态已变更，请刷新后重试");
+        }
+        orderRepository.completeManualProcessPrescriptionStatuses(current.orderId());
+
+        UUID reviewTaskId = UUID.randomUUID();
+        UUID dispenseTaskId = UUID.randomUUID();
+        UUID recheckTaskId = UUID.randomUUID();
+        int workflowTaskCount = 0;
+        workflowTaskCount += insertManualWorkflowTask(
+                current,
+                reviewTaskId,
+                "ORDER_REVIEW",
+                "APPROVED",
+                context.auditor(),
+                context.remark(),
+                context.auditTime()
+        );
+        workflowTaskCount += insertManualWorkflowTask(
+                current,
+                dispenseTaskId,
+                "PRESCRIPTION_DISPENSE",
+                "COMPLETED",
+                context.dispenser(),
+                context.remark(),
+                context.dispenseTime()
+        );
+        workflowTaskCount += insertManualWorkflowTask(
+                current,
+                recheckTaskId,
+                "PRESCRIPTION_RECHECK",
+                "COMPLETED",
+                context.rechecker(),
+                context.remark(),
+                context.recheckTime()
+        );
+
+        orderRepository.insertPrescriptionAuditRecord(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                reviewTaskId,
+                context.auditor(),
+                context.remark(),
+                context.auditTime()
+        );
+        int dispenseRecordCount = orderRepository.insertDispenseRecord(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                dispenseTaskId,
+                context.dispenser(),
+                context.remark(),
+                context.dispenseTime()
+        );
+        orderRepository.insertPrescriptionRecheckRecord(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                recheckTaskId,
+                context.rechecker(),
+                context.remark(),
+                context.recheckTime()
+        );
+
+        int decoctionTaskCount = insertManualDecoctionTasks(current, context);
+        insertManualProcessStatusLogs(current, decoctionTaskCount > 0);
+        String logisticsNo = "MANUAL-" + current.orderNo();
+        orderRepository.upsertSignedShipment(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                current.orderNo(),
+                logisticsNo,
+                MANUAL_PROCESS_LOGISTICS_COMPANY,
+                context.outboundTime(),
+                context.outboundTime(),
+                context.signTime()
+        );
+        String storedLogisticsNo = orderRepository.findShipmentNoByOrderId(current.orderId()).orElse(logisticsNo);
+        orderRepository.insertShipmentTrace(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                storedLogisticsNo,
+                "SHIPPED",
+                "手工走流程补录出库",
+                context.outboundTime()
+        );
+        orderRepository.insertShipmentTrace(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                storedLogisticsNo,
+                "SIGNED",
+                "手工走流程补录签收",
+                context.signTime()
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                context.operator(),
+                "ORDER_MANUAL_PROCESS",
+                "SUCCESS",
+                context.remark(),
+                writeJson(manualProcessPayload(current, context, storedLogisticsNo, true))
+        );
+        return new AdminManualProcessResult(
+                current.orderId(),
+                current.orderNo(),
+                OrderStatus.CREATED.name(),
+                OrderStatus.SIGNED.name(),
+                workflowTaskCount,
+                dispenseRecordCount,
+                decoctionTaskCount,
+                storedLogisticsNo,
+                true,
                 Instant.now()
         );
     }
@@ -939,6 +1106,150 @@ public class OrderService {
         );
     }
 
+    private ManualProcessContext manualProcessContext(AdminManualProcessCommand command) {
+        Instant now = Instant.now();
+        String operator = command == null ? "admin" : defaultText(command.operator(), "admin");
+        Instant auditTime = command == null || command.auditTime() == null ? now : command.auditTime();
+        Instant dispenseTime = command == null || command.dispenseTime() == null
+                ? auditTime.plusSeconds(5 * 60L)
+                : command.dispenseTime();
+        Instant recheckTime = command == null || command.recheckTime() == null
+                ? auditTime.plusSeconds(30 * 60L)
+                : command.recheckTime();
+        Instant soakTimeStart = command == null || command.soakTimeStart() == null
+                ? auditTime.plusSeconds(60 * 60L)
+                : command.soakTimeStart();
+        Instant boilTimeStart = command == null || command.boilTimeStart() == null
+                ? auditTime.plusSeconds(90 * 60L)
+                : command.boilTimeStart();
+        Instant outboundTime = command == null || command.outboundTime() == null
+                ? auditTime.plusSeconds(150 * 60L)
+                : command.outboundTime();
+        Instant signTime = command == null || command.signTime() == null
+                ? auditTime.plusSeconds(24 * 60 * 60L)
+                : command.signTime();
+        return new ManualProcessContext(
+                operator,
+                command == null ? operator : defaultText(command.auditor(), operator),
+                command == null ? operator : defaultText(command.dispenser(), operator),
+                command == null ? operator : defaultText(command.rechecker(), operator),
+                command == null ? "MANUAL" : defaultText(command.pailNo(), "MANUAL"),
+                cleanText(command == null ? null : command.remark()),
+                auditTime,
+                dispenseTime,
+                recheckTime,
+                soakTimeStart,
+                boilTimeStart,
+                outboundTime,
+                signTime
+        );
+    }
+
+    private int insertManualWorkflowTask(
+            AdminOrderDetail current,
+            UUID taskId,
+            String taskType,
+            String taskStatus,
+            String assignee,
+            String comment,
+            Instant completedAt
+    ) {
+        return orderRepository.insertCompletedWorkflowTask(
+                taskId,
+                current.tenantId(),
+                current.orderId(),
+                taskType,
+                taskStatus,
+                MANUAL_PROCESS_SOURCE + ":" + current.orderId() + ":" + taskType + ":" + taskId,
+                assignee,
+                comment,
+                writeJson(Map.of(
+                        "source", MANUAL_PROCESS_SOURCE,
+                        "orderNo", current.orderNo(),
+                        "externalOrderNo", value(current.externalOrderNo())
+                )),
+                completedAt
+        );
+    }
+
+    private int insertManualDecoctionTasks(AdminOrderDetail current, ManualProcessContext context) {
+        int count = 0;
+        for (AdminOrderDetail.Prescription prescription : current.prescriptions()) {
+            if (!isDecoctionPrescription(prescription.prescriptionType())) {
+                continue;
+            }
+            UUID taskId = UUID.randomUUID();
+            count += orderRepository.insertCompletedDecoctionTask(
+                    taskId,
+                    "MP" + taskId.toString().replace("-", "").substring(0, 18).toUpperCase(),
+                    current.tenantId(),
+                    current.orderId(),
+                    prescription.prescriptionId(),
+                    prescription.prescriptionNo(),
+                    MANUAL_PROCESS_DEVICE,
+                    context.pailNo(),
+                    "MANUAL-BIND-" + taskId,
+                    "MANUAL-START-" + taskId,
+                    "MANUAL-FINISH-" + taskId,
+                    context.operator(),
+                    context.boilTimeStart(),
+                    context.outboundTime()
+            );
+        }
+        return count;
+    }
+
+    private void insertManualProcessStatusLogs(AdminOrderDetail current, boolean hasDecoctionTask) {
+        insertManualStatusLog(current, OrderStatus.CREATED.name(), OrderStatus.AUDIT_PASSED.name(), "AUDIT");
+        insertManualStatusLog(current, OrderStatus.AUDIT_PASSED.name(), OrderStatus.RECHECKED.name(), "RECHECK");
+        if (hasDecoctionTask) {
+            insertManualStatusLog(current, OrderStatus.RECHECKED.name(), OrderStatus.DECOCTING.name(), "DECOCTION");
+            insertManualStatusLog(current, OrderStatus.DECOCTING.name(), OrderStatus.DECOCTED.name(), "DECOCTION");
+            insertManualStatusLog(current, OrderStatus.DECOCTED.name(), OrderStatus.PACKED.name(), "LOGISTICS");
+        } else {
+            insertManualStatusLog(current, OrderStatus.RECHECKED.name(), OrderStatus.PACKED.name(), "LOGISTICS");
+        }
+        insertManualStatusLog(current, OrderStatus.PACKED.name(), OrderStatus.SHIPPED.name(), "LOGISTICS");
+        insertManualStatusLog(current, OrderStatus.SHIPPED.name(), OrderStatus.SIGNED.name(), "ADMIN");
+    }
+
+    private void insertManualStatusLog(AdminOrderDetail current, String fromStatus, String toStatus, String operatorType) {
+        orderRepository.insertOrderStatusLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                fromStatus,
+                toStatus,
+                operatorType,
+                MANUAL_PROCESS_SOURCE
+        );
+    }
+
+    private Map<String, Object> manualProcessPayload(
+            AdminOrderDetail current,
+            ManualProcessContext context,
+            String logisticsNo,
+            boolean callbackSuppressed
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orderNo", current.orderNo());
+        payload.put("externalOrderNo", current.externalOrderNo());
+        payload.put("auditor", context.auditor());
+        payload.put("auditTime", context.auditTime());
+        payload.put("dispenser", context.dispenser());
+        payload.put("dispenseTime", context.dispenseTime());
+        payload.put("rechecker", context.rechecker());
+        payload.put("recheckTime", context.recheckTime());
+        payload.put("pailNo", context.pailNo());
+        payload.put("soakTimeStart", context.soakTimeStart());
+        payload.put("boilTimeStart", context.boilTimeStart());
+        payload.put("outboundTime", context.outboundTime());
+        payload.put("signTime", context.signTime());
+        payload.put("logisticsNo", logisticsNo);
+        payload.put("callbackSuppressed", callbackSuppressed);
+        return payload;
+    }
+
     private List<String> receiptableStatusNames() {
         return ADMIN_RECEIPTABLE_STATUSES.stream().map(OrderStatus::name).toList();
     }
@@ -1420,5 +1731,21 @@ public class OrderService {
         } catch (JsonProcessingException ex) {
             throw new BusinessException("JSON_WRITE_FAILED", "JSON 序列化失败");
         }
+    }
+    private record ManualProcessContext(
+            String operator,
+            String auditor,
+            String dispenser,
+            String rechecker,
+            String pailNo,
+            String remark,
+            Instant auditTime,
+            Instant dispenseTime,
+            Instant recheckTime,
+            Instant soakTimeStart,
+            Instant boilTimeStart,
+            Instant outboundTime,
+            Instant signTime
+    ) {
     }
 }

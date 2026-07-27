@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminManualProcessItem;
+import com.zhyf.order.application.AdminManualProcessPage;
+import com.zhyf.order.application.AdminManualProcessQuery;
 import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderReceiptItem;
 import com.zhyf.order.application.AdminOrderReceiptPage;
@@ -376,6 +379,74 @@ public class OrderRepository {
         );
     }
 
+    public AdminManualProcessPage searchAdminManualProcessOrders(AdminManualProcessQuery query) {
+        QueryParts filters = adminManualProcessFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(distinct o.id)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    string_agg(distinct nullif(p.patient_name, ''), ',') as patient_names,
+                    string_agg(distinct nullif(p.hospital_type, ''), ',') as hospital_types,
+                    string_agg(distinct nullif(p.prescription_type, ''), ',') as prescription_types,
+                    string_agg(distinct nullif(p.prescription_no, ''), ',') as prescription_nos,
+                    string_agg(distinct nullif(p.external_prescription_no, ''), ',') as external_prescription_nos,
+                    string_agg(p.dose_count::text, ',' order by p.prescription_no)
+                        filter (where p.dose_count is not null) as dose_counts,
+                    count(distinct p.id)::int as prescription_count,
+                    o.delivery_time,
+                    o.order_remark,
+                    o.created_at,
+                    o.updated_at
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append("""
+                 group by o.id, o.tenant_id, o.institution_id, i.institution_name, i.storage_type,
+                          o.order_no, o.external_order_no, o.status, o.receiver_name, o.receiver_phone,
+                          o.receiver_province, o.receiver_city, o.receiver_zone, o.receiver_address,
+                          o.address_type, o.delivery_time, o.order_remark, o.created_at, o.updated_at
+                 order by o.created_at desc, o.order_no desc limit ? offset ?
+                """);
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminManualProcessPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminManualProcessItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
     public List<AdminOrderListItem> exportAdminOrders(AdminOrderSearchQuery query, int limit) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts listQuery = new QueryParts("""
@@ -611,6 +682,46 @@ public class OrderRepository {
         filters.addExistsShipmentLike("s.logistics_company", query.logisticsCompany());
         filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
         filters.addKeywordFilter(query.keyword());
+        return filters;
+    }
+
+    private QueryParts adminManualProcessFilters(AdminManualProcessQuery query) {
+        QueryParts filters = new QueryParts("");
+        String processType = query.processType() == null || query.processType().isBlank()
+                ? "PENDING"
+                : query.processType().trim();
+        if (!"PENDING".equals(processType)) {
+            filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        }
+        filters.addLikeFilter("i.institution_name", query.institution());
+        filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addEqualsFilter("p.hospital_type", query.hospitalType());
+        if (query.isWithin() != null) {
+            filters.append(" and p.is_within = ?");
+            filters.add(query.isWithin());
+        }
+        filters.addEqualsFilter("o.address_type", query.deliveryType());
+        filters.addLikeFilter("o.order_no", query.orderNo());
+        filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
+        filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
+        filters.addLikeFilter("p.patient_name", query.patientName());
+        if ("NOT_DUE".equals(processType)) {
+            filters.append(" and o.status = 'CREATED' and o.delivery_time is not null and o.delivery_time > now()");
+        } else if ("PROCESSED".equals(processType)) {
+            filters.append("""
+                     and o.status in (
+                        'AUDIT_PASSED', 'RECHECKED', 'DECOCTING', 'DECOCTED', 'PACKED',
+                        'SHIPPED', 'IN_TRANSIT', 'SIGNED'
+                    )
+                    """);
+        } else {
+            filters.append(" and o.status = 'CREATED' and (o.delivery_time is null or o.delivery_time <= now())");
+        }
+        if ("LOW".equals(query.doseRange()) || "1".equals(query.doseRange())) {
+            filters.append(" and p.dose_count < 3");
+        } else if ("HIGH".equals(query.doseRange()) || "2".equals(query.doseRange())) {
+            filters.append(" and p.dose_count >= 3");
+        }
         return filters;
     }
 
@@ -948,6 +1059,41 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, targetStatus, orderId, currentStatus);
     }
 
+    public int updateOrderStatusAndAppendRemarkIfCurrent(
+            UUID orderId,
+            String currentStatus,
+            String targetStatus,
+            String remark
+    ) {
+        String sql = """
+                update order_main
+                set status = ?,
+                    order_remark = case
+                        when nullif(?, '') is null then order_remark
+                        when nullif(order_remark, '') is null then ?
+                        else order_remark || '|' || ?
+                    end,
+                    updated_at = now()
+                where id = ?
+                  and status = ?
+                """;
+        return jdbcTemplate.update(sql, targetStatus, remark, remark, remark, orderId, currentStatus);
+    }
+
+    public int completeManualProcessPrescriptionStatuses(UUID orderId) {
+        String sql = """
+                update prescription
+                set status = case
+                        when prescription_type in ('2', 'DECOCTION') then 'DECOCTED'
+                        else 'RECHECKED'
+                    end,
+                    updated_at = now()
+                where order_id = ?
+                  and status <> 'CANCELLED'
+                """;
+        return jdbcTemplate.update(sql, orderId);
+    }
+
     public int updateLatestShipmentToSigned(UUID orderId) {
         String sql = """
                 update shipment
@@ -1139,6 +1285,179 @@ public class OrderRepository {
                 ) values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, orderId, prescriptionId, operator, action, result, reason, payload);
+    }
+
+    public int insertCompletedWorkflowTask(
+            UUID taskId,
+            UUID tenantId,
+            UUID orderId,
+            String taskType,
+            String taskStatus,
+            String sourceEventId,
+            String assignedTo,
+            String comment,
+            String payload,
+            Instant completedAt
+    ) {
+        String sql = """
+                insert into workflow_task (
+                    id, tenant_id, order_id, task_type, task_status, source_event_id,
+                    assigned_to, review_comment, payload, completed_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, now())
+                on conflict do nothing
+                """;
+        return jdbcTemplate.update(sql, taskId, tenantId, orderId, taskType, taskStatus, sourceEventId,
+                assignedTo, comment, payload, offsetDateTime(completedAt));
+    }
+
+    public int insertDispenseRecord(
+            UUID recordId,
+            UUID tenantId,
+            UUID orderId,
+            UUID taskId,
+            String dispenser,
+            String comment,
+            Instant dispensedAt
+    ) {
+        String sql = """
+                insert into dispense_record (
+                    id, tenant_id, order_id, task_id, dispenser, dispense_comment, print_status, dispensed_at
+                ) values (?, ?, ?, ?, ?, ?, 'PRINTED', ?)
+                on conflict (task_id) do nothing
+                """;
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, dispenser, comment,
+                offsetDateTime(dispensedAt));
+    }
+
+    public int insertPrescriptionAuditRecord(
+            UUID recordId,
+            UUID tenantId,
+            UUID orderId,
+            UUID taskId,
+            String auditor,
+            String comment,
+            Instant auditedAt
+    ) {
+        String sql = """
+                insert into prescription_audit_record (
+                    id, tenant_id, order_id, task_id, audit_result, auditor, audit_comment, audited_at
+                ) values (?, ?, ?, ?, 'PASSED', ?, ?, ?)
+                on conflict (task_id) do nothing
+                """;
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, auditor, comment,
+                offsetDateTime(auditedAt));
+    }
+
+    public int insertPrescriptionRecheckRecord(
+            UUID recordId,
+            UUID tenantId,
+            UUID orderId,
+            UUID taskId,
+            String rechecker,
+            String comment,
+            Instant recheckedAt
+    ) {
+        String sql = """
+                insert into prescription_recheck_record (
+                    id, tenant_id, order_id, task_id, recheck_result, rechecker, recheck_comment, rechecked_at
+                ) values (?, ?, ?, ?, 'PASSED', ?, ?, ?)
+                on conflict (task_id) do nothing
+                """;
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, rechecker, comment,
+                offsetDateTime(recheckedAt));
+    }
+
+    public int insertCompletedDecoctionTask(
+            UUID taskId,
+            String taskNo,
+            UUID tenantId,
+            UUID orderId,
+            UUID prescriptionId,
+            String prescriptionNo,
+            String deviceCode,
+            String pailNo,
+            String bindOperationId,
+            String startOperationId,
+            String finishOperationId,
+            String operator,
+            Instant startedAt,
+            Instant finishedAt
+    ) {
+        String sql = """
+                insert into decoction_task (
+                    id, task_no, tenant_id, order_id, prescription_id, prescription_no,
+                    device_code, pail_no, task_status, bind_operation_id, start_operation_id,
+                    finish_operation_id, operator, started_at, finished_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, 'DECOCTED', ?, ?, ?, ?, ?, ?, now())
+                on conflict do nothing
+                """;
+        return jdbcTemplate.update(sql, taskId, taskNo, tenantId, orderId, prescriptionId, prescriptionNo,
+                deviceCode, pailNo, bindOperationId, startOperationId, finishOperationId, operator,
+                offsetDateTime(startedAt), offsetDateTime(finishedAt));
+    }
+
+    public int upsertSignedShipment(
+            UUID shipmentId,
+            UUID tenantId,
+            UUID orderId,
+            String orderNo,
+            String logisticsNo,
+            String logisticsCompany,
+            Instant packageTime,
+            Instant outboundTime,
+            Instant signTime
+    ) {
+        String sql = """
+                insert into shipment (
+                    id, tenant_id, order_id, order_no, logistics_no, logistics_company,
+                    logistics_status, pay_method, pkg_weight, pkg_num, package_time, outbound_time, sign_time
+                ) values (?, ?, ?, ?, ?, ?, 'SIGNED', 'MANUAL', 0, 1, ?, ?, ?)
+                on conflict (order_id) do update
+                set logistics_company = excluded.logistics_company,
+                    logistics_status = 'SIGNED',
+                    package_time = coalesce(shipment.package_time, excluded.package_time),
+                    outbound_time = coalesce(shipment.outbound_time, excluded.outbound_time),
+                    sign_time = coalesce(shipment.sign_time, excluded.sign_time),
+                    updated_at = now()
+                """;
+        return jdbcTemplate.update(sql, shipmentId, tenantId, orderId, orderNo, logisticsNo, logisticsCompany,
+                offsetDateTime(packageTime), offsetDateTime(outboundTime), offsetDateTime(signTime));
+    }
+
+    public Optional<String> findShipmentNoByOrderId(UUID orderId) {
+        String sql = """
+                select logistics_no
+                from shipment
+                where order_id = ?
+                order by created_at desc
+                limit 1
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("logistics_no"), orderId)
+                .stream()
+                .findFirst();
+    }
+
+    public int insertShipmentTrace(
+            UUID traceId,
+            UUID tenantId,
+            UUID orderId,
+            String logisticsNo,
+            String traceStatus,
+            String traceContent,
+            Instant traceTime
+    ) {
+        String sql = """
+                insert into shipment_trace (
+                    id, tenant_id, shipment_id, order_id, logistics_no,
+                    trace_status, trace_content, raw_payload, trace_time
+                )
+                select ?, ?, s.id, ?, ?, ?, ?, '{}'::jsonb, ?
+                from shipment s
+                where s.order_id = ?
+                on conflict do nothing
+                """;
+        return jdbcTemplate.update(sql, traceId, tenantId, orderId, logisticsNo, traceStatus, traceContent,
+                offsetDateTime(traceTime), orderId);
     }
 
     public int updateWorkflowTaskReviewResult(
@@ -1376,6 +1695,37 @@ public class OrderRepository {
                 rs.getString("logistics_no"),
                 rs.getString("logistics_status"),
                 instant(rs, "latest_trace_time"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminManualProcessItem mapAdminManualProcessItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminManualProcessItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                rs.getString("patient_names"),
+                rs.getString("hospital_types"),
+                rs.getString("prescription_types"),
+                rs.getString("prescription_nos"),
+                rs.getString("external_prescription_nos"),
+                rs.getString("dose_counts"),
+                integer(rs, "prescription_count"),
+                instant(rs, "delivery_time"),
+                rs.getString("order_remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );
