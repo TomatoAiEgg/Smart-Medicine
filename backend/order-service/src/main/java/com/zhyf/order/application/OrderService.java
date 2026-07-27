@@ -174,6 +174,62 @@ public class OrderService {
         );
     }
 
+    @Transactional
+    public AdminOrderCancelResult cancelAdminOrder(String orderNo, AdminOrderCancelCommand command) {
+        if (command == null) {
+            throw new BusinessException("ORDER_CANCEL_COMMAND_REQUIRED", "取消参数不能为空");
+        }
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        String reason = requireText(command.reason(), "ORDER_CANCEL_REASON_REQUIRED", "取消原因不能为空");
+        String operator = defaultText(command.operator(), "admin");
+        String normalizedOrderNo = orderNo.trim();
+        AdminOrderDetail current = getAdminOrderDetail(normalizedOrderNo);
+        OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
+        if (isTerminalStatus(currentStatus)) {
+            throw new BusinessException("ORDER_CANCEL_NOT_ALLOWED", "当前订单状态不允许取消");
+        }
+        int updated = orderRepository.updateOrderStatus(current.orderId(), OrderStatus.CANCELLED.name());
+        if (updated == 0) {
+            throw new BusinessException("ORDER_CANCEL_FAILED", "订单取消失败");
+        }
+        int cancelledPrescriptions = orderRepository.updatePrescriptionsStatusByOrderId(
+                current.orderId(),
+                PrescriptionStatus.CANCELLED.name()
+        );
+        int cancelledTasks = orderRepository.cancelPendingWorkflowTasks(current.orderId(), operator, reason);
+        orderRepository.insertOrderStatusLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.CANCELLED.name(),
+                "ADMIN",
+                "admin-order-cancel"
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                operator,
+                "ORDER_CANCEL",
+                "SUCCESS",
+                reason,
+                writeJson(command)
+        );
+        return new AdminOrderCancelResult(
+                current.orderId(),
+                current.orderNo(),
+                currentStatus.name(),
+                OrderStatus.CANCELLED.name(),
+                cancelledPrescriptions,
+                cancelledTasks,
+                Instant.now()
+        );
+    }
+
     private OrderCreateResult createNewOrder(
             InstitutionApp app,
             String externalOrderNo,
@@ -363,6 +419,20 @@ public class OrderService {
     private String defaultText(String value, String fallback) {
         String cleaned = cleanText(value);
         return cleaned == null ? fallback : cleaned;
+    }
+
+    private OrderStatus parseOrderStatus(String status) {
+        try {
+            return OrderStatus.valueOf(status);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException("ORDER_STATUS_INVALID", "订单状态不支持取消操作");
+        }
+    }
+
+    private boolean isTerminalStatus(OrderStatus status) {
+        return status == OrderStatus.CANCELLED
+                || status == OrderStatus.SIGNED
+                || status == OrderStatus.AUDIT_FAILED;
     }
 
     private Instant readAddressDeliveryTime(String text) {

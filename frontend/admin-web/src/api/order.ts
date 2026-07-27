@@ -2,6 +2,8 @@ import { request } from './client';
 import type {
   AdminOrderAddressUpdateCommand,
   AdminOrderAddressUpdateResult,
+  AdminOrderCancelCommand,
+  AdminOrderCancelResult,
   AdminOrderDetail,
   AdminOrderPage,
   AdminOrderQueryParams,
@@ -38,6 +40,16 @@ export function updateAdminOrderAddress(orderNo: string, command: AdminOrderAddr
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/address`,
     {
       method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function cancelAdminOrder(orderNo: string, command: AdminOrderCancelCommand) {
+  return request<AdminOrderCancelResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/cancel`,
+    {
+      method: 'POST',
       body: JSON.stringify(command),
     },
   );

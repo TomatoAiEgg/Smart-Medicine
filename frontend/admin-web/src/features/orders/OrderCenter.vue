@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { ApiError } from '../../api/client';
 import {
+  cancelAdminOrder,
   getAdminOrderDetail,
   getOrder,
   getOrderProgress,
@@ -14,6 +15,7 @@ import type {
   AdminOrderListItem,
   AdminOrderPage,
   AdminOrderAddressUpdateCommand,
+  AdminOrderCancelCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
 } from '../../api/types';
@@ -36,6 +38,10 @@ interface AddressForm {
   receiverAddress: string;
   addressType: string;
   deliveryTime: string;
+  operator: string;
+  reason: string;
+}
+interface CancelForm {
   operator: string;
   reason: string;
 }
@@ -74,6 +80,8 @@ const page = ref(1);
 const pageSize = ref(20);
 const addressModalOpen = ref(false);
 const addressSubmitting = ref(false);
+const cancelModalOpen = ref(false);
+const cancelSubmitting = ref(false);
 const addressForm = ref<AddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -83,6 +91,10 @@ const addressForm = ref<AddressForm>({
   receiverAddress: '',
   addressType: '',
   deliveryTime: '',
+  operator: 'admin',
+  reason: '',
+});
+const cancelForm = ref<CancelForm>({
   operator: 'admin',
   reason: '',
 });
@@ -126,6 +138,12 @@ const hasNextPage = computed(() => (
   !orderLoading.value && page.value * pageSize.value < resultCount.value
 ));
 const canEditAddress = computed(() => !!orderDetail.value && !detailLoading.value && !addressSubmitting.value);
+const canCancelOrder = computed(() => (
+  !!orderDetail.value
+  && !detailLoading.value
+  && !cancelSubmitting.value
+  && !['CANCELLED', 'SIGNED', 'AUDIT_FAILED'].includes(orderDetail.value.orderStatus)
+));
 const pageSummary = computed(() => {
   const total = resultCount.value;
   if (total === 0) return '显示第 0 至 0 项记录，共 0 项';
@@ -400,6 +418,57 @@ async function submitAddressUpdate() {
   }
 }
 
+function openCancelModal() {
+  if (!orderDetail.value) {
+    orderError.value = '请先查看一条订单详情后再取消订单';
+    return;
+  }
+  cancelForm.value = {
+    operator: cancelForm.value.operator || 'admin',
+    reason: '',
+  };
+  cancelModalOpen.value = true;
+}
+
+function closeCancelModal() {
+  if (cancelSubmitting.value) return;
+  cancelModalOpen.value = false;
+}
+
+async function submitCancelOrder() {
+  if (!orderDetail.value) return;
+  const command: AdminOrderCancelCommand = {
+    operator: cancelForm.value.operator.trim() || 'admin',
+    reason: cancelForm.value.reason.trim(),
+  };
+  if (!command.reason) {
+    orderError.value = '取消原因不能为空';
+    return;
+  }
+  cancelSubmitting.value = true;
+  orderError.value = '';
+  try {
+    const targetOrderNo = orderDetail.value.orderNo;
+    await cancelAdminOrder(targetOrderNo, command);
+    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+      getOrder(targetOrderNo),
+      getAdminOrderDetail(targetOrderNo),
+      getOrderProgress(targetOrderNo),
+      queryOrder(),
+    ]);
+    order.value = nextOrder;
+    orderDetail.value = nextDetail;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = targetOrderNo;
+    cancelModalOpen.value = false;
+    emit('notice', 'success', `订单 ${targetOrderNo} 已取消`);
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    cancelSubmitting.value = false;
+  }
+}
+
 async function queryOrder() {
   orderLoading.value = true;
   orderError.value = '';
@@ -615,7 +684,7 @@ async function goNextPage() {
       <button class="legacy-btn" type="button" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端处方修改契约">处方修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
-      <button class="legacy-btn" type="button" disabled title="等待后端订单取消契约">取消</button>
+      <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
       <button class="legacy-btn" type="button" disabled title="等待后端手工走流程契约">走流程</button>
       <button class="legacy-btn" type="button" disabled title="等待后端签收契约">签收</button>
     </div>
@@ -755,6 +824,39 @@ async function goNextPage() {
           <button class="legacy-btn" type="button" :disabled="addressSubmitting" @click="closeAddressModal">取消</button>
           <button class="legacy-btn legacy-btn-primary" type="button" :disabled="addressSubmitting" @click="submitAddressUpdate">
             {{ addressSubmitting ? '保存中' : '保存地址' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="cancelModalOpen" class="legacy-modal-mask">
+      <section class="legacy-modal cancel-modal">
+        <div class="legacy-modal-head">
+          <h2>取消订单</h2>
+          <button class="legacy-link-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">关闭</button>
+        </div>
+        <div class="cancel-warning">
+          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <span>取消后订单和处方会进入已取消状态，未完成工作流任务会同步关闭。</span>
+        </div>
+        <div class="address-form-grid">
+          <label>
+            <span>当前状态</span>
+            <input class="legacy-input" :value="statusText(orderDetail?.orderStatus)" disabled />
+          </label>
+          <label>
+            <span>操作人</span>
+            <input v-model="cancelForm.operator" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>取消原因</span>
+            <input v-model="cancelForm.reason" class="legacy-input" placeholder="必填" />
+          </label>
+        </div>
+        <div class="legacy-modal-actions">
+          <button class="legacy-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">返回</button>
+          <button class="legacy-btn legacy-btn-export" type="button" :disabled="cancelSubmitting" @click="submitCancelOrder">
+            {{ cancelSubmitting ? '取消中' : '确认取消' }}
           </button>
         </div>
       </section>
@@ -1265,6 +1367,17 @@ async function goNextPage() {
 
 .address-form-wide {
   grid-column: span 3;
+}
+
+.cancel-warning {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #fecaca;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
 }
 
 .order-detail-workbench {

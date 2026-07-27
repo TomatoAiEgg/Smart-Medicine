@@ -102,6 +102,21 @@ export interface AdminOrderAddressUpdateResult {
   updatedAt: string;
 }
 
+export interface AdminOrderCancelCommand {
+  operator?: string;
+  reason: string;
+}
+
+export interface AdminOrderCancelResult {
+  orderId: string;
+  orderNo: string;
+  fromStatus: string;
+  toStatus: string;
+  cancelledPrescriptionCount: number;
+  cancelledWorkflowTaskCount: number;
+  cancelledAt: string;
+}
+
 export interface AdminOrderDetail {
   orderId: string;
   tenantId: string;

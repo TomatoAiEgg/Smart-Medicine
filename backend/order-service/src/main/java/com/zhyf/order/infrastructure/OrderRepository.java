@@ -673,6 +673,31 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, status, orderId);
     }
 
+    public int updatePrescriptionsStatusByOrderId(UUID orderId, String status) {
+        String sql = """
+                update prescription
+                set status = ?,
+                    updated_at = now()
+                where order_id = ?
+                  and status <> ?
+                """;
+        return jdbcTemplate.update(sql, status, orderId, status);
+    }
+
+    public int cancelPendingWorkflowTasks(UUID orderId, String operator, String reason) {
+        String sql = """
+                update workflow_task
+                set task_status = 'CANCELLED',
+                    assigned_to = ?,
+                    review_comment = ?,
+                    completed_at = now(),
+                    updated_at = now()
+                where order_id = ?
+                  and task_status = 'PENDING'
+                """;
+        return jdbcTemplate.update(sql, operator, reason, orderId);
+    }
+
     public int updateOrderAddress(
             UUID orderId,
             String receiverName,
