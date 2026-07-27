@@ -14,11 +14,13 @@ import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
+import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 type WorkflowViewKey = Extract<ViewKey, 'reviews' | 'dispenses' | 'rechecks'>;
+type RecheckScanMode = 'single' | 'multi';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +29,7 @@ const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
 const dashboardHomeRef = ref<InstanceType<typeof DashboardHome> | null>(null);
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
+const recheckScanRef = ref<InstanceType<typeof RecheckScanWorkspace> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
@@ -65,6 +68,7 @@ const workflowRouteKey = computed<WorkflowViewKey | null>(() => {
   if (key === 'reviews' || key === 'dispenses' || key === 'rechecks') return key;
   return null;
 });
+const recheckScanMode = computed<RecheckScanMode>(() => (activeView.value === 'orderRechecksMulti' ? 'multi' : 'single'));
 const homePath = routeByKey.dashboard.path;
 
 const layoutTabs = computed<LayoutTab[]>(() => [
@@ -80,6 +84,8 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reviews: workflowCounts.value.reviews,
   dispenses: workflowCounts.value.dispenses,
   rechecks: workflowCounts.value.rechecks,
+  orderRechecksMulti: workflowCounts.value.rechecks,
+  orderRecheckRecords: workflowCounts.value.rechecks,
   decoction: decoctionCount.value,
   logistics: logisticsCount.value,
   reports: reportTotalOrders.value,
@@ -90,6 +96,10 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
 
 function showNotice(tone: NoticeTone, text: string) {
   notice.value = { tone, text };
+}
+
+function updateRecheckCount(count: number) {
+  workflowCounts.value = { ...workflowCounts.value, rechecks: count };
 }
 
 function ensureOpenTab(view: ViewKey) {
@@ -119,6 +129,10 @@ async function refreshCurrentTasks() {
   }
   if (workflowRouteKey.value) {
     await workflowTasksRef.value?.refreshCurrentTasks();
+    return;
+  }
+  if (componentKey === 'recheckScan') {
+    await recheckScanRef.value?.refreshRecheckScanTasks();
     return;
   }
   if (componentKey === 'integration') {
@@ -242,6 +256,15 @@ function closeTab(view: ViewKey) {
     <DashboardHome
       v-if="currentComponentKey === 'dashboard'"
       ref="dashboardHomeRef"
+      @notice="showNotice"
+    />
+
+    <RecheckScanWorkspace
+      v-else-if="currentComponentKey === 'recheckScan'"
+      ref="recheckScanRef"
+      :active="currentComponentKey === 'recheckScan'"
+      :mode="recheckScanMode"
+      @count-changed="updateRecheckCount"
       @notice="showNotice"
     />
 

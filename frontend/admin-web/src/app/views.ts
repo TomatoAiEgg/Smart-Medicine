@@ -6,6 +6,7 @@ export type ImplementedViewKey =
   | 'reviews'
   | 'dispenses'
   | 'rechecks'
+  | 'recheckScan'
   | 'decoction'
   | 'logistics'
   | 'portal'
@@ -374,9 +375,9 @@ export const menuItems = [
     priority: 'P1',
     implemented: true,
     subtitle: '处理待复核处方任务',
-    componentKey: 'rechecks',
+    componentKey: 'recheckScan',
     showCount: true,
-    plannedComponent: 'features/workflow/RecheckTasks.vue',
+    plannedComponent: 'features/workflow/RecheckScanWorkspace.vue',
     coreActions: ['单桶复核', '完成', '异常处理'],
     apiDependencies: ['复核任务', '完成动作', '异常处理'],
   },
@@ -387,9 +388,11 @@ export const menuItems = [
     path: '/orders/rechecks-multi',
     legacyRoute: 'order/reviews.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '多桶复核和批量确认',
-    plannedComponent: 'features/workflow/MultiBucketRecheck.vue',
+    componentKey: 'recheckScan',
+    showCount: true,
+    plannedComponent: 'features/workflow/RecheckScanWorkspace.vue',
     coreActions: ['多桶复核', '批量确认'],
     apiDependencies: ['多桶复核任务', '绑定关系', '状态一致性校验'],
   },
@@ -400,8 +403,10 @@ export const menuItems = [
     path: '/orders/recheck-records',
     legacyRoute: 'order/listReview.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '复核记录查询和管理',
+    componentKey: 'rechecks',
+    showCount: true,
     plannedComponent: 'features/workflow/RecheckRecordList.vue',
     coreActions: ['复核记录查询', '导出'],
     apiDependencies: ['复核记录', '导出任务'],
