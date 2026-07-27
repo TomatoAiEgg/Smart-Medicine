@@ -24,6 +24,7 @@ import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue'
 import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
+import PrescriptionReconciliation from './features/reports/PrescriptionReconciliation.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
 import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
@@ -54,6 +55,7 @@ const exceptionLogRef = ref<InstanceType<typeof ExceptionLogList> | null>(null);
 const labelPrintRef = ref<InstanceType<typeof LabelPrint> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
+const prescriptionReconciliationRef = ref<InstanceType<typeof PrescriptionReconciliation> | null>(null);
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
 const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
@@ -70,6 +72,7 @@ const logisticsInfoCount = ref(0);
 const unreceivedFollowupCount = ref(0);
 const exceptionLogCount = ref(0);
 const labelPrintCount = ref(0);
+const prescriptionReconciliationCount = ref(0);
 const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
@@ -79,6 +82,7 @@ const logisticsInfoActivationKey = ref(0);
 const unreceivedFollowupActivationKey = ref(0);
 const exceptionLogActivationKey = ref(0);
 const labelPrintActivationKey = ref(0);
+const prescriptionReconciliationActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
@@ -131,6 +135,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   labelPrints: labelPrintCount.value,
+  reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
   observability: observabilityCount.value,
@@ -169,6 +174,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
   if (componentKey === 'exceptionLogs') exceptionLogActivationKey.value += 1;
   if (componentKey === 'labelPrints') labelPrintActivationKey.value += 1;
+  if (componentKey === 'prescriptionReconciliation') prescriptionReconciliationActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
@@ -203,6 +209,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'reports') {
     await reportOverviewRef.value?.refreshReports();
+    return;
+  }
+  if (componentKey === 'prescriptionReconciliation') {
+    await prescriptionReconciliationRef.value?.refreshPrescriptionReconciliation();
     return;
   }
   if (componentKey === 'portal') {
@@ -303,6 +313,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'reports'"
       :activation-key="reportActivationKey"
       @count-changed="reportTotalOrders = $event"
+      @notice="showNotice"
+    />
+
+    <PrescriptionReconciliation
+      v-show="currentComponentKey === 'prescriptionReconciliation'"
+      ref="prescriptionReconciliationRef"
+      :active="currentComponentKey === 'prescriptionReconciliation'"
+      :activation-key="prescriptionReconciliationActivationKey"
+      @count-changed="prescriptionReconciliationCount = $event"
       @notice="showNotice"
     />
 

@@ -16,6 +16,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'reports'
+  | 'prescriptionReconciliation'
   | 'integration'
   | 'observability'
   | 'ops'
@@ -917,11 +918,13 @@ export const menuItems = [
     path: '/reports/prescription-reconciliation',
     legacyRoute: 'exportQuery/prescriAccount.html',
     priority: 'P4',
-    implemented: false,
-    subtitle: '处方对账明细',
-    plannedComponent: 'features/report/PrescriptionReconciliation.vue',
-    coreActions: ['处方对账', '导出'],
-    apiDependencies: ['处方对账查询', '导出任务'],
+    implemented: true,
+    subtitle: '按订单处方明细查询金额和配送对账字段',
+    componentKey: 'prescriptionReconciliation',
+    showCount: true,
+    plannedComponent: 'features/reports/PrescriptionReconciliation.vue',
+    coreActions: ['处方对账查询', '本页小计', 'CSV 导出'],
+    apiDependencies: ['订单分页查询', '订单 CSV 导出'],
   },
   {
     key: 'reportPrescriptionHerbDetails',
