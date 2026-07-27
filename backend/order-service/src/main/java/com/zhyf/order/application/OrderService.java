@@ -10,7 +10,13 @@ import com.zhyf.common.status.PrescriptionStatus;
 import com.zhyf.order.domain.InstitutionApp;
 import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.infrastructure.OrderRepository;
+import java.math.BigDecimal;
+import java.time.format.DateTimeParseException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +26,10 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class OrderService {
+
+    private static final ZoneId DEFAULT_PAYLOAD_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final DateTimeFormatter LEGACY_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -118,6 +128,10 @@ public class OrderService {
         String receiverName = readText(payload, "receiverName", "consignee", "receiver");
         String receiverPhone = readText(payload, "receiverPhone", "conTel", "receiverTel");
         String receiverAddress = readText(payload, "receiverAddress", "address", "addrDetail");
+        String receiverProvince = readText(payload, "receiverProvince", "province");
+        String receiverCity = readText(payload, "receiverCity", "city");
+        String receiverZone = readText(payload, "receiverZone", "zone");
+        String addressType = readText(payload, "addressType", "addrType");
 
         orderRepository.insertOrder(
                 orderId,
@@ -130,7 +144,14 @@ public class OrderService {
                 patientPhone,
                 receiverName,
                 receiverPhone,
+                receiverProvince,
+                receiverCity,
+                receiverZone,
                 receiverAddress,
+                addressType,
+                readInstant(payload, "deliveryTime", "delivery_time"),
+                readText(payload, "batchNo", "classes"),
+                readText(payload, "orderRemark", "order_remark", "remark"),
                 app.callbackUrl(),
                 rawPayload
         );
@@ -194,8 +215,20 @@ public class OrderService {
                 externalPrescriptionNo,
                 readText(node, "prescriptionType", "prescriType", "type"),
                 PrescriptionStatus.CREATED.name(),
+                readText(node, "hospitalType", "isHos"),
+                readInteger(node, "doseCount", "amount", "herbsNum", "herbs_num"),
+                readInteger(node, "decoctionCount", "decoctAmount", "decoct_amount"),
+                readDecimal(node, "decoctionUnitPrice", "decoctUnitPrice", "decoct_unit_price"),
+                readDecimal(node, "decoctionTotalPrice", "decoctTotalPrice", "decoct_total_price"),
+                readDecimal(node, "totalAmount", "totalMoney", "total_money"),
                 readText(node, "doctorName", "doctor"),
                 readText(node, "diagnosis"),
+                readText(node, "departmentName", "hosDepart", "hos_depart"),
+                readText(node, "wardName", "hosAreaNo", "hos_area_no"),
+                readText(node, "bedNo", "hosBedNo", "hos_bed_no"),
+                readText(node, "medicationMethod", "medMethod", "med_method"),
+                readText(node, "medicationInstruction", "medGuide", "med_guide"),
+                readText(node, "prescriptionRemark", "prescriRemark", "prescri_remark"),
                 writeJson(node)
         );
 
@@ -212,8 +245,21 @@ public class OrderService {
                         prescriptionId,
                         readText(detail, "drugCode", "medicineCode"),
                         readText(detail, "drugName", "medicineName"),
+                        readText(detail, "platformDrugCode", "dcGoodsNum", "dc_goods_num", "ptGoodsNum", "pt_goods_num"),
+                        readText(detail, "platformDrugName", "dcGoodsName", "dc_goods_name"),
+                        readText(detail, "drugSpecs", "goodsNorms", "goods_norms", "specs"),
+                        readText(detail, "drugOrigin", "goodsOrigin", "goods_origin", "origin"),
                         readText(detail, "dose", "dosage"),
                         readText(detail, "unit"),
+                        readText(detail, "specialUsage", "special_usage"),
+                        readDecimal(detail, "quantity", "goodsQuantity", "goods_quantity"),
+                        readDecimal(detail, "unitPrice", "medSalePrice", "med_sale_price"),
+                        readDecimal(detail, "settlementUnitPrice", "medSettlePrice", "med_settle_price"),
+                        readDecimal(detail, "totalPrice", "lineTotalPrice", "line_total_price"),
+                        readDecimal(detail, "settlementTotalPrice", "settlementTotalPrice", "settlement_total_price"),
+                        readText(detail, "batchNo", "batch_no"),
+                        readText(detail, "remark"),
+                        readText(detail, "validationTips", "validation_tips"),
                         detailSort++
                 );
             }
@@ -241,6 +287,55 @@ public class OrderService {
             }
         }
         return null;
+    }
+
+    private Integer readInteger(JsonNode node, String... names) {
+        String text = readText(node, names);
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(text.trim()).intValue();
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private BigDecimal readDecimal(JsonNode node, String... names) {
+        String text = readText(node, names);
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(text.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private Instant readInstant(JsonNode node, String... names) {
+        String text = readText(node, names);
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        String trimmed = text.trim();
+        try {
+            return Instant.parse(trimmed);
+        } catch (DateTimeParseException ignored) {
+            // 兼容老后台时间格式。
+        }
+        try {
+            return OffsetDateTime.parse(trimmed).toInstant();
+        } catch (DateTimeParseException ignored) {
+            // 兼容老后台时间格式。
+        }
+        try {
+            return LocalDateTime.parse(trimmed, LEGACY_DATE_TIME_FORMATTER)
+                    .atZone(DEFAULT_PAYLOAD_ZONE)
+                    .toInstant();
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private String writeJson(Object value) {

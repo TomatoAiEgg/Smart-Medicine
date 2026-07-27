@@ -8,6 +8,7 @@ import com.zhyf.order.domain.InstitutionApp;
 import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.OrderSnapshot;
 import com.zhyf.order.domain.WorkflowTaskSnapshot;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -117,6 +118,9 @@ public class OrderRepository {
                     o.receiver_zone,
                     o.receiver_address,
                     o.address_type,
+                    o.delivery_time,
+                    o.batch_no,
+                    o.order_remark,
                     latest_validation.validation_status,
                     latest_validation.validation_message,
                     latest_validation.validation_created_at,
@@ -157,6 +161,9 @@ public class OrderRepository {
                         header.receiverZone(),
                         header.receiverAddress(),
                         header.addressType(),
+                        header.deliveryTime(),
+                        header.batchNo(),
+                        header.orderRemark(),
                         header.validationStatus(),
                         header.validationMessage(),
                         header.validationCreatedAt(),
@@ -174,15 +181,30 @@ public class OrderRepository {
                     p.external_prescription_no,
                     p.prescription_type,
                     p.status as prescription_status,
+                    p.hospital_type,
+                    p.dose_count,
+                    p.decoction_count,
+                    p.decoction_unit_price,
+                    p.decoction_total_price,
+                    p.total_amount,
                     p.doctor_name,
                     p.diagnosis,
+                    p.department_name,
+                    p.ward_name,
+                    p.bed_no,
+                    p.medication_method,
+                    p.medication_instruction,
+                    p.prescription_remark,
                     count(d.id)::int as detail_count,
                     p.created_at
                 from prescription p
                 left join prescription_detail d on d.prescription_id = p.id
                 where p.order_id = ?
                 group by p.id, p.prescription_no, p.external_prescription_no, p.prescription_type,
-                         p.status, p.doctor_name, p.diagnosis, p.created_at
+                         p.status, p.hospital_type, p.dose_count, p.decoction_count,
+                         p.decoction_unit_price, p.decoction_total_price, p.total_amount,
+                         p.doctor_name, p.diagnosis, p.department_name, p.ward_name, p.bed_no,
+                         p.medication_method, p.medication_instruction, p.prescription_remark, p.created_at
                 order by p.created_at asc, p.prescription_no asc
                 """;
         return jdbcTemplate.query(sql, this::mapAdminOrderDetailPrescription, orderId)
@@ -193,8 +215,20 @@ public class OrderRepository {
                         prescription.externalPrescriptionNo(),
                         prescription.prescriptionType(),
                         prescription.prescriptionStatus(),
+                        prescription.hospitalType(),
+                        prescription.doseCount(),
+                        prescription.decoctionCount(),
+                        prescription.decoctionUnitPrice(),
+                        prescription.decoctionTotalPrice(),
+                        prescription.totalAmount(),
                         prescription.doctorName(),
                         prescription.diagnosis(),
+                        prescription.departmentName(),
+                        prescription.wardName(),
+                        prescription.bedNo(),
+                        prescription.medicationMethod(),
+                        prescription.medicationInstruction(),
+                        prescription.prescriptionRemark(),
                         prescription.detailCount(),
                         prescription.createdAt(),
                         findAdminOrderDetailDrugDetails(prescription.prescriptionId())
@@ -210,11 +244,19 @@ public class OrderRepository {
                     drug_name,
                     platform_drug_code,
                     platform_drug_name,
+                    drug_specs,
+                    drug_origin,
                     dose,
                     unit,
                     special_usage,
+                    quantity,
+                    unit_price,
+                    settlement_unit_price,
+                    total_price,
+                    settlement_total_price,
                     sort_no,
                     batch_no,
+                    remark,
                     validation_tips,
                     created_at
                 from prescription_detail
@@ -260,8 +302,14 @@ public class OrderRepository {
                     p.prescription_no as prescription_nos,
                     p.external_prescription_no as external_prescription_nos,
                     coalesce(p.prescription_type, '') as prescription_types,
+                    coalesce(p.hospital_type, '') as hospital_types,
                     1 as prescription_count,
                     coalesce(pd.detail_count, 0) as detail_count,
+                    p.dose_count,
+                    p.total_amount,
+                    o.delivery_time,
+                    o.batch_no,
+                    o.order_remark,
                     latest_shipment.logistics_company,
                     latest_shipment.logistics_no,
                     latest_shipment.logistics_status,
@@ -321,6 +369,7 @@ public class OrderRepository {
         filters.addLikeFilter("o.receiver_province", query.province());
         filters.addEqualsFilter("o.address_type", query.deliveryType());
         filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addEqualsFilter("p.hospital_type", query.hospitalType());
         filters.addExistsShipmentLike("s.logistics_company", query.logisticsCompany());
         filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
         filters.addKeywordFilter(query.keyword());
@@ -497,19 +546,29 @@ public class OrderRepository {
             String patientPhone,
             String receiverName,
             String receiverPhone,
+            String receiverProvince,
+            String receiverCity,
+            String receiverZone,
             String receiverAddress,
+            String addressType,
+            Instant deliveryTime,
+            String batchNo,
+            String orderRemark,
             String callbackUrl,
             String rawPayload
     ) {
         String sql = """
                 insert into order_main (
                     id, tenant_id, institution_id, order_no, external_order_no, status,
-                    patient_name, patient_phone, receiver_name, receiver_phone, receiver_address,
-                    callback_url, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    patient_name, patient_phone, receiver_name, receiver_phone, receiver_province,
+                    receiver_city, receiver_zone, receiver_address, address_type, delivery_time,
+                    batch_no, order_remark, callback_url, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderNo, externalOrderNo, status,
-                patientName, patientPhone, receiverName, receiverPhone, receiverAddress, callbackUrl, rawPayload);
+                patientName, patientPhone, receiverName, receiverPhone, receiverProvince, receiverCity, receiverZone,
+                receiverAddress, addressType, offsetDateTime(deliveryTime), batchNo, orderRemark, callbackUrl,
+                rawPayload);
     }
 
     public void insertOrderStatusLog(
@@ -538,18 +597,35 @@ public class OrderRepository {
             String externalPrescriptionNo,
             String prescriptionType,
             String status,
+            String hospitalType,
+            Integer doseCount,
+            Integer decoctionCount,
+            BigDecimal decoctionUnitPrice,
+            BigDecimal decoctionTotalPrice,
+            BigDecimal totalAmount,
             String doctorName,
             String diagnosis,
+            String departmentName,
+            String wardName,
+            String bedNo,
+            String medicationMethod,
+            String medicationInstruction,
+            String prescriptionRemark,
             String rawPayload
     ) {
         String sql = """
                 insert into prescription (
                     id, tenant_id, institution_id, order_id, prescription_no,
-                    external_prescription_no, prescription_type, status, doctor_name, diagnosis, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    external_prescription_no, prescription_type, status, hospital_type, dose_count,
+                    decoction_count, decoction_unit_price, decoction_total_price, total_amount,
+                    doctor_name, diagnosis, department_name, ward_name, bed_no, medication_method,
+                    medication_instruction, prescription_remark, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderId, prescriptionNo,
-                externalPrescriptionNo, prescriptionType, status, doctorName, diagnosis, rawPayload);
+                externalPrescriptionNo, prescriptionType, status, hospitalType, doseCount, decoctionCount,
+                decoctionUnitPrice, decoctionTotalPrice, totalAmount, doctorName, diagnosis, departmentName,
+                wardName, bedNo, medicationMethod, medicationInstruction, prescriptionRemark, rawPayload);
     }
 
     public void insertPrescriptionDetail(
@@ -558,16 +634,34 @@ public class OrderRepository {
             UUID prescriptionId,
             String drugCode,
             String drugName,
+            String platformDrugCode,
+            String platformDrugName,
+            String drugSpecs,
+            String drugOrigin,
             String dose,
             String unit,
+            String specialUsage,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal settlementUnitPrice,
+            BigDecimal totalPrice,
+            BigDecimal settlementTotalPrice,
+            String batchNo,
+            String remark,
+            String validationTips,
             int sortNo
     ) {
         String sql = """
                 insert into prescription_detail (
-                    id, tenant_id, prescription_id, drug_code, drug_name, dose, unit, sort_no
-                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                    id, tenant_id, prescription_id, drug_code, drug_name, platform_drug_code,
+                    platform_drug_name, drug_specs, drug_origin, dose, unit, special_usage, quantity,
+                    unit_price, settlement_unit_price, total_price, settlement_total_price,
+                    batch_no, remark, validation_tips, sort_no
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
-        jdbcTemplate.update(sql, id, tenantId, prescriptionId, drugCode, drugName, dose, unit, sortNo);
+        jdbcTemplate.update(sql, id, tenantId, prescriptionId, drugCode, drugName, platformDrugCode, platformDrugName,
+                drugSpecs, drugOrigin, dose, unit, specialUsage, quantity, unitPrice, settlementUnitPrice, totalPrice,
+                settlementTotalPrice, batchNo, remark, validationTips, sortNo);
     }
 
     public int updateOrderStatus(UUID orderId, String status) {
@@ -799,8 +893,14 @@ public class OrderRepository {
                 rs.getString("prescription_nos"),
                 rs.getString("external_prescription_nos"),
                 rs.getString("prescription_types"),
+                rs.getString("hospital_types"),
                 rs.getInt("prescription_count"),
                 rs.getInt("detail_count"),
+                integer(rs, "dose_count"),
+                rs.getBigDecimal("total_amount"),
+                instant(rs, "delivery_time"),
+                rs.getString("batch_no"),
+                rs.getString("order_remark"),
                 rs.getString("logistics_company"),
                 rs.getString("logistics_no"),
                 rs.getString("logistics_status"),
@@ -829,6 +929,9 @@ public class OrderRepository {
                 rs.getString("receiver_zone"),
                 rs.getString("receiver_address"),
                 rs.getString("address_type"),
+                instant(rs, "delivery_time"),
+                rs.getString("batch_no"),
+                rs.getString("order_remark"),
                 rs.getString("validation_status"),
                 rs.getString("validation_message"),
                 instant(rs, "validation_created_at"),
@@ -845,8 +948,20 @@ public class OrderRepository {
                 rs.getString("external_prescription_no"),
                 rs.getString("prescription_type"),
                 rs.getString("prescription_status"),
+                rs.getString("hospital_type"),
+                integer(rs, "dose_count"),
+                integer(rs, "decoction_count"),
+                rs.getBigDecimal("decoction_unit_price"),
+                rs.getBigDecimal("decoction_total_price"),
+                rs.getBigDecimal("total_amount"),
                 rs.getString("doctor_name"),
                 rs.getString("diagnosis"),
+                rs.getString("department_name"),
+                rs.getString("ward_name"),
+                rs.getString("bed_no"),
+                rs.getString("medication_method"),
+                rs.getString("medication_instruction"),
+                rs.getString("prescription_remark"),
                 rs.getInt("detail_count"),
                 instant(rs, "created_at"),
                 List.of()
@@ -860,11 +975,19 @@ public class OrderRepository {
                 rs.getString("drug_name"),
                 rs.getString("platform_drug_code"),
                 rs.getString("platform_drug_name"),
+                rs.getString("drug_specs"),
+                rs.getString("drug_origin"),
                 rs.getString("dose"),
                 rs.getString("unit"),
                 rs.getString("special_usage"),
+                rs.getBigDecimal("quantity"),
+                rs.getBigDecimal("unit_price"),
+                rs.getBigDecimal("settlement_unit_price"),
+                rs.getBigDecimal("total_price"),
+                rs.getBigDecimal("settlement_total_price"),
                 rs.getInt("sort_no"),
                 rs.getString("batch_no"),
+                rs.getString("remark"),
                 rs.getString("validation_tips"),
                 instant(rs, "created_at")
         );
@@ -873,6 +996,11 @@ public class OrderRepository {
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private Integer integer(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
     }
 
     private record AdminOrderDetailHeader(
@@ -893,6 +1021,9 @@ public class OrderRepository {
             String receiverZone,
             String receiverAddress,
             String addressType,
+            Instant deliveryTime,
+            String batchNo,
+            String orderRemark,
             String validationStatus,
             String validationMessage,
             Instant validationCreatedAt,

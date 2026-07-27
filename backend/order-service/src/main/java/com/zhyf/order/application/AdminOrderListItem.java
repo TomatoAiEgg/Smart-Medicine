@@ -1,5 +1,6 @@
 package com.zhyf.order.application;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -24,8 +25,14 @@ public record AdminOrderListItem(
         String prescriptionNos,
         String externalPrescriptionNos,
         String prescriptionTypes,
+        String hospitalTypes,
         int prescriptionCount,
         int detailCount,
+        Integer doseCount,
+        BigDecimal totalAmount,
+        Instant deliveryTime,
+        String batchNo,
+        String orderRemark,
         String logisticsCompany,
         String logisticsNo,
         String logisticsStatus,
