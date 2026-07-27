@@ -11,7 +11,13 @@ import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderInitializeCommand;
 import com.zhyf.order.application.AdminOrderInitializeResult;
 import com.zhyf.order.application.AdminOrderPage;
+import com.zhyf.order.application.AdminOrderReceiptCommand;
+import com.zhyf.order.application.AdminOrderReceiptPage;
+import com.zhyf.order.application.AdminOrderReceiptQuery;
+import com.zhyf.order.application.AdminOrderReceiptResult;
 import com.zhyf.order.application.AdminOrderSearchQuery;
+import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
+import com.zhyf.order.application.AdminBatchOrderReceiptResult;
 import com.zhyf.order.application.AdminPrescriptionUpdateCommand;
 import com.zhyf.order.application.OrderCreateCommand;
 import com.zhyf.order.application.OrderCreateResult;
@@ -164,6 +170,25 @@ public class InstitutionOrderController {
                 .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
+    @GetMapping("/admin/order-receipts")
+    public ApiResponse<AdminOrderReceiptPage> listOrderReceipts(
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String receiverName,
+            @RequestParam(required = false) String receiverPhone,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderReceipts(new AdminOrderReceiptQuery(
+                prescriptionNo,
+                receiverName,
+                receiverPhone,
+                patientName,
+                page,
+                pageSize
+        )));
+    }
+
     @GetMapping("/admin/orders/{orderNo}")
     public ApiResponse<OrderCreateResult> getOrder(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.getOrder(orderNo));
@@ -205,6 +230,21 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderInitializeCommand command
     ) {
         return ApiResponse.ok(orderService.initializeAdminOrder(orderNo, command));
+    }
+
+    @PostMapping("/admin/orders/{orderNo}/receipt")
+    public ApiResponse<AdminOrderReceiptResult> receiptOrder(
+            @PathVariable String orderNo,
+            @RequestBody AdminOrderReceiptCommand command
+    ) {
+        return ApiResponse.ok(orderService.receiptAdminOrder(orderNo, command));
+    }
+
+    @PostMapping("/admin/order-receipts/batch")
+    public ApiResponse<AdminBatchOrderReceiptResult> batchReceiptOrders(
+            @RequestBody AdminBatchOrderReceiptCommand command
+    ) {
+        return ApiResponse.ok(orderService.batchReceiptAdminOrders(command));
     }
 
     @GetMapping("/admin/orders/{orderNo}/progress")

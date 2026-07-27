@@ -16,7 +16,8 @@ export type ImplementedViewKey =
   | 'observability'
   | 'ops'
   | 'addressModify'
-  | 'prescriptionModify';
+  | 'prescriptionModify'
+  | 'orderReceipt';
 
 export interface AppRouteItem {
   key: string;
@@ -514,8 +515,9 @@ export const menuItems = [
     path: '/orders/receipts',
     legacyRoute: 'order/listOrderReceipt.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '签收确认和批量签收导入',
+    componentKey: 'orderReceipt',
     plannedComponent: 'features/orders/OrderReceipt.vue',
     coreActions: ['手工签收', '批量签收导入'],
     apiDependencies: ['签收', '批量导入', '物流状态'],

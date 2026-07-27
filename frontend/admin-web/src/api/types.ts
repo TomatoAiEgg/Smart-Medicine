@@ -75,6 +75,71 @@ export interface AdminOrderPage {
   pageSize: number;
 }
 
+export interface AdminOrderReceiptQueryParams {
+  prescriptionNo?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  patientName?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderReceiptItem {
+  orderId: string;
+  tenantId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  patientName: string | null;
+  prescriptionTypes: string;
+  orderStatus: string;
+  logisticsCompany: string | null;
+  logisticsNo: string | null;
+  logisticsStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrderReceiptPage {
+  records: AdminOrderReceiptItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminOrderReceiptCommand {
+  operator?: string;
+  reason?: string;
+}
+
+export interface AdminBatchOrderReceiptCommand {
+  orderNos: string[];
+  operator?: string;
+  reason?: string;
+}
+
+export interface AdminOrderReceiptResult {
+  orderNo: string;
+  fromStatus: string | null;
+  toStatus: string;
+  success: boolean;
+  message: string;
+  signedAt: string;
+}
+
+export interface AdminBatchOrderReceiptResult {
+  totalCount: number;
+  successCount: number;
+  failCount: number;
+  items: AdminOrderReceiptResult[];
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;

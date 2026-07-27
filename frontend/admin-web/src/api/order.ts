@@ -2,6 +2,8 @@ import { request } from './client';
 import type {
   AdminOrderAddressUpdateCommand,
   AdminOrderAddressUpdateResult,
+  AdminBatchOrderReceiptCommand,
+  AdminBatchOrderReceiptResult,
   AdminOrderCancelCommand,
   AdminOrderCancelResult,
   AdminOrderDetail,
@@ -10,6 +12,10 @@ import type {
   AdminOrderDetailPrescription,
   AdminOrderPage,
   AdminOrderQueryParams,
+  AdminOrderReceiptCommand,
+  AdminOrderReceiptPage,
+  AdminOrderReceiptQueryParams,
+  AdminOrderReceiptResult,
   AdminPrescriptionUpdateCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
@@ -29,6 +35,12 @@ export function listAdminOrders(params: AdminOrderQueryParams = {}) {
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/orders?${query}` : '/order-api/api/admin/orders';
   return request<AdminOrderPage>(url);
+}
+
+export function listAdminOrderReceipts(params: AdminOrderReceiptQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/order-receipts?${query}` : '/order-api/api/admin/order-receipts';
+  return request<AdminOrderReceiptPage>(url);
 }
 
 export async function downloadAdminOrdersCsv(params: AdminOrderQueryParams = {}) {
@@ -90,6 +102,23 @@ export function initializeAdminOrder(orderNo: string, command: AdminOrderInitial
       body: JSON.stringify(command),
     },
   );
+}
+
+export function receiptAdminOrder(orderNo: string, command: AdminOrderReceiptCommand) {
+  return request<AdminOrderReceiptResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/receipt`,
+    {
+      method: 'POST',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function batchReceiptAdminOrders(command: AdminBatchOrderReceiptCommand) {
+  return request<AdminBatchOrderReceiptResult>('/order-api/api/admin/order-receipts/batch', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
 }
 
 export function getOrderProgress(orderNo: string) {

@@ -2,6 +2,9 @@ package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
 import com.zhyf.order.application.AdminOrderPage;
+import com.zhyf.order.application.AdminOrderReceiptItem;
+import com.zhyf.order.application.AdminOrderReceiptPage;
+import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.domain.InstitutionApp;
@@ -440,6 +443,70 @@ public class OrderRepository {
         return jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderListItem, listQuery.args());
     }
 
+    public AdminOrderReceiptPage searchAdminOrderReceipts(AdminOrderReceiptQuery query, List<String> receiptStatuses) {
+        QueryParts filters = adminOrderReceiptFilters(query, receiptStatuses);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from order_main o
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.order_no,
+                    o.external_order_no,
+                    i.institution_name,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.patient_name,
+                    coalesce(p.prescription_types, '') as prescription_types,
+                    o.status as order_status,
+                    latest_shipment.logistics_company,
+                    latest_shipment.logistics_no,
+                    latest_shipment.logistics_status,
+                    o.created_at,
+                    o.updated_at
+                from order_main o
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select string_agg(distinct coalesce(p.prescription_type, ''), ',') as prescription_types
+                    from prescription p
+                    where p.order_id = o.id
+                ) p on true
+                left join lateral (
+                    select s.logistics_company, s.logistics_no, s.logistics_status
+                    from shipment s
+                    where s.order_id = o.id
+                    order by s.created_at desc
+                    limit 1
+                ) latest_shipment on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by o.created_at desc, o.order_no desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminOrderReceiptPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderReceiptItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
     private QueryParts adminOrderFilters(AdminOrderSearchQuery query) {
         QueryParts filters = new QueryParts("");
         filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
@@ -455,6 +522,16 @@ public class OrderRepository {
         filters.addExistsShipmentLike("s.logistics_company", query.logisticsCompany());
         filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
         filters.addKeywordFilter(query.keyword());
+        return filters;
+    }
+
+    private QueryParts adminOrderReceiptFilters(AdminOrderReceiptQuery query, List<String> receiptStatuses) {
+        QueryParts filters = new QueryParts("");
+        filters.addInFilter("o.status", receiptStatuses);
+        filters.addReceiptPrescriptionFilter(query.prescriptionNo());
+        filters.addLikeFilter("o.receiver_name", query.receiverName());
+        filters.addLikeFilter("o.receiver_phone", query.receiverPhone());
+        filters.addLikeFilter("o.patient_name", query.patientName());
         return filters;
     }
 
@@ -769,6 +846,24 @@ public class OrderRepository {
                   and status = ?
                 """;
         return jdbcTemplate.update(sql, targetStatus, orderId, currentStatus);
+    }
+
+    public int updateLatestShipmentToSigned(UUID orderId) {
+        String sql = """
+                update shipment
+                set logistics_status = 'SIGNED',
+                    sign_time = coalesce(sign_time, now()),
+                    updated_at = now()
+                where id = (
+                    select id
+                    from shipment
+                    where order_id = ?
+                    order by created_at desc
+                    limit 1
+                )
+                  and logistics_status <> 'SIGNED'
+                """;
+        return jdbcTemplate.update(sql, orderId);
     }
 
     public int updatePrescriptionsStatusByOrderId(UUID orderId, String status) {
@@ -1160,6 +1255,30 @@ public class OrderRepository {
         );
     }
 
+    private AdminOrderReceiptItem mapAdminOrderReceiptItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderReceiptItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("patient_name"),
+                rs.getString("prescription_types"),
+                rs.getString("order_status"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_status"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
     private AdminOrderDetailHeader mapAdminOrderDetailHeader(ResultSet rs, int rowNum) throws SQLException {
         return new AdminOrderDetailHeader(
                 rs.getObject("order_id", UUID.class),
@@ -1325,11 +1444,36 @@ public class OrderRepository {
             }
         }
 
+        private void addInFilter(String column, List<String> values) {
+            if (values == null || values.isEmpty()) {
+                return;
+            }
+            append(" and " + column + " in (" + "?,".repeat(values.size() - 1) + "?)");
+            args.addAll(values);
+        }
+
         private void addExistsShipmentLike(String column, String value) {
             String trimmed = trimmed(value);
             if (trimmed != null) {
                 append(" and exists (select 1 from shipment s where s.order_id = o.id and " + column + " ilike ?)");
                 add("%" + trimmed + "%");
+            }
+        }
+
+        private void addReceiptPrescriptionFilter(String value) {
+            String trimmed = trimmed(value);
+            if (trimmed != null) {
+                append("""
+                         and exists (
+                            select 1
+                            from prescription p
+                            where p.order_id = o.id
+                              and (p.prescription_no ilike ? or p.external_prescription_no ilike ?)
+                        )
+                        """);
+                String pattern = "%" + trimmed + "%";
+                add(pattern);
+                add(pattern);
             }
         }
 

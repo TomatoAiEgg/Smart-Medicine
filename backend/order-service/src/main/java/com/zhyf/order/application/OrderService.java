@@ -47,6 +47,14 @@ public class OrderService {
             OrderStatus.CREATED,
             OrderStatus.AUDIT_PASSED
     );
+    private static final Set<OrderStatus> ADMIN_RECEIPTABLE_STATUSES = EnumSet.of(
+            OrderStatus.RECHECKED,
+            OrderStatus.DECOCTING,
+            OrderStatus.DECOCTED,
+            OrderStatus.PACKED,
+            OrderStatus.SHIPPED,
+            OrderStatus.IN_TRANSIT
+    );
     private static final String ORDER_INITIALIZE_EVENT_TYPE = "ORDER_PRESCRIPTION_UPDATED";
 
     private final OrderRepository orderRepository;
@@ -206,6 +214,68 @@ public class OrderService {
             ));
         }
         return builder.toString();
+    }
+
+    public AdminOrderReceiptPage listAdminOrderReceipts(AdminOrderReceiptQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        AdminOrderReceiptQuery normalized = new AdminOrderReceiptQuery(
+                query.prescriptionNo(),
+                query.receiverName(),
+                query.receiverPhone(),
+                query.patientName(),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminOrderReceipts(normalized, receiptableStatusNames());
+    }
+
+    @Transactional
+    public AdminOrderReceiptResult receiptAdminOrder(String orderNo, AdminOrderReceiptCommand command) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        return receiptAdminOrderInternal(orderNo.trim(), command);
+    }
+
+    @Transactional
+    public AdminBatchOrderReceiptResult batchReceiptAdminOrders(AdminBatchOrderReceiptCommand command) {
+        if (command == null || command.orderNos() == null || command.orderNos().isEmpty()) {
+            throw new BusinessException("ORDER_RECEIPT_BATCH_REQUIRED", "请输入要签收的订单号");
+        }
+        List<String> orderNos = command.orderNos().stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+        if (orderNos.isEmpty()) {
+            throw new BusinessException("ORDER_RECEIPT_BATCH_REQUIRED", "请输入要签收的订单号");
+        }
+        List<AdminOrderReceiptResult> results = new ArrayList<>();
+        for (String orderNo : orderNos) {
+            try {
+                results.add(receiptAdminOrderInternal(orderNo, new AdminOrderReceiptCommand(
+                        command.operator(),
+                        command.reason()
+                )));
+            } catch (BusinessException ex) {
+                results.add(new AdminOrderReceiptResult(
+                        orderNo,
+                        null,
+                        OrderStatus.SIGNED.name(),
+                        false,
+                        ex.getMessage(),
+                        Instant.now()
+                ));
+            }
+        }
+        int successCount = (int) results.stream().filter(AdminOrderReceiptResult::success).count();
+        return new AdminBatchOrderReceiptResult(
+                results.size(),
+                successCount,
+                results.size() - successCount,
+                results
+        );
     }
 
     @Transactional
@@ -523,6 +593,77 @@ public class OrderService {
                 eventId,
                 Instant.now()
         );
+    }
+
+    private AdminOrderReceiptResult receiptAdminOrderInternal(String orderNo, AdminOrderReceiptCommand command) {
+        AdminOrderDetail current = getAdminOrderDetail(orderNo);
+        OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
+        if (!ADMIN_RECEIPTABLE_STATUSES.contains(currentStatus)) {
+            throw new BusinessException("ORDER_RECEIPT_NOT_ALLOWED", "当前订单状态不允许签收");
+        }
+        String operator = command == null ? "admin" : defaultText(command.operator(), "admin");
+        String reason = command == null ? null : cleanText(command.reason());
+        int updated = orderRepository.updateOrderStatusIfCurrent(
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.SIGNED.name()
+        );
+        if (updated == 0) {
+            throw new BusinessException("ORDER_RECEIPT_CONFLICT", "订单状态已变更，请刷新后重试");
+        }
+        orderRepository.updateLatestShipmentToSigned(current.orderId());
+        orderRepository.insertOrderStatusLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.SIGNED.name(),
+                "ADMIN",
+                "admin-order-receipt"
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                operator,
+                "ORDER_RECEIPT",
+                "SUCCESS",
+                reason,
+                writeJson(Map.of(
+                        "orderNo", current.orderNo(),
+                        "fromStatus", currentStatus.name(),
+                        "toStatus", OrderStatus.SIGNED.name(),
+                        "reason", value(reason)
+                ))
+        );
+        orderRepository.insertOutbox(
+                UUID.randomUUID(),
+                current.tenantId(),
+                UUID.randomUUID().toString(),
+                "ORDER_SIGNED",
+                "ORDER",
+                current.orderId().toString(),
+                writeJson(Map.of(
+                        "tenantId", current.tenantId(),
+                        "orderId", current.orderId(),
+                        "orderNo", current.orderNo(),
+                        "externalOrderNo", current.externalOrderNo(),
+                        "sourceAction", "ORDER_RECEIPT"
+                ))
+        );
+        return new AdminOrderReceiptResult(
+                current.orderNo(),
+                currentStatus.name(),
+                OrderStatus.SIGNED.name(),
+                true,
+                "SUCCESS",
+                Instant.now()
+        );
+    }
+
+    private List<String> receiptableStatusNames() {
+        return ADMIN_RECEIPTABLE_STATUSES.stream().map(OrderStatus::name).toList();
     }
 
     private OrderCreateResult createNewOrder(

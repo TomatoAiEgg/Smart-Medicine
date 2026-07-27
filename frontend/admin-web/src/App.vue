@@ -10,6 +10,7 @@ import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import AddressModify from './features/orders/AddressModify.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import OrderReceipt from './features/orders/OrderReceipt.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
@@ -43,6 +44,7 @@ const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
+const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
 const opsCount = ref(0);
@@ -57,6 +59,7 @@ const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
 const prescriptionModifyActivationKey = ref(0);
+const orderReceiptActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
 
@@ -133,6 +136,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
+  if (componentKey === 'orderReceipt') orderReceiptActivationKey.value += 1;
 }, { immediate: true });
 
 async function refreshCurrentTasks() {
@@ -175,6 +179,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'prescriptionModify') {
     await prescriptionModifyRef.value?.refreshPrescriptionOrders();
+    return;
+  }
+  if (componentKey === 'orderReceipt') {
+    await orderReceiptRef.value?.refreshOrderReceipts();
     return;
   }
   if (componentKey === 'ops') {
@@ -325,6 +333,14 @@ function closeTab(view: ViewKey) {
       ref="prescriptionModifyRef"
       active
       :activation-key="prescriptionModifyActivationKey"
+      @notice="showNotice"
+    />
+
+    <OrderReceipt
+      v-else-if="currentComponentKey === 'orderReceipt'"
+      ref="orderReceiptRef"
+      active
+      :activation-key="orderReceiptActivationKey"
       @notice="showNotice"
     />
 
