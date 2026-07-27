@@ -75,6 +75,33 @@ export interface AdminOrderPage {
   pageSize: number;
 }
 
+export interface AdminOrderAddressUpdateCommand {
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince?: string;
+  receiverCity?: string;
+  receiverZone?: string;
+  receiverAddress: string;
+  addressType?: string;
+  deliveryTime?: string;
+  operator?: string;
+  reason?: string;
+}
+
+export interface AdminOrderAddressUpdateResult {
+  orderId: string;
+  orderNo: string;
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string;
+  addressType: string | null;
+  deliveryTime: string | null;
+  updatedAt: string;
+}
+
 export interface AdminOrderDetail {
   orderId: string;
   tenantId: string;

@@ -13,6 +13,7 @@ import com.zhyf.order.infrastructure.OrderRepository;
 import java.math.BigDecimal;
 import java.time.format.DateTimeParseException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -113,6 +114,64 @@ public class OrderService {
                 pageSize
         );
         return orderRepository.searchAdminOrders(normalized);
+    }
+
+    @Transactional
+    public AdminOrderAddressUpdateResult updateAdminOrderAddress(
+            String orderNo,
+            AdminOrderAddressUpdateCommand command
+    ) {
+        if (command == null) {
+            throw new BusinessException("ORDER_ADDRESS_COMMAND_REQUIRED", "地址修改参数不能为空");
+        }
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        String receiverName = requireText(command.receiverName(), "RECEIVER_NAME_REQUIRED", "收货人不能为空");
+        String receiverPhone = requireText(command.receiverPhone(), "RECEIVER_PHONE_REQUIRED", "收货电话不能为空");
+        String receiverAddress = requireText(command.receiverAddress(), "RECEIVER_ADDRESS_REQUIRED", "详细地址不能为空");
+        String normalizedOrderNo = orderNo.trim();
+        Instant deliveryTime = readAddressDeliveryTime(command.deliveryTime());
+        AdminOrderDetail current = getAdminOrderDetail(normalizedOrderNo);
+        int updated = orderRepository.updateOrderAddress(
+                current.orderId(),
+                receiverName,
+                receiverPhone,
+                cleanText(command.receiverProvince()),
+                cleanText(command.receiverCity()),
+                cleanText(command.receiverZone()),
+                receiverAddress,
+                cleanText(command.addressType()),
+                deliveryTime
+        );
+        if (updated == 0) {
+            throw new BusinessException("ORDER_ADDRESS_UPDATE_FAILED", "订单地址更新失败");
+        }
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                defaultText(command.operator(), "admin"),
+                "ORDER_ADDRESS_UPDATE",
+                "SUCCESS",
+                cleanText(command.reason()),
+                writeJson(command)
+        );
+        AdminOrderDetail next = getAdminOrderDetail(normalizedOrderNo);
+        return new AdminOrderAddressUpdateResult(
+                next.orderId(),
+                next.orderNo(),
+                next.receiverName(),
+                next.receiverPhone(),
+                next.receiverProvince(),
+                next.receiverCity(),
+                next.receiverZone(),
+                next.receiverAddress(),
+                next.addressType(),
+                next.deliveryTime(),
+                next.updatedAt()
+        );
     }
 
     private OrderCreateResult createNewOrder(
@@ -289,6 +348,34 @@ public class OrderService {
         return null;
     }
 
+    private String requireText(String value, String code, String message) {
+        String cleaned = cleanText(value);
+        if (!StringUtils.hasText(cleaned)) {
+            throw new BusinessException(code, message);
+        }
+        return cleaned;
+    }
+
+    private String cleanText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String defaultText(String value, String fallback) {
+        String cleaned = cleanText(value);
+        return cleaned == null ? fallback : cleaned;
+    }
+
+    private Instant readAddressDeliveryTime(String text) {
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        Instant deliveryTime = readInstantText(text);
+        if (deliveryTime == null) {
+            throw new BusinessException("DELIVERY_TIME_INVALID", "送货时间格式应为 yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss");
+        }
+        return deliveryTime;
+    }
+
     private Integer readInteger(JsonNode node, String... names) {
         String text = readText(node, names);
         if (!StringUtils.hasText(text)) {
@@ -315,6 +402,10 @@ public class OrderService {
 
     private Instant readInstant(JsonNode node, String... names) {
         String text = readText(node, names);
+        return readInstantText(text);
+    }
+
+    private Instant readInstantText(String text) {
         if (!StringUtils.hasText(text)) {
             return null;
         }
@@ -332,6 +423,13 @@ public class OrderService {
         try {
             return LocalDateTime.parse(trimmed, LEGACY_DATE_TIME_FORMATTER)
                     .atZone(DEFAULT_PAYLOAD_ZONE)
+                    .toInstant();
+        } catch (DateTimeParseException ignored) {
+            // 兼容老后台只传日期的地址修改表单。
+        }
+        try {
+            return LocalDate.parse(trimmed)
+                    .atStartOfDay(DEFAULT_PAYLOAD_ZONE)
                     .toInstant();
         } catch (DateTimeParseException ignored) {
             return null;

@@ -673,6 +673,53 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, status, orderId);
     }
 
+    public int updateOrderAddress(
+            UUID orderId,
+            String receiverName,
+            String receiverPhone,
+            String receiverProvince,
+            String receiverCity,
+            String receiverZone,
+            String receiverAddress,
+            String addressType,
+            Instant deliveryTime
+    ) {
+        String sql = """
+                update order_main
+                set receiver_name = ?,
+                    receiver_phone = ?,
+                    receiver_province = ?,
+                    receiver_city = ?,
+                    receiver_zone = ?,
+                    receiver_address = ?,
+                    address_type = ?,
+                    delivery_time = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, receiverName, receiverPhone, receiverProvince, receiverCity, receiverZone,
+                receiverAddress, addressType, offsetDateTime(deliveryTime), orderId);
+    }
+
+    public void insertOperationLog(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID prescriptionId,
+            String operator,
+            String action,
+            String result,
+            String reason,
+            String payload
+    ) {
+        String sql = """
+                insert into operation_log (
+                    id, tenant_id, order_id, prescription_id, operator, action, result, reason, payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, orderId, prescriptionId, operator, action, result, reason, payload);
+    }
+
     public int updateWorkflowTaskReviewResult(
             UUID taskId,
             String taskStatus,

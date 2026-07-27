@@ -1,5 +1,7 @@
 import { request } from './client';
 import type {
+  AdminOrderAddressUpdateCommand,
+  AdminOrderAddressUpdateResult,
   AdminOrderDetail,
   AdminOrderPage,
   AdminOrderQueryParams,
@@ -29,6 +31,16 @@ export function getOrder(orderNo: string) {
 
 export function getAdminOrderDetail(orderNo: string) {
   return request<AdminOrderDetail>(`/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/detail`);
+}
+
+export function updateAdminOrderAddress(orderNo: string, command: AdminOrderAddressUpdateCommand) {
+  return request<AdminOrderAddressUpdateResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/address`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
 }
 
 export function getOrderProgress(orderNo: string) {

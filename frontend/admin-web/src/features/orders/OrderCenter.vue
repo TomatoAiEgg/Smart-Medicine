@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ApiError } from '../../api/client';
-import { getAdminOrderDetail, getOrder, getOrderProgress, listAdminOrders } from '../../api/order';
+import {
+  getAdminOrderDetail,
+  getOrder,
+  getOrderProgress,
+  listAdminOrders,
+  updateAdminOrderAddress,
+} from '../../api/order';
 import type {
   AdminOrderDetail,
   AdminOrderDetailDrug,
   AdminOrderListItem,
   AdminOrderPage,
+  AdminOrderAddressUpdateCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
 } from '../../api/types';
@@ -19,6 +26,18 @@ interface DetailDrugRow {
   prescriptionNo: string;
   externalPrescriptionNo: string;
   detail: AdminOrderDetailDrug;
+}
+interface AddressForm {
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince: string;
+  receiverCity: string;
+  receiverZone: string;
+  receiverAddress: string;
+  addressType: string;
+  deliveryTime: string;
+  operator: string;
+  reason: string;
 }
 type NumericValue = string | number | null | undefined;
 
@@ -53,6 +72,20 @@ const orderError = ref('');
 const selectedOrderNo = ref('');
 const page = ref(1);
 const pageSize = ref(20);
+const addressModalOpen = ref(false);
+const addressSubmitting = ref(false);
+const addressForm = ref<AddressForm>({
+  receiverName: '',
+  receiverPhone: '',
+  receiverProvince: '',
+  receiverCity: '',
+  receiverZone: '',
+  receiverAddress: '',
+  addressType: '',
+  deliveryTime: '',
+  operator: 'admin',
+  reason: '',
+});
 
 const orderRows = computed(() => orderPage.value?.records ?? []);
 const detailPrescriptions = computed(() => orderDetail.value?.prescriptions ?? []);
@@ -92,6 +125,7 @@ const hasPreviousPage = computed(() => page.value > 1 && !orderLoading.value);
 const hasNextPage = computed(() => (
   !orderLoading.value && page.value * pageSize.value < resultCount.value
 ));
+const canEditAddress = computed(() => !!orderDetail.value && !detailLoading.value && !addressSubmitting.value);
 const pageSummary = computed(() => {
   const total = resultCount.value;
   if (total === 0) return '显示第 0 至 0 项记录，共 0 项';
@@ -171,6 +205,18 @@ function batchText(batchNo: string | null | undefined) {
     晚批次: '晚批次',
   };
   return batchNo ? labels[batchNo] ?? batchNo : EMPTY_VALUE;
+}
+
+function legacyDateTimeInput(value: string | null | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (nextValue: number) => String(nextValue).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function receiverSummary(row: AdminOrderListItem) {
@@ -285,6 +331,73 @@ function callbackTypeText(type: string) {
 
 function scrollToOrderDetail() {
   document.getElementById('order-detail-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function openAddressModal() {
+  if (!orderDetail.value) {
+    orderError.value = '请先查看一条订单详情后再修改地址';
+    return;
+  }
+  addressForm.value = {
+    receiverName: orderDetail.value.receiverName ?? '',
+    receiverPhone: orderDetail.value.receiverPhone ?? '',
+    receiverProvince: orderDetail.value.receiverProvince ?? '',
+    receiverCity: orderDetail.value.receiverCity ?? '',
+    receiverZone: orderDetail.value.receiverZone ?? '',
+    receiverAddress: orderDetail.value.receiverAddress ?? '',
+    addressType: orderDetail.value.addressType ?? '',
+    deliveryTime: legacyDateTimeInput(orderDetail.value.deliveryTime),
+    operator: addressForm.value.operator || 'admin',
+    reason: '',
+  };
+  addressModalOpen.value = true;
+}
+
+function closeAddressModal() {
+  if (addressSubmitting.value) return;
+  addressModalOpen.value = false;
+}
+
+async function submitAddressUpdate() {
+  if (!orderDetail.value) return;
+  const command: AdminOrderAddressUpdateCommand = {
+    receiverName: addressForm.value.receiverName.trim(),
+    receiverPhone: addressForm.value.receiverPhone.trim(),
+    receiverProvince: addressForm.value.receiverProvince.trim(),
+    receiverCity: addressForm.value.receiverCity.trim(),
+    receiverZone: addressForm.value.receiverZone.trim(),
+    receiverAddress: addressForm.value.receiverAddress.trim(),
+    addressType: addressForm.value.addressType,
+    deliveryTime: addressForm.value.deliveryTime.trim(),
+    operator: addressForm.value.operator.trim() || 'admin',
+    reason: addressForm.value.reason.trim(),
+  };
+  if (!command.receiverName || !command.receiverPhone || !command.receiverAddress) {
+    orderError.value = '收货人、收货电话和详细地址不能为空';
+    return;
+  }
+  addressSubmitting.value = true;
+  orderError.value = '';
+  try {
+    const targetOrderNo = orderDetail.value.orderNo;
+    await updateAdminOrderAddress(targetOrderNo, command);
+    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+      getOrder(targetOrderNo),
+      getAdminOrderDetail(targetOrderNo),
+      getOrderProgress(targetOrderNo),
+      queryOrder(),
+    ]);
+    order.value = nextOrder;
+    orderDetail.value = nextDetail;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = targetOrderNo;
+    addressModalOpen.value = false;
+    emit('notice', 'success', `订单 ${targetOrderNo} 地址已更新`);
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    addressSubmitting.value = false;
+  }
 }
 
 async function queryOrder() {
@@ -499,7 +612,7 @@ async function goNextPage() {
     </p>
 
     <div class="order-action-bar">
-      <button class="legacy-btn" type="button" disabled title="等待后端地址修改契约">地址修改</button>
+      <button class="legacy-btn" type="button" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端处方修改契约">处方修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
       <button class="legacy-btn" type="button" disabled title="等待后端订单取消契约">取消</button>
@@ -579,6 +692,72 @@ async function goNextPage() {
         <span>第 {{ page }} 页</span>
         <button class="legacy-btn" type="button" :disabled="!hasNextPage" @click="goNextPage">下一页</button>
       </div>
+    </div>
+
+    <div v-if="addressModalOpen" class="legacy-modal-mask">
+      <section class="legacy-modal address-modal">
+        <div class="legacy-modal-head">
+          <h2>修改订单地址</h2>
+          <button class="legacy-link-btn" type="button" :disabled="addressSubmitting" @click="closeAddressModal">关闭</button>
+        </div>
+        <div class="address-form-grid">
+          <label>
+            <span>平台订单号</span>
+            <input class="legacy-input" :value="orderDetail?.orderNo" disabled />
+          </label>
+          <label>
+            <span>操作人</span>
+            <input v-model="addressForm.operator" class="legacy-input" />
+          </label>
+          <label>
+            <span>收货人</span>
+            <input v-model="addressForm.receiverName" class="legacy-input" />
+          </label>
+          <label>
+            <span>收货电话</span>
+            <input v-model="addressForm.receiverPhone" class="legacy-input" />
+          </label>
+          <label>
+            <span>送货方式</span>
+            <select v-model="addressForm.addressType" class="legacy-input">
+              <option value="">默认</option>
+              <option value="HOSPITAL">送医院</option>
+              <option value="PATIENT">送个人</option>
+              <option value="PICKUP">自提</option>
+            </select>
+          </label>
+          <label>
+            <span>送货时间</span>
+            <input v-model="addressForm.deliveryTime" class="legacy-input" placeholder="YYYY-MM-DD HH:mm:ss" />
+          </label>
+          <label>
+            <span>省份</span>
+            <input v-model="addressForm.receiverProvince" class="legacy-input" />
+          </label>
+          <label>
+            <span>城市</span>
+            <input v-model="addressForm.receiverCity" class="legacy-input" />
+          </label>
+          <label>
+            <span>区县</span>
+            <input v-model="addressForm.receiverZone" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>详细地址</span>
+            <input v-model="addressForm.receiverAddress" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>修改原因</span>
+            <input v-model="addressForm.reason" class="legacy-input" placeholder="可选" />
+          </label>
+        </div>
+        <div class="legacy-modal-actions">
+          <button class="legacy-btn" type="button" :disabled="addressSubmitting" @click="closeAddressModal">取消</button>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="addressSubmitting" @click="submitAddressUpdate">
+            {{ addressSubmitting ? '保存中' : '保存地址' }}
+          </button>
+        </div>
+      </section>
     </div>
 
     <section id="order-detail-panel" class="order-detail-workbench">
@@ -1026,6 +1205,68 @@ async function goNextPage() {
   font-size: 13px;
 }
 
+.legacy-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(15 23 42 / 38%);
+}
+
+.legacy-modal {
+  width: min(860px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid #b9c6d8;
+  background: #fff;
+  box-shadow: 0 16px 42px rgb(15 23 42 / 22%);
+}
+
+.legacy-modal-head,
+.legacy-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.legacy-modal-head {
+  margin-bottom: 12px;
+}
+
+.legacy-modal-head h2 {
+  margin: 0;
+  color: #1f5fa3;
+  font-size: 15px;
+}
+
+.legacy-modal-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.address-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.address-form-grid label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #344054;
+  font-size: 12px;
+}
+
+.address-form-wide {
+  grid-column: span 3;
+}
+
 .order-detail-workbench {
   display: grid;
   gap: 12px;
@@ -1148,6 +1389,14 @@ async function goNextPage() {
   .order-page-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .address-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .address-form-wide {
+    grid-column: span 1;
   }
 
   .order-detail-grid,
