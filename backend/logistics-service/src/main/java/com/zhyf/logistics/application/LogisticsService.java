@@ -58,6 +58,10 @@ public class LogisticsService {
         return repository.findTraces(shipmentId);
     }
 
+    public List<LogisticsRecords.LogisticsInfoRecord> listLogisticsInfos(LogisticsShipmentQuery query) {
+        return repository.findLogisticsInfos(normalizeQuery(query));
+    }
+
     @Transactional
     public LogisticsRecords.ShipmentRecord pack(LogisticsCommands.PackCommand command) {
         requireText(command.orderNo(), "ORDER_NO_REQUIRED", "Order no is required");

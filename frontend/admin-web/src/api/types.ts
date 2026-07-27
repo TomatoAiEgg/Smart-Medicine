@@ -1019,6 +1019,22 @@ export interface ShipmentTraceRecord {
   createdAt: string;
 }
 
+export interface LogisticsInfoRecord {
+  traceId: string;
+  tenantId: string;
+  shipmentId: string;
+  orderId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  logisticsNo: string;
+  logisticsCompany: string;
+  operationInfo: string | null;
+  traceStatus: string;
+  receiverPhone: string | null;
+  traceTime: string;
+  createdAt: string;
+}
+
 export interface CallbackRecord {
   id: string;
   tenantId: string;

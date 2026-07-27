@@ -151,6 +151,35 @@ public class LogisticsRepository {
         return jdbcTemplate.query(sql, this::mapTrace, shipmentId);
     }
 
+    public List<LogisticsRecords.LogisticsInfoRecord> findLogisticsInfos(LogisticsShipmentQuery params) {
+        QueryParts parts = new QueryParts("""
+                select t.id as trace_id,
+                       t.tenant_id,
+                       t.shipment_id,
+                       t.order_id,
+                       o.order_no,
+                       o.external_order_no,
+                       t.logistics_no,
+                       s.logistics_company,
+                       coalesce(nullif(t.trace_content, ''), t.trace_status) as operation_info,
+                       t.trace_status,
+                       o.receiver_phone,
+                       t.trace_time,
+                       t.created_at
+                from shipment_trace t
+                join shipment s on s.id = t.shipment_id
+                join order_main o on o.id = t.order_id
+                where 1 = 1
+                """);
+        parts.addRangeFilter("t.created_at", params.startTime(), params.endTime());
+        parts.addKeywordFilter(params.orderNo());
+        parts.addLikeFilter("o.receiver_phone", params.receiverPhone());
+        parts.addLikeFilter("t.logistics_no", params.logisticsNo());
+        parts.append(" order by t.trace_time desc, t.created_at desc limit ?");
+        parts.add(params.limit());
+        return jdbcTemplate.query(parts.sql(), this::mapLogisticsInfo, parts.args());
+    }
+
     private String baseShipmentQuery() {
         return """
                 select s.id as shipment_id,
@@ -289,6 +318,24 @@ public class LogisticsRepository {
                 rs.getString("trace_status"),
                 rs.getString("trace_content"),
                 rs.getString("raw_payload"),
+                instant(rs, "trace_time"),
+                instant(rs, "created_at")
+        );
+    }
+
+    private LogisticsRecords.LogisticsInfoRecord mapLogisticsInfo(ResultSet rs, int rowNum) throws SQLException {
+        return new LogisticsRecords.LogisticsInfoRecord(
+                rs.getObject("trace_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("shipment_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_company"),
+                rs.getString("operation_info"),
+                rs.getString("trace_status"),
+                rs.getString("receiver_phone"),
                 instant(rs, "trace_time"),
                 instant(rs, "created_at")
         );

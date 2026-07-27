@@ -69,4 +69,21 @@ public final class LogisticsRecords {
             Instant createdAt
     ) {
     }
+
+    public record LogisticsInfoRecord(
+            UUID traceId,
+            UUID tenantId,
+            UUID shipmentId,
+            UUID orderId,
+            String orderNo,
+            String externalOrderNo,
+            String logisticsNo,
+            String logisticsCompany,
+            String operationInfo,
+            String traceStatus,
+            String receiverPhone,
+            Instant traceTime,
+            Instant createdAt
+    ) {
+    }
 }

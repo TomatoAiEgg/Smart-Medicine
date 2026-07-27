@@ -10,6 +10,7 @@ export type ImplementedViewKey =
   | 'recheckScan'
   | 'decoction'
   | 'logistics'
+  | 'logisticsInfo'
   | 'portal'
   | 'reports'
   | 'integration'
@@ -285,8 +286,9 @@ export const menuItems = [
     path: '/logistics/traces',
     legacyRoute: 'logistics/listLogisInfo.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '运单和物流轨迹查询',
+    componentKey: 'logisticsInfo',
     plannedComponent: 'features/logistics/LogisticsInfo.vue',
     coreActions: ['运单查询', '轨迹查询', '签收状态查询'],
     apiDependencies: ['物流单查询', '轨迹查询'],

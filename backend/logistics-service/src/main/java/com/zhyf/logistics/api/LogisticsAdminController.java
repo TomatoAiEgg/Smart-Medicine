@@ -103,6 +103,32 @@ public class LogisticsAdminController {
         )));
     }
 
+    @GetMapping("/infos")
+    public ApiResponse<List<LogisticsRecords.LogisticsInfoRecord>> listLogisticsInfos(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String receiverPhone,
+            @RequestParam(required = false) String logisticsNo,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(logisticsService.listLogisticsInfos(query(
+                startTime,
+                endTime,
+                null,
+                orderNo,
+                null,
+                null,
+                receiverPhone,
+                null,
+                null,
+                null,
+                null,
+                logisticsNo,
+                limit
+        )));
+    }
+
     @PostMapping("/shipments/pack")
     public ApiResponse<LogisticsRecords.ShipmentRecord> pack(@RequestBody LogisticsCommands.PackCommand command) {
         return ApiResponse.ok(logisticsService.pack(command));

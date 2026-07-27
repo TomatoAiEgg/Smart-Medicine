@@ -1,6 +1,7 @@
 import { request } from './client';
 import type {
   DeliveryOrderRecord,
+  LogisticsInfoRecord,
   PackShipmentCommand,
   ShipmentActionCommand,
   ShipmentRecord,
@@ -42,6 +43,11 @@ export function listReadyDeliveryOrders(params: LogisticsQueryParams = {}) {
 export function listShipments(params: LogisticsQueryParams = {}) {
   const query = buildQuery(params);
   return request<ShipmentRecord[]>(`/logistics-api/api/admin/logistics/shipments${query ? `?${query}` : ''}`);
+}
+
+export function listLogisticsInfos(params: LogisticsQueryParams = {}) {
+  const query = buildQuery(params);
+  return request<LogisticsInfoRecord[]>(`/logistics-api/api/admin/logistics/infos${query ? `?${query}` : ''}`);
 }
 
 export function packShipment(command: PackShipmentCommand) {
