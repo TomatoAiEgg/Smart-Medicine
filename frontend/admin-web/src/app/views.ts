@@ -15,7 +15,8 @@ export type ImplementedViewKey =
   | 'integration'
   | 'observability'
   | 'ops'
-  | 'addressModify';
+  | 'addressModify'
+  | 'prescriptionModify';
 
 export interface AppRouteItem {
   key: string;
@@ -434,8 +435,9 @@ export const menuItems = [
     path: '/orders/prescription-modifications',
     legacyRoute: 'order/listModifyPrescri.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '处方信息维护和重新校验',
+    componentKey: 'prescriptionModify',
     plannedComponent: 'features/orders/PrescriptionModify.vue',
     coreActions: ['处方修改', '重新校验'],
     apiDependencies: ['处方修改', '校验事件'],
