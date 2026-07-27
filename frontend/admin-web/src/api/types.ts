@@ -117,6 +117,18 @@ export interface AdminOrderCancelResult {
   cancelledAt: string;
 }
 
+export interface AdminPrescriptionUpdateCommand {
+  prescriptionType: string;
+  hospitalType?: string;
+  doseCount?: number | null;
+  decoctionCount?: number | null;
+  medicationMethod?: string;
+  medicationInstruction?: string;
+  prescriptionRemark?: string;
+  operator?: string;
+  reason?: string;
+}
+
 export interface AdminOrderDetail {
   orderId: string;
   tenantId: string;

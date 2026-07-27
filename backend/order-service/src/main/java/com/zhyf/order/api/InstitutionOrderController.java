@@ -10,6 +10,7 @@ import com.zhyf.order.application.AdminOrderCancelResult;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderSearchQuery;
+import com.zhyf.order.application.AdminPrescriptionUpdateCommand;
 import com.zhyf.order.application.OrderCreateCommand;
 import com.zhyf.order.application.OrderCreateResult;
 import com.zhyf.order.application.OrderReviewCommand;
@@ -177,6 +178,15 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderAddressUpdateCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminOrderAddress(orderNo, command));
+    }
+
+    @PatchMapping("/admin/orders/{orderNo}/prescriptions/{prescriptionId}")
+    public ApiResponse<AdminOrderDetail.Prescription> updatePrescription(
+            @PathVariable String orderNo,
+            @PathVariable UUID prescriptionId,
+            @RequestBody AdminPrescriptionUpdateCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminPrescription(orderNo, prescriptionId, command));
     }
 
     @PostMapping("/admin/orders/{orderNo}/cancel")

@@ -20,7 +20,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,10 @@ public class OrderService {
             OrderStatus.CREATED,
             OrderStatus.AUDIT_PASSED,
             OrderStatus.RECHECKED
+    );
+    private static final Set<OrderStatus> ADMIN_PRESCRIPTION_EDITABLE_STATUSES = EnumSet.of(
+            OrderStatus.CREATED,
+            OrderStatus.AUDIT_PASSED
     );
 
     private final OrderRepository orderRepository;
@@ -257,6 +263,76 @@ public class OrderService {
                 next.deliveryTime(),
                 next.updatedAt()
         );
+    }
+
+    @Transactional
+    public AdminOrderDetail.Prescription updateAdminPrescription(
+            String orderNo,
+            UUID prescriptionId,
+            AdminPrescriptionUpdateCommand command
+    ) {
+        if (command == null) {
+            throw new BusinessException("PRESCRIPTION_UPDATE_COMMAND_REQUIRED", "处方修改参数不能为空");
+        }
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        if (prescriptionId == null) {
+            throw new BusinessException("PRESCRIPTION_ID_REQUIRED", "处方 ID 不能为空");
+        }
+        AdminOrderDetail current = getAdminOrderDetail(orderNo.trim());
+        OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
+        if (!ADMIN_PRESCRIPTION_EDITABLE_STATUSES.contains(currentStatus)) {
+            throw new BusinessException("PRESCRIPTION_UPDATE_NOT_ALLOWED", "当前订单状态不允许修改处方");
+        }
+        AdminOrderDetail.Prescription oldPrescription = current.prescriptions().stream()
+                .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        if (PrescriptionStatus.CANCELLED.name().equals(oldPrescription.prescriptionStatus())) {
+            throw new BusinessException("PRESCRIPTION_UPDATE_NOT_ALLOWED", "已取消处方不允许修改");
+        }
+
+        String prescriptionType = requireText(command.prescriptionType(), "PRESCRIPTION_TYPE_REQUIRED", "处方类型不能为空");
+        String hospitalType = cleanText(command.hospitalType());
+        Integer doseCount = requireNonNegative(command.doseCount(), "DOSE_COUNT_INVALID", "剂数不能小于 0");
+        Integer decoctionCount = requireNonNegative(
+                command.decoctionCount(),
+                "DECOCTION_COUNT_INVALID",
+                "煎煮剂数不能小于 0"
+        );
+        if (isDecoctionPrescription(prescriptionType) && (decoctionCount == null || decoctionCount == 0)) {
+            throw new BusinessException("DECOCTION_COUNT_REQUIRED", "代煎处方的煎煮剂数必须大于 0");
+        }
+        int updated = orderRepository.updatePrescription(
+                current.orderId(),
+                prescriptionId,
+                prescriptionType,
+                hospitalType,
+                doseCount,
+                decoctionCount,
+                cleanText(command.medicationMethod()),
+                cleanText(command.medicationInstruction()),
+                cleanText(command.prescriptionRemark())
+        );
+        if (updated == 0) {
+            throw new BusinessException("PRESCRIPTION_UPDATE_FAILED", "处方修改失败");
+        }
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                prescriptionId,
+                defaultText(command.operator(), "admin"),
+                "ORDER_PRESCRIPTION_UPDATE",
+                "SUCCESS",
+                cleanText(command.reason()),
+                writeJson(prescriptionUpdatePayload(oldPrescription, command))
+        );
+        return getAdminOrderDetail(orderNo.trim()).prescriptions().stream()
+                .filter(prescription -> prescription.prescriptionId().equals(prescriptionId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
     }
 
     @Transactional
@@ -520,6 +596,49 @@ public class OrderService {
 
     private boolean canAdminCancel(OrderStatus status) {
         return ADMIN_CANCELLABLE_STATUSES.contains(status);
+    }
+
+    private Integer requireNonNegative(Integer value, String code, String message) {
+        if (value != null && value < 0) {
+            throw new BusinessException(code, message);
+        }
+        return value;
+    }
+
+    private boolean isDecoctionPrescription(String prescriptionType) {
+        return "2".equals(prescriptionType)
+                || "DECOCTION".equals(prescriptionType)
+                || "代煎".equals(prescriptionType);
+    }
+
+    private Map<String, Object> prescriptionUpdatePayload(
+            AdminOrderDetail.Prescription oldPrescription,
+            AdminPrescriptionUpdateCommand command
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("old", prescriptionSnapshot(oldPrescription));
+        Map<String, Object> next = new LinkedHashMap<>();
+        next.put("prescriptionType", command.prescriptionType());
+        next.put("hospitalType", command.hospitalType());
+        next.put("doseCount", command.doseCount());
+        next.put("decoctionCount", command.decoctionCount());
+        next.put("medicationMethod", command.medicationMethod());
+        next.put("medicationInstruction", command.medicationInstruction());
+        next.put("prescriptionRemark", command.prescriptionRemark());
+        payload.put("new", next);
+        return payload;
+    }
+
+    private Map<String, Object> prescriptionSnapshot(AdminOrderDetail.Prescription prescription) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("prescriptionType", prescription.prescriptionType());
+        snapshot.put("hospitalType", prescription.hospitalType());
+        snapshot.put("doseCount", prescription.doseCount());
+        snapshot.put("decoctionCount", prescription.decoctionCount());
+        snapshot.put("medicationMethod", prescription.medicationMethod());
+        snapshot.put("medicationInstruction", prescription.medicationInstruction());
+        snapshot.put("prescriptionRemark", prescription.prescriptionRemark());
+        return snapshot;
     }
 
     private void appendCsvRow(StringBuilder builder, List<String> values) {

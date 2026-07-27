@@ -5,8 +5,10 @@ import type {
   AdminOrderCancelCommand,
   AdminOrderCancelResult,
   AdminOrderDetail,
+  AdminOrderDetailPrescription,
   AdminOrderPage,
   AdminOrderQueryParams,
+  AdminPrescriptionUpdateCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
 } from './types';
@@ -47,6 +49,20 @@ export function getAdminOrderDetail(orderNo: string) {
 export function updateAdminOrderAddress(orderNo: string, command: AdminOrderAddressUpdateCommand) {
   return request<AdminOrderAddressUpdateResult>(
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/address`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function updateAdminPrescription(
+  orderNo: string,
+  prescriptionId: string,
+  command: AdminPrescriptionUpdateCommand,
+) {
+  return request<AdminOrderDetailPrescription>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/prescriptions/${encodeURIComponent(prescriptionId)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(command),

@@ -809,6 +809,44 @@ public class OrderRepository {
                 receiverAddress, addressType, offsetDateTime(deliveryTime), orderId);
     }
 
+    public int updatePrescription(
+            UUID orderId,
+            UUID prescriptionId,
+            String prescriptionType,
+            String hospitalType,
+            Integer doseCount,
+            Integer decoctionCount,
+            String medicationMethod,
+            String medicationInstruction,
+            String prescriptionRemark
+    ) {
+        String sql = """
+                update prescription
+                set prescription_type = ?,
+                    hospital_type = ?,
+                    dose_count = ?,
+                    decoction_count = ?,
+                    medication_method = ?,
+                    medication_instruction = ?,
+                    prescription_remark = ?,
+                    updated_at = now()
+                where id = ?
+                  and order_id = ?
+                """;
+        return jdbcTemplate.update(
+                sql,
+                prescriptionType,
+                hospitalType,
+                doseCount,
+                decoctionCount,
+                medicationMethod,
+                medicationInstruction,
+                prescriptionRemark,
+                prescriptionId,
+                orderId
+        );
+    }
+
     public void insertOperationLog(
             UUID id,
             UUID tenantId,

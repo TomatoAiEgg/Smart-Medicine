@@ -9,11 +9,13 @@ import {
   getOrderProgress,
   listAdminOrders,
   updateAdminOrderAddress,
+  updateAdminPrescription,
 } from '../../api/order';
 import { signShipment } from '../../api/logistics';
 import type {
   AdminOrderDetail,
   AdminOrderDetailDrug,
+  AdminOrderDetailPrescription,
   AdminOrderListItem,
   AdminOrderPage,
   AdminOrderAddressUpdateCommand,
@@ -21,6 +23,7 @@ import type {
   OrderCreateResult,
   OrderProgressSnapshot,
   AdminOrderQueryParams,
+  AdminPrescriptionUpdateCommand,
   ShipmentActionCommand,
   ShipmentProgress,
 } from '../../api/types';
@@ -50,12 +53,26 @@ interface CancelForm {
   operator: string;
   reason: string;
 }
+interface PrescriptionForm {
+  prescriptionId: string;
+  prescriptionType: string;
+  hospitalType: string;
+  doseCount: FormNumberValue;
+  decoctionCount: FormNumberValue;
+  medicationMethod: string;
+  medicationInstruction: string;
+  prescriptionRemark: string;
+  operator: string;
+  reason: string;
+}
 interface SignForm {
   operator: string;
   remark: string;
 }
 type NumericValue = string | number | null | undefined;
+type FormNumberValue = number | '' | null;
 const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
+const EDITABLE_PRESCRIPTION_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED']);
 const SIGNABLE_SHIPMENT_STATUSES = new Set(['PACKED', 'SHIPPED', 'IN_TRANSIT']);
 
 const emit = defineEmits<{
@@ -92,6 +109,8 @@ const page = ref(1);
 const pageSize = ref(20);
 const addressModalOpen = ref(false);
 const addressSubmitting = ref(false);
+const prescriptionModalOpen = ref(false);
+const prescriptionSubmitting = ref(false);
 const cancelModalOpen = ref(false);
 const cancelSubmitting = ref(false);
 const signModalOpen = ref(false);
@@ -112,6 +131,18 @@ const cancelForm = ref<CancelForm>({
   operator: 'admin',
   reason: '',
 });
+const prescriptionForm = ref<PrescriptionForm>({
+  prescriptionId: '',
+  prescriptionType: '',
+  hospitalType: '',
+  doseCount: null,
+  decoctionCount: null,
+  medicationMethod: '',
+  medicationInstruction: '',
+  prescriptionRemark: '',
+  operator: 'admin',
+  reason: '',
+});
 const signForm = ref<SignForm>({
   operator: 'admin',
   remark: '',
@@ -119,6 +150,9 @@ const signForm = ref<SignForm>({
 
 const orderRows = computed(() => orderPage.value?.records ?? []);
 const detailPrescriptions = computed(() => orderDetail.value?.prescriptions ?? []);
+const editableDetailPrescriptions = computed(() => (
+  detailPrescriptions.value.filter((prescription) => prescription.prescriptionStatus !== 'CANCELLED')
+));
 const detailDrugRows = computed<DetailDrugRow[]>(() => detailPrescriptions.value.flatMap((prescription) => (
   prescription.details.map((detail) => ({
     prescriptionNo: prescription.prescriptionNo,
@@ -162,6 +196,13 @@ const canCancelOrder = computed(() => (
   && !cancelSubmitting.value
   && CANCELLABLE_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
+const canEditPrescription = computed(() => (
+  !!orderDetail.value
+  && editableDetailPrescriptions.value.length > 0
+  && !detailLoading.value
+  && !prescriptionSubmitting.value
+  && EDITABLE_PRESCRIPTION_ORDER_STATUSES.has(orderDetail.value.orderStatus)
+));
 const signableShipment = computed<ShipmentProgress | null>(() => (
   shipments.value.find((shipment) => SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) ?? null
 ));
@@ -196,6 +237,10 @@ function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
   const nextValue = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(nextValue) ? nextValue : null;
+}
+
+function formNumber(value: FormNumberValue) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function sumNumbers(values: NumericValue[]) {
@@ -442,6 +487,105 @@ async function submitAddressUpdate() {
     orderError.value = errorMessage(error);
   } finally {
     addressSubmitting.value = false;
+  }
+}
+
+function fillPrescriptionForm(prescription: AdminOrderDetailPrescription) {
+  prescriptionForm.value = {
+    prescriptionId: prescription.prescriptionId,
+    prescriptionType: prescription.prescriptionType ?? '',
+    hospitalType: prescription.hospitalType ?? '',
+    doseCount: prescription.doseCount,
+    decoctionCount: prescription.decoctionCount,
+    medicationMethod: prescription.medicationMethod ?? '',
+    medicationInstruction: prescription.medicationInstruction ?? '',
+    prescriptionRemark: prescription.prescriptionRemark ?? '',
+    operator: prescriptionForm.value.operator || 'admin',
+    reason: '',
+  };
+}
+
+function selectedPrescription() {
+  return detailPrescriptions.value.find((item) => item.prescriptionId === prescriptionForm.value.prescriptionId) ?? null;
+}
+
+function openPrescriptionModal() {
+  if (!orderDetail.value) {
+    orderError.value = '请先查看一条订单详情后再修改处方';
+    return;
+  }
+  if (!canEditPrescription.value) {
+    orderError.value = '当前订单状态不允许修改处方';
+    return;
+  }
+  const firstPrescription = editableDetailPrescriptions.value[0];
+  if (!firstPrescription) {
+    orderError.value = '当前订单没有可修改处方';
+    return;
+  }
+  fillPrescriptionForm(firstPrescription);
+  prescriptionModalOpen.value = true;
+}
+
+function closePrescriptionModal() {
+  if (prescriptionSubmitting.value) return;
+  prescriptionModalOpen.value = false;
+}
+
+function changePrescriptionForm() {
+  const prescription = selectedPrescription();
+  if (prescription) {
+    fillPrescriptionForm(prescription);
+  }
+}
+
+async function submitPrescriptionUpdate() {
+  if (!orderDetail.value) return;
+  const targetPrescription = selectedPrescription();
+  if (!targetPrescription) {
+    orderError.value = '请选择要修改的处方';
+    return;
+  }
+  const command: AdminPrescriptionUpdateCommand = {
+    prescriptionType: prescriptionForm.value.prescriptionType,
+    hospitalType: prescriptionForm.value.hospitalType,
+    doseCount: formNumber(prescriptionForm.value.doseCount),
+    decoctionCount: formNumber(prescriptionForm.value.decoctionCount),
+    medicationMethod: prescriptionForm.value.medicationMethod.trim(),
+    medicationInstruction: prescriptionForm.value.medicationInstruction.trim(),
+    prescriptionRemark: prescriptionForm.value.prescriptionRemark.trim(),
+    operator: prescriptionForm.value.operator.trim() || 'admin',
+    reason: prescriptionForm.value.reason.trim(),
+  };
+  if (!command.prescriptionType) {
+    orderError.value = '处方类型不能为空';
+    return;
+  }
+  if (command.prescriptionType === 'DECOCTION' && (!command.decoctionCount || command.decoctionCount <= 0)) {
+    orderError.value = '代煎处方的煎煮剂数必须大于 0';
+    return;
+  }
+  prescriptionSubmitting.value = true;
+  orderError.value = '';
+  try {
+    const targetOrderNo = orderDetail.value.orderNo;
+    await updateAdminPrescription(targetOrderNo, targetPrescription.prescriptionId, command);
+    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+      getOrder(targetOrderNo),
+      getAdminOrderDetail(targetOrderNo),
+      getOrderProgress(targetOrderNo),
+      queryOrder(),
+    ]);
+    order.value = nextOrder;
+    orderDetail.value = nextDetail;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = targetOrderNo;
+    prescriptionModalOpen.value = false;
+    emit('notice', 'success', `处方 ${targetPrescription.prescriptionNo} 已更新`);
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    prescriptionSubmitting.value = false;
   }
 }
 
@@ -791,7 +935,7 @@ async function goNextPage() {
 
     <div class="order-action-bar">
       <button class="legacy-btn" type="button" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</button>
-      <button class="legacy-btn" type="button" disabled title="等待后端处方修改契约">处方修改</button>
+      <button class="legacy-btn" type="button" :disabled="!canEditPrescription" title="先查看可修改处方的订单详情" @click="openPrescriptionModal">处方修改</button>
       <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
       <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
       <button class="legacy-btn" type="button" disabled title="等待后端手工走流程契约">走流程</button>
@@ -938,6 +1082,85 @@ async function goNextPage() {
       </section>
     </div>
 
+    <div v-if="prescriptionModalOpen" class="legacy-modal-mask">
+      <section class="legacy-modal address-modal">
+        <div class="legacy-modal-head">
+          <h2>修改处方</h2>
+          <button class="legacy-link-btn" type="button" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">关闭</button>
+        </div>
+        <div class="cancel-warning">
+          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <span>当前仅支持订单创建或审核通过状态下修改处方结构化字段。</span>
+        </div>
+        <div class="address-form-grid">
+          <label class="address-form-wide">
+            <span>处方</span>
+            <select v-model="prescriptionForm.prescriptionId" class="legacy-input" @change="changePrescriptionForm">
+              <option
+                v-for="item in editableDetailPrescriptions"
+                :key="item.prescriptionId"
+                :value="item.prescriptionId"
+              >
+                {{ item.prescriptionNo }} / {{ item.externalPrescriptionNo }} / {{ statusText(item.prescriptionStatus) }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>处方类型</span>
+            <select v-model="prescriptionForm.prescriptionType" class="legacy-input">
+              <option value="">请选择</option>
+              <option value="DECOCTION">代煎</option>
+              <option value="SELF_DECOCTION">自煎</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </label>
+          <label>
+            <span>门诊住院</span>
+            <select v-model="prescriptionForm.hospitalType" class="legacy-input">
+              <option value="">请选择</option>
+              <option value="OUTPATIENT">门诊</option>
+              <option value="INPATIENT">住院</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </label>
+          <label>
+            <span>剂数</span>
+            <input v-model.number="prescriptionForm.doseCount" class="legacy-input" type="number" min="0" />
+          </label>
+          <label>
+            <span>煎煮剂数</span>
+            <input v-model.number="prescriptionForm.decoctionCount" class="legacy-input" type="number" min="0" />
+          </label>
+          <label>
+            <span>操作人</span>
+            <input v-model="prescriptionForm.operator" class="legacy-input" />
+          </label>
+          <label>
+            <span>修改原因</span>
+            <input v-model="prescriptionForm.reason" class="legacy-input" placeholder="可选" />
+          </label>
+          <label class="address-form-wide">
+            <span>用药方法</span>
+            <input v-model="prescriptionForm.medicationMethod" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>用药指导</span>
+            <input v-model="prescriptionForm.medicationInstruction" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>处方备注</span>
+            <input v-model="prescriptionForm.prescriptionRemark" class="legacy-input" />
+          </label>
+        </div>
+        <div class="legacy-modal-actions">
+          <button class="legacy-btn" type="button" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">取消</button>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="prescriptionSubmitting" @click="submitPrescriptionUpdate">
+            {{ prescriptionSubmitting ? '保存中' : '保存处方' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
     <div v-if="cancelModalOpen" class="legacy-modal-mask">
       <section class="legacy-modal cancel-modal">
         <div class="legacy-modal-head">
@@ -1018,7 +1241,7 @@ async function goNextPage() {
           <h2>提示信息</h2>
         </div>
         <p class="order-detail-note">
-          本页已按老订单详情拆分为只读工作台。订单基础信息、处方、药品明细、金额、门诊住院、批次和订单备注来自后端详情接口；导出动作等待后端契约。
+          本页已按老订单详情拆分为处方订单工作台。订单基础信息、处方、药品明细、金额、门诊住院、批次和订单备注来自后端详情接口。
           <span v-if="orderDetail">最近校验：{{ validationSummary() }}</span>
         </p>
       </section>
