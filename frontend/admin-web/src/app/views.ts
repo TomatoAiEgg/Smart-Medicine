@@ -14,7 +14,8 @@ export type ImplementedViewKey =
   | 'reports'
   | 'integration'
   | 'observability'
-  | 'ops';
+  | 'ops'
+  | 'addressModify';
 
 export interface AppRouteItem {
   key: string;
@@ -419,8 +420,9 @@ export const menuItems = [
     path: '/orders/address-modifications',
     legacyRoute: 'order/listModifyAddress.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '收件地址维护和变更记录',
+    componentKey: 'addressModify',
     plannedComponent: 'features/orders/AddressModify.vue',
     coreActions: ['单改', '批量改', '记录查询'],
     apiDependencies: ['地址修改', '地址变更记录', '批量导入预检'],

@@ -8,6 +8,7 @@ import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
+import AddressModify from './features/orders/AddressModify.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
@@ -39,6 +40,7 @@ const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
+const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
 const opsCount = ref(0);
@@ -51,6 +53,7 @@ const integrationActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
+const addressModifyActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
 
@@ -125,6 +128,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'integration') integrationActivationKey.value += 1;
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
+  if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
 }, { immediate: true });
 
 async function refreshCurrentTasks() {
@@ -159,6 +163,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logistics') {
     await logisticsFulfillmentRef.value?.refreshLogisticsRecords();
+    return;
+  }
+  if (componentKey === 'addressModify') {
+    await addressModifyRef.value?.refreshAddressOrders();
     return;
   }
   if (componentKey === 'ops') {
@@ -295,6 +303,14 @@ function closeTab(view: ViewKey) {
     />
 
     <OrderCenter v-else-if="currentComponentKey === 'orders'" @notice="showNotice" />
+
+    <AddressModify
+      v-else-if="currentComponentKey === 'addressModify'"
+      ref="addressModifyRef"
+      active
+      :activation-key="addressModifyActivationKey"
+      @notice="showNotice"
+    />
 
     <PendingMenuPage v-else :item="currentRouteItem" />
   </AppLayout>
