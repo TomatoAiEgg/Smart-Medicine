@@ -161,7 +161,7 @@ GET|POST /decoctingStatusNotice
 
 | 新内部字段 | 兼容旧字段 |
 | --- | --- |
-| `operationId` | `operationId`、`opId`、`requestId`、`serialNo`、`logNo`、`traceId` |
+| `operationId` | `operationId`、`opId`、`requestId`、`serialNo`、`logNo` |
 | `prescriptionNo` | `prescriptionNo`、`recipeNo`、`recipeId`、`recipelId`、`recipeCode` |
 | `deviceCode` | `deviceCode`、`equipCode`、`equipNo`、`equipmentCode`、`machineCode` |
 | `pailNo` | `pailNo`、`bucketNo`、`barrelNo`、`pailCode`、`waterBucketNo` |

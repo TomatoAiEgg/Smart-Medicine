@@ -46,7 +46,7 @@ RocketMQ 作为业务事件总线，不只是替代旧 ActiveMQ 队列。
   "aggregateType": "ORDER",
   "aggregateId": "order-id",
   "occurredAt": "2026-06-18T20:00:00+08:00",
-  "traceId": "trace-id",
+  "requestSource": "gateway",
   "source": "order-service",
   "payload": {}
 }
@@ -62,13 +62,19 @@ RocketMQ 作为业务事件总线，不只是替代旧 ActiveMQ 队列。
 | `aggregateType` | 聚合类型 |
 | `aggregateId` | 聚合 ID |
 | `occurredAt` | 事件发生时间 |
-| `traceId` | 链路追踪 ID |
+| `requestSource` | 请求来源；链路追踪由 SkyWalking 上下文承载，不作为业务事件字段 |
 | `source` | 事件来源服务 |
 | `payload` | 业务负载 |
 
 ## 5. Outbox 模式
 
 所有业务事件必须先写 `event_outbox`。
+
+消息丢失补偿、未消费超时、积压治理和容灾策略详见：
+
+```text
+docs/中间件说明/RocketMQ可靠性与容灾方案.md
+```
 
 流程：
 
@@ -90,6 +96,8 @@ RocketMQ 作为业务事件总线，不只是替代旧 ActiveMQ 队列。
 - `event_outbox.event_id` 唯一。
 - 发布失败可重试。
 - 超过最大次数进入死信。
+- `PUBLISHING` 状态不能永久卡住，超时后由对账任务释放并重试。
+- 核心业务状态已变化但缺少事件时，由对账任务生成补偿事件。
 
 ## 6. 消费幂等
 
@@ -110,6 +118,16 @@ consumer_group + event_id
  -> 未成功：执行业务
  -> 成功：写成功日志
  -> 失败：写失败日志并抛异常
+```
+
+未消费检测：
+
+```text
+event_outbox 已 PUBLISHED
+ -> 长时间没有目标消费组 SUCCESS 记录
+ -> 标记 WAIT_CONSUME_TIMEOUT
+ -> 告警
+ -> 支持重投、补偿或人工关闭
 ```
 
 ## 7. 订单事件
@@ -252,6 +270,10 @@ Topic：`zhyf-integration-event`
 - 消费失败数量。
 - 回调失败数量。
 - 死信数量。
+- 长时间未消费数量。
+- `PUBLISHING` 超时数量。
+- 消费组在线实例数。
+- 消费追平时间。
 - 社康回写失败数量。
 - 地址回推失败数量。
 - 消费耗时。
