@@ -410,7 +410,7 @@ public class OrderRepository {
                     o.receiver_zone,
                     o.receiver_address,
                     o.address_type,
-                    string_agg(distinct nullif(p.patient_name, ''), ',') as patient_names,
+                    o.patient_name as patient_names,
                     string_agg(distinct nullif(p.hospital_type, ''), ',') as hospital_types,
                     string_agg(distinct nullif(p.prescription_type, ''), ',') as prescription_types,
                     string_agg(distinct nullif(p.prescription_no, ''), ',') as prescription_nos,
@@ -431,7 +431,7 @@ public class OrderRepository {
         listQuery.addAll(filters.argsList());
         listQuery.append("""
                  group by o.id, o.tenant_id, o.institution_id, i.institution_name, i.storage_type,
-                          o.order_no, o.external_order_no, o.status, o.receiver_name, o.receiver_phone,
+                          o.order_no, o.external_order_no, o.status, o.patient_name, o.receiver_name, o.receiver_phone,
                           o.receiver_province, o.receiver_city, o.receiver_zone, o.receiver_address,
                           o.address_type, o.delivery_time, o.order_remark, o.created_at, o.updated_at
                  order by o.created_at desc, o.order_no desc limit ? offset ?
@@ -704,7 +704,7 @@ public class OrderRepository {
         filters.addLikeFilter("o.order_no", query.orderNo());
         filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
         filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
-        filters.addLikeFilter("p.patient_name", query.patientName());
+        filters.addLikeFilter("o.patient_name", query.patientName());
         if ("NOT_DUE".equals(processType)) {
             filters.append(" and o.status = 'CREATED' and o.delivery_time is not null and o.delivery_time > now()");
         } else if ("PROCESSED".equals(processType)) {
