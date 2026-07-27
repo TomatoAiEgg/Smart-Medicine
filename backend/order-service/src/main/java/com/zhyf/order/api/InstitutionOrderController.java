@@ -8,6 +8,8 @@ import com.zhyf.order.application.AdminOrderAddressUpdateResult;
 import com.zhyf.order.application.AdminOrderCancelCommand;
 import com.zhyf.order.application.AdminOrderCancelResult;
 import com.zhyf.order.application.AdminOrderDetail;
+import com.zhyf.order.application.AdminOrderInitializeCommand;
+import com.zhyf.order.application.AdminOrderInitializeResult;
 import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminPrescriptionUpdateCommand;
@@ -195,6 +197,14 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderCancelCommand command
     ) {
         return ApiResponse.ok(orderService.cancelAdminOrder(orderNo, command));
+    }
+
+    @PostMapping("/admin/orders/{orderNo}/initialize")
+    public ApiResponse<AdminOrderInitializeResult> initializeOrder(
+            @PathVariable String orderNo,
+            @RequestBody AdminOrderInitializeCommand command
+    ) {
+        return ApiResponse.ok(orderService.initializeAdminOrder(orderNo, command));
     }
 
     @GetMapping("/admin/orders/{orderNo}/progress")

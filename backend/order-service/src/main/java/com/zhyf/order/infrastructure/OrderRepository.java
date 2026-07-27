@@ -796,6 +796,36 @@ public class OrderRepository {
         return jdbcTemplate.update(sql, operator, reason, orderId);
     }
 
+    public int cancelActiveDecoctionTasksByOrderId(UUID orderId, String operator, String reason) {
+        String sql = """
+                update decoction_task
+                set task_status = 'CANCELLED',
+                    cancel_operation_id = coalesce(cancel_operation_id, ?),
+                    cancelled_at = coalesce(cancelled_at, now()),
+                    operator = ?,
+                    updated_at = now()
+                where order_id = ?
+                  and task_status in ('BOUND', 'DECOCTING', 'DECOCTED')
+                """;
+        String operationId = "ORDER-INIT-" + UUID.randomUUID();
+        return jdbcTemplate.update(sql, operationId, operator, orderId);
+    }
+
+    public int deleteShipmentRuntimeByOrderId(UUID orderId) {
+        jdbcTemplate.update("delete from shipment_trace where order_id = ?", orderId);
+        return jdbcTemplate.update("delete from shipment where order_id = ?", orderId);
+    }
+
+    public List<UUID> findPrescriptionIdsByOrderId(UUID orderId) {
+        String sql = """
+                select id
+                from prescription
+                where order_id = ?
+                order by created_at asc, prescription_no asc
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getObject("id", UUID.class), orderId);
+    }
+
     public int updateOrderAddress(
             UUID orderId,
             String receiverName,

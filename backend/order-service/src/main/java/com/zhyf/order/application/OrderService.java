@@ -47,6 +47,7 @@ public class OrderService {
             OrderStatus.CREATED,
             OrderStatus.AUDIT_PASSED
     );
+    private static final String ORDER_INITIALIZE_EVENT_TYPE = "ORDER_PRESCRIPTION_UPDATED";
 
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -421,6 +422,105 @@ public class OrderService {
                 OrderStatus.CANCELLED.name(),
                 cancelledPrescriptions,
                 cancelledTasks,
+                Instant.now()
+        );
+    }
+
+    @Transactional
+    public AdminOrderInitializeResult initializeAdminOrder(String orderNo, AdminOrderInitializeCommand command) {
+        if (command == null) {
+            throw new BusinessException("ORDER_INITIALIZE_COMMAND_REQUIRED", "订单初始化参数不能为空");
+        }
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        String normalizedOrderNo = orderNo.trim();
+        AdminOrderDetail current = getAdminOrderDetail(normalizedOrderNo);
+        OrderStatus currentStatus = parseOrderStatus(current.orderStatus());
+        if (OrderStatus.CREATED.equals(currentStatus)) {
+            throw new BusinessException("ORDER_INITIALIZE_NOT_REQUIRED", "当前订单已经是初始状态");
+        }
+        String operator = defaultText(command.operator(), "admin");
+        String reason = defaultText(command.reason(), "订单中心手工初始化");
+
+        int updated = orderRepository.updateOrderStatusIfCurrent(
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.CREATED.name()
+        );
+        if (updated == 0) {
+            throw new BusinessException("ORDER_INITIALIZE_CONFLICT", "订单状态已变更，请刷新后重试");
+        }
+        int resetPrescriptions = orderRepository.updatePrescriptionsStatusByOrderId(
+                current.orderId(),
+                PrescriptionStatus.CREATED.name()
+        );
+        int cancelledWorkflowTasks = orderRepository.cancelPendingWorkflowTasks(current.orderId(), operator, reason);
+        int cancelledDecoctionTasks = orderRepository.cancelActiveDecoctionTasksByOrderId(
+                current.orderId(),
+                operator,
+                reason
+        );
+        int deletedShipments = orderRepository.deleteShipmentRuntimeByOrderId(current.orderId());
+
+        orderRepository.insertOrderStatusLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                currentStatus.name(),
+                OrderStatus.CREATED.name(),
+                "ADMIN",
+                "admin-order-initialize"
+        );
+        List<UUID> prescriptionIds = orderRepository.findPrescriptionIdsByOrderId(current.orderId());
+        String eventId = UUID.randomUUID().toString();
+        String eventPayload = """
+                {"tenantId":"%s","orderId":"%s","orderNo":"%s","externalOrderNo":"%s","prescriptionIds":%s,"sourceAction":"ORDER_INITIALIZE"}
+                """.formatted(
+                current.tenantId(),
+                current.orderId(),
+                current.orderNo(),
+                current.externalOrderNo(),
+                writeJson(prescriptionIds)
+        );
+        orderRepository.insertOutbox(
+                UUID.randomUUID(),
+                current.tenantId(),
+                eventId,
+                ORDER_INITIALIZE_EVENT_TYPE,
+                "ORDER",
+                current.orderId().toString(),
+                eventPayload
+        );
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                operator,
+                "ORDER_INITIALIZE",
+                "SUCCESS",
+                reason,
+                writeJson(Map.of(
+                        "fromStatus", currentStatus.name(),
+                        "toStatus", OrderStatus.CREATED.name(),
+                        "resetPrescriptionCount", resetPrescriptions,
+                        "cancelledWorkflowTaskCount", cancelledWorkflowTasks,
+                        "cancelledDecoctionTaskCount", cancelledDecoctionTasks,
+                        "deletedShipmentCount", deletedShipments,
+                        "eventId", eventId
+                ))
+        );
+        return new AdminOrderInitializeResult(
+                current.orderId(),
+                current.orderNo(),
+                currentStatus.name(),
+                OrderStatus.CREATED.name(),
+                resetPrescriptions,
+                cancelledWorkflowTasks,
+                cancelledDecoctionTasks,
+                deletedShipments,
+                eventId,
                 Instant.now()
         );
     }

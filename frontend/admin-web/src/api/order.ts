@@ -5,6 +5,8 @@ import type {
   AdminOrderCancelCommand,
   AdminOrderCancelResult,
   AdminOrderDetail,
+  AdminOrderInitializeCommand,
+  AdminOrderInitializeResult,
   AdminOrderDetailPrescription,
   AdminOrderPage,
   AdminOrderQueryParams,
@@ -73,6 +75,16 @@ export function updateAdminPrescription(
 export function cancelAdminOrder(orderNo: string, command: AdminOrderCancelCommand) {
   return request<AdminOrderCancelResult>(
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/cancel`,
+    {
+      method: 'POST',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function initializeAdminOrder(orderNo: string, command: AdminOrderInitializeCommand) {
+  return request<AdminOrderInitializeResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/initialize`,
     {
       method: 'POST',
       body: JSON.stringify(command),

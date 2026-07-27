@@ -7,6 +7,7 @@ import {
   getAdminOrderDetail,
   getOrder,
   getOrderProgress,
+  initializeAdminOrder,
   listAdminOrders,
   updateAdminOrderAddress,
   updateAdminPrescription,
@@ -31,6 +32,7 @@ import type {
   AdminOrderPage,
   AdminOrderAddressUpdateCommand,
   AdminOrderCancelCommand,
+  AdminOrderInitializeCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
   AdminOrderQueryParams,
@@ -66,6 +68,10 @@ interface AddressForm {
   reason: string;
 }
 interface CancelForm {
+  operator: string;
+  reason: string;
+}
+interface InitializeForm {
   operator: string;
   reason: string;
 }
@@ -135,6 +141,8 @@ const prescriptionModalOpen = ref(false);
 const prescriptionSubmitting = ref(false);
 const cancelModalOpen = ref(false);
 const cancelSubmitting = ref(false);
+const initializeModalOpen = ref(false);
+const initializeSubmitting = ref(false);
 const signModalOpen = ref(false);
 const signSubmitting = ref(false);
 const flowSubmitting = ref(false);
@@ -151,6 +159,10 @@ const addressForm = ref<AddressForm>({
   reason: '',
 });
 const cancelForm = ref<CancelForm>({
+  operator: 'admin',
+  reason: '',
+});
+const initializeForm = ref<InitializeForm>({
   operator: 'admin',
   reason: '',
 });
@@ -236,6 +248,12 @@ const canEditPrescription = computed(() => (
   && !detailLoading.value
   && !prescriptionSubmitting.value
   && EDITABLE_PRESCRIPTION_ORDER_STATUSES.has(orderDetail.value.orderStatus)
+));
+const canInitializeOrder = computed(() => (
+  !!orderDetail.value
+  && orderDetail.value.orderStatus !== 'CREATED'
+  && !detailLoading.value
+  && !initializeSubmitting.value
 ));
 const signableShipment = computed<ShipmentProgress | null>(() => (
   shipments.value.find((shipment) => SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) ?? null
@@ -879,6 +897,52 @@ async function submitCancelOrder() {
   }
 }
 
+function openInitializeModal() {
+  if (!orderDetail.value) {
+    orderError.value = '请先查看一条订单详情后再初始化';
+    return;
+  }
+  initializeForm.value = {
+    operator: initializeForm.value.operator || 'admin',
+    reason: '',
+  };
+  initializeModalOpen.value = true;
+}
+
+function closeInitializeModal() {
+  if (initializeSubmitting.value) return;
+  initializeModalOpen.value = false;
+}
+
+async function submitInitializeOrder() {
+  if (!orderDetail.value) return;
+  const command: AdminOrderInitializeCommand = {
+    operator: initializeForm.value.operator.trim() || 'admin',
+    reason: initializeForm.value.reason.trim(),
+  };
+  if (!command.reason) {
+    orderError.value = '初始化原因不能为空';
+    return;
+  }
+  initializeSubmitting.value = true;
+  orderError.value = '';
+  try {
+    const targetOrderNo = orderDetail.value.orderNo;
+    const result = await initializeAdminOrder(targetOrderNo, command);
+    await refreshSelectedOrder(targetOrderNo);
+    initializeModalOpen.value = false;
+    emit(
+      'notice',
+      'success',
+      `订单 ${targetOrderNo} 已初始化：处方 ${result.resetPrescriptionCount} 条，流程任务 ${result.cancelledWorkflowTaskCount} 条`,
+    );
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    initializeSubmitting.value = false;
+  }
+}
+
 function openSignModal() {
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再签收';
@@ -1175,7 +1239,9 @@ async function goNextPage() {
     <div class="order-action-bar">
       <button class="legacy-btn" type="button" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</button>
       <button class="legacy-btn" type="button" :disabled="!canEditPrescription" title="先查看可修改处方的订单详情" @click="openPrescriptionModal">处方修改</button>
-      <button class="legacy-btn" type="button" disabled title="等待后端订单初始化契约">初始化</button>
+      <button class="legacy-btn" type="button" :disabled="!canInitializeOrder" title="将订单回退到初始审核状态" @click="openInitializeModal">
+        {{ initializeSubmitting ? '初始化中' : '初始化' }}
+      </button>
       <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
       <button class="legacy-btn" type="button" :disabled="!canAdvanceFlow" title="按当前订单进度推进下一步" @click="advanceOrderFlow">
         {{ flowSubmitting ? '推进中' : '走流程' }}
@@ -1450,6 +1516,43 @@ async function goNextPage() {
           <button class="legacy-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">返回</button>
           <button class="legacy-btn legacy-btn-export" type="button" :disabled="cancelSubmitting" @click="submitCancelOrder">
             {{ cancelSubmitting ? '取消中' : '确认取消' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="initializeModalOpen" class="legacy-modal-mask">
+      <section class="legacy-modal cancel-modal">
+        <div class="legacy-modal-head">
+          <h2>订单初始化</h2>
+          <button class="legacy-link-btn" type="button" :disabled="initializeSubmitting" @click="closeInitializeModal">关闭</button>
+        </div>
+        <div class="cancel-warning">
+          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <span>初始化会把订单回退到初始审核状态，重置处方状态，取消未完成流程和活跃煎药任务，并清理物流运行记录。</span>
+        </div>
+        <div class="address-form-grid">
+          <label>
+            <span>当前状态</span>
+            <input class="legacy-input" :value="statusText(orderDetail?.orderStatus)" disabled />
+          </label>
+          <label>
+            <span>目标状态</span>
+            <input class="legacy-input" value="已创建 / 待审核" disabled />
+          </label>
+          <label>
+            <span>操作人</span>
+            <input v-model="initializeForm.operator" class="legacy-input" />
+          </label>
+          <label class="address-form-wide">
+            <span>初始化原因</span>
+            <input v-model="initializeForm.reason" class="legacy-input" placeholder="必填" />
+          </label>
+        </div>
+        <div class="legacy-modal-actions">
+          <button class="legacy-btn" type="button" :disabled="initializeSubmitting" @click="closeInitializeModal">返回</button>
+          <button class="legacy-btn legacy-btn-export" type="button" :disabled="initializeSubmitting" @click="submitInitializeOrder">
+            {{ initializeSubmitting ? '初始化中' : '确认初始化' }}
           </button>
         </div>
       </section>
