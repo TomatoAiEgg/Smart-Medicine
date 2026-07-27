@@ -49,7 +49,7 @@ public class WorkflowTaskRepository {
                 insert into workflow_task (
                     id, tenant_id, order_id, task_type, task_status, source_event_id, payload
                 ) values (?, ?, ?, 'ORDER_REVIEW', 'PENDING', ?, ?::jsonb)
-                on conflict (source_event_id, task_type) do nothing
+                on conflict do nothing
                 """;
         return jdbcTemplate.update(sql, taskId, tenantId, orderId, sourceEventId, payload);
     }
@@ -96,7 +96,7 @@ public class WorkflowTaskRepository {
                 insert into workflow_task (
                     id, tenant_id, order_id, task_type, task_status, source_event_id, payload
                 ) values (?, ?, ?, ?, 'PENDING', ?, ?::jsonb)
-                on conflict (source_event_id, task_type) do nothing
+                on conflict do nothing
                 """;
         return jdbcTemplate.update(sql, taskId, tenantId, orderId, taskType, sourceEventId, payload);
     }
