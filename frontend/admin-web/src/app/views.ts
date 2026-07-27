@@ -13,6 +13,7 @@ export type ImplementedViewKey =
   | 'logisticsInfo'
   | 'logisticsUnreceivedFollowups'
   | 'exceptionLogs'
+  | 'labelPrints'
   | 'portal'
   | 'reports'
   | 'integration'
@@ -613,11 +614,13 @@ export const menuItems = [
     path: '/labels/prints',
     legacyRoute: 'lable/labelPrint.html?viewName=decotingLablePrint',
     priority: 'P4',
-    implemented: false,
-    subtitle: '标签查询、打印和补打',
+    implemented: true,
+    subtitle: '按处方查询并生成浏览器处方标签',
+    componentKey: 'labelPrints',
+    showCount: true,
     plannedComponent: 'features/label/LabelPrint.vue',
-    coreActions: ['标签查询', '打印', '补打'],
-    apiDependencies: ['标签打印任务', '打印记录', '失败重试'],
+    coreActions: ['处方查询', '标签预览', '浏览器打印'],
+    apiDependencies: ['处方重打列表', '处方打印数据'],
   },
   {
     key: 'smsTemplates',
