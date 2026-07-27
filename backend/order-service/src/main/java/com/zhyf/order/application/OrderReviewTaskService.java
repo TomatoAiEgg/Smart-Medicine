@@ -62,9 +62,13 @@ public class OrderReviewTaskService {
         OrderStatus targetStatus = approved ? OrderStatus.AUDIT_PASSED : OrderStatus.AUDIT_FAILED;
         OrderStatusTransition transition = requireTransition(order.status(), targetStatus);
 
-        int updated = orderRepository.updateOrderStatus(order.orderId(), transition.toStatusName());
+        int updated = orderRepository.updateOrderStatusIfCurrent(
+                order.orderId(),
+                transition.fromStatusName(),
+                transition.toStatusName()
+        );
         if (updated == 0) {
-            throw new BusinessException("ORDER_STATUS_UPDATE_FAILED", "Order status update failed");
+            throw new BusinessException("ORDER_STATUS_CONFLICT", "Order status changed, please refresh and retry");
         }
         orderRepository.insertOrderStatusLog(
                 UUID.randomUUID(),

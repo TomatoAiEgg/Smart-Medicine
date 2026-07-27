@@ -36,7 +36,7 @@ class OrderStatusUpdateServiceTest {
                 Instant.now()
         );
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatus(orderId, "AUDIT_PASSED")).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(1);
 
         OrderStatusUpdateResult result = service.updateStatus(
                 orderId,
@@ -63,7 +63,7 @@ class OrderStatusUpdateServiceTest {
                 Instant.now()
         );
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatus(orderId, "AUDIT_FAILED")).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "AUDIT_PASSED", "AUDIT_FAILED")).thenReturn(1);
 
         OrderStatusUpdateResult result = service.updateStatus(
                 orderId,
@@ -83,6 +83,29 @@ class OrderStatusUpdateServiceTest {
                 new OrderStatusUpdateCommand("UNKNOWN", "AUDIT", "test")
         )).isInstanceOf(BusinessException.class)
                 .hasMessage("Unsupported order status: UNKNOWN");
+    }
+
+    @Test
+    void shouldRejectStatusConflictWhenCurrentStatusChangedBeforeUpdate() {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        OrderSnapshot order = new OrderSnapshot(
+                orderId,
+                tenantId,
+                UUID.randomUUID(),
+                "ZHYF1",
+                "EXT1",
+                "CREATED",
+                Instant.now()
+        );
+        when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(0);
+
+        assertThatThrownBy(() -> service.updateStatus(
+                orderId,
+                new OrderStatusUpdateCommand("AUDIT_PASSED", "AUDIT", "workflow-service-review-approve")
+        )).isInstanceOf(BusinessException.class)
+                .hasMessage("Order status changed, please refresh and retry");
     }
 
     @Test
