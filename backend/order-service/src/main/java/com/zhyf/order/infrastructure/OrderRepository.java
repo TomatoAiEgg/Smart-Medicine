@@ -8,6 +8,9 @@ import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderReceiptItem;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
+import com.zhyf.order.application.AdminOrderWarehouseItem;
+import com.zhyf.order.application.AdminOrderWarehousePage;
+import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminPrescriptionReprintItem;
@@ -447,6 +450,60 @@ public class OrderRepository {
         );
     }
 
+    public AdminOrderWarehousePage searchAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
+        QueryParts filters = adminOrderWarehouseFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(distinct o.id)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join shipment s on s.order_id = o.id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts(adminOrderWarehouseSelectSql());
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append("""
+                 group by o.id, o.tenant_id, o.order_no, o.external_order_no, o.status, o.created_at,
+                          o.batch_no, i.institution_name, i.storage_type, o.address_type, o.receiver_name,
+                          o.receiver_phone, o.delivery_time, o.receiver_province, o.receiver_city,
+                          o.receiver_zone, o.receiver_address, o.patient_name, s.logistics_company,
+                          s.logistics_no
+                 order by o.created_at desc, max(p.prescription_no) desc limit ? offset ?
+                """);
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminOrderWarehousePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderWarehouseItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public List<AdminOrderWarehouseItem> exportAdminOrderWarehouses(AdminOrderWarehouseQuery query, int limit) {
+        QueryParts filters = adminOrderWarehouseFilters(query);
+        QueryParts listQuery = new QueryParts(adminOrderWarehouseSelectSql());
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append("""
+                 group by o.id, o.tenant_id, o.order_no, o.external_order_no, o.status, o.created_at,
+                          o.batch_no, i.institution_name, i.storage_type, o.address_type, o.receiver_name,
+                          o.receiver_phone, o.delivery_time, o.receiver_province, o.receiver_city,
+                          o.receiver_zone, o.receiver_address, o.patient_name, s.logistics_company,
+                          s.logistics_no
+                 order by o.created_at desc, max(p.prescription_no) desc limit ?
+                """);
+        listQuery.add(Math.max(1, limit));
+        return jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderWarehouseItem, listQuery.args());
+    }
+
     public List<AdminOrderListItem> exportAdminOrders(AdminOrderSearchQuery query, int limit) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts listQuery = new QueryParts("""
@@ -721,6 +778,39 @@ public class OrderRepository {
             filters.append(" and p.dose_count < 3");
         } else if ("HIGH".equals(query.doseRange()) || "2".equals(query.doseRange())) {
             filters.append(" and p.dose_count >= 3");
+        }
+        return filters;
+    }
+
+    private QueryParts adminOrderWarehouseFilters(AdminOrderWarehouseQuery query) {
+        QueryParts filters = new QueryParts("");
+        filters.addInFilter("o.status", List.of("RECHECKED", "DECOCTING", "DECOCTED"));
+        filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        filters.addLikeFilter("i.institution_name", query.institution());
+        filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addEqualsFilter("p.hospital_type", query.hospitalType());
+        filters.addEqualsFilter("o.status", query.orderStatus());
+        filters.addLikeFilter("i.storage_type", query.decoctionCenter());
+        filters.addEqualsFilter("o.address_type", query.deliveryType());
+        filters.addLikeFilter("s.logistics_company", query.logisticsCompany());
+        filters.addLikeFilter("o.receiver_province", query.province());
+        filters.addLikeFilter("o.order_no", query.orderNo());
+        filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
+        filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
+        filters.addLikeFilter("o.patient_name", query.patientName());
+        filters.addLikeFilter("o.receiver_phone", query.receiverPhone());
+        if ("1".equals(query.nodeTime())) {
+            filters.append(" and o.created_at <= date_trunc('day', now()) + interval '12 hours'");
+        } else if ("5".equals(query.nodeTime())) {
+            filters.append("""
+                     and o.created_at >= date_trunc('day', now()) + interval '12 hours'
+                     and o.created_at <= date_trunc('day', now()) + interval '1 day' - interval '1 second'
+                    """);
+        } else if ("21".equals(query.nodeTime())) {
+            filters.append("""
+                     and o.created_at >= date_trunc('day', now())
+                     and o.created_at <= date_trunc('day', now()) + interval '1 day' - interval '1 second'
+                    """);
         }
         return filters;
     }
@@ -1658,6 +1748,46 @@ public class OrderRepository {
         );
     }
 
+    private String adminOrderWarehouseSelectSql() {
+        return """
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.created_at,
+                    o.batch_no,
+                    i.institution_name,
+                    i.storage_type,
+                    o.address_type,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.delivery_time,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    string_agg(distinct nullif(p.hospital_type, ''), ',') as hospital_types,
+                    o.patient_name,
+                    null::varchar as patient_age,
+                    string_agg(distinct nullif(p.department_name, ''), ',') as department_names,
+                    string_agg(distinct nullif(p.prescription_type, ''), ',') as prescription_types,
+                    string_agg(distinct nullif(p.prescription_no, ''), ',') as prescription_nos,
+                    string_agg(distinct nullif(p.external_prescription_no, ''), ',') as external_prescription_nos,
+                    string_agg(distinct p.dose_count::text, ',') filter (where p.dose_count is not null) as dose_counts,
+                    string_agg(distinct p.per_pack_num::text, ',') filter (where p.per_pack_num is not null) as per_pack_nums,
+                    string_agg(distinct p.per_pack_dose::text, ',') filter (where p.per_pack_dose is not null) as per_pack_doses,
+                    s.logistics_company,
+                    s.logistics_no
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join shipment s on s.order_id = o.id
+                where 1 = 1
+                """;
+    }
+
     private AdminOrderListItem mapAdminOrderListItem(ResultSet rs, int rowNum) throws SQLException {
         return new AdminOrderListItem(
                 rs.getObject("order_id", UUID.class),
@@ -1728,6 +1858,40 @@ public class OrderRepository {
                 rs.getString("order_remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderWarehouseItem mapAdminOrderWarehouseItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderWarehouseItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                instant(rs, "created_at"),
+                rs.getString("batch_no"),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("address_type"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                instant(rs, "delivery_time"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("hospital_types"),
+                rs.getString("patient_name"),
+                rs.getString("patient_age"),
+                rs.getString("department_names"),
+                rs.getString("prescription_types"),
+                rs.getString("prescription_nos"),
+                rs.getString("external_prescription_nos"),
+                rs.getString("dose_counts"),
+                rs.getString("per_pack_nums"),
+                rs.getString("per_pack_doses"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_no")
         );
     }
 

@@ -8,6 +8,8 @@ import type {
   AdminManualProcessPage,
   AdminManualProcessQueryParams,
   AdminManualProcessResult,
+  AdminOrderWarehousePage,
+  AdminOrderWarehouseQueryParams,
   AdminOrderCancelCommand,
   AdminOrderCancelResult,
   AdminOrderDetail,
@@ -76,6 +78,21 @@ export function manualProcessAdminOrder(orderNo: string, command: AdminManualPro
       body: JSON.stringify(command),
     },
   );
+}
+
+export function listAdminOrderWarehouses(params: AdminOrderWarehouseQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/order-warehouses?${query}` : '/order-api/api/admin/order-warehouses';
+  return request<AdminOrderWarehousePage>(url);
+}
+
+export async function downloadAdminOrderWarehousesCsv(params: AdminOrderWarehouseQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const response = await fetch(`/order-api/api/admin/order-warehouses/export.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
 }
 
 export function getAdminPrescriptionPrintPayload(prescriptionNo: string) {

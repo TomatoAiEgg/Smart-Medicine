@@ -20,6 +20,7 @@ export type ImplementedViewKey =
   | 'orderManageAction'
   | 'prescriptionReprint'
   | 'manualProcess'
+  | 'orderWarehouse'
   | 'orderReceipt';
 
 export interface AppRouteItem {
@@ -481,8 +482,9 @@ export const menuItems = [
     path: '/orders/warehouse',
     legacyRoute: 'order/listOrderWarehouse.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '仓库视角订单查询和导出',
+    componentKey: 'orderWarehouse',
     plannedComponent: 'features/orders/OrderWarehouse.vue',
     coreActions: ['仓库视角查询', '导出'],
     apiDependencies: ['仓库订单查询', '导出任务'],

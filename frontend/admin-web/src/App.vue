@@ -11,6 +11,7 @@ import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue'
 import AddressModify from './features/orders/AddressModify.vue';
 import ManualProcess from './features/orders/ManualProcess.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
+import OrderWarehouse from './features/orders/OrderWarehouse.vue';
 import OrderManageAction from './features/orders/OrderManageAction.vue';
 import OrderReceipt from './features/orders/OrderReceipt.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
@@ -50,6 +51,7 @@ const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null
 const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
 const prescriptionReprintRef = ref<InstanceType<typeof PrescriptionReprint> | null>(null);
 const manualProcessRef = ref<InstanceType<typeof ManualProcess> | null>(null);
+const orderWarehouseRef = ref<InstanceType<typeof OrderWarehouse> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
@@ -68,6 +70,7 @@ const prescriptionModifyActivationKey = ref(0);
 const orderManageActionActivationKey = ref(0);
 const prescriptionReprintActivationKey = ref(0);
 const manualProcessActivationKey = ref(0);
+const orderWarehouseActivationKey = ref(0);
 const orderReceiptActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
@@ -148,6 +151,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'orderManageAction') orderManageActionActivationKey.value += 1;
   if (componentKey === 'prescriptionReprint') prescriptionReprintActivationKey.value += 1;
   if (componentKey === 'manualProcess') manualProcessActivationKey.value += 1;
+  if (componentKey === 'orderWarehouse') orderWarehouseActivationKey.value += 1;
   if (componentKey === 'orderReceipt') orderReceiptActivationKey.value += 1;
 }, { immediate: true });
 
@@ -203,6 +207,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'manualProcess') {
     await manualProcessRef.value?.refreshManualProcessOrders();
+    return;
+  }
+  if (componentKey === 'orderWarehouse') {
+    await orderWarehouseRef.value?.refreshOrderWarehouses();
     return;
   }
   if (componentKey === 'orderReceipt') {
@@ -381,6 +389,14 @@ function closeTab(view: ViewKey) {
       ref="manualProcessRef"
       active
       :activation-key="manualProcessActivationKey"
+      @notice="showNotice"
+    />
+
+    <OrderWarehouse
+      v-else-if="currentComponentKey === 'orderWarehouse'"
+      ref="orderWarehouseRef"
+      active
+      :activation-key="orderWarehouseActivationKey"
       @notice="showNotice"
     />
 

@@ -15,6 +15,8 @@ import com.zhyf.order.application.AdminOrderReceiptCommand;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderReceiptResult;
+import com.zhyf.order.application.AdminOrderWarehousePage;
+import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
@@ -269,6 +271,97 @@ public class InstitutionOrderController {
             @RequestBody(required = false) AdminManualProcessCommand command
     ) {
         return ApiResponse.ok(orderService.manualProcessAdminOrder(orderNo, command));
+    }
+
+    @GetMapping("/admin/order-warehouses")
+    public ApiResponse<AdminOrderWarehousePage> listOrderWarehouses(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) String orderStatus,
+            @RequestParam(required = false) String decoctionCenter,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String logisticsCompany,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String hospitalPrescriptionNo,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String receiverPhone,
+            @RequestParam(required = false) String nodeTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderWarehouses(new AdminOrderWarehouseQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                orderStatus,
+                decoctionCenter,
+                deliveryType,
+                logisticsCompany,
+                province,
+                orderNo,
+                prescriptionNo,
+                hospitalPrescriptionNo,
+                patientName,
+                receiverPhone,
+                nodeTime,
+                page,
+                pageSize
+        )));
+    }
+
+    @GetMapping(value = "/admin/order-warehouses/export.csv", produces = "text/csv;charset=UTF-8")
+    public ResponseEntity<byte[]> exportOrderWarehouses(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) String orderStatus,
+            @RequestParam(required = false) String decoctionCenter,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String logisticsCompany,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String hospitalPrescriptionNo,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String receiverPhone,
+            @RequestParam(required = false) String nodeTime
+    ) {
+        AdminOrderWarehouseQuery query = new AdminOrderWarehouseQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                orderStatus,
+                decoctionCenter,
+                deliveryType,
+                logisticsCompany,
+                province,
+                orderNo,
+                prescriptionNo,
+                hospitalPrescriptionNo,
+                patientName,
+                receiverPhone,
+                nodeTime,
+                1,
+                5000
+        );
+        String csv = orderService.exportAdminOrderWarehousesCsv(query);
+        String filename = "订单仓库汇总-" + LocalDate.now(DEFAULT_QUERY_ZONE) + ".csv";
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename)
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
     @GetMapping("/admin/orders/{orderNo}")

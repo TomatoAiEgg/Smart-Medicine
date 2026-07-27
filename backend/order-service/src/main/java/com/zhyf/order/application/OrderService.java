@@ -38,6 +38,7 @@ public class OrderService {
     private static final DateTimeFormatter EXPORT_DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(DEFAULT_PAYLOAD_ZONE);
     private static final int ADMIN_ORDER_EXPORT_LIMIT = 5000;
+    private static final int ADMIN_ORDER_WAREHOUSE_EXPORT_LIMIT = 5000;
     private static final Set<OrderStatus> ADMIN_CANCELLABLE_STATUSES = EnumSet.of(
             OrderStatus.CREATED,
             OrderStatus.AUDIT_PASSED,
@@ -176,6 +177,64 @@ public class OrderService {
                 pageSize
         );
         return orderRepository.searchAdminManualProcessOrders(normalized);
+    }
+
+    public AdminOrderWarehousePage listAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
+        AdminOrderWarehouseQuery normalized = normalizeOrderWarehouseQuery(query, false);
+        return orderRepository.searchAdminOrderWarehouses(normalized);
+    }
+
+    public String exportAdminOrderWarehousesCsv(AdminOrderWarehouseQuery query) {
+        AdminOrderWarehouseQuery normalized = normalizeOrderWarehouseQuery(query, true);
+        List<AdminOrderWarehouseItem> rows = orderRepository.exportAdminOrderWarehouses(
+                normalized,
+                ADMIN_ORDER_WAREHOUSE_EXPORT_LIMIT
+        );
+        StringBuilder builder = new StringBuilder();
+        builder.append('\ufeff');
+        appendCsvRow(builder, List.of(
+                "订单号",
+                "订单状态",
+                "接单时间",
+                "批次",
+                "医疗机构",
+                "送货方式",
+                "收货人",
+                "收货电话",
+                "收货时间",
+                "收货地址",
+                "门诊住院",
+                "病人姓名",
+                "病人年龄",
+                "科室",
+                "处方类型",
+                "剂数",
+                "包数",
+                "每包剂量"
+        ));
+        for (AdminOrderWarehouseItem row : rows) {
+            appendCsvRow(builder, List.of(
+                    value(row.orderNo()),
+                    orderStatusText(row.orderStatus()),
+                    dateTime(row.createdAt()),
+                    batchText(row.batchNo()),
+                    value(row.institutionName()),
+                    deliveryTypeText(row.addressType()),
+                    value(row.receiverName()),
+                    value(row.receiverPhone()),
+                    dateTime(row.deliveryTime()),
+                    warehouseAddress(row),
+                    hospitalTypeText(row.hospitalTypes()),
+                    value(row.patientName()),
+                    value(row.patientAge()),
+                    value(row.departmentNames()),
+                    prescriptionTypeText(row.prescriptionTypes()),
+                    value(row.doseCounts()),
+                    value(row.perPackNums()),
+                    value(row.perPackDoses())
+            ));
+        }
+        return builder.toString();
     }
 
     public String exportAdminOrdersCsv(AdminOrderSearchQuery query) {
@@ -1106,6 +1165,36 @@ public class OrderService {
         );
     }
 
+    private AdminOrderWarehouseQuery normalizeOrderWarehouseQuery(
+            AdminOrderWarehouseQuery query,
+            boolean export
+    ) {
+        int page = export ? 1 : Math.max(query.page(), 1);
+        int pageSize = export
+                ? ADMIN_ORDER_WAREHOUSE_EXPORT_LIMIT
+                : Math.min(Math.max(query.pageSize(), 1), 100);
+        return new AdminOrderWarehouseQuery(
+                query.startTime(),
+                query.endTime(),
+                query.institution(),
+                query.prescriptionType(),
+                query.hospitalType(),
+                query.orderStatus(),
+                query.decoctionCenter(),
+                query.deliveryType(),
+                query.logisticsCompany(),
+                query.province(),
+                query.orderNo(),
+                query.prescriptionNo(),
+                query.hospitalPrescriptionNo(),
+                query.patientName(),
+                query.receiverPhone(),
+                query.nodeTime(),
+                page,
+                pageSize
+        );
+    }
+
     private ManualProcessContext manualProcessContext(AdminManualProcessCommand command) {
         Instant now = Instant.now();
         String operator = command == null ? "admin" : defaultText(command.operator(), "admin");
@@ -1592,6 +1681,17 @@ public class OrderService {
     }
 
     private String receiverAddress(AdminOrderListItem row) {
+        return List.of(
+                        value(row.receiverProvince()),
+                        value(row.receiverCity()),
+                        value(row.receiverZone()),
+                        value(row.receiverAddress())
+                ).stream()
+                .filter(StringUtils::hasText)
+                .reduce("", String::concat);
+    }
+
+    private String warehouseAddress(AdminOrderWarehouseItem row) {
         return List.of(
                         value(row.receiverProvince()),
                         value(row.receiverCity()),

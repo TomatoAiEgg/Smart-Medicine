@@ -227,6 +227,66 @@ export interface AdminManualProcessResult {
   processedAt: string;
 }
 
+export interface AdminOrderWarehouseQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  orderStatus?: string;
+  decoctionCenter?: string;
+  deliveryType?: string;
+  logisticsCompany?: string;
+  province?: string;
+  orderNo?: string;
+  prescriptionNo?: string;
+  hospitalPrescriptionNo?: string;
+  patientName?: string;
+  receiverPhone?: string;
+  nodeTime?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderWarehouseItem {
+  orderId: string;
+  tenantId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  createdAt: string;
+  batchNo: string | null;
+  institutionName: string | null;
+  storageType: string | null;
+  addressType: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  deliveryTime: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  hospitalTypes: string | null;
+  patientName: string | null;
+  patientAge: string | null;
+  departmentNames: string | null;
+  prescriptionTypes: string | null;
+  prescriptionNos: string | null;
+  externalPrescriptionNos: string | null;
+  doseCounts: string | null;
+  perPackNums: string | null;
+  perPackDoses: string | null;
+  logisticsCompany: string | null;
+  logisticsNo: string | null;
+}
+
+export interface AdminOrderWarehousePage {
+  records: AdminOrderWarehouseItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AdminPrescriptionReprintQueryParams {
   startTime?: string;
   endTime?: string;
