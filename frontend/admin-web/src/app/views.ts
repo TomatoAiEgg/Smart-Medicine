@@ -267,9 +267,9 @@ export const menuItems = [
     subtitle: '处理待发货、发货、签收和回调补偿',
     componentKey: 'logistics',
     showCount: true,
-    plannedComponent: 'features/logistics/DeliveryList.vue',
-    coreActions: ['待发货查询', '创建物流单', '发货'],
-    apiDependencies: ['待发货查询', '发货', '状态事件'],
+    plannedComponent: 'features/logistics/LogisticsFulfillment.vue',
+    coreActions: ['发货查询', '打包发货', '发货/签收', '轨迹补录'],
+    apiDependencies: ['待发货查询', '物流单查询', '打包', '发货', '签收', '轨迹查询'],
   },
   {
     key: 'logisticsTraces',

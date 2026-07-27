@@ -23,7 +23,7 @@ import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type LogisticsDataset = 'ready' | 'shipments' | 'callbacks';
+type LogisticsDataset = 'shipments' | 'ready' | 'callbacks';
 
 const props = defineProps<{
   active: boolean;
@@ -46,8 +46,8 @@ const activeLogisticsDataset = ref<LogisticsDataset>('shipments');
 const logisticsLoading = ref(false);
 const logisticsError = ref('');
 const logisticsLimit = ref(50);
-const startTime = ref('2026-07-14 11:00:00');
-const endTime = ref('2026-07-21 12:00:00');
+const startTime = ref('');
+const endTime = ref('');
 const institution = ref('');
 const patientName = ref('');
 const consignee = ref('');
@@ -56,14 +56,17 @@ const hospitalType = ref('');
 const deliveryType = ref('');
 const logisticsStatus = ref('');
 const logisticsOrderNo = ref('');
-const logisticsCompany = ref('SF');
-const logisticsPayMethod = ref('MONTHLY');
+const queryLogisticsCompany = ref('');
+const queryLogisticsNo = ref('');
+const packLogisticsCompany = ref('SF');
+const packPayMethod = ref('MONTHLY');
 const pkgWeight = ref(1);
 const pkgNum = ref(1);
 const traceLogisticsNo = ref('');
 const traceProvider = ref('SF');
 const traceOpCode = ref('50');
 const traceContent = ref('');
+const selectedTraceShipmentNo = ref('');
 const callbackStatus = ref('');
 const callbackType = ref('');
 const handlingShipmentId = ref('');
@@ -81,10 +84,21 @@ const activeLogisticsCount = computed(() => {
 });
 
 const logisticsDatasetNames: Record<LogisticsDataset, string> = {
-  ready: '待打包订单',
-  shipments: '物流单',
+  shipments: '订单发货查询',
+  ready: '打包发货',
   callbacks: '回调记录',
 };
+
+const filterContractHint = computed(() => {
+  if (activeLogisticsDataset.value === 'ready') {
+    return '当前待打包接口仅支持条数；开始/结束时间、机构、平台订单号/处方号、病人姓名、收货人、收货电话、门诊住院、订单状态、送货方式、物流公司、物流单号、操作人等待后端筛选契约。';
+  }
+  return '当前发货查询接口仅支持订单状态、平台订单号、条数；开始/结束时间、机构、处方号、病人姓名、收货人、收货电话、门诊住院、送货方式、物流公司、物流单号、操作人等待后端筛选契约。';
+});
+
+const tracePanelTitle = computed(() => (
+  selectedTraceShipmentNo.value ? `轨迹补录/查询：${selectedTraceShipmentNo.value}` : '轨迹补录/查询'
+));
 
 function datasetCount(dataset: LogisticsDataset) {
   if (dataset === 'ready') return readyDeliveryOrders.value.length;
@@ -102,6 +116,16 @@ function errorMessage(error: unknown) {
 function normalizedLogisticsLimit() {
   if (!Number.isFinite(logisticsLimit.value) || logisticsLimit.value <= 0) return 50;
   return Math.min(Math.trunc(logisticsLimit.value), 200);
+}
+
+function normalizedPkgWeight() {
+  if (!Number.isFinite(pkgWeight.value) || pkgWeight.value < 0) return 1;
+  return Number(pkgWeight.value.toFixed(2));
+}
+
+function normalizedPkgNum() {
+  if (!Number.isFinite(pkgNum.value) || pkgNum.value <= 0) return 1;
+  return Math.trunc(pkgNum.value);
 }
 
 function rowValue(value: string | number | null | undefined) {
@@ -125,6 +149,14 @@ function activeLogisticsTableColspan() {
   return 19;
 }
 
+function canShip(shipment: ShipmentRecord) {
+  return shipment.logisticsStatus === 'PACKED';
+}
+
+function canSign(shipment: ShipmentRecord) {
+  return shipment.logisticsStatus !== 'SIGNED';
+}
+
 async function refreshLogisticsRecords() {
   const requestId = logisticsRequestId.value + 1;
   logisticsRequestId.value = requestId;
@@ -135,23 +167,27 @@ async function refreshLogisticsRecords() {
   logisticsLimit.value = limit;
   try {
     if (dataset === 'ready') {
-      readyDeliveryOrders.value = await listReadyDeliveryOrders(limit);
+      const records = await listReadyDeliveryOrders(limit);
+      if (requestId !== logisticsRequestId.value) return;
+      readyDeliveryOrders.value = records;
     } else if (dataset === 'shipments') {
-      shipments.value = await listShipments({
+      const records = await listShipments({
         status: logisticsStatus.value,
         orderNo: logisticsOrderNo.value,
         limit,
       });
+      if (requestId !== logisticsRequestId.value) return;
+      shipments.value = records;
     } else {
-      callbackRecords.value = await listCallbackRecords({
+      const records = await listCallbackRecords({
         status: callbackStatus.value,
         callbackType: callbackType.value,
         limit,
       });
+      if (requestId !== logisticsRequestId.value) return;
+      callbackRecords.value = records;
     }
-    if (requestId === logisticsRequestId.value) {
-      emit('notice', 'info', `已刷新${logisticsDatasetNames[dataset]}：${datasetCount(dataset)} 条`);
-    }
+    emit('notice', 'info', `已刷新${logisticsDatasetNames[dataset]}：${datasetCount(dataset)} 条`);
   } catch (error) {
     if (requestId === logisticsRequestId.value) {
       logisticsError.value = errorMessage(error);
@@ -165,6 +201,7 @@ async function refreshLogisticsRecords() {
 
 function switchLogisticsDataset(dataset: LogisticsDataset) {
   activeLogisticsDataset.value = dataset;
+  logisticsError.value = '';
   void refreshLogisticsRecords();
 }
 
@@ -172,10 +209,12 @@ async function handlePackShipment(order: DeliveryOrderRecord) {
   handlingShipmentId.value = order.orderId;
   logisticsError.value = '';
   try {
+    pkgWeight.value = normalizedPkgWeight();
+    pkgNum.value = normalizedPkgNum();
     const shipment = await packShipment({
       orderNo: order.orderNo,
-      logisticsCompany: logisticsCompany.value.trim() || 'SF',
-      payMethod: logisticsPayMethod.value.trim() || 'MONTHLY',
+      logisticsCompany: packLogisticsCompany.value.trim() || 'SF',
+      payMethod: packPayMethod.value.trim() || 'MONTHLY',
       pkgWeight: pkgWeight.value,
       pkgNum: pkgNum.value,
       operator: operatorModel.value.trim() || 'admin',
@@ -226,6 +265,7 @@ async function handleReceiveTrace() {
       traceTime: new Date().toISOString(),
       operator: operatorModel.value.trim() || 'admin',
     });
+    selectedTraceShipmentNo.value = shipment.logisticsNo;
     emit('notice', 'success', `${shipment.logisticsNo} 轨迹已记录为 ${shipment.logisticsStatus}`);
     await refreshLogisticsRecords();
   } catch (error) {
@@ -237,6 +277,7 @@ async function handleReceiveTrace() {
 
 async function refreshShipmentTraces(shipment: ShipmentRecord) {
   logisticsError.value = '';
+  selectedTraceShipmentNo.value = shipment.logisticsNo;
   try {
     shipmentTraces.value = await listShipmentTraces(shipment.shipmentId);
   } catch (error) {
@@ -312,7 +353,7 @@ defineExpose({
           type="button"
           @click="switchLogisticsDataset('ready')"
         >
-          待打包
+          打包发货
         </button>
         <button
           class="legacy-link-btn"
@@ -323,112 +364,125 @@ defineExpose({
           回调记录
         </button>
       </li>
-      <li>
-        条数：
-        <input v-model.number="logisticsLimit" class="legacy-input input-small" type="number" min="1" max="200" step="10" @keyup.enter="refreshLogisticsRecords" />
-      </li>
-      <li>
-        操作人：
-        <input v-model="operatorModel" class="legacy-input" placeholder="admin" />
-      </li>
-      <li v-if="activeLogisticsDataset !== 'callbacks'">
-        重量 kg：
-        <input v-model.number="pkgWeight" class="legacy-input input-small" type="number" min="0" step="0.1" />
-      </li>
-      <li v-if="activeLogisticsDataset !== 'callbacks'">
-        件数：
-        <input v-model.number="pkgNum" class="legacy-input input-small" type="number" min="1" step="1" />
-      </li>
     </ul>
 
-    <ul v-if="activeLogisticsDataset !== 'callbacks'" class="legacy-search logistics-search">
-      <li>
-        开始时间：
-        <input v-model="startTime" class="legacy-input input-large" />
-      </li>
-      <li>
-        结束时间：
-        <input v-model="endTime" class="legacy-input input-large" />
-      </li>
-      <li>
-        机构：
-        <select v-model="institution" class="legacy-input input-large">
-          <option value="">请选择</option>
-          <option value="良益堂煎药中心">良益堂煎药中心</option>
-          <option value="广州良益堂（康正堂店）">广州良益堂（康正堂店）</option>
-          <option value="代煎代配药房">代煎代配药房</option>
-        </select>
-      </li>
-      <li>
-        平台订单号：
-        <input v-model="logisticsOrderNo" class="legacy-input input-large" placeholder="ZHYF..." @keyup.enter="refreshLogisticsRecords" />
-      </li>
-      <li>
-        病人姓名：
-        <input v-model="patientName" class="legacy-input input-large" />
-      </li>
-      <li>
-        收货人姓名：
-        <input v-model="consignee" class="legacy-input input-large" />
-      </li>
-      <li>
-        收货电话：
-        <input v-model="receiverPhone" class="legacy-input input-large" />
-      </li>
-      <li>
-        门诊住院：
-        <select v-model="hospitalType" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="门诊">门诊</option>
-          <option value="住院">住院</option>
-          <option value="其他">其他</option>
-        </select>
-      </li>
-      <li>
-        订单状态：
-        <select v-model="logisticsStatus" class="legacy-input" @change="refreshLogisticsRecords">
-          <option value="">请选择</option>
-          <option value="PACKED">已打包</option>
-          <option value="SHIPPED">已出库</option>
-          <option value="SIGNED">已签收</option>
-        </select>
-      </li>
-      <li>
-        送货方式：
-        <select v-model="deliveryType" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="默认">默认</option>
-          <option value="送医院">送医院</option>
-          <option value="送个人">送个人</option>
-        </select>
-      </li>
-      <li>
-        物流公司：
-        <input v-model="logisticsCompany" class="legacy-input" placeholder="SF / EMS" />
-      </li>
-      <li>
-        收款方式：
-        <select v-model="logisticsPayMethod" class="legacy-input">
-          <option value="MONTHLY">寄付</option>
-          <option value="COLLECT">到付</option>
-        </select>
-      </li>
-      <li>
-        物流单号：
-        <input v-model="traceLogisticsNo" class="legacy-input input-large" placeholder="SF-001" />
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="logisticsLoading" @click="refreshLogisticsRecords">
-          {{ logisticsLoading ? '查询中' : '查询' }}
-        </button>
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-export" type="button" disabled>导出</button>
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-export" type="button" disabled>导出自提订单</button>
-      </li>
-    </ul>
+    <template v-if="activeLogisticsDataset !== 'callbacks'">
+      <ul class="legacy-search logistics-search">
+        <li>
+          开始时间：
+          <input v-model="startTime" class="legacy-input input-large" placeholder="YYYY-MM-DD HH:mm:ss" />
+        </li>
+        <li>
+          结束时间：
+          <input v-model="endTime" class="legacy-input input-large" placeholder="YYYY-MM-DD HH:mm:ss" />
+        </li>
+        <li>
+          机构：
+          <select v-model="institution" class="legacy-input input-large">
+            <option value="">请选择</option>
+            <option value="良益堂煎药中心">良益堂煎药中心</option>
+            <option value="广州良益堂（康正堂店）">广州良益堂（康正堂店）</option>
+            <option value="代煎代配药房">代煎代配药房</option>
+          </select>
+        </li>
+        <li>
+          平台订单号/处方号：
+          <input v-model="logisticsOrderNo" class="legacy-input input-large" placeholder="订单号可查询，处方号待接入" @keyup.enter="refreshLogisticsRecords" />
+        </li>
+        <li>
+          病人姓名：
+          <input v-model="patientName" class="legacy-input input-large" />
+        </li>
+        <li>
+          收货人：
+          <input v-model="consignee" class="legacy-input input-large" />
+        </li>
+        <li>
+          收货电话：
+          <input v-model="receiverPhone" class="legacy-input input-large" />
+        </li>
+        <li>
+          门诊住院：
+          <select v-model="hospitalType" class="legacy-input">
+            <option value="">请选择</option>
+            <option value="门诊">门诊</option>
+            <option value="住院">住院</option>
+            <option value="其他">其他</option>
+          </select>
+        </li>
+        <li>
+          订单状态：
+          <select v-model="logisticsStatus" class="legacy-input" @change="refreshLogisticsRecords">
+            <option value="">请选择</option>
+            <option value="PACKED">已打包</option>
+            <option value="SHIPPED">已出库</option>
+            <option value="SIGNED">已签收</option>
+          </select>
+        </li>
+        <li>
+          送货方式：
+          <select v-model="deliveryType" class="legacy-input">
+            <option value="">请选择</option>
+            <option value="默认">默认</option>
+            <option value="送医院">送医院</option>
+            <option value="送个人">送个人</option>
+          </select>
+        </li>
+        <li>
+          物流公司：
+          <input v-model="queryLogisticsCompany" class="legacy-input" placeholder="SF / EMS" />
+        </li>
+        <li>
+          物流单号：
+          <input v-model="queryLogisticsNo" class="legacy-input input-large" placeholder="等待后端筛选契约" />
+        </li>
+        <li>
+          条数：
+          <input v-model.number="logisticsLimit" class="legacy-input input-small" type="number" min="1" max="200" step="10" @keyup.enter="refreshLogisticsRecords" />
+        </li>
+        <li>
+          操作人：
+          <input v-model="operatorModel" class="legacy-input" placeholder="admin" />
+        </li>
+        <li>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="logisticsLoading" @click="refreshLogisticsRecords">
+            {{ logisticsLoading ? '查询中' : '查询' }}
+          </button>
+        </li>
+        <li>
+          <button class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端导出接口">导出</button>
+        </li>
+        <li>
+          <button class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端导出接口">导出自提订单</button>
+        </li>
+      </ul>
+
+      <p class="logistics-filter-hint">
+        {{ filterContractHint }}
+      </p>
+
+      <ul v-if="activeLogisticsDataset === 'ready'" class="legacy-search logistics-pack-search">
+        <li>
+          打包物流公司：
+          <input v-model="packLogisticsCompany" class="legacy-input" placeholder="SF / EMS" />
+        </li>
+        <li>
+          收款方式：
+          <select v-model="packPayMethod" class="legacy-input">
+            <option value="MONTHLY">寄付</option>
+            <option value="COLLECT">到付</option>
+          </select>
+        </li>
+        <li>
+          重量 kg：
+          <input v-model.number="pkgWeight" class="legacy-input input-small" type="number" min="0" step="0.1" />
+        </li>
+        <li>
+          件数：
+          <input v-model.number="pkgNum" class="legacy-input input-small" type="number" min="1" step="1" />
+        </li>
+      </ul>
+    </template>
 
     <ul v-else class="legacy-search logistics-search">
       <li>
@@ -440,6 +494,10 @@ defineExpose({
         <input v-model="callbackType" class="legacy-input input-large" placeholder="ORDER_SHIPPED" @keyup.enter="refreshLogisticsRecords" />
       </li>
       <li>
+        条数：
+        <input v-model.number="logisticsLimit" class="legacy-input input-small" type="number" min="1" max="200" step="10" @keyup.enter="refreshLogisticsRecords" />
+      </li>
+      <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="logisticsLoading" @click="refreshLogisticsRecords">
           {{ logisticsLoading ? '刷新中' : '查询' }}
         </button>
@@ -447,26 +505,6 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-export" type="button" :disabled="logisticsLoading" @click="handleDispatchDueCallbacks">
           派发到期回调
-        </button>
-      </li>
-    </ul>
-
-    <ul v-if="activeLogisticsDataset === 'shipments'" class="legacy-search logistics-trace-search">
-      <li>
-        来源：
-        <input v-model="traceProvider" class="legacy-input" placeholder="SF / EMS" />
-      </li>
-      <li>
-        轨迹码：
-        <input v-model="traceOpCode" class="legacy-input" placeholder="50 / 80 / 203" />
-      </li>
-      <li class="logistics-trace-content">
-        轨迹说明：
-        <input v-model="traceContent" class="legacy-input input-large" placeholder="已揽收 / 已签收" @keyup.enter="handleReceiveTrace" />
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="logisticsLoading" @click="handleReceiveTrace">
-          记录轨迹
         </button>
       </li>
     </ul>
@@ -482,7 +520,7 @@ defineExpose({
           <tr v-if="activeLogisticsDataset !== 'callbacks'" class="legacy-main-head">
             <th>订单号</th>
             <th>下单时间</th>
-            <th>件</th>
+            <th>件数</th>
             <th>物流公司</th>
             <th>运单号</th>
             <th>打包时间</th>
@@ -492,7 +530,7 @@ defineExpose({
             <th>病人姓名</th>
             <th>收款方式</th>
             <th>送货方式</th>
-            <th>收货人姓名</th>
+            <th>收货人</th>
             <th>收货电话</th>
             <th>送货日期</th>
             <th>收货地址</th>
@@ -522,32 +560,34 @@ defineExpose({
             <tr v-for="item in readyDeliveryOrders" :key="item.orderId" class="legacy-main-info">
               <td>{{ item.orderNo }}</td>
               <td>-</td>
-              <td>{{ pkgNum }}</td>
-              <td>{{ logisticsCompany }}</td>
               <td>-</td>
               <td>-</td>
               <td>-</td>
               <td>-</td>
-              <td>{{ pkgWeight }}</td>
-              <td>{{ rowValue(patientName) }}</td>
-              <td>{{ paymentLabel(logisticsPayMethod) }}</td>
-              <td>{{ rowValue(deliveryType) }}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
               <td>{{ item.receiverName }}</td>
               <td>{{ item.receiverPhone }}</td>
               <td>-</td>
               <td class="legacy-left">{{ item.receiverAddress }}</td>
-              <td>{{ rowValue(institution || item.externalOrderNo) }}</td>
+              <td>{{ rowValue(item.externalOrderNo) }}</td>
               <td><StatusPill :value="item.orderStatus" :tone="statusTone(item.orderStatus)" /></td>
-              <td>
+              <td class="logistics-action-cell">
                 <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingShipmentId === item.orderId" @click="handlePackShipment(item)">
                   打包
                 </button>
+                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
+                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
               </td>
             </tr>
           </template>
           <template v-else-if="activeLogisticsDataset === 'shipments'">
             <tr v-if="shipments.length === 0" class="legacy-main-info">
-              <td colspan="19" class="legacy-empty">暂无物流单</td>
+              <td colspan="19" class="legacy-empty">暂无发货记录</td>
             </tr>
             <tr v-for="shipment in shipments" :key="shipment.shipmentId" class="legacy-main-info">
               <td>{{ shipment.orderNo }}</td>
@@ -559,21 +599,23 @@ defineExpose({
               <td>{{ formatDate(shipment.outboundTime) }}</td>
               <td>{{ formatDate(shipment.signTime) }}</td>
               <td>{{ rowValue(shipment.pkgWeight) }}</td>
-              <td>{{ rowValue(patientName) }}</td>
+              <td>-</td>
               <td>{{ paymentLabel(shipment.payMethod) }}</td>
-              <td>{{ rowValue(deliveryType) }}</td>
-              <td>{{ rowValue(consignee) }}</td>
-              <td>{{ rowValue(receiverPhone) }}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>-</td>
               <td>-</td>
               <td class="legacy-left">-</td>
-              <td>{{ rowValue(institution) }}</td>
+              <td>-</td>
               <td><StatusPill :value="shipment.logisticsStatus" :tone="statusTone(shipment.logisticsStatus)" /></td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn" type="button" @click="refreshShipmentTraces(shipment)">轨迹</button>
+                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
+                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
                 <button
                   class="legacy-link-btn workflow-pass-btn"
                   type="button"
-                  :disabled="handlingShipmentId === shipment.shipmentId || shipment.logisticsStatus !== 'PACKED'"
+                  :disabled="handlingShipmentId === shipment.shipmentId || !canShip(shipment)"
                   @click="handleShipmentAction(shipment, 'ship')"
                 >
                   发货
@@ -581,7 +623,7 @@ defineExpose({
                 <button
                   class="legacy-link-btn workflow-pass-btn"
                   type="button"
-                  :disabled="handlingShipmentId === shipment.shipmentId || shipment.logisticsStatus === 'SIGNED'"
+                  :disabled="handlingShipmentId === shipment.shipmentId || !canSign(shipment)"
                   @click="handleShipmentAction(shipment, 'sign')"
                 >
                   签收
@@ -603,10 +645,10 @@ defineExpose({
               <td>{{ formatDate(record.createdAt) }}</td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingCallbackId === record.id" @click="handleCallbackAction(record, 'success')">
-                  成功
+                  标记成功
                 </button>
                 <button class="legacy-link-btn workflow-reject-btn" type="button" :disabled="handlingCallbackId === record.id" @click="handleCallbackAction(record, 'failed')">
-                  失败
+                  标记失败
                 </button>
                 <button class="legacy-link-btn" type="button" :disabled="handlingCallbackId === record.id" @click="handleCallbackAction(record, 'replay')">
                   重放
@@ -622,7 +664,36 @@ defineExpose({
       {{ pageSummary(activeLogisticsCount) }}
     </p>
 
-    <div v-if="activeLogisticsDataset === 'shipments'" class="legacy-panel logistics-trace-panel">
+    <section v-if="activeLogisticsDataset === 'shipments'" class="legacy-panel logistics-trace-panel">
+      <div class="logistics-section-title">
+        <h2>{{ tracePanelTitle }}</h2>
+        <span>补录按运单号提交；查询请在发货记录行内点击“轨迹”。</span>
+      </div>
+
+      <ul class="legacy-search logistics-trace-search">
+        <li>
+          运单号：
+          <input v-model="traceLogisticsNo" class="legacy-input input-large" placeholder="请输入运单号" />
+        </li>
+        <li>
+          来源：
+          <input v-model="traceProvider" class="legacy-input" placeholder="SF / EMS" />
+        </li>
+        <li>
+          轨迹码：
+          <input v-model="traceOpCode" class="legacy-input" placeholder="50 / 80 / 203" />
+        </li>
+        <li class="logistics-trace-content">
+          轨迹说明：
+          <input v-model="traceContent" class="legacy-input input-large" placeholder="已揽收 / 已签收" @keyup.enter="handleReceiveTrace" />
+        </li>
+        <li>
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="logisticsLoading" @click="handleReceiveTrace">
+            补录轨迹
+          </button>
+        </li>
+      </ul>
+
       <table class="legacy-main-table logistics-trace-table">
         <thead>
           <tr class="legacy-main-head">
@@ -644,6 +715,41 @@ defineExpose({
           </tr>
         </tbody>
       </table>
-    </div>
+    </section>
   </section>
 </template>
+
+<style scoped>
+.logistics-filter-hint {
+  margin: -4px 0 10px;
+  color: #6f7d91;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.logistics-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.logistics-section-title h2 {
+  margin: 0;
+  color: #1f5fa3;
+  font-size: 15px;
+}
+
+.logistics-section-title span {
+  color: #6f7d91;
+  font-size: 13px;
+}
+
+@media (max-width: 780px) {
+  .logistics-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>
