@@ -3,7 +3,15 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppLayout from './app/AppLayout.vue';
 import type { LayoutTab } from './app/AppLayout.vue';
-import { isViewKey, menuItems, routeByKey, type ImplementedViewKey, type ViewKey } from './app/views';
+import {
+  isViewKey,
+  menuItems,
+  routeByKey,
+  standaloneRouteItems,
+  type AppRouteItem,
+  type ImplementedViewKey,
+  type ViewKey,
+} from './app/views';
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
@@ -122,6 +130,10 @@ const layoutTabs = computed<LayoutTab[]>(() => [
     closable: true,
     path: routeByKey[key].path,
   })),
+]);
+const navigationItems = computed<readonly AppRouteItem[]>(() => [
+  ...standaloneRouteItems.filter((item) => item.key !== 'dashboard'),
+  ...menuItems,
 ]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reviews: workflowCounts.value.reviews,
@@ -300,7 +312,7 @@ function closeTab(view: ViewKey) {
     :title="currentViewTitle.title"
     :subtitle="currentViewTitle.subtitle"
     :home-path="homePath"
-    :menu-items="menuItems"
+    :menu-items="navigationItems"
     :counts="menuCounts"
     :notice="notice"
     :tabs="layoutTabs"

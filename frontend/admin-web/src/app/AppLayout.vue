@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { MenuItem, ViewKey } from './views';
+import type { AppRouteItem, ViewKey } from './views';
 
 export interface LayoutTab {
   key: ViewKey;
@@ -14,7 +14,7 @@ const props = defineProps<{
   title: string;
   subtitle: string;
   homePath: string;
-  menuItems: readonly MenuItem[];
+  menuItems: readonly AppRouteItem[];
   counts: Partial<Record<ViewKey, number>>;
   notice: { tone: 'info' | 'success' | 'error'; text: string } | null;
   tabs: LayoutTab[];
@@ -26,7 +26,7 @@ defineEmits<{
 }>();
 
 const groupedMenuItems = computed(() => {
-  const groups: Array<{ name: string; items: MenuItem[] }> = [];
+  const groups: Array<{ name: string; items: AppRouteItem[] }> = [];
   for (const item of props.menuItems) {
     let group = groups.find((entry) => entry.name === item.group);
     if (!group) {
@@ -48,6 +48,7 @@ const activeGroupNames = computed(() => {
 const expandedGroupNames = ref<Set<string>>(new Set(['订单管理']));
 
 const groupIcons: Record<string, string> = {
+  系统入口: '▦',
   系统管理: '▣',
   参数管理: '▦',
   机构管理: '▤',
