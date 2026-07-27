@@ -2,6 +2,7 @@ package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
 import com.zhyf.order.application.AdminOrderPage;
+import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.domain.InstitutionApp;
 import com.zhyf.order.domain.OrderProgressSnapshot;
@@ -94,6 +95,133 @@ public class OrderRepository {
                         findCallbackProgress(header.orderId()),
                         findStatusLogProgress(header.orderId())
                 ));
+    }
+
+    public Optional<AdminOrderDetail> findAdminOrderDetailByOrderNo(String orderNo) {
+        String sql = """
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.patient_name,
+                    o.patient_phone,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    latest_validation.validation_status,
+                    latest_validation.validation_message,
+                    latest_validation.validation_created_at,
+                    o.created_at,
+                    o.updated_at
+                from order_main o
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select
+                        r.validation_status,
+                        r.validation_message,
+                        r.created_at as validation_created_at
+                    from order_validation_record r
+                    where r.order_id = o.id
+                    order by r.created_at desc
+                    limit 1
+                ) latest_validation on true
+                where o.order_no = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderDetailHeader, orderNo)
+                .stream()
+                .findFirst()
+                .map(header -> new AdminOrderDetail(
+                        header.orderId(),
+                        header.tenantId(),
+                        header.institutionId(),
+                        header.institutionName(),
+                        header.storageType(),
+                        header.orderNo(),
+                        header.externalOrderNo(),
+                        header.orderStatus(),
+                        header.patientName(),
+                        header.patientPhone(),
+                        header.receiverName(),
+                        header.receiverPhone(),
+                        header.receiverProvince(),
+                        header.receiverCity(),
+                        header.receiverZone(),
+                        header.receiverAddress(),
+                        header.addressType(),
+                        header.validationStatus(),
+                        header.validationMessage(),
+                        header.validationCreatedAt(),
+                        header.createdAt(),
+                        header.updatedAt(),
+                        findAdminOrderDetailPrescriptions(header.orderId())
+                ));
+    }
+
+    private List<AdminOrderDetail.Prescription> findAdminOrderDetailPrescriptions(UUID orderId) {
+        String sql = """
+                select
+                    p.id as prescription_id,
+                    p.prescription_no,
+                    p.external_prescription_no,
+                    p.prescription_type,
+                    p.status as prescription_status,
+                    p.doctor_name,
+                    p.diagnosis,
+                    count(d.id)::int as detail_count,
+                    p.created_at
+                from prescription p
+                left join prescription_detail d on d.prescription_id = p.id
+                where p.order_id = ?
+                group by p.id, p.prescription_no, p.external_prescription_no, p.prescription_type,
+                         p.status, p.doctor_name, p.diagnosis, p.created_at
+                order by p.created_at asc, p.prescription_no asc
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderDetailPrescription, orderId)
+                .stream()
+                .map(prescription -> new AdminOrderDetail.Prescription(
+                        prescription.prescriptionId(),
+                        prescription.prescriptionNo(),
+                        prescription.externalPrescriptionNo(),
+                        prescription.prescriptionType(),
+                        prescription.prescriptionStatus(),
+                        prescription.doctorName(),
+                        prescription.diagnosis(),
+                        prescription.detailCount(),
+                        prescription.createdAt(),
+                        findAdminOrderDetailDrugDetails(prescription.prescriptionId())
+                ))
+                .toList();
+    }
+
+    private List<AdminOrderDetail.DrugDetail> findAdminOrderDetailDrugDetails(UUID prescriptionId) {
+        String sql = """
+                select
+                    id as detail_id,
+                    drug_code,
+                    drug_name,
+                    platform_drug_code,
+                    platform_drug_name,
+                    dose,
+                    unit,
+                    special_usage,
+                    sort_no,
+                    batch_no,
+                    validation_tips,
+                    created_at
+                from prescription_detail
+                where prescription_id = ?
+                order by sort_no asc, created_at asc
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderDetailDrugDetail, prescriptionId);
     }
 
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
@@ -682,9 +810,95 @@ public class OrderRepository {
         );
     }
 
+    private AdminOrderDetailHeader mapAdminOrderDetailHeader(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderDetailHeader(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("patient_name"),
+                rs.getString("patient_phone"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                rs.getString("validation_status"),
+                rs.getString("validation_message"),
+                instant(rs, "validation_created_at"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderDetail.Prescription mapAdminOrderDetailPrescription(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminOrderDetail.Prescription(
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("prescription_type"),
+                rs.getString("prescription_status"),
+                rs.getString("doctor_name"),
+                rs.getString("diagnosis"),
+                rs.getInt("detail_count"),
+                instant(rs, "created_at"),
+                List.of()
+        );
+    }
+
+    private AdminOrderDetail.DrugDetail mapAdminOrderDetailDrugDetail(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderDetail.DrugDetail(
+                rs.getObject("detail_id", UUID.class),
+                rs.getString("drug_code"),
+                rs.getString("drug_name"),
+                rs.getString("platform_drug_code"),
+                rs.getString("platform_drug_name"),
+                rs.getString("dose"),
+                rs.getString("unit"),
+                rs.getString("special_usage"),
+                rs.getInt("sort_no"),
+                rs.getString("batch_no"),
+                rs.getString("validation_tips"),
+                instant(rs, "created_at")
+        );
+    }
+
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
+    }
+
+    private record AdminOrderDetailHeader(
+            UUID orderId,
+            UUID tenantId,
+            UUID institutionId,
+            String institutionName,
+            String storageType,
+            String orderNo,
+            String externalOrderNo,
+            String orderStatus,
+            String patientName,
+            String patientPhone,
+            String receiverName,
+            String receiverPhone,
+            String receiverProvince,
+            String receiverCity,
+            String receiverZone,
+            String receiverAddress,
+            String addressType,
+            String validationStatus,
+            String validationMessage,
+            Instant validationCreatedAt,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
     }
 
     private OffsetDateTime offsetDateTime(Instant value) {

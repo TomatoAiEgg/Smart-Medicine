@@ -1,5 +1,11 @@
 import { request } from './client';
-import type { AdminOrderPage, AdminOrderQueryParams, OrderCreateResult, OrderProgressSnapshot } from './types';
+import type {
+  AdminOrderDetail,
+  AdminOrderPage,
+  AdminOrderQueryParams,
+  OrderCreateResult,
+  OrderProgressSnapshot,
+} from './types';
 
 function buildOrderQuery(params: AdminOrderQueryParams) {
   const query = new URLSearchParams();
@@ -19,6 +25,10 @@ export function listAdminOrders(params: AdminOrderQueryParams = {}) {
 
 export function getOrder(orderNo: string) {
   return request<OrderCreateResult>(`/order-api/api/admin/orders/${encodeURIComponent(orderNo)}`);
+}
+
+export function getAdminOrderDetail(orderNo: string) {
+  return request<AdminOrderDetail>(`/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/detail`);
 }
 
 export function getOrderProgress(orderNo: string) {

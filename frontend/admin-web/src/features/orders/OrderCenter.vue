@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ApiError } from '../../api/client';
-import { getOrder, getOrderProgress, listAdminOrders } from '../../api/order';
-import type { AdminOrderListItem, AdminOrderPage, OrderCreateResult, OrderProgressSnapshot } from '../../api/types';
+import { getAdminOrderDetail, getOrder, getOrderProgress, listAdminOrders } from '../../api/order';
+import type {
+  AdminOrderDetail,
+  AdminOrderDetailDrug,
+  AdminOrderListItem,
+  AdminOrderPage,
+  OrderCreateResult,
+  OrderProgressSnapshot,
+} from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
+interface DetailDrugRow {
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  detail: AdminOrderDetailDrug;
+}
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -32,6 +44,7 @@ const patientName = ref('');
 const receiverPhone = ref('');
 const order = ref<OrderCreateResult | null>(null);
 const orderProgress = ref<OrderProgressSnapshot | null>(null);
+const orderDetail = ref<AdminOrderDetail | null>(null);
 const orderPage = ref<AdminOrderPage | null>(null);
 const orderLoading = ref(false);
 const detailLoading = ref(false);
@@ -41,6 +54,14 @@ const page = ref(1);
 const pageSize = ref(20);
 
 const orderRows = computed(() => orderPage.value?.records ?? []);
+const detailPrescriptions = computed(() => orderDetail.value?.prescriptions ?? []);
+const detailDrugRows = computed<DetailDrugRow[]>(() => detailPrescriptions.value.flatMap((prescription) => (
+  prescription.details.map((detail) => ({
+    prescriptionNo: prescription.prescriptionNo,
+    externalPrescriptionNo: prescription.externalPrescriptionNo,
+    detail,
+  }))
+)));
 const prescriptions = computed(() => orderProgress.value?.prescriptions ?? []);
 const workflowTasks = computed(() => orderProgress.value?.workflowTasks ?? []);
 const dispenseRecords = computed(() => orderProgress.value?.dispenseRecords ?? []);
@@ -84,6 +105,36 @@ function receiverSummary(row: AdminOrderListItem) {
   const pieces = [row.receiverName, row.receiverPhone, address]
     .filter((item): item is string => !!item && item.trim().length > 0);
   return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+}
+
+function detailPatientSummary() {
+  if (!orderDetail.value) return EMPTY_VALUE;
+  const pieces = [orderDetail.value.patientName, orderDetail.value.patientPhone]
+    .filter((item): item is string => !!item && item.trim().length > 0);
+  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+}
+
+function detailReceiverSummary() {
+  if (!orderDetail.value) return EMPTY_VALUE;
+  const address = [
+    orderDetail.value.receiverProvince,
+    orderDetail.value.receiverCity,
+    orderDetail.value.receiverZone,
+    orderDetail.value.receiverAddress,
+  ].filter((item): item is string => !!item && item.trim().length > 0).join('');
+  const pieces = [orderDetail.value.receiverName, orderDetail.value.receiverPhone, address]
+    .filter((item): item is string => !!item && item.trim().length > 0);
+  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+}
+
+function validationSummary() {
+  if (!orderDetail.value?.validationStatus && !orderDetail.value?.validationMessage) return EMPTY_VALUE;
+  const pieces = [
+    statusText(orderDetail.value.validationStatus),
+    orderDetail.value.validationMessage,
+    formatDate(orderDetail.value.validationCreatedAt),
+  ].filter((item): item is string => !!item && item !== EMPTY_VALUE && item.trim().length > 0);
+  return pieces.join(' / ');
 }
 
 function deliveryTypeText(type: string | null | undefined) {
@@ -188,12 +239,14 @@ async function queryOrder() {
     pageSize.value = nextPage.pageSize;
     order.value = null;
     orderProgress.value = null;
+    orderDetail.value = null;
     selectedOrderNo.value = '';
     emit('notice', 'success', `已查询到 ${nextPage.total} 条处方订单记录`);
   } catch (error) {
     orderPage.value = null;
     order.value = null;
     orderProgress.value = null;
+    orderDetail.value = null;
     orderError.value = errorMessage(error);
   } finally {
     orderLoading.value = false;
@@ -209,8 +262,13 @@ async function loadOrderDetail(row: AdminOrderListItem) {
   detailLoading.value = true;
   orderError.value = '';
   try {
-    const [nextOrder, nextProgress] = await Promise.all([getOrder(row.orderNo), getOrderProgress(row.orderNo)]);
+    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
+      getOrder(row.orderNo),
+      getAdminOrderDetail(row.orderNo),
+      getOrderProgress(row.orderNo),
+    ]);
     order.value = nextOrder;
+    orderDetail.value = nextDetail;
     orderProgress.value = nextProgress;
     selectedOrderNo.value = row.orderNo;
     emit('notice', 'success', `已加载订单 ${nextOrder.orderNo} 详情`);
@@ -218,6 +276,7 @@ async function loadOrderDetail(row: AdminOrderListItem) {
   } catch (error) {
     order.value = null;
     orderProgress.value = null;
+    orderDetail.value = null;
     selectedOrderNo.value = '';
     orderError.value = errorMessage(error);
   } finally {
@@ -453,7 +512,8 @@ async function goNextPage() {
           <h2>提示信息</h2>
         </div>
         <p class="order-detail-note">
-          本页已按老订单详情拆分为只读工作台。列表筛选已接入后端分页查询；药品明细、金额、门诊住院、批次、订单备注和导出动作等待后端契约。
+          本页已按老订单详情拆分为只读工作台。订单基础信息、处方和药品明细来自后端详情接口；金额、门诊住院、批次、订单备注和导出动作等待后端契约。
+          <span v-if="orderDetail">最近校验：{{ validationSummary() }}</span>
         </p>
       </section>
 
@@ -473,7 +533,7 @@ async function goNextPage() {
             </div>
             <div>
               <span>外部订单号</span>
-              <strong>{{ rowValue(order.externalOrderNo) }}</strong>
+              <strong>{{ rowValue(orderDetail?.externalOrderNo || order.externalOrderNo) }}</strong>
             </div>
             <div>
               <span>订单状态</span>
@@ -485,23 +545,31 @@ async function goNextPage() {
             </div>
             <div>
               <span>创建时间</span>
-              <strong>{{ orderCreatedAt }}</strong>
+              <strong>{{ formatDate(orderDetail?.createdAt || orderProgress?.createdAt) }}</strong>
             </div>
             <div>
               <span>最近更新</span>
-              <strong>{{ orderUpdatedAt }}</strong>
+              <strong>{{ formatDate(orderDetail?.updatedAt || orderProgress?.updatedAt) }}</strong>
             </div>
             <div>
               <span>机构名称</span>
-              <strong>{{ waitingValue() }}</strong>
+              <strong>{{ rowValue(orderDetail?.institutionName) }}</strong>
             </div>
             <div>
               <span>患者信息</span>
-              <strong>{{ waitingValue() }}</strong>
+              <strong>{{ detailPatientSummary() }}</strong>
             </div>
             <div>
               <span>收货地址</span>
-              <strong>{{ waitingValue() }}</strong>
+              <strong>{{ detailReceiverSummary() }}</strong>
+            </div>
+            <div>
+              <span>送货方式</span>
+              <strong>{{ deliveryTypeText(orderDetail?.addressType) }}</strong>
+            </div>
+            <div>
+              <span>煎煮中心</span>
+              <strong>{{ rowValue(orderDetail?.storageType) }}</strong>
             </div>
           </div>
         </section>
@@ -520,25 +588,25 @@ async function goNextPage() {
                   <th>处方类型</th>
                   <th>门诊住院</th>
                   <th>医生</th>
-                  <th>患者</th>
+                  <th>诊断</th>
                   <th>明细数</th>
                   <th>创建时间</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="prescriptions.length === 0">
+                <tr v-if="detailPrescriptions.length === 0">
                   <td colspan="9" class="empty">暂无处方信息</td>
                 </tr>
-                <tr v-for="item in prescriptions" :key="item.prescriptionId">
+                <tr v-for="item in detailPrescriptions" :key="item.prescriptionId">
                   <td>{{ rowValue(item.prescriptionNo) }}</td>
                   <td>{{ rowValue(item.externalPrescriptionNo) }}</td>
                   <td>
                     <StatusPill :value="statusText(item.prescriptionStatus)" :tone="statusTone(item.prescriptionStatus)" />
                   </td>
+                  <td>{{ rowValue(item.prescriptionType) }}</td>
                   <td>{{ waitingValue() }}</td>
-                  <td>{{ waitingValue() }}</td>
-                  <td>{{ waitingValue() }}</td>
-                  <td>{{ waitingValue() }}</td>
+                  <td>{{ rowValue(item.doctorName) }}</td>
+                  <td class="legacy-left">{{ rowValue(item.diagnosis) }}</td>
                   <td>{{ rowValue(item.detailCount) }}</td>
                   <td>{{ formatDate(item.createdAt) }}</td>
                 </tr>
@@ -551,8 +619,42 @@ async function goNextPage() {
           <div class="order-section-title">
             <h2>药品信息</h2>
           </div>
-          <div class="order-placeholder-panel">
-            药品明细、药品规格、数量、单价、用法用量等待后端详情接口。
+          <div class="table-wrap">
+            <table class="order-detail-table drug-detail-table">
+              <thead>
+                <tr>
+                  <th>平台处方号</th>
+                  <th>机构处方号</th>
+                  <th>机构药品编码</th>
+                  <th>机构药品名称</th>
+                  <th>平台药品编码</th>
+                  <th>平台药品名称</th>
+                  <th>剂量</th>
+                  <th>单位</th>
+                  <th>用法</th>
+                  <th>批号</th>
+                  <th>审方提示</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="detailDrugRows.length === 0">
+                  <td colspan="11" class="empty">暂无药品明细</td>
+                </tr>
+                <tr v-for="row in detailDrugRows" :key="row.detail.detailId">
+                  <td>{{ rowValue(row.prescriptionNo) }}</td>
+                  <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
+                  <td>{{ rowValue(row.detail.drugCode) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.drugName) }}</td>
+                  <td>{{ rowValue(row.detail.platformDrugCode) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.platformDrugName) }}</td>
+                  <td>{{ rowValue(row.detail.dose) }}</td>
+                  <td>{{ rowValue(row.detail.unit) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.specialUsage) }}</td>
+                  <td>{{ rowValue(row.detail.batchNo) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.validationTips) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 

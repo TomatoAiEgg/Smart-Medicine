@@ -69,6 +69,60 @@ export interface AdminOrderPage {
   pageSize: number;
 }
 
+export interface AdminOrderDetail {
+  orderId: string;
+  tenantId: string;
+  institutionId: string;
+  institutionName: string;
+  storageType: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  validationStatus: string | null;
+  validationMessage: string | null;
+  validationCreatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  prescriptions: AdminOrderDetailPrescription[];
+}
+
+export interface AdminOrderDetailPrescription {
+  prescriptionId: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  prescriptionType: string | null;
+  prescriptionStatus: string;
+  doctorName: string | null;
+  diagnosis: string | null;
+  detailCount: number;
+  createdAt: string;
+  details: AdminOrderDetailDrug[];
+}
+
+export interface AdminOrderDetailDrug {
+  detailId: string;
+  drugCode: string | null;
+  drugName: string | null;
+  platformDrugCode: string | null;
+  platformDrugName: string | null;
+  dose: string | null;
+  unit: string | null;
+  specialUsage: string | null;
+  sortNo: number;
+  batchNo: string | null;
+  validationTips: string | null;
+  createdAt: string;
+}
+
 export interface OrderProgressSnapshot {
   orderId: string;
   tenantId: string;

@@ -73,6 +73,14 @@ public class OrderService {
                 .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
     }
 
+    public AdminOrderDetail getAdminOrderDetail(String orderNo) {
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        return orderRepository.findAdminOrderDetailByOrderNo(orderNo.trim())
+                .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

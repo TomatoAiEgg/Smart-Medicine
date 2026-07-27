@@ -3,6 +3,7 @@ package com.zhyf.order.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.OrderCreateCommand;
@@ -109,6 +110,11 @@ public class InstitutionOrderController {
     @GetMapping("/admin/orders/{orderNo}")
     public ApiResponse<OrderCreateResult> getOrder(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.getOrder(orderNo));
+    }
+
+    @GetMapping("/admin/orders/{orderNo}/detail")
+    public ApiResponse<AdminOrderDetail> getOrderDetail(@PathVariable String orderNo) {
+        return ApiResponse.ok(orderService.getAdminOrderDetail(orderNo));
     }
 
     @GetMapping("/admin/orders/{orderNo}/progress")
