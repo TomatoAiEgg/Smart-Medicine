@@ -259,6 +259,7 @@ function closeTab(view: ViewKey) {
       v-model:operation-operator="operationOperator"
       :active="currentComponentKey === 'decoction'"
       :activation-key="decoctionActivationKey"
+      :route-key="activeView"
       @count-changed="decoctionCount = $event"
       @notice="showNotice"
     />
