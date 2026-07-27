@@ -27,6 +27,15 @@ export function listAdminOrders(params: AdminOrderQueryParams = {}) {
   return request<AdminOrderPage>(url);
 }
 
+export async function downloadAdminOrdersCsv(params: AdminOrderQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const response = await fetch(`/order-api/api/admin/orders/export.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
 export function getOrder(orderNo: string) {
   return request<OrderCreateResult>(`/order-api/api/admin/orders/${encodeURIComponent(orderNo)}`);
 }

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { ApiError } from '../../api/client';
 import {
   cancelAdminOrder,
+  downloadAdminOrdersCsv,
   getAdminOrderDetail,
   getOrder,
   getOrderProgress,
@@ -19,6 +20,7 @@ import type {
   AdminOrderCancelCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
+  AdminOrderQueryParams,
   ShipmentActionCommand,
   ShipmentProgress,
 } from '../../api/types';
@@ -82,6 +84,7 @@ const orderProgress = ref<OrderProgressSnapshot | null>(null);
 const orderDetail = ref<AdminOrderDetail | null>(null);
 const orderPage = ref<AdminOrderPage | null>(null);
 const orderLoading = ref(false);
+const exportLoading = ref(false);
 const detailLoading = ref(false);
 const orderError = ref('');
 const selectedOrderNo = ref('');
@@ -549,24 +552,7 @@ async function queryOrder() {
   orderLoading.value = true;
   orderError.value = '';
   try {
-    const nextPage = await listAdminOrders({
-      startTime: startTime.value,
-      endTime: endTime.value,
-      institution: institution.value,
-      prescriptionType: prescriptionType.value,
-      hospitalType: hospitalType.value,
-      orderStatus: orderStatus.value,
-      decoctionCenter: decoctionCenter.value,
-      deliveryType: deliveryType.value,
-      logisticsCompany: logisticsCompany.value,
-      province: province.value,
-      keyword: orderNo.value,
-      hospitalPrescriptionNo: hospitalPrescriptionNo.value,
-      patientName: patientName.value,
-      receiverPhone: receiverPhone.value,
-      page: page.value,
-      pageSize: pageSize.value,
-    });
+    const nextPage = await listAdminOrders(currentOrderQueryParams({ includePaging: true }));
     orderPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
@@ -583,6 +569,47 @@ async function queryOrder() {
     orderError.value = errorMessage(error);
   } finally {
     orderLoading.value = false;
+  }
+}
+
+function currentOrderQueryParams(options: { includePaging: boolean }): AdminOrderQueryParams {
+  return {
+    startTime: startTime.value,
+    endTime: endTime.value,
+    institution: institution.value,
+    prescriptionType: prescriptionType.value,
+    hospitalType: hospitalType.value,
+    orderStatus: orderStatus.value,
+    decoctionCenter: decoctionCenter.value,
+    deliveryType: deliveryType.value,
+    logisticsCompany: logisticsCompany.value,
+    province: province.value,
+    keyword: orderNo.value,
+    hospitalPrescriptionNo: hospitalPrescriptionNo.value,
+    patientName: patientName.value,
+    receiverPhone: receiverPhone.value,
+    ...(options.includePaging ? { page: page.value, pageSize: pageSize.value } : {}),
+  };
+}
+
+async function exportOrders() {
+  exportLoading.value = true;
+  orderError.value = '';
+  try {
+    const blob = await downloadAdminOrdersCsv(currentOrderQueryParams({ includePaging: false }));
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `订单信息汇总-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    emit('notice', 'success', '订单信息汇总已导出');
+  } catch (error) {
+    orderError.value = errorMessage(error);
+  } finally {
+    exportLoading.value = false;
   }
 }
 
@@ -746,8 +773,14 @@ async function goNextPage() {
         </button>
       </li>
       <li>
-        <button class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端导出契约">
-          导出
+        <button
+          class="legacy-btn legacy-btn-export"
+          type="button"
+          :disabled="exportLoading || orderLoading"
+          title="按当前筛选最多导出 5000 行"
+          @click="exportOrders"
+        >
+          {{ exportLoading ? '导出中' : '导出' }}
         </button>
       </li>
     </ul>

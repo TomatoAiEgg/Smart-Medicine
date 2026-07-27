@@ -358,6 +358,79 @@ public class OrderRepository {
         );
     }
 
+    public List<AdminOrderListItem> exportAdminOrders(AdminOrderSearchQuery query, int limit) {
+        QueryParts filters = adminOrderFilters(query);
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.patient_name,
+                    o.patient_phone,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    p.prescription_no as prescription_nos,
+                    p.external_prescription_no as external_prescription_nos,
+                    coalesce(p.prescription_type, '') as prescription_types,
+                    coalesce(p.hospital_type, '') as hospital_types,
+                    1 as prescription_count,
+                    coalesce(pd.detail_count, 0) as detail_count,
+                    p.dose_count,
+                    p.total_amount,
+                    o.delivery_time,
+                    o.batch_no,
+                    o.order_remark,
+                    latest_shipment.logistics_company,
+                    latest_shipment.logistics_no,
+                    latest_shipment.logistics_status,
+                    latest_shipment.latest_trace_time,
+                    o.created_at,
+                    o.updated_at
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select count(d.id)::int as detail_count
+                    from prescription_detail d
+                    where d.prescription_id = p.id
+                ) pd on true
+                left join lateral (
+                    select
+                        s.logistics_company,
+                        s.logistics_no,
+                        s.logistics_status,
+                        t.trace_time as latest_trace_time
+                    from shipment s
+                    left join lateral (
+                        select st.trace_time
+                        from shipment_trace st
+                        where st.shipment_id = s.id
+                        order by st.created_at desc
+                        limit 1
+                    ) t on true
+                    where s.order_id = o.id
+                    order by s.created_at desc
+                    limit 1
+                ) latest_shipment on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by o.created_at desc, p.prescription_no desc limit ?");
+        listQuery.add(Math.max(1, limit));
+        return jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderListItem, listQuery.args());
+    }
+
     private QueryParts adminOrderFilters(AdminOrderSearchQuery query) {
         QueryParts filters = new QueryParts("");
         filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());

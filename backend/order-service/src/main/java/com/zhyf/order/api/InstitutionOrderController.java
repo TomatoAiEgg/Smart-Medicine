@@ -19,7 +19,10 @@ import com.zhyf.order.application.OrderService;
 import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.WorkflowTaskSnapshot;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -27,6 +30,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -109,6 +115,50 @@ public class InstitutionOrderController {
                 pageSize
         );
         return ApiResponse.ok(orderService.listAdminOrders(query));
+    }
+
+    @GetMapping(value = "/admin/orders/export.csv", produces = "text/csv;charset=UTF-8")
+    public ResponseEntity<byte[]> exportOrders(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) String orderStatus,
+            @RequestParam(required = false) String decoctionCenter,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String logisticsCompany,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String hospitalPrescriptionNo,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String receiverPhone
+    ) {
+        AdminOrderSearchQuery query = new AdminOrderSearchQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                orderStatus,
+                decoctionCenter,
+                deliveryType,
+                logisticsCompany,
+                province,
+                keyword,
+                hospitalPrescriptionNo,
+                patientName,
+                receiverPhone,
+                1,
+                5000
+        );
+        String csv = orderService.exportAdminOrdersCsv(query);
+        String filename = "订单信息汇总-" + LocalDate.now(DEFAULT_QUERY_ZONE) + ".csv";
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename)
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
     @GetMapping("/admin/orders/{orderNo}")

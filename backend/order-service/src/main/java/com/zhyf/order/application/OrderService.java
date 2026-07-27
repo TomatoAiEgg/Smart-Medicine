@@ -33,6 +33,9 @@ public class OrderService {
     private static final ZoneId DEFAULT_PAYLOAD_ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter LEGACY_DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter EXPORT_DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(DEFAULT_PAYLOAD_ZONE);
+    private static final int ADMIN_ORDER_EXPORT_LIMIT = 5000;
     private static final Set<OrderStatus> ADMIN_CANCELLABLE_STATUSES = EnumSet.of(
             OrderStatus.CREATED,
             OrderStatus.AUDIT_PASSED,
@@ -121,6 +124,81 @@ public class OrderService {
                 pageSize
         );
         return orderRepository.searchAdminOrders(normalized);
+    }
+
+    public String exportAdminOrdersCsv(AdminOrderSearchQuery query) {
+        AdminOrderSearchQuery normalized = new AdminOrderSearchQuery(
+                query.startTime(),
+                query.endTime(),
+                query.institution(),
+                query.prescriptionType(),
+                query.hospitalType(),
+                query.orderStatus(),
+                query.decoctionCenter(),
+                query.deliveryType(),
+                query.logisticsCompany(),
+                query.province(),
+                query.keyword(),
+                query.hospitalPrescriptionNo(),
+                query.patientName(),
+                query.receiverPhone(),
+                1,
+                ADMIN_ORDER_EXPORT_LIMIT
+        );
+        List<AdminOrderListItem> rows = orderRepository.exportAdminOrders(normalized, ADMIN_ORDER_EXPORT_LIMIT);
+        StringBuilder builder = new StringBuilder();
+        builder.append('\ufeff');
+        appendCsvRow(builder, List.of(
+                "平台处方号",
+                "平台订单号",
+                "订单时间",
+                "煎煮中心",
+                "机构名称",
+                "机构处方号",
+                "病人姓名",
+                "门诊住院",
+                "处方类型",
+                "剂数",
+                "处方金额",
+                "收货人",
+                "收货电话",
+                "收货信息",
+                "收货时间",
+                "送货方式",
+                "订单状态",
+                "批次",
+                "物流公司",
+                "物流单号",
+                "物流状态",
+                "订单备注"
+        ));
+        for (AdminOrderListItem row : rows) {
+            appendCsvRow(builder, List.of(
+                    value(row.prescriptionNos()),
+                    value(row.orderNo()),
+                    dateTime(row.createdAt()),
+                    value(row.storageType()),
+                    value(row.institutionName()),
+                    value(row.externalPrescriptionNos()),
+                    value(row.patientName()),
+                    hospitalTypeText(row.hospitalTypes()),
+                    prescriptionTypeText(row.prescriptionTypes()),
+                    value(row.doseCount()),
+                    value(row.totalAmount()),
+                    value(row.receiverName()),
+                    value(row.receiverPhone()),
+                    receiverAddress(row),
+                    dateTime(row.deliveryTime()),
+                    deliveryTypeText(row.addressType()),
+                    orderStatusText(row.orderStatus()),
+                    batchText(row.batchNo()),
+                    value(row.logisticsCompany()),
+                    value(row.logisticsNo()),
+                    orderStatusText(row.logisticsStatus()),
+                    value(row.orderRemark())
+            ));
+        }
+        return builder.toString();
     }
 
     @Transactional
@@ -442,6 +520,102 @@ public class OrderService {
 
     private boolean canAdminCancel(OrderStatus status) {
         return ADMIN_CANCELLABLE_STATUSES.contains(status);
+    }
+
+    private void appendCsvRow(StringBuilder builder, List<String> values) {
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            builder.append(csvCell(values.get(i)));
+        }
+        builder.append('\n');
+    }
+
+    private String csvCell(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        if (escaped.startsWith("=") || escaped.startsWith("+") || escaped.startsWith("-") || escaped.startsWith("@")
+                || escaped.startsWith("\t")) {
+            escaped = "'" + escaped;
+        }
+        if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") || escaped.contains("\r")) {
+            return "\"" + escaped + "\"";
+        }
+        return escaped;
+    }
+
+    private String value(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private String dateTime(Instant value) {
+        return value == null ? "" : EXPORT_DATE_TIME_FORMATTER.format(value);
+    }
+
+    private String receiverAddress(AdminOrderListItem row) {
+        return List.of(
+                        value(row.receiverProvince()),
+                        value(row.receiverCity()),
+                        value(row.receiverZone()),
+                        value(row.receiverAddress())
+                ).stream()
+                .filter(StringUtils::hasText)
+                .reduce("", String::concat);
+    }
+
+    private String hospitalTypeText(String value) {
+        return switch (value(value)) {
+            case "1", "OUTPATIENT", "门诊" -> "门诊";
+            case "2", "INPATIENT", "住院" -> "住院";
+            case "3", "OTHER", "其他" -> "其他";
+            default -> value(value);
+        };
+    }
+
+    private String prescriptionTypeText(String value) {
+        return switch (value(value)) {
+            case "DECOCTION", "代煎" -> "代煎";
+            case "SELF_DECOCTION", "自煎" -> "自煎";
+            default -> value(value);
+        };
+    }
+
+    private String deliveryTypeText(String value) {
+        return switch (value(value)) {
+            case "HOSPITAL", "送医院" -> "送医院";
+            case "PATIENT", "送个人" -> "送个人";
+            case "PICKUP", "自提" -> "自提";
+            default -> value(value);
+        };
+    }
+
+    private String batchText(String value) {
+        return switch (value(value)) {
+            case "1", "MORNING", "早批次" -> "早批次";
+            case "2", "NOON", "午批次" -> "午批次";
+            case "3", "EVENING", "晚批次" -> "晚批次";
+            default -> value(value);
+        };
+    }
+
+    private String orderStatusText(String value) {
+        return switch (value(value)) {
+            case "CREATED" -> "已创建";
+            case "AUDIT_PASSED" -> "审核通过";
+            case "AUDIT_FAILED" -> "审核失败";
+            case "RECHECKED" -> "已复核";
+            case "DECOCTING" -> "煎煮中";
+            case "DECOCTED" -> "已煎煮";
+            case "PACKED" -> "已打包";
+            case "SHIPPED" -> "已发货";
+            case "IN_TRANSIT" -> "运输中";
+            case "SIGNED" -> "已签收";
+            case "CANCELLED" -> "已取消";
+            default -> value(value);
+        };
     }
 
     private Instant readAddressDeliveryTime(String text) {
