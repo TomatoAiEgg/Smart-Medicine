@@ -18,6 +18,7 @@ import OrderManageAction from './features/orders/OrderManageAction.vue';
 import OrderReceipt from './features/orders/OrderReceipt.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
 import PrescriptionReprint from './features/orders/PrescriptionReprint.vue';
+import ExceptionLogList from './features/ops/ExceptionLogList.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
@@ -48,6 +49,7 @@ const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const logisticsInfoRef = ref<InstanceType<typeof LogisticsInfo> | null>(null);
 const unreceivedFollowupRef = ref<InstanceType<typeof UnreceivedFollowup> | null>(null);
+const exceptionLogRef = ref<InstanceType<typeof ExceptionLogList> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
@@ -64,6 +66,7 @@ const integrationCount = ref(0);
 const logisticsCount = ref(0);
 const logisticsInfoCount = ref(0);
 const unreceivedFollowupCount = ref(0);
+const exceptionLogCount = ref(0);
 const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
@@ -71,6 +74,7 @@ const integrationActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const logisticsInfoActivationKey = ref(0);
 const unreceivedFollowupActivationKey = ref(0);
+const exceptionLogActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
@@ -121,6 +125,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logistics: logisticsCount.value,
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
+  maintenanceExceptionLogs: exceptionLogCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
   observability: observabilityCount.value,
@@ -157,6 +162,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
   if (componentKey === 'logisticsInfo') logisticsInfoActivationKey.value += 1;
   if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
+  if (componentKey === 'exceptionLogs') exceptionLogActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
@@ -207,6 +213,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logisticsUnreceivedFollowups') {
     await unreceivedFollowupRef.value?.refreshUnreceivedFollowups();
+    return;
+  }
+  if (componentKey === 'exceptionLogs') {
+    await exceptionLogRef.value?.refreshExceptionLogs();
     return;
   }
   if (componentKey === 'addressModify') {
@@ -444,6 +454,16 @@ function closeTab(view: ViewKey) {
       active
       :activation-key="unreceivedFollowupActivationKey"
       @count-changed="unreceivedFollowupCount = $event"
+      @notice="showNotice"
+    />
+
+    <ExceptionLogList
+      v-else-if="currentComponentKey === 'exceptionLogs'"
+      ref="exceptionLogRef"
+      v-model:operation-operator="operationOperator"
+      active
+      :activation-key="exceptionLogActivationKey"
+      @count-changed="exceptionLogCount = $event"
       @notice="showNotice"
     />
 

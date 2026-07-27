@@ -12,6 +12,7 @@ export type ImplementedViewKey =
   | 'logistics'
   | 'logisticsInfo'
   | 'logisticsUnreceivedFollowups'
+  | 'exceptionLogs'
   | 'portal'
   | 'reports'
   | 'integration'
@@ -556,11 +557,13 @@ export const menuItems = [
     path: '/maintenance/exception-logs',
     legacyRoute: 'mainten/listLogException.html',
     priority: 'P4',
-    implemented: false,
-    subtitle: '异常日志筛选、详情和状态处理',
+    implemented: true,
+    subtitle: '查询死信、物流回调失败和集成失败事件',
+    componentKey: 'exceptionLogs',
+    showCount: true,
     plannedComponent: 'features/ops/ExceptionLogList.vue',
-    coreActions: ['异常筛选', '详情', '状态处理'],
-    apiDependencies: ['异常日志查询', '异常状态更新', '操作审计'],
+    coreActions: ['死信查询', '回调失败查询', '集成失败查询', '死信重放/关闭'],
+    apiDependencies: ['死信记录', '物流回调失败', '集成重试失败'],
   },
   {
     key: 'ops',
