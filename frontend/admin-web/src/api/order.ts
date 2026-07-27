@@ -18,6 +18,9 @@ import type {
   AdminOrderReceiptResult,
   AdminPrescriptionActionCommand,
   AdminPrescriptionActionResult,
+  AdminPrescriptionPrintPayload,
+  AdminPrescriptionReprintPage,
+  AdminPrescriptionReprintQueryParams,
   AdminPrescriptionUpdateCommand,
   OrderCreateResult,
   OrderProgressSnapshot,
@@ -43,6 +46,20 @@ export function listAdminOrderReceipts(params: AdminOrderReceiptQueryParams = {}
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/order-receipts?${query}` : '/order-api/api/admin/order-receipts';
   return request<AdminOrderReceiptPage>(url);
+}
+
+export function listAdminPrescriptionReprints(params: AdminPrescriptionReprintQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/prescription-reprints?${query}`
+    : '/order-api/api/admin/prescription-reprints';
+  return request<AdminPrescriptionReprintPage>(url);
+}
+
+export function getAdminPrescriptionPrintPayload(prescriptionNo: string) {
+  return request<AdminPrescriptionPrintPayload>(
+    `/order-api/api/admin/prescription-reprints/${encodeURIComponent(prescriptionNo)}/print-payload`,
+  );
 }
 
 export async function downloadAdminOrdersCsv(params: AdminOrderQueryParams = {}) {

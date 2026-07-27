@@ -13,6 +13,7 @@ import OrderCenter from './features/orders/OrderCenter.vue';
 import OrderManageAction from './features/orders/OrderManageAction.vue';
 import OrderReceipt from './features/orders/OrderReceipt.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
+import PrescriptionReprint from './features/orders/PrescriptionReprint.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
@@ -46,6 +47,7 @@ const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> |
 const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
 const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
+const prescriptionReprintRef = ref<InstanceType<typeof PrescriptionReprint> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
@@ -62,6 +64,7 @@ const observabilityActivationKey = ref(0);
 const addressModifyActivationKey = ref(0);
 const prescriptionModifyActivationKey = ref(0);
 const orderManageActionActivationKey = ref(0);
+const prescriptionReprintActivationKey = ref(0);
 const orderReceiptActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
@@ -140,6 +143,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
   if (componentKey === 'orderManageAction') orderManageActionActivationKey.value += 1;
+  if (componentKey === 'prescriptionReprint') prescriptionReprintActivationKey.value += 1;
   if (componentKey === 'orderReceipt') orderReceiptActivationKey.value += 1;
 }, { immediate: true });
 
@@ -187,6 +191,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'orderManageAction') {
     await orderManageActionRef.value?.refreshOrderManageActions();
+    return;
+  }
+  if (componentKey === 'prescriptionReprint') {
+    await prescriptionReprintRef.value?.refreshPrescriptionReprints();
     return;
   }
   if (componentKey === 'orderReceipt') {
@@ -349,6 +357,14 @@ function closeTab(view: ViewKey) {
       ref="orderManageActionRef"
       active
       :activation-key="orderManageActionActivationKey"
+      @notice="showNotice"
+    />
+
+    <PrescriptionReprint
+      v-else-if="currentComponentKey === 'prescriptionReprint'"
+      ref="prescriptionReprintRef"
+      active
+      :activation-key="prescriptionReprintActivationKey"
       @notice="showNotice"
     />
 

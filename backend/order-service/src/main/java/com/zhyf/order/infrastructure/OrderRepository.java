@@ -7,6 +7,9 @@ import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
+import com.zhyf.order.application.AdminPrescriptionReprintItem;
+import com.zhyf.order.application.AdminPrescriptionReprintPage;
+import com.zhyf.order.application.AdminPrescriptionReprintQuery;
 import com.zhyf.order.domain.InstitutionApp;
 import com.zhyf.order.domain.OrderProgressSnapshot;
 import com.zhyf.order.domain.OrderSnapshot;
@@ -513,6 +516,85 @@ public class OrderRepository {
         );
     }
 
+    public AdminPrescriptionReprintPage searchAdminPrescriptionReprints(
+            AdminPrescriptionReprintQuery query,
+            List<String> reprintStatuses
+    ) {
+        QueryParts filters = adminPrescriptionReprintFilters(query, reprintStatuses);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long total = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    p.id as prescription_id,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    p.prescription_no,
+                    p.external_prescription_no,
+                    p.status as prescription_status,
+                    i.institution_name,
+                    o.patient_name,
+                    o.patient_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    o.delivery_time,
+                    o.created_at,
+                    p.hospital_type,
+                    p.prescription_type,
+                    p.is_within,
+                    p.dose_count,
+                    o.batch_no,
+                    latest_dispense.dispenser
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select d.dispenser
+                    from dispense_record d
+                    where d.order_id = o.id
+                    order by d.dispensed_at desc, d.id desc
+                    limit 1
+                ) latest_dispense on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by o.created_at desc, p.prescription_no desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminPrescriptionReprintPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminPrescriptionReprintItem, listQuery.args()),
+                total == null ? 0 : total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<String> findOrderNoByPrescriptionNo(String prescriptionNo) {
+        String sql = """
+                select o.order_no
+                from order_main o
+                join prescription p on p.order_id = o.id
+                where p.prescription_no = ?
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("order_no"), prescriptionNo)
+                .stream()
+                .findFirst();
+    }
+
     private QueryParts adminOrderFilters(AdminOrderSearchQuery query) {
         QueryParts filters = new QueryParts("");
         filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
@@ -539,6 +621,17 @@ public class OrderRepository {
         filters.addLikeFilter("o.receiver_name", query.receiverName());
         filters.addLikeFilter("o.receiver_phone", query.receiverPhone());
         filters.addLikeFilter("o.patient_name", query.patientName());
+        return filters;
+    }
+
+    private QueryParts adminPrescriptionReprintFilters(
+            AdminPrescriptionReprintQuery query,
+            List<String> reprintStatuses
+    ) {
+        QueryParts filters = new QueryParts("");
+        filters.addInFilter("o.status", reprintStatuses);
+        filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
         return filters;
     }
 
@@ -1309,6 +1402,36 @@ public class OrderRepository {
                 rs.getString("logistics_status"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private AdminPrescriptionReprintItem mapAdminPrescriptionReprintItem(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminPrescriptionReprintItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("prescription_status"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getString("patient_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                instant(rs, "delivery_time"),
+                instant(rs, "created_at"),
+                rs.getString("hospital_type"),
+                rs.getString("prescription_type"),
+                integer(rs, "is_within"),
+                integer(rs, "dose_count"),
+                rs.getString("batch_no"),
+                rs.getString("dispenser")
         );
     }
 

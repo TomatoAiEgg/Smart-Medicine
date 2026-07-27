@@ -1,0 +1,49 @@
+package com.zhyf.order.application;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+public record AdminPrescriptionPrintPayload(
+        UUID orderId,
+        UUID prescriptionId,
+        String orderNo,
+        String externalOrderNo,
+        String orderStatus,
+        String institutionName,
+        String patientName,
+        String patientPhone,
+        String receiverName,
+        String receiverPhone,
+        String receiverProvince,
+        String receiverCity,
+        String receiverZone,
+        String receiverAddress,
+        String addressType,
+        Instant deliveryTime,
+        String batchNo,
+        String prescriptionNo,
+        String externalPrescriptionNo,
+        String prescriptionType,
+        String prescriptionStatus,
+        String hospitalType,
+        Integer doseCount,
+        Integer decoctionCount,
+        Integer boilTimes,
+        Integer isWithin,
+        Integer perPackNum,
+        Integer perPackDose,
+        BigDecimal totalAmount,
+        String doctorName,
+        String diagnosis,
+        String departmentName,
+        String wardName,
+        String bedNo,
+        String medicationMethod,
+        String medicationInstruction,
+        String prescriptionRemark,
+        List<AdminOrderDetail.DrugDetail> details,
+        Instant printedAt
+) {
+}

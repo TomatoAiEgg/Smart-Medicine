@@ -55,6 +55,16 @@ public class OrderService {
             OrderStatus.SHIPPED,
             OrderStatus.IN_TRANSIT
     );
+    private static final Set<OrderStatus> ADMIN_REPRINTABLE_STATUSES = EnumSet.of(
+            OrderStatus.AUDIT_PASSED,
+            OrderStatus.RECHECKED,
+            OrderStatus.DECOCTING,
+            OrderStatus.DECOCTED,
+            OrderStatus.PACKED,
+            OrderStatus.SHIPPED,
+            OrderStatus.IN_TRANSIT,
+            OrderStatus.SIGNED
+    );
     private static final String ORDER_INITIALIZE_EVENT_TYPE = "ORDER_PRESCRIPTION_UPDATED";
 
     private final OrderRepository orderRepository;
@@ -230,6 +240,75 @@ public class OrderService {
                 pageSize
         );
         return orderRepository.searchAdminOrderReceipts(normalized, receiptableStatusNames());
+    }
+
+    public AdminPrescriptionReprintPage listAdminPrescriptionReprints(AdminPrescriptionReprintQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        AdminPrescriptionReprintQuery normalized = new AdminPrescriptionReprintQuery(
+                query.startTime(),
+                query.endTime(),
+                query.prescriptionNo(),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminPrescriptionReprints(normalized, reprintableStatusNames());
+    }
+
+    public AdminPrescriptionPrintPayload getAdminPrescriptionPrintPayload(String prescriptionNo) {
+        String normalizedPrescriptionNo = requireText(
+                prescriptionNo,
+                "PRESCRIPTION_NO_REQUIRED",
+                "处方号不能为空"
+        );
+        String orderNo = orderRepository.findOrderNoByPrescriptionNo(normalizedPrescriptionNo)
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        AdminOrderDetail detail = getAdminOrderDetail(orderNo);
+        AdminOrderDetail.Prescription prescription = detail.prescriptions().stream()
+                .filter(item -> normalizedPrescriptionNo.equals(item.prescriptionNo()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        return new AdminPrescriptionPrintPayload(
+                detail.orderId(),
+                prescription.prescriptionId(),
+                detail.orderNo(),
+                detail.externalOrderNo(),
+                detail.orderStatus(),
+                detail.institutionName(),
+                detail.patientName(),
+                detail.patientPhone(),
+                detail.receiverName(),
+                detail.receiverPhone(),
+                detail.receiverProvince(),
+                detail.receiverCity(),
+                detail.receiverZone(),
+                detail.receiverAddress(),
+                detail.addressType(),
+                detail.deliveryTime(),
+                detail.batchNo(),
+                prescription.prescriptionNo(),
+                prescription.externalPrescriptionNo(),
+                prescription.prescriptionType(),
+                prescription.prescriptionStatus(),
+                prescription.hospitalType(),
+                prescription.doseCount(),
+                prescription.decoctionCount(),
+                prescription.boilTimes(),
+                prescription.isWithin(),
+                prescription.perPackNum(),
+                prescription.perPackDose(),
+                prescription.totalAmount(),
+                prescription.doctorName(),
+                prescription.diagnosis(),
+                prescription.departmentName(),
+                prescription.wardName(),
+                prescription.bedNo(),
+                prescription.medicationMethod(),
+                prescription.medicationInstruction(),
+                prescription.prescriptionRemark(),
+                prescription.details(),
+                Instant.now()
+        );
     }
 
     @Transactional
@@ -862,6 +941,10 @@ public class OrderService {
 
     private List<String> receiptableStatusNames() {
         return ADMIN_RECEIPTABLE_STATUSES.stream().map(OrderStatus::name).toList();
+    }
+
+    private List<String> reprintableStatusNames() {
+        return ADMIN_REPRINTABLE_STATUSES.stream().map(OrderStatus::name).toList();
     }
 
     private OrderCreateResult createNewOrder(

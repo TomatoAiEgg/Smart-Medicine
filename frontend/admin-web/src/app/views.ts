@@ -18,6 +18,7 @@ export type ImplementedViewKey =
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
+  | 'prescriptionReprint'
   | 'orderReceipt';
 
 export interface AppRouteItem {
@@ -465,11 +466,12 @@ export const menuItems = [
     path: '/orders/prescription-reprints',
     legacyRoute: 'order/listPrescriptionReprint.html',
     priority: 'P1',
-    implemented: false,
+    implemented: true,
     subtitle: '处方单据重打申请和打印记录',
+    componentKey: 'prescriptionReprint',
     plannedComponent: 'features/orders/PrescriptionReprint.vue',
-    coreActions: ['重打申请', '打印记录'],
-    apiDependencies: ['重打接口', '打印记录'],
+    coreActions: ['处方查询', '处方重打预览'],
+    apiDependencies: ['处方重打列表', '处方打印数据'],
   },
   {
     key: 'orderWarehouse',

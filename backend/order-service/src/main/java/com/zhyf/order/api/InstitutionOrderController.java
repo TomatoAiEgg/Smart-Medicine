@@ -20,6 +20,9 @@ import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
 import com.zhyf.order.application.AdminPrescriptionActionCommand;
 import com.zhyf.order.application.AdminPrescriptionActionResult;
+import com.zhyf.order.application.AdminPrescriptionPrintPayload;
+import com.zhyf.order.application.AdminPrescriptionReprintPage;
+import com.zhyf.order.application.AdminPrescriptionReprintQuery;
 import com.zhyf.order.application.AdminPrescriptionUpdateCommand;
 import com.zhyf.order.application.OrderCreateCommand;
 import com.zhyf.order.application.OrderCreateResult;
@@ -193,6 +196,30 @@ public class InstitutionOrderController {
                 page,
                 pageSize
         )));
+    }
+
+    @GetMapping("/admin/prescription-reprints")
+    public ApiResponse<AdminPrescriptionReprintPage> listPrescriptionReprints(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminPrescriptionReprints(new AdminPrescriptionReprintQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                prescriptionNo,
+                page,
+                pageSize
+        )));
+    }
+
+    @GetMapping("/admin/prescription-reprints/{prescriptionNo}/print-payload")
+    public ApiResponse<AdminPrescriptionPrintPayload> getPrescriptionPrintPayload(
+            @PathVariable String prescriptionNo
+    ) {
+        return ApiResponse.ok(orderService.getAdminPrescriptionPrintPayload(prescriptionNo));
     }
 
     @GetMapping("/admin/orders/{orderNo}")

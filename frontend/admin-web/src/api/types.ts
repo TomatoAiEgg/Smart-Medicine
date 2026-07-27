@@ -144,6 +144,90 @@ export interface AdminBatchOrderReceiptResult {
   items: AdminOrderReceiptResult[];
 }
 
+export interface AdminPrescriptionReprintQueryParams {
+  startTime?: string;
+  endTime?: string;
+  prescriptionNo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminPrescriptionReprintItem {
+  orderId: string;
+  prescriptionId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string | null;
+  prescriptionStatus: string;
+  institutionName: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  deliveryTime: string | null;
+  createdAt: string;
+  hospitalType: string | null;
+  prescriptionType: string | null;
+  isWithin: number | null;
+  doseCount: number | null;
+  batchNo: string | null;
+  dispenser: string | null;
+}
+
+export interface AdminPrescriptionReprintPage {
+  records: AdminPrescriptionReprintItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminPrescriptionPrintPayload {
+  orderId: string;
+  prescriptionId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  institutionName: string;
+  patientName: string | null;
+  patientPhone: string | null;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  deliveryTime: string | null;
+  batchNo: string | null;
+  prescriptionNo: string;
+  externalPrescriptionNo: string | null;
+  prescriptionType: string | null;
+  prescriptionStatus: string;
+  hospitalType: string | null;
+  doseCount: number | null;
+  decoctionCount: number | null;
+  boilTimes: number | null;
+  isWithin: number | null;
+  perPackNum: number | null;
+  perPackDose: number | null;
+  totalAmount: number | string | null;
+  doctorName: string | null;
+  diagnosis: string | null;
+  departmentName: string | null;
+  wardName: string | null;
+  bedNo: string | null;
+  medicationMethod: string | null;
+  medicationInstruction: string | null;
+  prescriptionRemark: string | null;
+  details: AdminOrderDetailDrug[];
+  printedAt: string;
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;
