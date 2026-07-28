@@ -146,6 +146,7 @@ export interface AdminBatchOrderReceiptResult {
 
 export interface AdminOperatorQueryParams {
   keyword?: string;
+  roleCode?: string;
   enabled?: boolean | string;
   page?: number;
   pageSize?: number;

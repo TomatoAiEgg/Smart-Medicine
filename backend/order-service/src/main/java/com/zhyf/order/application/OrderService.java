@@ -138,6 +138,7 @@ public class OrderService {
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
         return orderRepository.searchAdminOperators(new AdminOperatorQuery(
                 cleanText(query.keyword()),
+                cleanText(query.roleCode()),
                 query.enabled(),
                 page,
                 pageSize

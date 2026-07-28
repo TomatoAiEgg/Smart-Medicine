@@ -146,7 +146,7 @@ class OrderRepositoryTest {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
 
-        repository.searchAdminOperators(new AdminOperatorQuery("disp", true, 2, 10));
+        repository.searchAdminOperators(new AdminOperatorQuery("disp", null, true, 2, 10));
 
         ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -168,6 +168,34 @@ class OrderRepositoryTest {
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
         assertThat(listArgsCaptor.getValue()).containsExactly("%disp%", "%disp%", "%disp%", true, 10, 10);
+    }
+
+    @Test
+    void shouldBuildOperatorQueryWithExactRoleCode() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminOperators(new AdminOperatorQuery(null, "AUDITOR", null, 1, 20));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from operator_user u")
+                .contains("u.role_code = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly("AUDITOR");
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from operator_user u")
+                .contains("order by enabled desc, username asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly("AUDITOR", 20, 0);
     }
 
     @Test

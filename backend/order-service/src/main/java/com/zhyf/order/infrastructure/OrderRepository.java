@@ -2844,6 +2844,11 @@ public class OrderRepository {
             filters.add(pattern);
             filters.add(pattern);
         }
+        String roleCode = query.roleCode() == null || query.roleCode().isBlank() ? null : query.roleCode().trim();
+        if (roleCode != null) {
+            filters.append(" and u.role_code = ?");
+            filters.add(roleCode);
+        }
         if (query.enabled() != null) {
             filters.append(" and u.enabled = ?");
             filters.add(query.enabled());

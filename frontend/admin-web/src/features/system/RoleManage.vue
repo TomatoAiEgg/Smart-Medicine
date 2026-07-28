@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
-import { listAdminOperatorRoles, renameAdminOperatorRole } from '../../api/order';
-import type { AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
+import { listAdminOperatorRoles, listAdminOperators, renameAdminOperatorRole } from '../../api/order';
+import type { AdminOperatorRecord, AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -30,6 +30,7 @@ const rolePage = ref<AdminOperatorRolePage | null>(null);
 const loading = ref(false);
 const saving = ref(false);
 const exporting = ref(false);
+const memberExportingRole = ref('');
 const loaded = ref(false);
 const errorLine = ref('');
 const exportPageSize = 100;
@@ -61,6 +62,10 @@ function escapeCsvCell(value: CsvExportValue) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
+}
+
+function enabledLabel(enabled: boolean) {
+  return enabled ? '启用' : '停用';
 }
 
 async function listExportRoles() {
@@ -108,6 +113,54 @@ async function downloadRoleCsv() {
     errorLine.value = errorMessage(error);
   } finally {
     exporting.value = false;
+  }
+}
+
+async function listRoleMembers(roleCode: string) {
+  const records: AdminOperatorRecord[] = [];
+  for (let nextPageNo = 1; nextPageNo <= maxExportPages; nextPageNo += 1) {
+    const nextPage = await listAdminOperators({
+      roleCode,
+      page: nextPageNo,
+      pageSize: exportPageSize,
+    });
+    records.push(...nextPage.records);
+    if (records.length >= nextPage.total || nextPage.records.length < exportPageSize) {
+      break;
+    }
+  }
+  return records;
+}
+
+async function downloadRoleMemberCsv(row: AdminOperatorRoleRecord) {
+  memberExportingRole.value = row.roleCode;
+  errorLine.value = '';
+  try {
+    const records = await listRoleMembers(row.roleCode);
+    const headers = ['角色标识', '登录账号', '姓名', '状态', '创建时间', '更新时间'];
+    const lines = [
+      headers.map(escapeCsvCell).join(','),
+      ...records.map((operator) => [
+        row.roleCode,
+        operator.username,
+        operator.displayName,
+        enabledLabel(operator.enabled),
+        formatDate(operator.createdAt),
+        formatDate(operator.updatedAt),
+      ].map(escapeCsvCell).join(',')),
+    ];
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `operator-role-${row.roleCode}-members.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    emit('notice', 'success', `已导出 ${row.roleCode} 的 ${formatNumber(records.length)} 名成员`);
+  } catch (error) {
+    errorLine.value = errorMessage(error);
+  } finally {
+    memberExportingRole.value = '';
   }
 }
 
@@ -290,7 +343,17 @@ defineExpose({
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>
-              <button class="legacy-btn" type="button" :disabled="saving" @click="startRename(row)">重命名</button>
+              <div class="role-row-actions">
+                <button class="legacy-btn" type="button" :disabled="saving" @click="startRename(row)">重命名</button>
+                <button
+                  class="legacy-btn"
+                  type="button"
+                  :disabled="memberExportingRole === row.roleCode || row.operatorCount === 0"
+                  @click="downloadRoleMemberCsv(row)"
+                >
+                  {{ memberExportingRole === row.roleCode ? '导出中' : '导出成员' }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -335,6 +398,12 @@ defineExpose({
 
 .role-actions {
   display: flex;
+  gap: 8px;
+}
+
+.role-row-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

@@ -489,12 +489,14 @@ public class InstitutionOrderController {
     @GetMapping("/admin/operators")
     public ApiResponse<AdminOperatorPage> listOperators(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String roleCode,
             @RequestParam(required = false) Boolean enabled,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize
     ) {
         return ApiResponse.ok(orderService.listAdminOperators(new AdminOperatorQuery(
                 keyword,
+                roleCode,
                 enabled,
                 page,
                 pageSize
