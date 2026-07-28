@@ -1,5 +1,9 @@
 import { request } from './client';
 import type {
+  AdminInstitutionCommand,
+  AdminInstitutionPage,
+  AdminInstitutionQueryParams,
+  AdminInstitutionRecord,
   AdminOrderAddressUpdateCommand,
   AdminOrderAddressUpdateResult,
   AdminBatchOrderReceiptCommand,
@@ -56,6 +60,26 @@ export function listAdminOrderReceipts(params: AdminOrderReceiptQueryParams = {}
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/order-receipts?${query}` : '/order-api/api/admin/order-receipts';
   return request<AdminOrderReceiptPage>(url);
+}
+
+export function listAdminInstitutions(params: AdminInstitutionQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/institutions?${query}` : '/order-api/api/admin/institutions';
+  return request<AdminInstitutionPage>(url);
+}
+
+export function createAdminInstitution(command: AdminInstitutionCommand) {
+  return request<AdminInstitutionRecord>('/order-api/api/admin/institutions', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminInstitution(institutionId: string, command: AdminInstitutionCommand) {
+  return request<AdminInstitutionRecord>(`/order-api/api/admin/institutions/${encodeURIComponent(institutionId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
 }
 
 export function listAdminOperators(params: AdminOperatorQueryParams = {}) {

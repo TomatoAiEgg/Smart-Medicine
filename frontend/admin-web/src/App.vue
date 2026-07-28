@@ -15,6 +15,7 @@ import {
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
+import InstitutionList from './features/institution/InstitutionList.vue';
 import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
@@ -80,6 +81,7 @@ const recheckPerformanceRef = ref<InstanceType<typeof RecheckPerformance> | null
 const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceDetails> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
+const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
@@ -113,6 +115,7 @@ const recheckPerformanceCount = ref(0);
 const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const operatorManageCount = ref(0);
+const institutionListCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
 const auditPerformanceDetailsActivationKey = ref(0);
@@ -127,6 +130,7 @@ const recheckPerformanceActivationKey = ref(0);
 const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const operatorManageActivationKey = ref(0);
+const institutionListActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
 const logisPrintCount = ref(0);
@@ -202,6 +206,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsPrint: logisPrintCount.value,
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
+  institutionList: institutionListCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   settingOperators: operatorManageCount.value,
   labelPrints: labelPrintCount.value,
@@ -261,6 +266,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'recheckPerformanceDetails') recheckPerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
+  if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
@@ -357,6 +363,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'operatorManage') {
     await operatorManageRef.value?.refreshOperators();
+    return;
+  }
+  if (componentKey === 'institutionList') {
+    await institutionListRef.value?.refreshInstitutions();
     return;
   }
   if (componentKey === 'prescriptionReconciliation') {
@@ -591,6 +601,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'operatorManage'"
       :activation-key="operatorManageActivationKey"
       @count-changed="operatorManageCount = $event"
+      @notice="showNotice"
+    />
+
+    <InstitutionList
+      v-show="currentComponentKey === 'institutionList'"
+      ref="institutionListRef"
+      :active="currentComponentKey === 'institutionList'"
+      :activation-key="institutionListActivationKey"
+      @count-changed="institutionListCount = $event"
       @notice="showNotice"
     />
 

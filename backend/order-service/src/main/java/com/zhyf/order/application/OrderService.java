@@ -173,6 +173,62 @@ public class OrderService {
         );
     }
 
+    public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminInstitutions(new AdminInstitutionQuery(
+                cleanText(query.keyword()),
+                cleanText(query.status()),
+                cleanText(query.institutionType()),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminInstitutionRecord createAdminInstitution(AdminInstitutionCommand command) {
+        String institutionCode = requireText(
+                command.institutionCode(),
+                "INSTITUTION_CODE_REQUIRED",
+                "Institution code is required"
+        );
+        String institutionName = requireText(
+                command.institutionName(),
+                "INSTITUTION_NAME_REQUIRED",
+                "Institution name is required"
+        );
+        if (orderRepository.findAdminInstitutionByCode(DEFAULT_ADMIN_TENANT_ID, institutionCode).isPresent()) {
+            throw new BusinessException("INSTITUTION_CODE_DUPLICATED", "Institution code already exists");
+        }
+        return orderRepository.insertAdminInstitution(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                institutionCode,
+                institutionName,
+                defaultText(command.institutionType(), "HOSPITAL"),
+                defaultText(command.status(), "ENABLED"),
+                cleanText(command.storageType())
+        );
+    }
+
+    @Transactional
+    public AdminInstitutionRecord updateAdminInstitution(UUID institutionId, AdminInstitutionCommand command) {
+        AdminInstitutionRecord existing = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        String institutionName = requireText(
+                command.institutionName(),
+                "INSTITUTION_NAME_REQUIRED",
+                "Institution name is required"
+        );
+        return orderRepository.updateAdminInstitution(
+                existing.id(),
+                institutionName,
+                defaultText(command.institutionType(), existing.institutionType()),
+                defaultText(command.status(), existing.status()),
+                cleanText(command.storageType())
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

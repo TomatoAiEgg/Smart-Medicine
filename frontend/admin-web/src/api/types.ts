@@ -176,6 +176,41 @@ export interface AdminOperatorCommand {
   enabled?: boolean;
 }
 
+export interface AdminInstitutionQueryParams {
+  keyword?: string;
+  status?: string;
+  institutionType?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminInstitutionRecord {
+  id: string;
+  tenantId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  status: string;
+  storageType: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInstitutionPage {
+  records: AdminInstitutionRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminInstitutionCommand {
+  institutionCode?: string;
+  institutionName: string;
+  institutionType?: string;
+  status?: string;
+  storageType?: string;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

@@ -3,6 +3,10 @@ package com.zhyf.order.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.order.application.AdminInstitutionCommand;
+import com.zhyf.order.application.AdminInstitutionPage;
+import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminInstitutionRecord;
 import com.zhyf.order.application.AdminOrderAddressUpdateCommand;
 import com.zhyf.order.application.AdminOrderAddressUpdateResult;
 import com.zhyf.order.application.AdminOrderCancelCommand;
@@ -404,6 +408,36 @@ public class InstitutionOrderController {
             @RequestBody AdminOperatorCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminOperator(operatorId, command));
+    }
+
+    @GetMapping("/admin/institutions")
+    public ApiResponse<AdminInstitutionPage> listInstitutions(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String institutionType,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminInstitutions(new AdminInstitutionQuery(
+                keyword,
+                status,
+                institutionType,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/institutions")
+    public ApiResponse<AdminInstitutionRecord> createInstitution(@RequestBody AdminInstitutionCommand command) {
+        return ApiResponse.ok(orderService.createAdminInstitution(command));
+    }
+
+    @PatchMapping("/admin/institutions/{institutionId}")
+    public ApiResponse<AdminInstitutionRecord> updateInstitution(
+            @PathVariable UUID institutionId,
+            @RequestBody AdminInstitutionCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminInstitution(institutionId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

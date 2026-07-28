@@ -16,6 +16,7 @@ export type ImplementedViewKey =
   | 'exceptionLogs'
   | 'labelPrints'
   | 'portal'
+  | 'institutionList'
   | 'reports'
   | 'auditPerformance'
   | 'auditPerformanceDetails'
@@ -213,8 +214,10 @@ export const menuItems = [
     path: '/institutions',
     legacyRoute: 'mechanism/listInstitutions.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '医院/机构档案和接口接入身份维护',
+    componentKey: 'institutionList',
+    showCount: true,
     plannedComponent: 'features/institution/InstitutionList.vue',
     coreActions: ['列表', '筛选', '新增', '编辑', '启停'],
     apiDependencies: ['机构 CRUD', '回调配置', '操作审计'],

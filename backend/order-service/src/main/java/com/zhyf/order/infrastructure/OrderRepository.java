@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminInstitutionPage;
+import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminInstitutionRecord;
 import com.zhyf.order.application.AdminManualProcessItem;
 import com.zhyf.order.application.AdminManualProcessPage;
 import com.zhyf.order.application.AdminManualProcessQuery;
@@ -370,6 +373,96 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, displayName, roleCode, enabled, id);
         return findAdminOperatorById(id).orElseThrow();
+    }
+
+    public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
+        QueryParts filters = adminInstitutionFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from institution i
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, institution_code, institution_name, institution_type, status,
+                       storage_type, created_at, updated_at
+                from institution i
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by status asc, institution_name asc, institution_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminInstitutionPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminInstitutionRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminInstitutionRecord> findAdminInstitutionById(UUID id) {
+        String sql = """
+                select id, tenant_id, institution_code, institution_name, institution_type, status,
+                       storage_type, created_at, updated_at
+                from institution
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminInstitutionRecord> findAdminInstitutionByCode(UUID tenantId, String institutionCode) {
+        String sql = """
+                select id, tenant_id, institution_code, institution_name, institution_type, status,
+                       storage_type, created_at, updated_at
+                from institution
+                where tenant_id = ? and institution_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionRecord, tenantId, institutionCode).stream().findFirst();
+    }
+
+    public AdminInstitutionRecord insertAdminInstitution(
+            UUID id,
+            UUID tenantId,
+            String institutionCode,
+            String institutionName,
+            String institutionType,
+            String status,
+            String storageType
+    ) {
+        String sql = """
+                insert into institution (
+                    id, tenant_id, institution_code, institution_name, institution_type, status, storage_type
+                )
+                values (?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, institutionCode, institutionName, institutionType, status, storageType);
+        return findAdminInstitutionById(id).orElseThrow();
+    }
+
+    public AdminInstitutionRecord updateAdminInstitution(
+            UUID id,
+            String institutionName,
+            String institutionType,
+            String status,
+            String storageType
+    ) {
+        String sql = """
+                update institution
+                set institution_name = ?,
+                    institution_type = ?,
+                    status = ?,
+                    storage_type = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, institutionName, institutionType, status, storageType, id);
+        return findAdminInstitutionById(id).orElseThrow();
     }
 
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
@@ -828,6 +921,27 @@ public class OrderRepository {
             filters.append(" and u.enabled = ?");
             filters.add(query.enabled());
         }
+        return filters;
+    }
+
+    private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or i.storage_type ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        filters.addEqualsFilter("i.status", query.status());
+        filters.addEqualsFilter("i.institution_type", query.institutionType());
         return filters;
     }
 
@@ -1946,6 +2060,20 @@ public class OrderRepository {
                 rs.getString("display_name"),
                 rs.getString("role_code"),
                 rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminInstitutionRecord mapAdminInstitutionRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminInstitutionRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getString("status"),
+                rs.getString("storage_type"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );
