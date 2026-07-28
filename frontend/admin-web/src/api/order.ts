@@ -1,5 +1,9 @@
 import { request } from './client';
 import type {
+  AdminInstitutionAppCommand,
+  AdminInstitutionAppPage,
+  AdminInstitutionAppQueryParams,
+  AdminInstitutionAppRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -81,6 +85,26 @@ export function createAdminInstitution(command: AdminInstitutionCommand) {
 
 export function updateAdminInstitution(institutionId: string, command: AdminInstitutionCommand) {
   return request<AdminInstitutionRecord>(`/order-api/api/admin/institutions/${encodeURIComponent(institutionId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminInstitutionApps(params: AdminInstitutionAppQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/institution-apps?${query}` : '/order-api/api/admin/institution-apps';
+  return request<AdminInstitutionAppPage>(url);
+}
+
+export function createAdminInstitutionApp(command: AdminInstitutionAppCommand) {
+  return request<AdminInstitutionAppRecord>('/order-api/api/admin/institution-apps', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminInstitutionApp(appId: string, command: AdminInstitutionAppCommand) {
+  return request<AdminInstitutionAppRecord>(`/order-api/api/admin/institution-apps/${encodeURIComponent(appId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

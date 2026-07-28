@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminInstitutionAppPage;
+import com.zhyf.order.application.AdminInstitutionAppQuery;
+import com.zhyf.order.application.AdminInstitutionAppRecord;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
@@ -466,6 +469,107 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, institutionName, institutionType, status, storageType, id);
         return findAdminInstitutionById(id).orElseThrow();
+    }
+
+    public AdminInstitutionAppPage searchAdminInstitutionApps(AdminInstitutionAppQuery query) {
+        QueryParts filters = adminInstitutionAppFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from institution_app a
+                join institution i on i.id = a.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select a.id, a.tenant_id, a.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, a.app_key, a.sign_type, a.callback_url, a.enabled,
+                       (a.app_secret is not null and a.app_secret <> '') as app_secret_configured,
+                       a.created_at, a.updated_at
+                from institution_app a
+                join institution i on i.id = a.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by a.enabled desc, i.institution_name asc, a.app_key asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminInstitutionAppPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminInstitutionAppRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminInstitutionAppRecord> findAdminInstitutionAppById(UUID id) {
+        String sql = """
+                select a.id, a.tenant_id, a.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, a.app_key, a.sign_type, a.callback_url, a.enabled,
+                       (a.app_secret is not null and a.app_secret <> '') as app_secret_configured,
+                       a.created_at, a.updated_at
+                from institution_app a
+                join institution i on i.id = a.institution_id
+                where a.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionAppRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminInstitutionAppRecord> findAdminInstitutionAppByAppKey(String appKey) {
+        String sql = """
+                select a.id, a.tenant_id, a.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, a.app_key, a.sign_type, a.callback_url, a.enabled,
+                       (a.app_secret is not null and a.app_secret <> '') as app_secret_configured,
+                       a.created_at, a.updated_at
+                from institution_app a
+                join institution i on i.id = a.institution_id
+                where a.app_key = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionAppRecord, appKey).stream().findFirst();
+    }
+
+    public AdminInstitutionAppRecord insertAdminInstitutionApp(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String appKey,
+            String appSecret,
+            String signType,
+            String callbackUrl,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into institution_app (
+                    id, tenant_id, institution_id, app_key, app_secret, sign_type, callback_url, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, institutionId, appKey, appSecret, signType, callbackUrl, enabled);
+        return findAdminInstitutionAppById(id).orElseThrow();
+    }
+
+    public AdminInstitutionAppRecord updateAdminInstitutionApp(
+            UUID id,
+            String appSecret,
+            String signType,
+            String callbackUrl,
+            boolean enabled
+    ) {
+        String sql = """
+                update institution_app
+                set app_secret = coalesce(?, app_secret),
+                    sign_type = ?,
+                    callback_url = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, appSecret, signType, callbackUrl, enabled, id);
+        return findAdminInstitutionAppById(id).orElseThrow();
     }
 
     public AdminInstitutionIpWhitelistPage searchAdminInstitutionIpWhitelists(
@@ -1037,6 +1141,35 @@ public class OrderRepository {
         }
         filters.addEqualsFilter("i.status", query.status());
         filters.addEqualsFilter("i.institution_type", query.institutionType());
+        return filters;
+    }
+
+    private QueryParts adminInstitutionAppFilters(AdminInstitutionAppQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or a.app_key ilike ?
+                        or a.callback_url ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and a.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and a.enabled = ?");
+            filters.add(query.enabled());
+        }
         return filters;
     }
 
@@ -2197,6 +2330,24 @@ public class OrderRepository {
                 rs.getString("institution_type"),
                 rs.getString("status"),
                 rs.getString("storage_type"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminInstitutionAppRecord mapAdminInstitutionAppRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminInstitutionAppRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getString("app_key"),
+                rs.getString("sign_type"),
+                rs.getString("callback_url"),
+                rs.getBoolean("enabled"),
+                rs.getBoolean("app_secret_configured"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

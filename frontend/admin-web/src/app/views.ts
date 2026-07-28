@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'institutionList'
+  | 'institutionApps'
   | 'institutionIpWhitelist'
   | 'reports'
   | 'auditPerformance'
@@ -222,6 +223,21 @@ export const menuItems = [
     plannedComponent: 'features/institution/InstitutionList.vue',
     coreActions: ['列表', '筛选', '新增', '编辑', '启停'],
     apiDependencies: ['机构 CRUD', '回调配置', '操作审计'],
+  },
+  {
+    key: 'institutionApps',
+    label: '机构应用配置',
+    group: '机构管理',
+    path: '/institutions/apps',
+    legacyRoute: 'mechanism/listInstitutions.html',
+    priority: 'P3',
+    implemented: true,
+    subtitle: '机构 AppKey、签名密钥和回调地址维护',
+    componentKey: 'institutionApps',
+    showCount: true,
+    plannedComponent: 'features/institution/InstitutionApps.vue',
+    coreActions: ['应用列表', '新增', '编辑', '启停', '重置密钥'],
+    apiDependencies: ['机构应用 CRUD', '机构列表'],
   },
   {
     key: 'institutionIpWhitelist',

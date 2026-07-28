@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
@@ -193,6 +194,56 @@ class OrderRepositoryTest {
                 "HOSPITAL",
                 15,
                 30
+        );
+    }
+
+    @Test
+    void shouldBuildInstitutionAppQueryWithFiltersAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminInstitutionApps(new AdminInstitutionAppQuery("app", institutionId, true, 4, 12));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from institution_app a")
+                .contains("join institution i on i.id = a.institution_id")
+                .contains("i.institution_code ilike ?")
+                .contains("a.app_key ilike ?")
+                .contains("a.institution_id = ?")
+                .contains("a.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%app%",
+                "%app%",
+                "%app%",
+                "%app%",
+                institutionId,
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from institution_app a")
+                .contains("app_secret_configured")
+                .contains("order by a.enabled desc, i.institution_name asc, a.app_key asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%app%",
+                "%app%",
+                "%app%",
+                "%app%",
+                institutionId,
+                true,
+                12,
+                36
         );
     }
 

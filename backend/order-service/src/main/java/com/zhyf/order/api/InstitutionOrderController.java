@@ -3,6 +3,10 @@ package com.zhyf.order.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.order.application.AdminInstitutionAppCommand;
+import com.zhyf.order.application.AdminInstitutionAppPage;
+import com.zhyf.order.application.AdminInstitutionAppQuery;
+import com.zhyf.order.application.AdminInstitutionAppRecord;
 import com.zhyf.order.application.AdminInstitutionCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
@@ -442,6 +446,38 @@ public class InstitutionOrderController {
             @RequestBody AdminInstitutionCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminInstitution(institutionId, command));
+    }
+
+    @GetMapping("/admin/institution-apps")
+    public ApiResponse<AdminInstitutionAppPage> listInstitutionApps(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminInstitutionApps(new AdminInstitutionAppQuery(
+                keyword,
+                institutionId,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/institution-apps")
+    public ApiResponse<AdminInstitutionAppRecord> createInstitutionApp(
+            @RequestBody AdminInstitutionAppCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminInstitutionApp(command));
+    }
+
+    @PatchMapping("/admin/institution-apps/{appId}")
+    public ApiResponse<AdminInstitutionAppRecord> updateInstitutionApp(
+            @PathVariable UUID appId,
+            @RequestBody AdminInstitutionAppCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminInstitutionApp(appId, command));
     }
 
     @GetMapping("/admin/institution-ip-whitelists")

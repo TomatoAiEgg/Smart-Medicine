@@ -16,6 +16,7 @@ import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import IpWhitelist from './features/institution/IpWhitelist.vue';
+import InstitutionApps from './features/institution/InstitutionApps.vue';
 import InstitutionList from './features/institution/InstitutionList.vue';
 import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
@@ -83,6 +84,7 @@ const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceD
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
+const institutionAppsRef = ref<InstanceType<typeof InstitutionApps> | null>(null);
 const institutionIpWhitelistRef = ref<InstanceType<typeof IpWhitelist> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
@@ -118,6 +120,7 @@ const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const operatorManageCount = ref(0);
 const institutionListCount = ref(0);
+const institutionAppsCount = ref(0);
 const institutionIpWhitelistCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
@@ -134,6 +137,7 @@ const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const operatorManageActivationKey = ref(0);
 const institutionListActivationKey = ref(0);
+const institutionAppsActivationKey = ref(0);
 const institutionIpWhitelistActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
@@ -211,6 +215,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   institutionList: institutionListCount.value,
+  institutionApps: institutionAppsCount.value,
   institutionIpWhitelist: institutionIpWhitelistCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   settingOperators: operatorManageCount.value,
@@ -272,6 +277,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
   if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
+  if (componentKey === 'institutionApps') institutionAppsActivationKey.value += 1;
   if (componentKey === 'institutionIpWhitelist') institutionIpWhitelistActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
@@ -373,6 +379,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'institutionList') {
     await institutionListRef.value?.refreshInstitutions();
+    return;
+  }
+  if (componentKey === 'institutionApps') {
+    await institutionAppsRef.value?.refreshInstitutionApps();
     return;
   }
   if (componentKey === 'institutionIpWhitelist') {
@@ -620,6 +630,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'institutionList'"
       :activation-key="institutionListActivationKey"
       @count-changed="institutionListCount = $event"
+      @notice="showNotice"
+    />
+
+    <InstitutionApps
+      v-show="currentComponentKey === 'institutionApps'"
+      ref="institutionAppsRef"
+      :active="currentComponentKey === 'institutionApps'"
+      :activation-key="institutionAppsActivationKey"
+      @count-changed="institutionAppsCount = $event"
       @notice="showNotice"
     />
 

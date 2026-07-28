@@ -211,6 +211,46 @@ export interface AdminInstitutionCommand {
   storageType?: string;
 }
 
+export interface AdminInstitutionAppQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminInstitutionAppRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  appKey: string;
+  signType: string;
+  callbackUrl: string | null;
+  enabled: boolean;
+  appSecretConfigured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInstitutionAppPage {
+  records: AdminInstitutionAppRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminInstitutionAppCommand {
+  institutionId?: string;
+  appKey?: string;
+  appSecret?: string;
+  signType?: string;
+  callbackUrl?: string;
+  enabled?: boolean;
+}
+
 export interface AdminInstitutionIpWhitelistQueryParams {
   keyword?: string;
   institutionId?: string;

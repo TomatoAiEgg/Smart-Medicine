@@ -229,6 +229,56 @@ public class OrderService {
         );
     }
 
+    public AdminInstitutionAppPage listAdminInstitutionApps(AdminInstitutionAppQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminInstitutionApps(new AdminInstitutionAppQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminInstitutionAppRecord createAdminInstitutionApp(AdminInstitutionAppCommand command) {
+        UUID institutionId = command.institutionId();
+        if (institutionId == null) {
+            throw new BusinessException("INSTITUTION_ID_REQUIRED", "Institution is required");
+        }
+        AdminInstitutionRecord institution = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        String appKey = requireText(command.appKey(), "APP_KEY_REQUIRED", "App key is required");
+        String appSecret = requireText(command.appSecret(), "APP_SECRET_REQUIRED", "App secret is required");
+        if (orderRepository.findAdminInstitutionAppByAppKey(appKey).isPresent()) {
+            throw new BusinessException("APP_KEY_DUPLICATED", "App key already exists");
+        }
+        return orderRepository.insertAdminInstitutionApp(
+                UUID.randomUUID(),
+                institution.tenantId(),
+                institution.id(),
+                appKey,
+                appSecret,
+                defaultText(command.signType(), "HMAC_SHA256"),
+                cleanText(command.callbackUrl()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminInstitutionAppRecord updateAdminInstitutionApp(UUID appId, AdminInstitutionAppCommand command) {
+        AdminInstitutionAppRecord existing = orderRepository.findAdminInstitutionAppById(appId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_APP_NOT_FOUND", "Institution app not found"));
+        return orderRepository.updateAdminInstitutionApp(
+                existing.id(),
+                cleanText(command.appSecret()),
+                defaultText(command.signType(), existing.signType()),
+                cleanText(command.callbackUrl()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminInstitutionIpWhitelistPage listAdminInstitutionIpWhitelists(
             AdminInstitutionIpWhitelistQuery query
     ) {
