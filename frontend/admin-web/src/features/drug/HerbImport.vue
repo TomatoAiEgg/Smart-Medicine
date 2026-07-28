@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { createAdminHerb } from '../../api/order';
 import { formatNumber } from '../../domain/formatters';
-import { csvCell, parseCsv, parseEnabled, type CsvRow } from './csvImport';
+import { csvCell, downloadCsv, parseCsv, parseEnabled, type CsvRow } from './csvImport';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type ImportStatus = 'SUCCESS' | 'FAILED';
@@ -37,6 +37,7 @@ const loaded = ref(false);
 const totalRows = computed(() => rows.value.length);
 const successCount = computed(() => results.value.filter((row) => row.status === 'SUCCESS').length);
 const failedCount = computed(() => results.value.filter((row) => row.status === 'FAILED').length);
+const failedResults = computed(() => results.value.filter((row) => row.status === 'FAILED'));
 const canImport = computed(() => rows.value.length > 0 && !importing.value);
 
 function errorMessage(error: unknown) {
@@ -151,6 +152,19 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
+function downloadFailures() {
+  downloadCsv(
+    'herb-import-errors.csv',
+    ['行号', '药品编码', '药品名称', '错误原因'],
+    failedResults.value.map((row) => ({
+      行号: row.rowNumber,
+      药品编码: row.herbCode,
+      药品名称: row.herbName,
+      错误原因: row.message,
+    })),
+  );
+}
+
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
@@ -176,6 +190,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" @click="downloadTemplate">下载模板</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="failedResults.length === 0 || importing" @click="downloadFailures">
+          下载失败明细
+        </button>
       </li>
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="!canImport" @click="importHerbs">

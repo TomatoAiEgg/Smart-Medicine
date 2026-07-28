@@ -4,7 +4,7 @@ import { ApiError } from '../../api/client';
 import { createAdminHerbIndex, listAdminHerbs, listAdminInstitutions } from '../../api/order';
 import type { AdminHerbRecord, AdminInstitutionRecord } from '../../api/types';
 import { formatNumber } from '../../domain/formatters';
-import { csvCell, parseCsv, parseEnabled, type CsvRow } from './csvImport';
+import { csvCell, downloadCsv, parseCsv, parseEnabled, type CsvRow } from './csvImport';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type ImportStatus = 'SUCCESS' | 'FAILED';
@@ -39,10 +39,13 @@ const importing = ref(false);
 const loadingOptions = ref(false);
 const errorLine = ref('');
 const loaded = ref(false);
+const optionPageSize = 100;
+const maxOptionPages = 50;
 
 const totalRows = computed(() => rows.value.length);
 const successCount = computed(() => results.value.filter((row) => row.status === 'SUCCESS').length);
 const failedCount = computed(() => results.value.filter((row) => row.status === 'FAILED').length);
+const failedResults = computed(() => results.value.filter((row) => row.status === 'FAILED'));
 const canImport = computed(() => rows.value.length > 0 && !importing.value && !loadingOptions.value);
 
 function errorMessage(error: unknown) {
@@ -98,16 +101,37 @@ function findHerb(row: CsvRow) {
   return matched;
 }
 
+async function listAllInstitutions() {
+  const records: AdminInstitutionRecord[] = [];
+  for (let page = 1; page <= maxOptionPages; page += 1) {
+    const nextPage = await listAdminInstitutions({ page, pageSize: optionPageSize });
+    records.push(...nextPage.records);
+    if (records.length >= nextPage.total || nextPage.records.length < optionPageSize) {
+      break;
+    }
+  }
+  return records;
+}
+
+async function listAllEnabledHerbs() {
+  const records: AdminHerbRecord[] = [];
+  for (let page = 1; page <= maxOptionPages; page += 1) {
+    const nextPage = await listAdminHerbs({ page, pageSize: optionPageSize, enabled: true });
+    records.push(...nextPage.records);
+    if (records.length >= nextPage.total || nextPage.records.length < optionPageSize) {
+      break;
+    }
+  }
+  return records;
+}
+
 async function refreshOptions() {
   loadingOptions.value = true;
   errorLine.value = '';
   try {
-    const [nextInstitutions, nextHerbs] = await Promise.all([
-      listAdminInstitutions({ page: 1, pageSize: 100 }),
-      listAdminHerbs({ page: 1, pageSize: 100, enabled: true }),
-    ]);
-    institutions.value = nextInstitutions.records;
-    herbs.value = nextHerbs.records;
+    const [nextInstitutions, nextHerbs] = await Promise.all([listAllInstitutions(), listAllEnabledHerbs()]);
+    institutions.value = nextInstitutions;
+    herbs.value = nextHerbs;
   } catch (error) {
     errorLine.value = errorMessage(error);
   } finally {
@@ -215,6 +239,21 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
+function downloadFailures() {
+  downloadCsv(
+    'herb-index-import-errors.csv',
+    ['行号', '机构', '机构药品编码', '机构药品名称', '平台药品', '错误原因'],
+    failedResults.value.map((row) => ({
+      行号: row.rowNumber,
+      机构: row.institution,
+      机构药品编码: row.externalHerbCode,
+      机构药品名称: row.externalHerbName,
+      平台药品: row.herb,
+      错误原因: row.message,
+    })),
+  );
+}
+
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
@@ -241,6 +280,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" @click="downloadTemplate">下载模板</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="failedResults.length === 0 || importing" @click="downloadFailures">
+          下载失败明细
+        </button>
       </li>
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="!canImport" @click="importIndexes">
