@@ -408,6 +408,22 @@ function downloadFailures() {
   );
 }
 
+function downloadResults() {
+  downloadCsv(
+    'herb-index-import-results.csv',
+    ['行号', '机构', '机构药品编码', '机构药品名称', '平台药品', '状态', '结果'],
+    results.value.map((row) => ({
+      行号: row.rowNumber,
+      机构: row.institution,
+      机构药品编码: row.externalHerbCode,
+      机构药品名称: row.externalHerbName,
+      平台药品: row.herb,
+      状态: row.status === 'SUCCESS' ? '成功' : '失败',
+      结果: row.message,
+    })),
+  );
+}
+
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
@@ -444,6 +460,11 @@ defineExpose({
       <li>
         <button class="legacy-btn" type="button" :disabled="failedResults.length === 0 || importing" @click="downloadFailures">
           下载失败明细
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="results.length === 0 || importing" @click="downloadResults">
+          下载全部结果
         </button>
       </li>
       <li>
