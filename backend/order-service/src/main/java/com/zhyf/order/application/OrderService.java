@@ -419,6 +419,18 @@ public class OrderService {
         ));
     }
 
+    public AdminHerbIndexOperationLogPage listAdminHerbIndexOperationLogs(AdminHerbIndexOperationLogQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminHerbIndexOperationLogs(new AdminHerbIndexOperationLogQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                cleanText(query.actionType()),
+                page,
+                pageSize
+        ));
+    }
+
     @Transactional
     public AdminHerbIndexRecord createAdminHerbIndex(AdminHerbIndexCommand command) {
         UUID institutionId = requireUuid(command.institutionId(), "HERB_INDEX_INSTITUTION_REQUIRED", "Institution is required");
@@ -444,7 +456,7 @@ public class OrderService {
         ).isPresent()) {
             throw new BusinessException("HERB_INDEX_DUPLICATED", "Herb index already exists for institution");
         }
-        return orderRepository.insertAdminHerbIndex(
+        AdminHerbIndexRecord created = orderRepository.insertAdminHerbIndex(
                 UUID.randomUUID(),
                 DEFAULT_ADMIN_TENANT_ID,
                 institutionId,
@@ -455,6 +467,8 @@ public class OrderService {
                 command.enabled() == null || command.enabled(),
                 cleanText(command.remark())
         );
+        writeHerbIndexLog(created, "CREATED", "admin", cleanText(command.remark()));
+        return created;
     }
 
     @Transactional
@@ -469,7 +483,7 @@ public class OrderService {
         );
         orderRepository.findAdminHerbById(herbId)
                 .orElseThrow(() -> new BusinessException("HERB_NOT_FOUND", "Herb not found"));
-        return orderRepository.updateAdminHerbIndex(
+        AdminHerbIndexRecord updated = orderRepository.updateAdminHerbIndex(
                 existing.id(),
                 externalHerbName,
                 herbId,
@@ -477,6 +491,8 @@ public class OrderService {
                 command.enabled() == null ? existing.enabled() : command.enabled(),
                 cleanText(command.remark())
         );
+        writeHerbIndexLog(updated, herbIndexAction(existing, updated), "admin", cleanText(command.remark()));
+        return updated;
     }
 
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
@@ -2549,6 +2565,32 @@ public class OrderService {
     private String defaultText(String value, String fallback) {
         String cleaned = cleanText(value);
         return cleaned == null ? fallback : cleaned;
+    }
+
+    private String herbIndexAction(AdminHerbIndexRecord before, AdminHerbIndexRecord after) {
+        if (before.enabled() != after.enabled()) {
+            return after.enabled() ? "ENABLED" : "DISABLED";
+        }
+        return "UPDATED";
+    }
+
+    private void writeHerbIndexLog(AdminHerbIndexRecord record, String actionType, String operator, String remark) {
+        orderRepository.insertAdminHerbIndexOperationLog(
+                UUID.randomUUID(),
+                record.tenantId(),
+                record.id(),
+                record.institutionId(),
+                record.institutionCode(),
+                record.institutionName(),
+                record.externalHerbCode(),
+                record.externalHerbName(),
+                record.herbId(),
+                record.herbCode(),
+                record.herbName(),
+                actionType,
+                operator,
+                remark
+        );
     }
 
     private String areaText(String value) {

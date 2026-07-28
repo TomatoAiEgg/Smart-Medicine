@@ -36,6 +36,8 @@ import type {
   AdminHerbIndexPage,
   AdminHerbIndexQueryParams,
   AdminHerbIndexRecord,
+  AdminHerbIndexOperationLogPage,
+  AdminHerbIndexOperationLogQueryParams,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -468,6 +470,14 @@ export function updateAdminHerbIndex(indexId: string, command: AdminHerbIndexCom
     method: 'PATCH',
     body: JSON.stringify(command),
   });
+}
+
+export function listAdminHerbIndexOperationLogs(params: AdminHerbIndexOperationLogQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/herb-index-operation-logs?${query}`
+    : '/order-api/api/admin/herb-index-operation-logs';
+  return request<AdminHerbIndexOperationLogPage>(url);
 }
 
 export function listAdminPrescriptionReprints(params: AdminPrescriptionReprintQueryParams = {}) {

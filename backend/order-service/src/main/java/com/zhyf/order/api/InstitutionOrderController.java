@@ -35,6 +35,8 @@ import com.zhyf.order.application.AdminHerbIndexCommand;
 import com.zhyf.order.application.AdminHerbIndexPage;
 import com.zhyf.order.application.AdminHerbIndexQuery;
 import com.zhyf.order.application.AdminHerbIndexRecord;
+import com.zhyf.order.application.AdminHerbIndexOperationLogPage;
+import com.zhyf.order.application.AdminHerbIndexOperationLogQuery;
 import com.zhyf.order.application.AdminSystemConfigCommand;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
@@ -676,6 +678,23 @@ public class InstitutionOrderController {
             @RequestBody AdminHerbIndexCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminHerbIndex(indexId, command));
+    }
+
+    @GetMapping("/admin/herb-index-operation-logs")
+    public ApiResponse<AdminHerbIndexOperationLogPage> listHerbIndexOperationLogs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) String actionType,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminHerbIndexOperationLogs(new AdminHerbIndexOperationLogQuery(
+                keyword,
+                institutionId,
+                actionType,
+                page,
+                pageSize
+        )));
     }
 
     @GetMapping("/admin/institutions")

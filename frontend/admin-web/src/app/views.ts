@@ -52,6 +52,7 @@ export type ImplementedViewKey =
   | 'settingDecoctCenters'
   | 'drugHerbs'
   | 'drugHerbIndexes'
+  | 'drugIndexOperationLogs'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -767,8 +768,10 @@ export const menuItems = [
     path: '/drugs/index-operation-logs',
     legacyRoute: 'drugManage/listImportantOperLog.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '药品索引变更审计',
+    componentKey: 'drugIndexOperationLogs',
+    showCount: true,
     plannedComponent: 'features/drug/HerbIndexOperationLog.vue',
     coreActions: ['操作日志查询', '导出'],
     apiDependencies: ['索引操作日志', '导出任务'],

@@ -405,6 +405,39 @@ export interface AdminHerbIndexCommand {
   remark?: string;
 }
 
+export interface AdminHerbIndexOperationLogQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  actionType?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminHerbIndexOperationLogRecord {
+  id: string;
+  tenantId: string;
+  indexId: string | null;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  externalHerbCode: string;
+  externalHerbName: string;
+  herbId: string;
+  herbCode: string;
+  herbName: string;
+  actionType: string;
+  operator: string;
+  remark: string | null;
+  createdAt: string;
+}
+
+export interface AdminHerbIndexOperationLogPage {
+  records: AdminHerbIndexOperationLogRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

@@ -25,6 +25,9 @@ import com.zhyf.order.application.AdminHerbRecord;
 import com.zhyf.order.application.AdminHerbIndexPage;
 import com.zhyf.order.application.AdminHerbIndexQuery;
 import com.zhyf.order.application.AdminHerbIndexRecord;
+import com.zhyf.order.application.AdminHerbIndexOperationLogPage;
+import com.zhyf.order.application.AdminHerbIndexOperationLogQuery;
+import com.zhyf.order.application.AdminHerbIndexOperationLogRecord;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminSystemConfigRecord;
@@ -1011,6 +1014,83 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, externalHerbName, herbId, matchType, enabled, remark, id);
         return findAdminHerbIndexById(id).orElseThrow();
+    }
+
+    public AdminHerbIndexOperationLogPage searchAdminHerbIndexOperationLogs(
+            AdminHerbIndexOperationLogQuery query
+    ) {
+        QueryParts filters = adminHerbIndexOperationLogFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from herb_index_operation_log l
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, index_id, institution_id, institution_code, institution_name,
+                       external_herb_code, external_herb_name, herb_id, herb_code, herb_name,
+                       action_type, operator, remark, created_at
+                from herb_index_operation_log l
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by created_at desc, id desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminHerbIndexOperationLogPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminHerbIndexOperationLogRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public void insertAdminHerbIndexOperationLog(
+            UUID id,
+            UUID tenantId,
+            UUID indexId,
+            UUID institutionId,
+            String institutionCode,
+            String institutionName,
+            String externalHerbCode,
+            String externalHerbName,
+            UUID herbId,
+            String herbCode,
+            String herbName,
+            String actionType,
+            String operator,
+            String remark
+    ) {
+        String sql = """
+                insert into herb_index_operation_log (
+                    id, tenant_id, index_id, institution_id, institution_code, institution_name,
+                    external_herb_code, external_herb_name, herb_id, herb_code, herb_name,
+                    action_type, operator, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                indexId,
+                institutionId,
+                institutionCode,
+                institutionName,
+                externalHerbCode,
+                externalHerbName,
+                herbId,
+                herbCode,
+                herbName,
+                actionType,
+                operator,
+                remark
+        );
     }
 
     public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
@@ -2789,6 +2869,38 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminHerbIndexOperationLogFilters(AdminHerbIndexOperationLogQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        l.external_herb_code ilike ?
+                        or l.external_herb_name ilike ?
+                        or l.institution_code ilike ?
+                        or l.institution_name ilike ?
+                        or l.herb_code ilike ?
+                        or l.herb_name ilike ?
+                        or coalesce(l.remark, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and l.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        filters.addEqualsFilter("l.action_type", query.actionType());
+        return filters;
+    }
+
     private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -4301,6 +4413,29 @@ public class OrderRepository {
                 rs.getString("remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private AdminHerbIndexOperationLogRecord mapAdminHerbIndexOperationLogRecord(
+            ResultSet rs,
+            int rowNum
+    ) throws SQLException {
+        return new AdminHerbIndexOperationLogRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("index_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("external_herb_code"),
+                rs.getString("external_herb_name"),
+                rs.getObject("herb_id", UUID.class),
+                rs.getString("herb_code"),
+                rs.getString("herb_name"),
+                rs.getString("action_type"),
+                rs.getString("operator"),
+                rs.getString("remark"),
+                instant(rs, "created_at")
         );
     }
 
