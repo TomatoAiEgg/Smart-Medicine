@@ -302,6 +302,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   institutionApis: institutionApisCount.value,
   institutionApiPermissions: institutionApiPermissionsCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
+  systemUsers: operatorManageCount.value,
   settingOperators: operatorManageCount.value,
   labelTemplates: labelTemplateCount.value,
   labelPrints: labelPrintCount.value,
