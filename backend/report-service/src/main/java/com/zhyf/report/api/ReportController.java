@@ -5,6 +5,7 @@ import com.zhyf.report.application.ReportQueryService;
 import com.zhyf.report.application.ReportRecords;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -44,6 +45,30 @@ public class ReportController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename("report-overview.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
+
+    @GetMapping("/institution-prescription-counts")
+    public ApiResponse<List<ReportRecords.InstitutionPrescriptionCount>> institutionPrescriptionCounts(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.institutionPrescriptionCounts(from, to));
+    }
+
+    @GetMapping("/institution-prescription-counts.csv")
+    public ResponseEntity<byte[]> institutionPrescriptionCountsCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportInstitutionPrescriptionCountsCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("institution-prescription-counts.csv", StandardCharsets.UTF_8)
                         .build()
                         .toString())
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))

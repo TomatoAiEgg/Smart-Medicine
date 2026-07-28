@@ -3,6 +3,7 @@ package com.zhyf.report.application;
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.report.infrastructure.ReportQueryRepository;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,9 +19,7 @@ public class ReportQueryService {
     }
 
     public ReportRecords.ReportOverview overview(Instant from, Instant to, int trendDays) {
-        if (from != null && to != null && !from.isBefore(to)) {
-            throw new BusinessException("REPORT_INVALID_TIME_RANGE", "From time must be before to time");
-        }
+        validateTimeRange(from, to);
         return repository.loadOverview(from, to, normalizeTrendDays(trendDays));
     }
 
@@ -35,6 +34,29 @@ public class ReportQueryService {
         overview.orderStatusCounts().forEach(item -> append(csv, "orderStatus", item.status(), item.count()));
         overview.callbackStatusCounts().forEach(item -> append(csv, "callbackStatus", item.status(), item.count()));
         overview.dailyOrderCounts().forEach(item -> append(csv, "dailyOrder", item.day().toString(), item.count()));
+        return csv.toString();
+    }
+
+    public List<ReportRecords.InstitutionPrescriptionCount> institutionPrescriptionCounts(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadInstitutionPrescriptionCounts(from, to);
+    }
+
+    public String exportInstitutionPrescriptionCountsCsv(Instant from, Instant to) {
+        List<ReportRecords.InstitutionPrescriptionCount> rows = institutionPrescriptionCounts(from, to);
+        StringBuilder csv = new StringBuilder("institutionCode,institutionName,orderCount,prescriptionCount,doseCount,totalAmount\n");
+        rows.forEach(row -> csv.append(escape(row.institutionCode()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.totalAmount())
+                .append('\n'));
         return csv.toString();
     }
 
@@ -62,5 +84,11 @@ public class ReportQueryService {
             return DEFAULT_TREND_DAYS;
         }
         return Math.min(trendDays, MAX_TREND_DAYS);
+    }
+
+    private void validateTimeRange(Instant from, Instant to) {
+        if (from != null && to != null && !from.isBefore(to)) {
+            throw new BusinessException("REPORT_INVALID_TIME_RANGE", "From time must be before to time");
+        }
     }
 }

@@ -1139,6 +1139,16 @@ export interface ReportOverview {
   dailyOrderCounts: DailyOrderCount[];
 }
 
+export interface InstitutionPrescriptionCountRecord {
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  totalAmount: number | string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

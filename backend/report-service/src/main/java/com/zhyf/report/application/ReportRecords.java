@@ -1,5 +1,6 @@
 package com.zhyf.report.application;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,5 +29,16 @@ public final class ReportRecords {
     }
 
     public record DailyOrderCount(LocalDate day, long count) {
+    }
+
+    public record InstitutionPrescriptionCount(
+            String institutionId,
+            String institutionCode,
+            String institutionName,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            BigDecimal totalAmount
+    ) {
     }
 }

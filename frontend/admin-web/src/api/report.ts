@@ -1,13 +1,16 @@
 import { request } from './client';
-import type { ReportOverview } from './types';
+import type { InstitutionPrescriptionCountRecord, ReportOverview } from './types';
 
-interface ReportOverviewQuery {
+interface ReportTimeRangeQuery {
   from?: string;
   to?: string;
+}
+
+interface ReportOverviewQuery extends ReportTimeRangeQuery {
   trendDays?: number;
 }
 
-function buildQuery(params: ReportOverviewQuery) {
+function buildQuery(params: ReportOverviewQuery | ReportTimeRangeQuery) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -25,6 +28,22 @@ export function getReportOverview(params: ReportOverviewQuery = {}) {
 export async function downloadReportOverviewCsv(params: ReportOverviewQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/overview.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listInstitutionPrescriptionCounts(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<InstitutionPrescriptionCountRecord[]>(
+    `/report-api/api/admin/reports/institution-prescription-counts${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadInstitutionPrescriptionCountsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/institution-prescription-counts.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }

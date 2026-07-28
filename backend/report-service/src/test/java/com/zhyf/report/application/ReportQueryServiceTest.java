@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.report.infrastructure.ReportQueryRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,21 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("orderStatus,RECHECKED,2");
         assertThat(csv).contains("callbackStatus,FAILED,1");
         assertThat(csv).contains("dailyOrder,2026-07-01,2");
+    }
+
+    @Test
+    void shouldExportInstitutionPrescriptionCountsAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadInstitutionPrescriptionCounts(from, to)).thenReturn(List.of(
+                new ReportRecords.InstitutionPrescriptionCount("inst-1", "H001", "测试医院", 2, 3, 18, new BigDecimal("126.50"))
+        ));
+
+        String csv = service.exportInstitutionPrescriptionCountsCsv(from, to);
+
+        verify(repository).loadInstitutionPrescriptionCounts(from, to);
+        assertThat(csv).startsWith("institutionCode,institutionName,orderCount,prescriptionCount,doseCount,totalAmount");
+        assertThat(csv).contains("H001,测试医院,2,3,18,126.50");
     }
 
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {

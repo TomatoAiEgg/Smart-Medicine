@@ -36,6 +36,28 @@ public class ReportQueryRepository {
         );
     }
 
+    public List<ReportRecords.InstitutionPrescriptionCount> loadInstitutionPrescriptionCounts(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select i.id::text as institution_id,
+                       i.institution_code,
+                       i.institution_name,
+                       count(distinct o.id) as order_count,
+                       count(p.id) as prescription_count,
+                       coalesce(sum(p.dose_count), 0) as dose_count,
+                       coalesce(sum(p.total_amount), 0) as total_amount
+                from prescription p
+                join institution i on i.id = p.institution_id
+                join order_main o on o.id = p.order_id
+                where 1 = 1
+                """);
+        query.addRangeFilter("p.created_at", from, to);
+        query.append("""
+                 group by i.id, i.institution_code, i.institution_name
+                 order by prescription_count desc, i.institution_name asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapInstitutionPrescriptionCount, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -92,6 +114,19 @@ public class ReportQueryRepository {
 
     private ReportRecords.DailyOrderCount mapDailyOrderCount(ResultSet rs, int rowNum) throws SQLException {
         return new ReportRecords.DailyOrderCount(rs.getObject("day", java.time.LocalDate.class), rs.getLong("order_count"));
+    }
+
+    private ReportRecords.InstitutionPrescriptionCount mapInstitutionPrescriptionCount(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.InstitutionPrescriptionCount(
+                rs.getString("institution_id"),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getLong("order_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getBigDecimal("total_amount")
+        );
     }
 
     private OffsetDateTime offsetDateTime(Instant value) {

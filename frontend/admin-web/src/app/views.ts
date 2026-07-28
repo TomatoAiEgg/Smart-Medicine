@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'reports'
+  | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
   | 'integration'
   | 'observability'
@@ -765,11 +766,13 @@ export const menuItems = [
     path: '/reports/institution-prescription-counts',
     legacyRoute: 'exportQuery/institutionsPrescriptionNumStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '机构维度处方量统计',
-    plannedComponent: 'features/report/InstitutionPrescriptionReport.vue',
-    coreActions: ['机构维度统计', '导出'],
-    apiDependencies: ['机构处方统计', '导出任务'],
+    componentKey: 'institutionPrescriptionCounts',
+    showCount: true,
+    plannedComponent: 'features/reports/InstitutionPrescriptionCounts.vue',
+    coreActions: ['机构处方数量查询', '本页小计', 'CSV 导出'],
+    apiDependencies: ['机构处方数量统计', '机构处方数量 CSV 导出'],
   },
   {
     key: 'reportAuditPerformance',
