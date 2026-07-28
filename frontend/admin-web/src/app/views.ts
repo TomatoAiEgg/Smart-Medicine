@@ -49,6 +49,7 @@ export type ImplementedViewKey =
   | 'ops'
   | 'problemRegistrations'
   | 'operatorManage'
+  | 'menuRegistry'
   | 'settingDicts'
   | 'settingSystemConfigs'
   | 'settingDecoctCenters'
@@ -171,11 +172,13 @@ export const menuItems = [
     path: '/system/menus',
     legacyRoute: 'menu.html',
     priority: 'P4',
-    implemented: false,
-    subtitle: '菜单树和功能入口配置',
-    plannedComponent: 'features/system/MenuManage.vue',
-    coreActions: ['菜单树', '新增', '编辑', '删除', '排序'],
-    apiDependencies: ['菜单树 CRUD', '权限点'],
+    implemented: true,
+    subtitle: '前端菜单入口、路径、旧路由和接入状态核对',
+    componentKey: 'menuRegistry',
+    showCount: true,
+    plannedComponent: 'features/system/MenuRegistry.vue',
+    coreActions: ['菜单树', '筛选', '路径核对', '接入状态核对'],
+    apiDependencies: ['前端菜单注册表'],
   },
   {
     key: 'settingDicts',
