@@ -47,6 +47,7 @@ export type ImplementedViewKey =
   | 'ops'
   | 'problemRegistrations'
   | 'operatorManage'
+  | 'settingDicts'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -173,8 +174,10 @@ export const menuItems = [
     path: '/settings/dicts',
     legacyRoute: 'systemSetting/listDict.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '字典项、状态枚举和业务配置',
+    componentKey: 'settingDicts',
+    showCount: true,
     plannedComponent: 'features/settings/DictList.vue',
     coreActions: ['列表', '筛选', '新增', '编辑', '删除', '启停'],
     apiDependencies: ['字典类型', '字典项 CRUD', '缓存刷新'],

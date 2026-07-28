@@ -13,6 +13,8 @@ import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminDictItemQuery;
+import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
@@ -30,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
+@SuppressWarnings("unchecked")
 class OrderRepositoryTest {
 
     private final JdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(JdbcTemplate.class);
@@ -158,6 +161,85 @@ class OrderRepositoryTest {
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
         assertThat(listArgsCaptor.getValue()).containsExactly("%disp%", "%disp%", "%disp%", true, 10, 10);
+    }
+
+    @Test
+    void shouldBuildDictTypeQueryWithKeywordStatusAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminDictTypes(new AdminDictTypeQuery("type", true, 2, 10));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from dict_type t")
+                .contains("t.type_code ilike ?")
+                .contains("t.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly("%type%", "%type%", true);
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from dict_type t")
+                .contains("order by enabled desc, type_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly("%type%", "%type%", true, 10, 10);
+    }
+
+    @Test
+    void shouldBuildDictItemQueryWithKeywordTypeStatusAndPagination() {
+        UUID typeId = UUID.fromString("11111111-2222-3333-4444-000000000701");
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminDictItems(new AdminDictItemQuery("decoction", typeId, false, 3, 15));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from dict_item i")
+                .contains("join dict_type t on t.id = i.type_id")
+                .contains("i.item_code ilike ?")
+                .contains("i.type_id = ?")
+                .contains("i.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                typeId,
+                false
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from dict_item i")
+                .contains("order by t.type_code asc, i.sort_no asc, i.item_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                "%decoction%",
+                typeId,
+                false,
+                15,
+                30
+        );
     }
 
     @Test

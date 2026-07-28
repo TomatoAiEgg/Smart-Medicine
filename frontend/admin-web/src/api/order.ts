@@ -12,6 +12,14 @@ import type {
   AdminInstitutionAppPage,
   AdminInstitutionAppQueryParams,
   AdminInstitutionAppRecord,
+  AdminDictItemCommand,
+  AdminDictItemPage,
+  AdminDictItemQueryParams,
+  AdminDictItemRecord,
+  AdminDictTypeCommand,
+  AdminDictTypePage,
+  AdminDictTypeQueryParams,
+  AdminDictTypeRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -321,6 +329,46 @@ export function createAdminOperator(command: AdminOperatorCommand) {
 
 export function updateAdminOperator(operatorId: string, command: AdminOperatorCommand) {
   return request<AdminOperatorRecord>(`/order-api/api/admin/operators/${encodeURIComponent(operatorId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminDictTypes(params: AdminDictTypeQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/dict-types?${query}` : '/order-api/api/admin/dict-types';
+  return request<AdminDictTypePage>(url);
+}
+
+export function createAdminDictType(command: AdminDictTypeCommand) {
+  return request<AdminDictTypeRecord>('/order-api/api/admin/dict-types', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminDictType(typeId: string, command: AdminDictTypeCommand) {
+  return request<AdminDictTypeRecord>(`/order-api/api/admin/dict-types/${encodeURIComponent(typeId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminDictItems(params: AdminDictItemQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/dict-items?${query}` : '/order-api/api/admin/dict-items';
+  return request<AdminDictItemPage>(url);
+}
+
+export function createAdminDictItem(command: AdminDictItemCommand) {
+  return request<AdminDictItemRecord>('/order-api/api/admin/dict-items', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminDictItem(itemId: string, command: AdminDictItemCommand) {
+  return request<AdminDictItemRecord>(`/order-api/api/admin/dict-items/${encodeURIComponent(itemId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

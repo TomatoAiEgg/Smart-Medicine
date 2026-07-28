@@ -10,6 +10,12 @@ import com.zhyf.order.application.AdminInstitutionApiRecord;
 import com.zhyf.order.application.AdminInstitutionAppPage;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionAppRecord;
+import com.zhyf.order.application.AdminDictItemPage;
+import com.zhyf.order.application.AdminDictItemQuery;
+import com.zhyf.order.application.AdminDictItemRecord;
+import com.zhyf.order.application.AdminDictTypePage;
+import com.zhyf.order.application.AdminDictTypeQuery;
+import com.zhyf.order.application.AdminDictTypeRecord;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
@@ -401,6 +407,186 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, displayName, roleCode, enabled, id);
         return findAdminOperatorById(id).orElseThrow();
+    }
+
+    public AdminDictTypePage searchAdminDictTypes(AdminDictTypeQuery query) {
+        QueryParts filters = adminDictTypeFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from dict_type t
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, type_code, type_name, enabled, created_at, updated_at
+                from dict_type t
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, type_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminDictTypePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminDictTypeRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminDictTypeRecord> findAdminDictTypeById(UUID id) {
+        String sql = """
+                select id, tenant_id, type_code, type_name, enabled, created_at, updated_at
+                from dict_type
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDictTypeRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminDictTypeRecord> findAdminDictTypeByCode(UUID tenantId, String typeCode) {
+        String sql = """
+                select id, tenant_id, type_code, type_name, enabled, created_at, updated_at
+                from dict_type
+                where tenant_id = ? and type_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDictTypeRecord, tenantId, typeCode).stream().findFirst();
+    }
+
+    public AdminDictTypeRecord insertAdminDictType(
+            UUID id,
+            UUID tenantId,
+            String typeCode,
+            String typeName,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into dict_type (id, tenant_id, type_code, type_name, enabled)
+                values (?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, typeCode, typeName, enabled);
+        return findAdminDictTypeById(id).orElseThrow();
+    }
+
+    public AdminDictTypeRecord updateAdminDictType(
+            UUID id,
+            String typeName,
+            boolean enabled
+    ) {
+        String sql = """
+                update dict_type
+                set type_name = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, typeName, enabled, id);
+        return findAdminDictTypeById(id).orElseThrow();
+    }
+
+    public AdminDictItemPage searchAdminDictItems(AdminDictItemQuery query) {
+        QueryParts filters = adminDictItemFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from dict_item i
+                join dict_type t on t.id = i.type_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select i.id, i.tenant_id, i.type_id, t.type_code, t.type_name,
+                       i.item_code, i.item_name, i.item_value, i.sort_no, i.enabled,
+                       i.remark, i.created_at, i.updated_at
+                from dict_item i
+                join dict_type t on t.id = i.type_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by t.type_code asc, i.sort_no asc, i.item_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminDictItemPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminDictItemRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminDictItemRecord> findAdminDictItemById(UUID id) {
+        String sql = """
+                select i.id, i.tenant_id, i.type_id, t.type_code, t.type_name,
+                       i.item_code, i.item_name, i.item_value, i.sort_no, i.enabled,
+                       i.remark, i.created_at, i.updated_at
+                from dict_item i
+                join dict_type t on t.id = i.type_id
+                where i.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDictItemRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminDictItemRecord> findAdminDictItemByCode(UUID typeId, String itemCode) {
+        String sql = """
+                select i.id, i.tenant_id, i.type_id, t.type_code, t.type_name,
+                       i.item_code, i.item_name, i.item_value, i.sort_no, i.enabled,
+                       i.remark, i.created_at, i.updated_at
+                from dict_item i
+                join dict_type t on t.id = i.type_id
+                where i.type_id = ? and i.item_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDictItemRecord, typeId, itemCode).stream().findFirst();
+    }
+
+    public AdminDictItemRecord insertAdminDictItem(
+            UUID id,
+            UUID tenantId,
+            UUID typeId,
+            String itemCode,
+            String itemName,
+            String itemValue,
+            int sortNo,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into dict_item (
+                    id, tenant_id, type_id, item_code, item_name, item_value, sort_no, enabled, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, typeId, itemCode, itemName, itemValue, sortNo, enabled, remark);
+        return findAdminDictItemById(id).orElseThrow();
+    }
+
+    public AdminDictItemRecord updateAdminDictItem(
+            UUID id,
+            String itemName,
+            String itemValue,
+            int sortNo,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update dict_item
+                set item_name = ?,
+                    item_value = ?,
+                    sort_no = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, itemName, itemValue, sortNo, enabled, remark, id);
+        return findAdminDictItemById(id).orElseThrow();
     }
 
     public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
@@ -2008,6 +2194,58 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminDictTypeFilters(AdminDictTypeQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        t.type_code ilike ?
+                        or t.type_name ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.enabled() != null) {
+            filters.append(" and t.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminDictItemFilters(AdminDictItemQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.item_code ilike ?
+                        or i.item_name ilike ?
+                        or coalesce(i.item_value, '') ilike ?
+                        or t.type_code ilike ?
+                        or t.type_name ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.typeId() != null) {
+            filters.append(" and i.type_id = ?");
+            filters.add(query.typeId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and i.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
     private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -3420,6 +3658,36 @@ public class OrderRepository {
                 rs.getString("display_name"),
                 rs.getString("role_code"),
                 rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminDictTypeRecord mapAdminDictTypeRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminDictTypeRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("type_code"),
+                rs.getString("type_name"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminDictItemRecord mapAdminDictItemRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminDictItemRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("type_id", UUID.class),
+                rs.getString("type_code"),
+                rs.getString("type_name"),
+                rs.getString("item_code"),
+                rs.getString("item_name"),
+                rs.getString("item_value"),
+                rs.getInt("sort_no"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

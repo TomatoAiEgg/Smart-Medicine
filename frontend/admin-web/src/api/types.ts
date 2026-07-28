@@ -176,6 +176,77 @@ export interface AdminOperatorCommand {
   enabled?: boolean;
 }
 
+export interface AdminDictTypeQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminDictTypeRecord {
+  id: string;
+  tenantId: string;
+  typeCode: string;
+  typeName: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDictTypePage {
+  records: AdminDictTypeRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDictTypeCommand {
+  typeCode?: string;
+  typeName: string;
+  enabled?: boolean;
+}
+
+export interface AdminDictItemQueryParams {
+  keyword?: string;
+  typeId?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminDictItemRecord {
+  id: string;
+  tenantId: string;
+  typeId: string;
+  typeCode: string;
+  typeName: string;
+  itemCode: string;
+  itemName: string;
+  itemValue: string | null;
+  sortNo: number;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDictItemPage {
+  records: AdminDictItemRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDictItemCommand {
+  typeId?: string;
+  itemCode?: string;
+  itemName: string;
+  itemValue?: string;
+  sortNo?: number;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

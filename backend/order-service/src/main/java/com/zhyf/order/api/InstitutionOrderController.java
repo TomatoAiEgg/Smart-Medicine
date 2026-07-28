@@ -15,6 +15,14 @@ import com.zhyf.order.application.AdminInstitutionAppCommand;
 import com.zhyf.order.application.AdminInstitutionAppPage;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionAppRecord;
+import com.zhyf.order.application.AdminDictItemCommand;
+import com.zhyf.order.application.AdminDictItemPage;
+import com.zhyf.order.application.AdminDictItemQuery;
+import com.zhyf.order.application.AdminDictItemRecord;
+import com.zhyf.order.application.AdminDictTypeCommand;
+import com.zhyf.order.application.AdminDictTypePage;
+import com.zhyf.order.application.AdminDictTypeQuery;
+import com.zhyf.order.application.AdminDictTypeRecord;
 import com.zhyf.order.application.AdminInstitutionCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
@@ -478,6 +486,64 @@ public class InstitutionOrderController {
             @RequestBody AdminOperatorCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminOperator(operatorId, command));
+    }
+
+    @GetMapping("/admin/dict-types")
+    public ApiResponse<AdminDictTypePage> listDictTypes(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminDictTypes(new AdminDictTypeQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/dict-types")
+    public ApiResponse<AdminDictTypeRecord> createDictType(@RequestBody AdminDictTypeCommand command) {
+        return ApiResponse.ok(orderService.createAdminDictType(command));
+    }
+
+    @PatchMapping("/admin/dict-types/{typeId}")
+    public ApiResponse<AdminDictTypeRecord> updateDictType(
+            @PathVariable UUID typeId,
+            @RequestBody AdminDictTypeCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminDictType(typeId, command));
+    }
+
+    @GetMapping("/admin/dict-items")
+    public ApiResponse<AdminDictItemPage> listDictItems(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID typeId,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminDictItems(new AdminDictItemQuery(
+                keyword,
+                typeId,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/dict-items")
+    public ApiResponse<AdminDictItemRecord> createDictItem(@RequestBody AdminDictItemCommand command) {
+        return ApiResponse.ok(orderService.createAdminDictItem(command));
+    }
+
+    @PatchMapping("/admin/dict-items/{itemId}")
+    public ApiResponse<AdminDictItemRecord> updateDictItem(
+            @PathVariable UUID itemId,
+            @RequestBody AdminDictItemCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminDictItem(itemId, command));
     }
 
     @GetMapping("/admin/institutions")

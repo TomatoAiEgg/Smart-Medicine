@@ -174,6 +174,95 @@ public class OrderService {
         );
     }
 
+    public AdminDictTypePage listAdminDictTypes(AdminDictTypeQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminDictTypes(new AdminDictTypeQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminDictTypeRecord createAdminDictType(AdminDictTypeCommand command) {
+        String typeCode = requireText(command.typeCode(), "DICT_TYPE_CODE_REQUIRED", "Dict type code is required");
+        String typeName = requireText(command.typeName(), "DICT_TYPE_NAME_REQUIRED", "Dict type name is required");
+        if (orderRepository.findAdminDictTypeByCode(DEFAULT_ADMIN_TENANT_ID, typeCode).isPresent()) {
+            throw new BusinessException("DICT_TYPE_CODE_DUPLICATED", "Dict type code already exists");
+        }
+        return orderRepository.insertAdminDictType(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                typeCode,
+                typeName,
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminDictTypeRecord updateAdminDictType(UUID typeId, AdminDictTypeCommand command) {
+        AdminDictTypeRecord existing = orderRepository.findAdminDictTypeById(typeId)
+                .orElseThrow(() -> new BusinessException("DICT_TYPE_NOT_FOUND", "Dict type not found"));
+        String typeName = requireText(command.typeName(), "DICT_TYPE_NAME_REQUIRED", "Dict type name is required");
+        return orderRepository.updateAdminDictType(
+                existing.id(),
+                typeName,
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    public AdminDictItemPage listAdminDictItems(AdminDictItemQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminDictItems(new AdminDictItemQuery(
+                cleanText(query.keyword()),
+                query.typeId(),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminDictItemRecord createAdminDictItem(AdminDictItemCommand command) {
+        UUID typeId = requireUuid(command.typeId(), "DICT_TYPE_REQUIRED", "Dict type is required");
+        AdminDictTypeRecord type = orderRepository.findAdminDictTypeById(typeId)
+                .orElseThrow(() -> new BusinessException("DICT_TYPE_NOT_FOUND", "Dict type not found"));
+        String itemCode = requireText(command.itemCode(), "DICT_ITEM_CODE_REQUIRED", "Dict item code is required");
+        String itemName = requireText(command.itemName(), "DICT_ITEM_NAME_REQUIRED", "Dict item name is required");
+        if (orderRepository.findAdminDictItemByCode(type.id(), itemCode).isPresent()) {
+            throw new BusinessException("DICT_ITEM_CODE_DUPLICATED", "Dict item code already exists");
+        }
+        return orderRepository.insertAdminDictItem(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                type.id(),
+                itemCode,
+                itemName,
+                cleanText(command.itemValue()),
+                command.sortNo() == null ? 0 : Math.max(command.sortNo(), 0),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminDictItemRecord updateAdminDictItem(UUID itemId, AdminDictItemCommand command) {
+        AdminDictItemRecord existing = orderRepository.findAdminDictItemById(itemId)
+                .orElseThrow(() -> new BusinessException("DICT_ITEM_NOT_FOUND", "Dict item not found"));
+        String itemName = requireText(command.itemName(), "DICT_ITEM_NAME_REQUIRED", "Dict item name is required");
+        return orderRepository.updateAdminDictItem(
+                existing.id(),
+                itemName,
+                cleanText(command.itemValue()),
+                command.sortNo() == null ? existing.sortNo() : Math.max(command.sortNo(), 0),
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
@@ -2228,6 +2317,13 @@ public class OrderService {
             throw new BusinessException(code, message);
         }
         return cleaned;
+    }
+
+    private UUID requireUuid(UUID value, String code, String message) {
+        if (value == null) {
+            throw new BusinessException(code, message);
+        }
+        return value;
     }
 
     private String cleanText(String value) {
