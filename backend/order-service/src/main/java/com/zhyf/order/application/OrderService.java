@@ -279,6 +279,62 @@ public class OrderService {
         );
     }
 
+    public AdminInstitutionApiPage listAdminInstitutionApis(AdminInstitutionApiQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminInstitutionApis(new AdminInstitutionApiQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminInstitutionApiRecord createAdminInstitutionApi(AdminInstitutionApiCommand command) {
+        String apiCode = requireText(command.apiCode(), "API_CODE_REQUIRED", "API code is required");
+        String apiName = requireText(command.apiName(), "API_NAME_REQUIRED", "API name is required");
+        String requestMethod = requireText(
+                command.requestMethod(),
+                "API_REQUEST_METHOD_REQUIRED",
+                "API request method is required"
+        ).toUpperCase();
+        String requestPath = requireText(command.requestPath(), "API_REQUEST_PATH_REQUIRED", "API request path is required");
+        if (orderRepository.findAdminInstitutionApiByCode(apiCode).isPresent()) {
+            throw new BusinessException("API_CODE_DUPLICATED", "API code already exists");
+        }
+        return orderRepository.insertAdminInstitutionApi(
+                UUID.randomUUID(),
+                apiCode,
+                apiName,
+                requestMethod,
+                requestPath,
+                cleanText(command.description()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminInstitutionApiRecord updateAdminInstitutionApi(UUID apiId, AdminInstitutionApiCommand command) {
+        AdminInstitutionApiRecord existing = orderRepository.findAdminInstitutionApiById(apiId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_API_NOT_FOUND", "Institution API not found"));
+        String apiName = requireText(command.apiName(), "API_NAME_REQUIRED", "API name is required");
+        String requestMethod = requireText(
+                command.requestMethod(),
+                "API_REQUEST_METHOD_REQUIRED",
+                "API request method is required"
+        ).toUpperCase();
+        String requestPath = requireText(command.requestPath(), "API_REQUEST_PATH_REQUIRED", "API request path is required");
+        return orderRepository.updateAdminInstitutionApi(
+                existing.id(),
+                apiName,
+                requestMethod,
+                requestPath,
+                cleanText(command.description()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminInstitutionIpWhitelistPage listAdminInstitutionIpWhitelists(
             AdminInstitutionIpWhitelistQuery query
     ) {

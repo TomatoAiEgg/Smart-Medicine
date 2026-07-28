@@ -1,5 +1,9 @@
 import { request } from './client';
 import type {
+  AdminInstitutionApiCommand,
+  AdminInstitutionApiPage,
+  AdminInstitutionApiQueryParams,
+  AdminInstitutionApiRecord,
   AdminInstitutionAppCommand,
   AdminInstitutionAppPage,
   AdminInstitutionAppQueryParams,
@@ -105,6 +109,26 @@ export function createAdminInstitutionApp(command: AdminInstitutionAppCommand) {
 
 export function updateAdminInstitutionApp(appId: string, command: AdminInstitutionAppCommand) {
   return request<AdminInstitutionAppRecord>(`/order-api/api/admin/institution-apps/${encodeURIComponent(appId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminInstitutionApis(params: AdminInstitutionApiQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/institution-apis?${query}` : '/order-api/api/admin/institution-apis';
+  return request<AdminInstitutionApiPage>(url);
+}
+
+export function createAdminInstitutionApi(command: AdminInstitutionApiCommand) {
+  return request<AdminInstitutionApiRecord>('/order-api/api/admin/institution-apis', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminInstitutionApi(apiId: string, command: AdminInstitutionApiCommand) {
+  return request<AdminInstitutionApiRecord>(`/order-api/api/admin/institution-apis/${encodeURIComponent(apiId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

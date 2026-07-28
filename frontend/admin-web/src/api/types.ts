@@ -251,6 +251,41 @@ export interface AdminInstitutionAppCommand {
   enabled?: boolean;
 }
 
+export interface AdminInstitutionApiQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminInstitutionApiRecord {
+  id: string;
+  apiCode: string;
+  apiName: string;
+  requestMethod: string;
+  requestPath: string;
+  description: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInstitutionApiPage {
+  records: AdminInstitutionApiRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminInstitutionApiCommand {
+  apiCode?: string;
+  apiName: string;
+  requestMethod: string;
+  requestPath: string;
+  description?: string;
+  enabled?: boolean;
+}
+
 export interface AdminInstitutionIpWhitelistQueryParams {
   keyword?: string;
   institutionId?: string;

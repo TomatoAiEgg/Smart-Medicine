@@ -15,6 +15,7 @@ import {
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
+import ApiInfoList from './features/institution/ApiInfoList.vue';
 import IpWhitelist from './features/institution/IpWhitelist.vue';
 import InstitutionApps from './features/institution/InstitutionApps.vue';
 import InstitutionList from './features/institution/InstitutionList.vue';
@@ -86,6 +87,7 @@ const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
 const institutionAppsRef = ref<InstanceType<typeof InstitutionApps> | null>(null);
 const institutionIpWhitelistRef = ref<InstanceType<typeof IpWhitelist> | null>(null);
+const institutionApisRef = ref<InstanceType<typeof ApiInfoList> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
@@ -122,6 +124,7 @@ const operatorManageCount = ref(0);
 const institutionListCount = ref(0);
 const institutionAppsCount = ref(0);
 const institutionIpWhitelistCount = ref(0);
+const institutionApisCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
 const auditPerformanceDetailsActivationKey = ref(0);
@@ -139,6 +142,7 @@ const operatorManageActivationKey = ref(0);
 const institutionListActivationKey = ref(0);
 const institutionAppsActivationKey = ref(0);
 const institutionIpWhitelistActivationKey = ref(0);
+const institutionApisActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
 const logisPrintCount = ref(0);
@@ -217,6 +221,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   institutionList: institutionListCount.value,
   institutionApps: institutionAppsCount.value,
   institutionIpWhitelist: institutionIpWhitelistCount.value,
+  institutionApis: institutionApisCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   settingOperators: operatorManageCount.value,
   labelPrints: labelPrintCount.value,
@@ -279,6 +284,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
   if (componentKey === 'institutionApps') institutionAppsActivationKey.value += 1;
   if (componentKey === 'institutionIpWhitelist') institutionIpWhitelistActivationKey.value += 1;
+  if (componentKey === 'institutionApis') institutionApisActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
@@ -387,6 +393,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'institutionIpWhitelist') {
     await institutionIpWhitelistRef.value?.refreshIpWhitelists();
+    return;
+  }
+  if (componentKey === 'institutionApis') {
+    await institutionApisRef.value?.refreshInstitutionApis();
     return;
   }
   if (componentKey === 'prescriptionReconciliation') {
@@ -648,6 +658,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'institutionIpWhitelist'"
       :activation-key="institutionIpWhitelistActivationKey"
       @count-changed="institutionIpWhitelistCount = $event"
+      @notice="showNotice"
+    />
+
+    <ApiInfoList
+      v-show="currentComponentKey === 'institutionApis'"
+      ref="institutionApisRef"
+      :active="currentComponentKey === 'institutionApis'"
+      :activation-key="institutionApisActivationKey"
+      @count-changed="institutionApisCount = $event"
       @notice="showNotice"
     />
 

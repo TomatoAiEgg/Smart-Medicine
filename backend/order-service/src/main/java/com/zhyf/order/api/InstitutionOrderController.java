@@ -3,6 +3,10 @@ package com.zhyf.order.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.order.application.AdminInstitutionApiCommand;
+import com.zhyf.order.application.AdminInstitutionApiPage;
+import com.zhyf.order.application.AdminInstitutionApiQuery;
+import com.zhyf.order.application.AdminInstitutionApiRecord;
 import com.zhyf.order.application.AdminInstitutionAppCommand;
 import com.zhyf.order.application.AdminInstitutionAppPage;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
@@ -478,6 +482,36 @@ public class InstitutionOrderController {
             @RequestBody AdminInstitutionAppCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminInstitutionApp(appId, command));
+    }
+
+    @GetMapping("/admin/institution-apis")
+    public ApiResponse<AdminInstitutionApiPage> listInstitutionApis(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminInstitutionApis(new AdminInstitutionApiQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/institution-apis")
+    public ApiResponse<AdminInstitutionApiRecord> createInstitutionApi(
+            @RequestBody AdminInstitutionApiCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminInstitutionApi(command));
+    }
+
+    @PatchMapping("/admin/institution-apis/{apiId}")
+    public ApiResponse<AdminInstitutionApiRecord> updateInstitutionApi(
+            @PathVariable UUID apiId,
+            @RequestBody AdminInstitutionApiCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminInstitutionApi(apiId, command));
     }
 
     @GetMapping("/admin/institution-ip-whitelists")

@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminInstitutionApiPage;
+import com.zhyf.order.application.AdminInstitutionApiQuery;
+import com.zhyf.order.application.AdminInstitutionApiRecord;
 import com.zhyf.order.application.AdminInstitutionAppPage;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionAppRecord;
@@ -570,6 +573,98 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, appSecret, signType, callbackUrl, enabled, id);
         return findAdminInstitutionAppById(id).orElseThrow();
+    }
+
+    public AdminInstitutionApiPage searchAdminInstitutionApis(AdminInstitutionApiQuery query) {
+        QueryParts filters = adminInstitutionApiFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from institution_api_definition a
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, api_code, api_name, request_method, request_path, description,
+                       enabled, created_at, updated_at
+                from institution_api_definition a
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, api_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminInstitutionApiPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminInstitutionApiRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminInstitutionApiRecord> findAdminInstitutionApiById(UUID id) {
+        String sql = """
+                select id, api_code, api_name, request_method, request_path, description,
+                       enabled, created_at, updated_at
+                from institution_api_definition
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionApiRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminInstitutionApiRecord> findAdminInstitutionApiByCode(String apiCode) {
+        String sql = """
+                select id, api_code, api_name, request_method, request_path, description,
+                       enabled, created_at, updated_at
+                from institution_api_definition
+                where api_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionApiRecord, apiCode).stream().findFirst();
+    }
+
+    public AdminInstitutionApiRecord insertAdminInstitutionApi(
+            UUID id,
+            String apiCode,
+            String apiName,
+            String requestMethod,
+            String requestPath,
+            String description,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into institution_api_definition (
+                    id, api_code, api_name, request_method, request_path, description, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, apiCode, apiName, requestMethod, requestPath, description, enabled);
+        return findAdminInstitutionApiById(id).orElseThrow();
+    }
+
+    public AdminInstitutionApiRecord updateAdminInstitutionApi(
+            UUID id,
+            String apiName,
+            String requestMethod,
+            String requestPath,
+            String description,
+            boolean enabled
+    ) {
+        String sql = """
+                update institution_api_definition
+                set api_name = ?,
+                    request_method = ?,
+                    request_path = ?,
+                    description = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, apiName, requestMethod, requestPath, description, enabled, id);
+        return findAdminInstitutionApiById(id).orElseThrow();
     }
 
     public AdminInstitutionIpWhitelistPage searchAdminInstitutionIpWhitelists(
@@ -1165,6 +1260,31 @@ public class OrderRepository {
         if (query.institutionId() != null) {
             filters.append(" and a.institution_id = ?");
             filters.add(query.institutionId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and a.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminInstitutionApiFilters(AdminInstitutionApiQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        a.api_code ilike ?
+                        or a.api_name ilike ?
+                        or a.request_path ilike ?
+                        or a.description ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
         }
         if (query.enabled() != null) {
             filters.append(" and a.enabled = ?");
@@ -2348,6 +2468,20 @@ public class OrderRepository {
                 rs.getString("callback_url"),
                 rs.getBoolean("enabled"),
                 rs.getBoolean("app_secret_configured"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminInstitutionApiRecord mapAdminInstitutionApiRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminInstitutionApiRecord(
+                rs.getObject("id", UUID.class),
+                rs.getString("api_code"),
+                rs.getString("api_name"),
+                rs.getString("request_method"),
+                rs.getString("request_path"),
+                rs.getString("description"),
+                rs.getBoolean("enabled"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

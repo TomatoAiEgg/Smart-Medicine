@@ -19,6 +19,7 @@ export type ImplementedViewKey =
   | 'institutionList'
   | 'institutionApps'
   | 'institutionIpWhitelist'
+  | 'institutionApis'
   | 'reports'
   | 'auditPerformance'
   | 'auditPerformanceDetails'
@@ -261,8 +262,10 @@ export const menuItems = [
     path: '/institutions/apis',
     legacyRoute: 'mechanism/listApiInfo.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '外部 API 方法定义维护',
+    componentKey: 'institutionApis',
+    showCount: true,
     plannedComponent: 'features/institution/ApiInfoList.vue',
     coreActions: ['API 定义列表', '新增', '编辑', '启停'],
     apiDependencies: ['API 定义 CRUD'],
