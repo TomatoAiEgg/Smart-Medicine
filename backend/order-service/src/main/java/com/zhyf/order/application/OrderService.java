@@ -358,6 +358,55 @@ public class OrderService {
         );
     }
 
+    public AdminHerbPage listAdminHerbs(AdminHerbQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminHerbs(new AdminHerbQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminHerbRecord createAdminHerb(AdminHerbCommand command) {
+        String herbCode = requireText(command.herbCode(), "HERB_CODE_REQUIRED", "Herb code is required");
+        String herbName = requireText(command.herbName(), "HERB_NAME_REQUIRED", "Herb name is required");
+        if (orderRepository.findAdminHerbByCode(DEFAULT_ADMIN_TENANT_ID, herbCode).isPresent()) {
+            throw new BusinessException("HERB_CODE_DUPLICATED", "Herb code already exists");
+        }
+        return orderRepository.insertAdminHerb(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                herbCode,
+                herbName,
+                cleanText(command.drugSpecs()),
+                cleanText(command.drugOrigin()),
+                cleanText(command.unit()),
+                moneyOrZero(command.retailPrice(), "HERB_PRICE_INVALID"),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminHerbRecord updateAdminHerb(UUID herbId, AdminHerbCommand command) {
+        AdminHerbRecord existing = orderRepository.findAdminHerbById(herbId)
+                .orElseThrow(() -> new BusinessException("HERB_NOT_FOUND", "Herb not found"));
+        String herbName = requireText(command.herbName(), "HERB_NAME_REQUIRED", "Herb name is required");
+        return orderRepository.updateAdminHerb(
+                existing.id(),
+                herbName,
+                cleanText(command.drugSpecs()),
+                cleanText(command.drugOrigin()),
+                cleanText(command.unit()),
+                command.retailPrice() == null ? existing.retailPrice() : moneyOrZero(command.retailPrice(), "HERB_PRICE_INVALID"),
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

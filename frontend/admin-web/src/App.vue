@@ -14,6 +14,7 @@ import {
 } from './app/views';
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
+import HerbList from './features/drug/HerbList.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import ApiInfoList from './features/institution/ApiInfoList.vue';
 import ApiPermissionList from './features/institution/ApiPermissionList.vue';
@@ -122,6 +123,7 @@ const labelTemplateRef = ref<InstanceType<typeof LabelTemplate> | null>(null);
 const smsTemplateRef = ref<InstanceType<typeof SmsTemplate> | null>(null);
 const singleSmsSendRef = ref<InstanceType<typeof SingleSmsSend> | null>(null);
 const smsRecordListRef = ref<InstanceType<typeof SmsRecordList> | null>(null);
+const herbListRef = ref<InstanceType<typeof HerbList> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const prescriptionReconciliationRef = ref<InstanceType<typeof PrescriptionReconciliation> | null>(null);
@@ -192,6 +194,7 @@ const labelPrintCount = ref(0);
 const labelTemplateCount = ref(0);
 const smsTemplateCount = ref(0);
 const smsRecordCount = ref(0);
+const herbListCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
 const orderInterceptRuleCount = ref(0);
 const decoctionCount = ref(0);
@@ -212,6 +215,7 @@ const labelTemplateActivationKey = ref(0);
 const smsTemplateActivationKey = ref(0);
 const singleSmsSendActivationKey = ref(0);
 const smsRecordActivationKey = ref(0);
+const herbListActivationKey = ref(0);
 const prescriptionReconciliationActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
@@ -283,6 +287,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   labelPrints: labelPrintCount.value,
   smsTemplates: smsTemplateCount.value,
   smsRecords: smsRecordCount.value,
+  drugHerbs: herbListCount.value,
   reportAuditPerformance: auditPerformanceCount.value,
   reportAuditPerformanceDetails: auditPerformanceDetailsCount.value,
   reportDecoctionPerformance: decoctionPerformanceCount.value,
@@ -369,6 +374,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'smsTemplates') smsTemplateActivationKey.value += 1;
   if (componentKey === 'smsSendSingle') singleSmsSendActivationKey.value += 1;
   if (componentKey === 'smsRecords') smsRecordActivationKey.value += 1;
+  if (componentKey === 'drugHerbs') herbListActivationKey.value += 1;
   if (componentKey === 'prescriptionReconciliation') prescriptionReconciliationActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
@@ -553,6 +559,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'smsRecords') {
     await smsRecordListRef.value?.refreshSmsRecords();
+    return;
+  }
+  if (componentKey === 'drugHerbs') {
+    await herbListRef.value?.refreshHerbs();
     return;
   }
   if (componentKey === 'addressModify') {
@@ -1101,6 +1111,15 @@ function closeTab(view: ViewKey) {
       active
       :activation-key="smsRecordActivationKey"
       @count-changed="smsRecordCount = $event"
+      @notice="showNotice"
+    />
+
+    <HerbList
+      v-else-if="currentComponentKey === 'drugHerbs'"
+      ref="herbListRef"
+      active
+      :activation-key="herbListActivationKey"
+      @count-changed="herbListCount = $event"
       @notice="showNotice"
     />
 

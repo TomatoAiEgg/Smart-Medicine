@@ -322,6 +322,46 @@ export interface AdminDecoctCenterCommand {
   remark?: string;
 }
 
+export interface AdminHerbQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminHerbRecord {
+  id: string;
+  tenantId: string;
+  herbCode: string;
+  herbName: string;
+  drugSpecs: string | null;
+  drugOrigin: string | null;
+  unit: string | null;
+  retailPrice: number | string;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminHerbPage {
+  records: AdminHerbRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminHerbCommand {
+  herbCode?: string;
+  herbName: string;
+  drugSpecs?: string;
+  drugOrigin?: string;
+  unit?: string;
+  retailPrice?: number | string;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

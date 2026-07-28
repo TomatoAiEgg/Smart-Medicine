@@ -28,6 +28,10 @@ import type {
   AdminDecoctCenterPage,
   AdminDecoctCenterQueryParams,
   AdminDecoctCenterRecord,
+  AdminHerbCommand,
+  AdminHerbPage,
+  AdminHerbQueryParams,
+  AdminHerbRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -417,6 +421,26 @@ export function createAdminDecoctCenter(command: AdminDecoctCenterCommand) {
 
 export function updateAdminDecoctCenter(centerId: string, command: AdminDecoctCenterCommand) {
   return request<AdminDecoctCenterRecord>(`/order-api/api/admin/decoct-centers/${encodeURIComponent(centerId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminHerbs(params: AdminHerbQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/herbs?${query}` : '/order-api/api/admin/herbs';
+  return request<AdminHerbPage>(url);
+}
+
+export function createAdminHerb(command: AdminHerbCommand) {
+  return request<AdminHerbRecord>('/order-api/api/admin/herbs', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminHerb(herbId: string, command: AdminHerbCommand) {
+  return request<AdminHerbRecord>(`/order-api/api/admin/herbs/${encodeURIComponent(herbId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

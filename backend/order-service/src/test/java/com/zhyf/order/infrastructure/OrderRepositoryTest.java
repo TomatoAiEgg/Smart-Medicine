@@ -16,6 +16,7 @@ import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminDictItemQuery;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDecoctCenterQuery;
+import com.zhyf.order.application.AdminHerbQuery;
 import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
@@ -334,6 +335,53 @@ class OrderRepositoryTest {
                 false,
                 10,
                 20
+        );
+    }
+
+    @Test
+    void shouldBuildHerbQueryWithKeywordStatusAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminHerbs(new AdminHerbQuery("gan", true, 4, 15));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from herb_catalog h")
+                .contains("h.herb_code ilike ?")
+                .contains("h.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from herb_catalog h")
+                .contains("order by enabled desc, herb_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                "%gan%",
+                true,
+                15,
+                45
         );
     }
 

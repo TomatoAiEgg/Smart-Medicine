@@ -27,6 +27,10 @@ import com.zhyf.order.application.AdminDecoctCenterCommand;
 import com.zhyf.order.application.AdminDecoctCenterPage;
 import com.zhyf.order.application.AdminDecoctCenterQuery;
 import com.zhyf.order.application.AdminDecoctCenterRecord;
+import com.zhyf.order.application.AdminHerbCommand;
+import com.zhyf.order.application.AdminHerbPage;
+import com.zhyf.order.application.AdminHerbQuery;
+import com.zhyf.order.application.AdminHerbRecord;
 import com.zhyf.order.application.AdminSystemConfigCommand;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
@@ -610,6 +614,34 @@ public class InstitutionOrderController {
             @RequestBody AdminDecoctCenterCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminDecoctCenter(centerId, command));
+    }
+
+    @GetMapping("/admin/herbs")
+    public ApiResponse<AdminHerbPage> listHerbs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminHerbs(new AdminHerbQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/herbs")
+    public ApiResponse<AdminHerbRecord> createHerb(@RequestBody AdminHerbCommand command) {
+        return ApiResponse.ok(orderService.createAdminHerb(command));
+    }
+
+    @PatchMapping("/admin/herbs/{herbId}")
+    public ApiResponse<AdminHerbRecord> updateHerb(
+            @PathVariable UUID herbId,
+            @RequestBody AdminHerbCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminHerb(herbId, command));
     }
 
     @GetMapping("/admin/institutions")
