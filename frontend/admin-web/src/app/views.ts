@@ -55,8 +55,10 @@ export type ImplementedViewKey =
   | 'settingSystemConfigs'
   | 'settingDecoctCenters'
   | 'drugHerbs'
+  | 'drugHerbImports'
   | 'drugHerbAreas'
   | 'drugHerbIndexes'
+  | 'drugHerbIndexImports'
   | 'drugIndexOperationLogs'
   | 'addressModify'
   | 'prescriptionModify'
@@ -809,11 +811,13 @@ export const menuItems = [
     path: '/drugs/herbs/imports',
     legacyRoute: 'drugManage/importHerbsInit.html',
     priority: 'P3',
-    implemented: false,
-    subtitle: '药品批量导入',
+    implemented: true,
+    subtitle: 'CSV 批量导入平台药品目录',
+    componentKey: 'drugHerbImports',
+    showCount: true,
     plannedComponent: 'features/drug/HerbImport.vue',
-    coreActions: ['模板下载', '导入', '错误明细'],
-    apiDependencies: ['导入任务', '导入预检', '错误下载'],
+    coreActions: ['模板下载', 'CSV 解析', '逐行导入', '错误明细'],
+    apiDependencies: ['药品目录新增接口'],
   },
   {
     key: 'drugHerbIndexImports',
@@ -822,11 +826,13 @@ export const menuItems = [
     path: '/drugs/herb-indexes/imports',
     legacyRoute: 'drugManage/importHerbsIndexInit.html',
     priority: 'P3',
-    implemented: false,
-    subtitle: '索引批量导入',
+    implemented: true,
+    subtitle: 'CSV 批量导入机构药品索引',
+    componentKey: 'drugHerbIndexImports',
+    showCount: true,
     plannedComponent: 'features/drug/HerbIndexImport.vue',
-    coreActions: ['模板下载', '导入', '错误明细'],
-    apiDependencies: ['索引导入任务', '重复检查', '错误下载'],
+    coreActions: ['模板下载', '基础数据匹配', '逐行导入', '错误明细'],
+    apiDependencies: ['机构列表', '药品目录列表', '药品索引新增接口'],
   },
   {
     key: 'drugHerbAreas',
