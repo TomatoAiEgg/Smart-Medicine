@@ -16,6 +16,9 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLogisticsSpecialRulePage;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleRecord;
 import com.zhyf.order.application.AdminManualProcessItem;
 import com.zhyf.order.application.AdminManualProcessPage;
 import com.zhyf.order.application.AdminManualProcessQuery;
@@ -865,6 +868,139 @@ public class OrderRepository {
         return findAdminInstitutionIpWhitelistById(id).orElseThrow();
     }
 
+    public AdminLogisticsSpecialRulePage searchAdminLogisticsSpecialRules(AdminLogisticsSpecialRuleQuery query) {
+        QueryParts filters = adminLogisticsSpecialRuleFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from logistics_special_rule r
+                join institution i on i.id = r.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select r.id, r.tenant_id, r.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, r.rule_name, r.logistics_company, r.base_fee, r.extra_fee,
+                       r.free_threshold, r.remark, r.enabled, r.created_at, r.updated_at
+                from logistics_special_rule r
+                join institution i on i.id = r.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by r.enabled desc, i.institution_name asc, r.rule_name asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminLogisticsSpecialRulePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminLogisticsSpecialRuleRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminLogisticsSpecialRuleRecord> findAdminLogisticsSpecialRuleById(UUID id) {
+        String sql = """
+                select r.id, r.tenant_id, r.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, r.rule_name, r.logistics_company, r.base_fee, r.extra_fee,
+                       r.free_threshold, r.remark, r.enabled, r.created_at, r.updated_at
+                from logistics_special_rule r
+                join institution i on i.id = r.institution_id
+                where r.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminLogisticsSpecialRuleRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminLogisticsSpecialRuleRecord> findAdminLogisticsSpecialRuleByBusinessKey(
+            UUID tenantId,
+            UUID institutionId,
+            String ruleName,
+            String logisticsCompany
+    ) {
+        String sql = """
+                select r.id, r.tenant_id, r.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, r.rule_name, r.logistics_company, r.base_fee, r.extra_fee,
+                       r.free_threshold, r.remark, r.enabled, r.created_at, r.updated_at
+                from logistics_special_rule r
+                join institution i on i.id = r.institution_id
+                where r.tenant_id = ? and r.institution_id = ? and r.rule_name = ? and r.logistics_company = ?
+                """;
+        return jdbcTemplate.query(
+                        sql,
+                        this::mapAdminLogisticsSpecialRuleRecord,
+                        tenantId,
+                        institutionId,
+                        ruleName,
+                        logisticsCompany
+                )
+                .stream()
+                .findFirst();
+    }
+
+    public AdminLogisticsSpecialRuleRecord insertAdminLogisticsSpecialRule(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String ruleName,
+            String logisticsCompany,
+            BigDecimal baseFee,
+            BigDecimal extraFee,
+            BigDecimal freeThreshold,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into logistics_special_rule (
+                    id, tenant_id, institution_id, rule_name, logistics_company, base_fee,
+                    extra_fee, free_threshold, remark, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                institutionId,
+                ruleName,
+                logisticsCompany,
+                baseFee,
+                extraFee,
+                freeThreshold,
+                remark,
+                enabled
+        );
+        return findAdminLogisticsSpecialRuleById(id).orElseThrow();
+    }
+
+    public AdminLogisticsSpecialRuleRecord updateAdminLogisticsSpecialRule(
+            UUID id,
+            String ruleName,
+            String logisticsCompany,
+            BigDecimal baseFee,
+            BigDecimal extraFee,
+            BigDecimal freeThreshold,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                update logistics_special_rule
+                set rule_name = ?,
+                    logistics_company = ?,
+                    base_fee = ?,
+                    extra_fee = ?,
+                    free_threshold = ?,
+                    remark = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, ruleName, logisticsCompany, baseFee, extraFee, freeThreshold, remark, enabled, id);
+        return findAdminLogisticsSpecialRuleById(id).orElseThrow();
+    }
+
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -1459,6 +1595,37 @@ public class OrderRepository {
         filters.addLikeFilter("w.ip_range", query.ipRange());
         if (query.enabled() != null) {
             filters.append(" and w.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminLogisticsSpecialRuleFilters(AdminLogisticsSpecialRuleQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or r.rule_name ilike ?
+                        or r.logistics_company ilike ?
+                        or r.remark ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and r.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and r.enabled = ?");
             filters.add(query.enabled());
         }
         return filters;
@@ -2663,6 +2830,27 @@ public class OrderRepository {
                 rs.getString("ip_range"),
                 rs.getBoolean("enabled"),
                 instant(rs, "created_at")
+        );
+    }
+
+    private AdminLogisticsSpecialRuleRecord mapAdminLogisticsSpecialRuleRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminLogisticsSpecialRuleRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getString("rule_name"),
+                rs.getString("logistics_company"),
+                rs.getBigDecimal("base_fee"),
+                rs.getBigDecimal("extra_fee"),
+                rs.getBigDecimal("free_threshold"),
+                rs.getString("remark"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
         );
     }
 

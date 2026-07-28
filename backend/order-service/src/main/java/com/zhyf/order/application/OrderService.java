@@ -454,6 +454,94 @@ public class OrderService {
         );
     }
 
+    public AdminLogisticsSpecialRulePage listAdminLogisticsSpecialRules(AdminLogisticsSpecialRuleQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminLogisticsSpecialRules(new AdminLogisticsSpecialRuleQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminLogisticsSpecialRuleRecord createAdminLogisticsSpecialRule(
+            AdminLogisticsSpecialRuleCommand command
+    ) {
+        UUID institutionId = command.institutionId();
+        if (institutionId == null) {
+            throw new BusinessException("INSTITUTION_ID_REQUIRED", "Institution is required");
+        }
+        AdminInstitutionRecord institution = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        String ruleName = requireText(command.ruleName(), "LOGISTICS_RULE_NAME_REQUIRED", "Rule name is required");
+        String logisticsCompany = requireText(
+                command.logisticsCompany(),
+                "LOGISTICS_COMPANY_REQUIRED",
+                "Logistics company is required"
+        );
+        if (orderRepository.findAdminLogisticsSpecialRuleByBusinessKey(
+                institution.tenantId(),
+                institution.id(),
+                ruleName,
+                logisticsCompany
+        ).isPresent()) {
+            throw new BusinessException("LOGISTICS_RULE_DUPLICATED", "Logistics rule already exists for institution");
+        }
+        return orderRepository.insertAdminLogisticsSpecialRule(
+                UUID.randomUUID(),
+                institution.tenantId(),
+                institution.id(),
+                ruleName,
+                logisticsCompany,
+                moneyOrZero(command.baseFee(), "BASE_FEE_INVALID"),
+                moneyOrZero(command.extraFee(), "EXTRA_FEE_INVALID"),
+                moneyOrZero(command.freeThreshold(), "FREE_THRESHOLD_INVALID"),
+                cleanText(command.remark()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminLogisticsSpecialRuleRecord updateAdminLogisticsSpecialRule(
+            UUID ruleId,
+            AdminLogisticsSpecialRuleCommand command
+    ) {
+        AdminLogisticsSpecialRuleRecord existing = orderRepository.findAdminLogisticsSpecialRuleById(ruleId)
+                .orElseThrow(() -> new BusinessException("LOGISTICS_RULE_NOT_FOUND", "Logistics rule not found"));
+        String ruleName = requireText(command.ruleName(), "LOGISTICS_RULE_NAME_REQUIRED", "Rule name is required");
+        String logisticsCompany = requireText(
+                command.logisticsCompany(),
+                "LOGISTICS_COMPANY_REQUIRED",
+                "Logistics company is required"
+        );
+        orderRepository.findAdminLogisticsSpecialRuleByBusinessKey(
+                        existing.tenantId(),
+                        existing.institutionId(),
+                        ruleName,
+                        logisticsCompany
+                )
+                .filter(duplicated -> !duplicated.id().equals(existing.id()))
+                .ifPresent(duplicated -> {
+                    throw new BusinessException(
+                            "LOGISTICS_RULE_DUPLICATED",
+                            "Logistics rule already exists for institution"
+                    );
+                });
+        return orderRepository.updateAdminLogisticsSpecialRule(
+                existing.id(),
+                ruleName,
+                logisticsCompany,
+                moneyOrZero(command.baseFee(), "BASE_FEE_INVALID"),
+                moneyOrZero(command.extraFee(), "EXTRA_FEE_INVALID"),
+                moneyOrZero(command.freeThreshold(), "FREE_THRESHOLD_INVALID"),
+                cleanText(command.remark()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
@@ -1863,6 +1951,14 @@ public class OrderService {
     private String defaultText(String value, String fallback) {
         String cleaned = cleanText(value);
         return cleaned == null ? fallback : cleaned;
+    }
+
+    private BigDecimal moneyOrZero(BigDecimal value, String code) {
+        BigDecimal normalized = value == null ? BigDecimal.ZERO : value;
+        if (normalized.signum() < 0) {
+            throw new BusinessException(code, "Money value cannot be negative");
+        }
+        return normalized;
     }
 
     private OrderStatus parseOrderStatus(String status) {

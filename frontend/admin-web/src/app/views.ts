@@ -13,6 +13,7 @@ export type ImplementedViewKey =
   | 'logisticsInfo'
   | 'logisticsUnreceivedFollowups'
   | 'logisticsPrint'
+  | 'logisticsSpecialRules'
   | 'exceptionLogs'
   | 'labelPrints'
   | 'portal'
@@ -293,8 +294,10 @@ export const menuItems = [
     path: '/logistics/special-rules',
     legacyRoute: 'logistics/listLogisSpecial.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '机构维度物流计费规则配置',
+    componentKey: 'logisticsSpecialRules',
+    showCount: true,
     plannedComponent: 'features/logistics/LogisSpecialRule.vue',
     coreActions: ['规则列表', '新增', '编辑', '删除'],
     apiDependencies: ['物流费用规则 CRUD', '操作审计'],

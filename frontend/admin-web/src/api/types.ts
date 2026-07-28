@@ -361,6 +361,50 @@ export interface AdminInstitutionIpWhitelistCommand {
   enabled?: boolean;
 }
 
+export interface AdminLogisticsSpecialRuleQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminLogisticsSpecialRuleRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  ruleName: string;
+  logisticsCompany: string;
+  baseFee: number | string;
+  extraFee: number | string;
+  freeThreshold: number | string;
+  remark: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminLogisticsSpecialRulePage {
+  records: AdminLogisticsSpecialRuleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminLogisticsSpecialRuleCommand {
+  institutionId?: string;
+  ruleName: string;
+  logisticsCompany: string;
+  baseFee?: number | string;
+  extraFee?: number | string;
+  freeThreshold?: number | string;
+  remark?: string;
+  enabled?: boolean;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

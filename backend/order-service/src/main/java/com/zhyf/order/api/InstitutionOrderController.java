@@ -23,6 +23,10 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleCommand;
+import com.zhyf.order.application.AdminLogisticsSpecialRulePage;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleRecord;
 import com.zhyf.order.application.AdminOrderAddressUpdateCommand;
 import com.zhyf.order.application.AdminOrderAddressUpdateResult;
 import com.zhyf.order.application.AdminOrderCancelCommand;
@@ -584,6 +588,38 @@ public class InstitutionOrderController {
             @RequestBody AdminInstitutionIpWhitelistCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminInstitutionIpWhitelist(whitelistId, command));
+    }
+
+    @GetMapping("/admin/logistics-special-rules")
+    public ApiResponse<AdminLogisticsSpecialRulePage> listLogisticsSpecialRules(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminLogisticsSpecialRules(new AdminLogisticsSpecialRuleQuery(
+                keyword,
+                institutionId,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/logistics-special-rules")
+    public ApiResponse<AdminLogisticsSpecialRuleRecord> createLogisticsSpecialRule(
+            @RequestBody AdminLogisticsSpecialRuleCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminLogisticsSpecialRule(command));
+    }
+
+    @PatchMapping("/admin/logistics-special-rules/{ruleId}")
+    public ApiResponse<AdminLogisticsSpecialRuleRecord> updateLogisticsSpecialRule(
+            @PathVariable UUID ruleId,
+            @RequestBody AdminLogisticsSpecialRuleCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminLogisticsSpecialRule(ruleId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

@@ -13,6 +13,7 @@ import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import java.sql.ResultSet;
 import java.time.Instant;
@@ -401,6 +402,59 @@ class OrderRepositoryTest {
                 true,
                 25,
                 25
+        );
+    }
+
+    @Test
+    void shouldBuildLogisticsSpecialRuleQueryWithFiltersAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminLogisticsSpecialRules(
+                new AdminLogisticsSpecialRuleQuery("sf", institutionId, true, 3, 15)
+        );
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from logistics_special_rule r")
+                .contains("join institution i on i.id = r.institution_id")
+                .contains("i.institution_code ilike ?")
+                .contains("r.logistics_company ilike ?")
+                .contains("r.institution_id = ?")
+                .contains("r.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                institutionId,
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from logistics_special_rule r")
+                .contains("order by r.enabled desc, i.institution_name asc, r.rule_name asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                "%sf%",
+                institutionId,
+                true,
+                15,
+                30
         );
     }
 }

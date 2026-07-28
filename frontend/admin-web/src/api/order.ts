@@ -20,6 +20,10 @@ import type {
   AdminInstitutionPage,
   AdminInstitutionQueryParams,
   AdminInstitutionRecord,
+  AdminLogisticsSpecialRuleCommand,
+  AdminLogisticsSpecialRulePage,
+  AdminLogisticsSpecialRuleQueryParams,
+  AdminLogisticsSpecialRuleRecord,
   AdminOrderAddressUpdateCommand,
   AdminOrderAddressUpdateResult,
   AdminBatchOrderReceiptCommand,
@@ -184,6 +188,31 @@ export function createAdminInstitutionIpWhitelist(command: AdminInstitutionIpWhi
 export function updateAdminInstitutionIpWhitelist(whitelistId: string, command: AdminInstitutionIpWhitelistCommand) {
   return request<AdminInstitutionIpWhitelistRecord>(
     `/order-api/api/admin/institution-ip-whitelists/${encodeURIComponent(whitelistId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function listAdminLogisticsSpecialRules(params: AdminLogisticsSpecialRuleQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/logistics-special-rules?${query}`
+    : '/order-api/api/admin/logistics-special-rules';
+  return request<AdminLogisticsSpecialRulePage>(url);
+}
+
+export function createAdminLogisticsSpecialRule(command: AdminLogisticsSpecialRuleCommand) {
+  return request<AdminLogisticsSpecialRuleRecord>('/order-api/api/admin/logistics-special-rules', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminLogisticsSpecialRule(ruleId: string, command: AdminLogisticsSpecialRuleCommand) {
+  return request<AdminLogisticsSpecialRuleRecord>(
+    `/order-api/api/admin/logistics-special-rules/${encodeURIComponent(ruleId)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(command),
