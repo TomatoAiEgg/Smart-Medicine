@@ -38,6 +38,10 @@ import com.zhyf.order.application.AdminOrderCancelResult;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderInitializeCommand;
 import com.zhyf.order.application.AdminOrderInitializeResult;
+import com.zhyf.order.application.AdminOrderMergeCommand;
+import com.zhyf.order.application.AdminOrderMergePage;
+import com.zhyf.order.application.AdminOrderMergeQuery;
+import com.zhyf.order.application.AdminOrderMergeRecord;
 import com.zhyf.order.application.AdminOrderPage;
 import com.zhyf.order.application.AdminOrderReceiptCommand;
 import com.zhyf.order.application.AdminOrderReceiptPage;
@@ -658,6 +662,34 @@ public class InstitutionOrderController {
             @RequestBody AdminLogisticsAddressCostCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminLogisticsAddressCost(costId, command));
+    }
+
+    @GetMapping("/admin/order-merges")
+    public ApiResponse<AdminOrderMergePage> listOrderMerges(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderMerges(new AdminOrderMergeQuery(
+                keyword,
+                status,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/order-merges")
+    public ApiResponse<AdminOrderMergeRecord> createOrderMerge(@RequestBody AdminOrderMergeCommand command) {
+        return ApiResponse.ok(orderService.createAdminOrderMerge(command));
+    }
+
+    @PatchMapping("/admin/order-merges/{mergeId}/cancel")
+    public ApiResponse<AdminOrderMergeRecord> cancelOrderMerge(
+            @PathVariable UUID mergeId,
+            @RequestBody AdminOrderMergeCommand command
+    ) {
+        return ApiResponse.ok(orderService.cancelAdminOrderMerge(mergeId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

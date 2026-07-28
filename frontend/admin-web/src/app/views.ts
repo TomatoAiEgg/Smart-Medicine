@@ -15,6 +15,7 @@ export type ImplementedViewKey =
   | 'logisticsPrint'
   | 'logisticsSpecialRules'
   | 'logisticsAddressCosts'
+  | 'logisticsMerges'
   | 'exceptionLogs'
   | 'labelPrints'
   | 'portal'
@@ -369,8 +370,10 @@ export const menuItems = [
     path: '/logistics/merges',
     legacyRoute: 'logistics/listOrderMerge.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '合并发货和合单管理',
+    componentKey: 'logisticsMerges',
+    showCount: true,
     plannedComponent: 'features/logistics/OrderMergeList.vue',
     coreActions: ['合单列表', '合并', '删除合并'],
     apiDependencies: ['合单查询', '合单保存', '合单删除'],

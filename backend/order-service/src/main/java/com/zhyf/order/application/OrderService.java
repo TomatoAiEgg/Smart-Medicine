@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -637,6 +638,80 @@ public class OrderService {
                 cleanText(command.remark()),
                 command.enabled() == null ? existing.enabled() : command.enabled()
         );
+    }
+
+    public AdminOrderMergePage listAdminOrderMerges(AdminOrderMergeQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminOrderMerges(new AdminOrderMergeQuery(
+                cleanText(query.keyword()),
+                cleanText(query.status()),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminOrderMergeRecord createAdminOrderMerge(AdminOrderMergeCommand command) {
+        List<String> orderNos = normalizeOrderMergeOrderNos(command.orderNos());
+        List<AdminOrderMergeCandidate> candidates = orderRepository.findAdminOrderMergeCandidates(orderNos);
+        Map<String, AdminOrderMergeCandidate> candidateByOrderNo = new LinkedHashMap<>();
+        for (AdminOrderMergeCandidate candidate : candidates) {
+            candidateByOrderNo.put(candidate.orderNo(), candidate);
+        }
+        List<String> missingOrderNos = orderNos.stream()
+                .filter(orderNo -> !candidateByOrderNo.containsKey(orderNo))
+                .toList();
+        if (!missingOrderNos.isEmpty()) {
+            throw new BusinessException(
+                    "ORDER_MERGE_ORDER_NOT_FOUND",
+                    "Order not found: " + String.join(", ", missingOrderNos)
+            );
+        }
+        Set<UUID> tenantIds = new LinkedHashSet<>();
+        for (AdminOrderMergeCandidate candidate : candidates) {
+            tenantIds.add(candidate.tenantId());
+            if (orderRepository.existsActiveOrderMergeItem(candidate.orderId())) {
+                throw new BusinessException(
+                        "ORDER_MERGE_ORDER_ALREADY_ACTIVE",
+                        "Order already has active merge: " + candidate.orderNo()
+                );
+            }
+        }
+        if (tenantIds.size() != 1) {
+            throw new BusinessException("ORDER_MERGE_TENANT_MISMATCH", "Orders must belong to same tenant");
+        }
+        UUID mergeId = UUID.randomUUID();
+        UUID tenantId = tenantIds.iterator().next();
+        AdminOrderMergeRecord merge = orderRepository.insertAdminOrderMerge(
+                mergeId,
+                tenantId,
+                "MG" + Instant.now().toEpochMilli(),
+                cleanText(command.logisticsCompany()),
+                cleanText(command.logisticsNo()),
+                cleanText(command.remark())
+        );
+        for (String orderNo : orderNos) {
+            AdminOrderMergeCandidate candidate = candidateByOrderNo.get(orderNo);
+            orderRepository.insertAdminOrderMergeItem(
+                    UUID.randomUUID(),
+                    tenantId,
+                    mergeId,
+                    candidate.orderId(),
+                    candidate.orderNo()
+            );
+        }
+        return orderRepository.findAdminOrderMergeById(merge.id()).orElseThrow();
+    }
+
+    @Transactional
+    public AdminOrderMergeRecord cancelAdminOrderMerge(UUID mergeId, AdminOrderMergeCommand command) {
+        AdminOrderMergeRecord existing = orderRepository.findAdminOrderMergeById(mergeId)
+                .orElseThrow(() -> new BusinessException("ORDER_MERGE_NOT_FOUND", "Order merge not found"));
+        if ("CANCELLED".equals(existing.status())) {
+            return existing;
+        }
+        return orderRepository.cancelAdminOrderMerge(existing.id(), cleanText(command.remark()));
     }
 
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
@@ -2053,6 +2128,21 @@ public class OrderService {
     private String areaText(String value) {
         String cleaned = cleanText(value);
         return cleaned == null ? "" : cleaned;
+    }
+
+    private List<String> normalizeOrderMergeOrderNos(List<String> orderNos) {
+        if (orderNos == null) {
+            throw new BusinessException("ORDER_MERGE_ORDER_NOS_REQUIRED", "Order numbers are required");
+        }
+        List<String> normalized = orderNos.stream()
+                .map(this::cleanText)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (normalized.size() < 2) {
+            throw new BusinessException("ORDER_MERGE_ORDER_NOS_REQUIRED", "At least two orders are required");
+        }
+        return normalized;
     }
 
     private BigDecimal moneyOrZero(BigDecimal value, String code) {

@@ -44,6 +44,10 @@ import type {
   AdminOrderInitializeCommand,
   AdminOrderInitializeResult,
   AdminOrderDetailPrescription,
+  AdminOrderMergeCommand,
+  AdminOrderMergePage,
+  AdminOrderMergeQueryParams,
+  AdminOrderMergeRecord,
   AdminOrderPage,
   AdminOrderQueryParams,
   AdminOperatorCommand,
@@ -247,6 +251,26 @@ export function updateAdminLogisticsAddressCost(costId: string, command: AdminLo
       body: JSON.stringify(command),
     },
   );
+}
+
+export function listAdminOrderMerges(params: AdminOrderMergeQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/order-merges?${query}` : '/order-api/api/admin/order-merges';
+  return request<AdminOrderMergePage>(url);
+}
+
+export function createAdminOrderMerge(command: AdminOrderMergeCommand) {
+  return request<AdminOrderMergeRecord>('/order-api/api/admin/order-merges', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function cancelAdminOrderMerge(mergeId: string, command: AdminOrderMergeCommand) {
+  return request<AdminOrderMergeRecord>(`/order-api/api/admin/order-merges/${encodeURIComponent(mergeId)}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
 }
 
 export function listAdminOperators(params: AdminOperatorQueryParams = {}) {

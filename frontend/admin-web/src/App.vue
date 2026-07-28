@@ -26,6 +26,7 @@ import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import LogisticsInfo from './features/logistics/LogisticsInfo.vue';
+import OrderMergeList from './features/logistics/OrderMergeList.vue';
 import UnreceivedFollowup from './features/logistics/UnreceivedFollowup.vue';
 import AddressModify from './features/orders/AddressModify.vue';
 import ManualProcess from './features/orders/ManualProcess.vue';
@@ -100,6 +101,7 @@ const logisSpecialRuleRef = ref<InstanceType<typeof LogisSpecialRule> | null>(nu
 const logisPrintRef = ref<InstanceType<typeof LogisPrint> | null>(null);
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const logisticsInfoRef = ref<InstanceType<typeof LogisticsInfo> | null>(null);
+const orderMergeListRef = ref<InstanceType<typeof OrderMergeList> | null>(null);
 const unreceivedFollowupRef = ref<InstanceType<typeof UnreceivedFollowup> | null>(null);
 const exceptionLogRef = ref<InstanceType<typeof ExceptionLogList> | null>(null);
 const labelPrintRef = ref<InstanceType<typeof LabelPrint> | null>(null);
@@ -158,6 +160,7 @@ const logisSpecialRuleCount = ref(0);
 const logisPrintCount = ref(0);
 const logisticsCount = ref(0);
 const logisticsInfoCount = ref(0);
+const orderMergeCount = ref(0);
 const unreceivedFollowupCount = ref(0);
 const exceptionLogCount = ref(0);
 const labelPrintCount = ref(0);
@@ -171,6 +174,7 @@ const logisSpecialRuleActivationKey = ref(0);
 const logisPrintActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const logisticsInfoActivationKey = ref(0);
+const orderMergeActivationKey = ref(0);
 const unreceivedFollowupActivationKey = ref(0);
 const exceptionLogActivationKey = ref(0);
 const labelPrintActivationKey = ref(0);
@@ -230,6 +234,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsSpecialRules: logisSpecialRuleCount.value,
   logistics: logisticsCount.value,
   logisticsPrint: logisPrintCount.value,
+  logisticsMerges: orderMergeCount.value,
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   institutionList: institutionListCount.value,
@@ -309,6 +314,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'logisticsPrint') logisPrintActivationKey.value += 1;
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
   if (componentKey === 'logisticsInfo') logisticsInfoActivationKey.value += 1;
+  if (componentKey === 'logisticsMerges') orderMergeActivationKey.value += 1;
   if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
   if (componentKey === 'exceptionLogs') exceptionLogActivationKey.value += 1;
   if (componentKey === 'labelPrints') labelPrintActivationKey.value += 1;
@@ -447,6 +453,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logisticsInfo') {
     await logisticsInfoRef.value?.refreshLogisticsInfos();
+    return;
+  }
+  if (componentKey === 'logisticsMerges') {
+    await orderMergeListRef.value?.refreshOrderMerges();
     return;
   }
   if (componentKey === 'logisticsUnreceivedFollowups') {
@@ -776,6 +786,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'logisticsPrint'"
       :activation-key="logisPrintActivationKey"
       @count-changed="logisPrintCount = $event"
+      @notice="showNotice"
+    />
+
+    <OrderMergeList
+      v-show="currentComponentKey === 'logisticsMerges'"
+      ref="orderMergeListRef"
+      :active="currentComponentKey === 'logisticsMerges'"
+      :activation-key="orderMergeActivationKey"
+      @count-changed="orderMergeCount = $event"
       @notice="showNotice"
     />
 

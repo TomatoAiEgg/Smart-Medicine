@@ -450,6 +450,42 @@ export interface AdminLogisticsAddressCostCommand {
   enabled?: boolean;
 }
 
+export interface AdminOrderMergeQueryParams {
+  keyword?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderMergeRecord {
+  id: string;
+  tenantId: string;
+  mergeNo: string;
+  logisticsCompany: string | null;
+  logisticsNo: string | null;
+  status: string;
+  remark: string | null;
+  orderCount: number;
+  orderNos: string;
+  institutionNames: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrderMergePage {
+  records: AdminOrderMergeRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminOrderMergeCommand {
+  orderNos?: string[];
+  logisticsCompany?: string;
+  logisticsNo?: string;
+  remark?: string;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

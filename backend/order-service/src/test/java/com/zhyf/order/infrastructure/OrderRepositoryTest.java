@@ -15,6 +15,7 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
+import com.zhyf.order.application.AdminOrderMergeQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import java.sql.ResultSet;
 import java.time.Instant;
@@ -516,6 +517,55 @@ class OrderRepositoryTest {
                 true,
                 10,
                 10
+        );
+    }
+
+    @Test
+    void shouldBuildOrderMergeQueryWithKeywordStatusAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminOrderMerges(new AdminOrderMergeQuery("MG", "ACTIVE", 2, 20));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from order_merge m")
+                .contains("m.merge_no ilike ?")
+                .contains("from order_merge_item mi")
+                .contains("m.status = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "ACTIVE"
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from order_merge m")
+                .contains("left join lateral")
+                .contains("order by m.created_at desc, m.merge_no desc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "%MG%",
+                "ACTIVE",
+                20,
+                20
         );
     }
 }

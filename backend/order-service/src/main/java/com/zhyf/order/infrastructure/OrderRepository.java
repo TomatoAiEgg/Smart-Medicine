@@ -26,6 +26,10 @@ import com.zhyf.order.application.AdminManualProcessItem;
 import com.zhyf.order.application.AdminManualProcessPage;
 import com.zhyf.order.application.AdminManualProcessQuery;
 import com.zhyf.order.application.AdminOrderPage;
+import com.zhyf.order.application.AdminOrderMergeCandidate;
+import com.zhyf.order.application.AdminOrderMergePage;
+import com.zhyf.order.application.AdminOrderMergeQuery;
+import com.zhyf.order.application.AdminOrderMergeRecord;
 import com.zhyf.order.application.AdminOrderReceiptItem;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
@@ -1146,6 +1150,139 @@ public class OrderRepository {
         return findAdminLogisticsAddressCostById(id).orElseThrow();
     }
 
+    public AdminOrderMergePage searchAdminOrderMerges(AdminOrderMergeQuery query) {
+        QueryParts filters = adminOrderMergeFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from order_merge m
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select m.id, m.tenant_id, m.merge_no, m.logistics_company, m.logistics_no, m.status, m.remark,
+                       coalesce(items.order_count, 0) as order_count,
+                       coalesce(items.order_nos, '') as order_nos,
+                       coalesce(items.institution_names, '') as institution_names,
+                       m.created_at, m.updated_at
+                from order_merge m
+                left join lateral (
+                    select count(mi.id)::int as order_count,
+                           string_agg(mi.order_no, ', ' order by mi.order_no) as order_nos,
+                           string_agg(distinct i.institution_name, ', ' order by i.institution_name) as institution_names
+                    from order_merge_item mi
+                    join order_main o on o.id = mi.order_id
+                    join institution i on i.id = o.institution_id
+                    where mi.merge_id = m.id
+                ) items on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by m.created_at desc, m.merge_no desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminOrderMergePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderMergeRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminOrderMergeRecord> findAdminOrderMergeById(UUID id) {
+        String sql = """
+                select m.id, m.tenant_id, m.merge_no, m.logistics_company, m.logistics_no, m.status, m.remark,
+                       coalesce(items.order_count, 0) as order_count,
+                       coalesce(items.order_nos, '') as order_nos,
+                       coalesce(items.institution_names, '') as institution_names,
+                       m.created_at, m.updated_at
+                from order_merge m
+                left join lateral (
+                    select count(mi.id)::int as order_count,
+                           string_agg(mi.order_no, ', ' order by mi.order_no) as order_nos,
+                           string_agg(distinct i.institution_name, ', ' order by i.institution_name) as institution_names
+                    from order_merge_item mi
+                    join order_main o on o.id = mi.order_id
+                    join institution i on i.id = o.institution_id
+                    where mi.merge_id = m.id
+                ) items on true
+                where m.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderMergeRecord, id).stream().findFirst();
+    }
+
+    public List<AdminOrderMergeCandidate> findAdminOrderMergeCandidates(List<String> orderNos) {
+        if (orderNos == null || orderNos.isEmpty()) {
+            return List.of();
+        }
+        QueryParts query = new QueryParts("""
+                select tenant_id, id as order_id, order_no
+                from order_main o
+                where 1 = 1
+                """);
+        query.addInFilter("o.order_no", orderNos);
+        return jdbcTemplate.query(query.sql(), this::mapAdminOrderMergeCandidate, query.args());
+    }
+
+    public boolean existsActiveOrderMergeItem(UUID orderId) {
+        String sql = """
+                select count(*)
+                from order_merge_item
+                where order_id = ? and active = true
+                """;
+        Long totalValue = jdbcTemplate.queryForObject(sql, Long.class, orderId);
+        return totalValue != null && totalValue > 0;
+    }
+
+    public AdminOrderMergeRecord insertAdminOrderMerge(
+            UUID id,
+            UUID tenantId,
+            String mergeNo,
+            String logisticsCompany,
+            String logisticsNo,
+            String remark
+    ) {
+        String sql = """
+                insert into order_merge (
+                    id, tenant_id, merge_no, logistics_company, logistics_no, status, remark
+                )
+                values (?, ?, ?, ?, ?, 'ACTIVE', ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, mergeNo, logisticsCompany, logisticsNo, remark);
+        return findAdminOrderMergeById(id).orElseThrow();
+    }
+
+    public void insertAdminOrderMergeItem(
+            UUID id,
+            UUID tenantId,
+            UUID mergeId,
+            UUID orderId,
+            String orderNo
+    ) {
+        String sql = """
+                insert into order_merge_item (id, tenant_id, merge_id, order_id, order_no, active)
+                values (?, ?, ?, ?, ?, true)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, mergeId, orderId, orderNo);
+    }
+
+    public AdminOrderMergeRecord cancelAdminOrderMerge(UUID id, String remark) {
+        String updateMergeSql = """
+                update order_merge
+                set status = 'CANCELLED',
+                    remark = coalesce(?, remark),
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(updateMergeSql, remark, id);
+        jdbcTemplate.update("update order_merge_item set active = false where merge_id = ?", id);
+        return findAdminOrderMergeById(id).orElseThrow();
+    }
+
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -1809,6 +1946,38 @@ public class OrderRepository {
             filters.append(" and c.enabled = ?");
             filters.add(query.enabled());
         }
+        return filters;
+    }
+
+    private QueryParts adminOrderMergeFilters(AdminOrderMergeQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        m.merge_no ilike ?
+                        or m.logistics_company ilike ?
+                        or m.logistics_no ilike ?
+                        or m.remark ilike ?
+                        or exists (
+                            select 1
+                            from order_merge_item mi
+                            join order_main o on o.id = mi.order_id
+                            join institution i on i.id = o.institution_id
+                            where mi.merge_id = m.id
+                              and (mi.order_no ilike ? or i.institution_name ilike ?)
+                        )
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        filters.addEqualsFilter("m.status", query.status());
         return filters;
     }
 
@@ -3053,6 +3222,31 @@ public class OrderRepository {
                 rs.getBoolean("enabled"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderMergeRecord mapAdminOrderMergeRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderMergeRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("merge_no"),
+                rs.getString("logistics_company"),
+                rs.getString("logistics_no"),
+                rs.getString("status"),
+                rs.getString("remark"),
+                rs.getInt("order_count"),
+                rs.getString("order_nos"),
+                rs.getString("institution_names"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderMergeCandidate mapAdminOrderMergeCandidate(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderMergeCandidate(
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getString("order_no")
         );
     }
 
