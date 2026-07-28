@@ -204,6 +204,48 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapHerbDosage, query.args());
     }
 
+    public List<ReportRecords.InstitutionHerbReconciliation> loadInstitutionHerbReconciliation(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select i.id::text as institution_id,
+                       i.institution_code,
+                       i.institution_name,
+                       coalesce(nullif(d.platform_drug_code, ''), nullif(d.drug_code, ''), '-') as herb_code,
+                       coalesce(nullif(d.platform_drug_name, ''), nullif(d.drug_name, ''), '未命名药材') as herb_name,
+                       d.drug_specs,
+                       d.drug_origin,
+                       d.unit,
+                       count(d.id) as detail_count,
+                       count(distinct p.id) as prescription_count,
+                       count(distinct p.order_id) as order_count,
+                       coalesce(sum(d.quantity), 0) as total_quantity,
+                       coalesce(sum(d.total_price), 0) as total_amount,
+                       coalesce(sum(d.settlement_total_price), 0) as settlement_amount
+                from prescription_detail d
+                join prescription p on p.id = d.prescription_id
+                join institution i on i.id = p.institution_id
+                where 1 = 1
+                """);
+        query.addRangeFilter("p.created_at", from, to);
+        query.append("""
+                  and (
+                      nullif(d.platform_drug_code, '') is not null
+                      or nullif(d.drug_code, '') is not null
+                      or nullif(d.platform_drug_name, '') is not null
+                      or nullif(d.drug_name, '') is not null
+                  )
+                 group by i.id,
+                          i.institution_code,
+                          i.institution_name,
+                          coalesce(nullif(d.platform_drug_code, ''), nullif(d.drug_code, ''), '-'),
+                          coalesce(nullif(d.platform_drug_name, ''), nullif(d.drug_name, ''), '未命名药材'),
+                          d.drug_specs,
+                          d.drug_origin,
+                          d.unit
+                 order by i.institution_name asc, total_quantity desc, herb_name asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapInstitutionHerbReconciliation, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -328,6 +370,26 @@ public class ReportQueryRepository {
 
     private ReportRecords.HerbDosage mapHerbDosage(ResultSet rs, int rowNum) throws SQLException {
         return new ReportRecords.HerbDosage(
+                rs.getString("herb_code"),
+                rs.getString("herb_name"),
+                rs.getString("drug_specs"),
+                rs.getString("drug_origin"),
+                rs.getString("unit"),
+                rs.getLong("detail_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("order_count"),
+                rs.getBigDecimal("total_quantity"),
+                rs.getBigDecimal("total_amount"),
+                rs.getBigDecimal("settlement_amount")
+        );
+    }
+
+    private ReportRecords.InstitutionHerbReconciliation mapInstitutionHerbReconciliation(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.InstitutionHerbReconciliation(
+                rs.getString("institution_id"),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
                 rs.getString("herb_code"),
                 rs.getString("herb_name"),
                 rs.getString("drug_specs"),

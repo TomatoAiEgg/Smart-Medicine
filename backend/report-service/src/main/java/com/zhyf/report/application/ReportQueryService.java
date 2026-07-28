@@ -199,6 +199,43 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.InstitutionHerbReconciliation> institutionHerbReconciliation(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadInstitutionHerbReconciliation(from, to);
+    }
+
+    public String exportInstitutionHerbReconciliationCsv(Instant from, Instant to) {
+        List<ReportRecords.InstitutionHerbReconciliation> rows = institutionHerbReconciliation(from, to);
+        StringBuilder csv = new StringBuilder("institutionCode,institutionName,herbCode,herbName,drugSpecs,drugOrigin,unit,detailCount,prescriptionCount,orderCount,totalQuantity,totalAmount,settlementAmount\n");
+        rows.forEach(row -> csv.append(escape(row.institutionCode()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(escape(row.herbCode()))
+                .append(',')
+                .append(escape(row.herbName()))
+                .append(',')
+                .append(escape(row.drugSpecs()))
+                .append(',')
+                .append(escape(row.drugOrigin()))
+                .append(',')
+                .append(escape(row.unit()))
+                .append(',')
+                .append(row.detailCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.totalQuantity())
+                .append(',')
+                .append(row.totalAmount())
+                .append(',')
+                .append(row.settlementAmount())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

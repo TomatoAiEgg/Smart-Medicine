@@ -214,6 +214,36 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("H001,黄芪,片,甘肃,g,9,6,4,125.5000,188.25,160.00");
     }
 
+    @Test
+    void shouldExportInstitutionHerbReconciliationAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadInstitutionHerbReconciliation(from, to)).thenReturn(List.of(
+                new ReportRecords.InstitutionHerbReconciliation(
+                        "inst-1",
+                        "H001",
+                        "测试医院",
+                        "M001",
+                        "党参",
+                        "片",
+                        "山西",
+                        "g",
+                        7,
+                        5,
+                        3,
+                        new BigDecimal("86.0000"),
+                        new BigDecimal("129.00"),
+                        new BigDecimal("118.50")
+                )
+        ));
+
+        String csv = service.exportInstitutionHerbReconciliationCsv(from, to);
+
+        verify(repository).loadInstitutionHerbReconciliation(from, to);
+        assertThat(csv).startsWith("institutionCode,institutionName,herbCode,herbName,drugSpecs,drugOrigin,unit,detailCount,prescriptionCount,orderCount,totalQuantity,totalAmount,settlementAmount");
+        assertThat(csv).contains("H001,测试医院,M001,党参,片,山西,g,7,5,3,86.0000,129.00,118.50");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

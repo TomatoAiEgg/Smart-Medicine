@@ -21,6 +21,7 @@ export type ImplementedViewKey =
   | 'decoctionPerformance'
   | 'dispensePerformance'
   | 'herbDosage'
+  | 'institutionHerbReconciliation'
   | 'recheckPerformance'
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
@@ -924,11 +925,13 @@ export const menuItems = [
     path: '/reports/institution-herb-reconciliation',
     legacyRoute: 'exportQuery/orgHerbsStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '机构药材对账汇总',
-    plannedComponent: 'features/report/InstitutionHerbReport.vue',
-    coreActions: ['对账汇总', '导出'],
-    apiDependencies: ['机构药材统计', '导出任务', '操作审计'],
+    componentKey: 'institutionHerbReconciliation',
+    showCount: true,
+    plannedComponent: 'features/reports/InstitutionHerbReconciliation.vue',
+    coreActions: ['机构药材查询', '数量金额汇总', 'CSV 导出'],
+    apiDependencies: ['机构药材统计', '机构药材 CSV 导出'],
   },
   {
     key: 'reportPrescriptionReconciliation',

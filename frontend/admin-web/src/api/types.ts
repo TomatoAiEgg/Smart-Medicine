@@ -1206,6 +1206,23 @@ export interface HerbDosageRecord {
   settlementAmount: number | string | null;
 }
 
+export interface InstitutionHerbReconciliationRecord {
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  herbCode: string;
+  herbName: string;
+  drugSpecs: string | null;
+  drugOrigin: string | null;
+  unit: string | null;
+  detailCount: number;
+  prescriptionCount: number;
+  orderCount: number;
+  totalQuantity: number | string | null;
+  totalAmount: number | string | null;
+  settlementAmount: number | string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

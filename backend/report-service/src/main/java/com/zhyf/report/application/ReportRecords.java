@@ -103,4 +103,22 @@ public final class ReportRecords {
             BigDecimal settlementAmount
     ) {
     }
+
+    public record InstitutionHerbReconciliation(
+            String institutionId,
+            String institutionCode,
+            String institutionName,
+            String herbCode,
+            String herbName,
+            String drugSpecs,
+            String drugOrigin,
+            String unit,
+            long detailCount,
+            long prescriptionCount,
+            long orderCount,
+            BigDecimal totalQuantity,
+            BigDecimal totalAmount,
+            BigDecimal settlementAmount
+    ) {
+    }
 }

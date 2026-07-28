@@ -194,4 +194,28 @@ public class ReportController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(content);
     }
+
+    @GetMapping("/institution-herb-reconciliation")
+    public ApiResponse<List<ReportRecords.InstitutionHerbReconciliation>> institutionHerbReconciliation(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.institutionHerbReconciliation(from, to));
+    }
+
+    @GetMapping("/institution-herb-reconciliation.csv")
+    public ResponseEntity<byte[]> institutionHerbReconciliationCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportInstitutionHerbReconciliationCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("institution-herb-reconciliation.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
 }
