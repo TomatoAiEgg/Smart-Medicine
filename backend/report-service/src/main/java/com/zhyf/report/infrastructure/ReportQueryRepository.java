@@ -352,6 +352,39 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapDispensePerformanceDetail, query.args());
     }
 
+    public List<ReportRecords.RecheckPerformanceDetail> loadRecheckPerformanceDetails(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select t.assigned_to as rechecker,
+                       t.task_status as recheck_result,
+                       o.order_no,
+                       o.external_order_no,
+                       i.institution_name,
+                       o.patient_name,
+                       order_prescriptions.prescription_count,
+                       order_prescriptions.dose_count,
+                       t.review_comment as recheck_comment,
+                       t.completed_at as rechecked_at
+                from workflow_task t
+                join order_main o on o.id = t.order_id
+                join institution i on i.id = o.institution_id
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = t.order_id
+                ) order_prescriptions on true
+                where t.task_type = 'PRESCRIPTION_RECHECK'
+                  and t.task_status = 'COMPLETED'
+                  and t.completed_at is not null
+                  and nullif(t.assigned_to, '') is not null
+                """);
+        query.addRangeFilter("t.completed_at", from, to);
+        query.append("""
+                 order by t.completed_at desc, t.assigned_to asc, o.order_no desc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapRecheckPerformanceDetail, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -566,6 +599,22 @@ public class ReportQueryRepository {
                 rs.getString("print_status"),
                 rs.getString("dispense_comment"),
                 instant(rs, "dispensed_at")
+        );
+    }
+
+    private ReportRecords.RecheckPerformanceDetail mapRecheckPerformanceDetail(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.RecheckPerformanceDetail(
+                rs.getString("rechecker"),
+                rs.getString("recheck_result"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getString("recheck_comment"),
+                instant(rs, "rechecked_at")
         );
     }
 

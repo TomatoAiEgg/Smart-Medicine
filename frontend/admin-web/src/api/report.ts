@@ -9,6 +9,7 @@ import type {
   InstitutionHerbReconciliationRecord,
   InstitutionPrescriptionCountRecord,
   PrescriptionHerbDetailRecord,
+  RecheckPerformanceDetailRecord,
   RecheckPerformanceRecord,
   ReportOverview,
 } from './types';
@@ -106,6 +107,22 @@ export async function downloadRecheckPerformanceCsv(params: ReportTimeRangeQuery
   const response = await fetch(`/report-api/api/admin/reports/recheck-performance.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listRecheckPerformanceDetails(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<RecheckPerformanceDetailRecord[]>(
+    `/report-api/api/admin/reports/recheck-performance-details${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadRecheckPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/recheck-performance-details.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`瀵煎嚭澶辫触锛欻TTP ${response.status}`);
   }
   return response.blob();
 }

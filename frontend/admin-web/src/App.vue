@@ -44,6 +44,7 @@ import InstitutionPrescriptionCounts from './features/reports/InstitutionPrescri
 import PrescriptionHerbDetails from './features/reports/PrescriptionHerbDetails.vue';
 import PrescriptionReconciliation from './features/reports/PrescriptionReconciliation.vue';
 import RecheckPerformance from './features/reports/RecheckPerformance.vue';
+import RecheckPerformanceDetails from './features/reports/RecheckPerformanceDetails.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
 import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
@@ -73,6 +74,7 @@ const herbDosageRef = ref<InstanceType<typeof HerbDosage> | null>(null);
 const institutionHerbReconciliationRef = ref<InstanceType<typeof InstitutionHerbReconciliation> | null>(null);
 const prescriptionHerbDetailsRef = ref<InstanceType<typeof PrescriptionHerbDetails> | null>(null);
 const recheckPerformanceRef = ref<InstanceType<typeof RecheckPerformance> | null>(null);
+const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceDetails> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
@@ -103,6 +105,7 @@ const herbDosageCount = ref(0);
 const institutionHerbReconciliationCount = ref(0);
 const prescriptionHerbDetailsCount = ref(0);
 const recheckPerformanceCount = ref(0);
+const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
@@ -114,6 +117,7 @@ const herbDosageActivationKey = ref(0);
 const institutionHerbReconciliationActivationKey = ref(0);
 const prescriptionHerbDetailsActivationKey = ref(0);
 const recheckPerformanceActivationKey = ref(0);
+const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
@@ -201,6 +205,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportInstitutionHerbReconciliation: institutionHerbReconciliationCount.value,
   reportPrescriptionHerbDetails: prescriptionHerbDetailsCount.value,
   reportRecheckPerformance: recheckPerformanceCount.value,
+  reportRecheckPerformanceDetails: recheckPerformanceDetailsCount.value,
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   reports: reportTotalOrders.value,
@@ -242,6 +247,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'institutionHerbReconciliation') institutionHerbReconciliationActivationKey.value += 1;
   if (componentKey === 'prescriptionHerbDetails') prescriptionHerbDetailsActivationKey.value += 1;
   if (componentKey === 'recheckPerformance') recheckPerformanceActivationKey.value += 1;
+  if (componentKey === 'recheckPerformanceDetails') recheckPerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
@@ -323,6 +329,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'recheckPerformance') {
     await recheckPerformanceRef.value?.refreshRecheckPerformance();
+    return;
+  }
+  if (componentKey === 'recheckPerformanceDetails') {
+    await recheckPerformanceDetailsRef.value?.refreshRecheckPerformanceDetails();
     return;
   }
   if (componentKey === 'institutionPrescriptionCounts') {
@@ -516,6 +526,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'recheckPerformance'"
       :activation-key="recheckPerformanceActivationKey"
       @count-changed="recheckPerformanceCount = $event"
+      @notice="showNotice"
+    />
+
+    <RecheckPerformanceDetails
+      v-show="currentComponentKey === 'recheckPerformanceDetails'"
+      ref="recheckPerformanceDetailsRef"
+      :active="currentComponentKey === 'recheckPerformanceDetails'"
+      :activation-key="recheckPerformanceDetailsActivationKey"
+      @count-changed="recheckPerformanceDetailsCount = $event"
       @notice="showNotice"
     />
 

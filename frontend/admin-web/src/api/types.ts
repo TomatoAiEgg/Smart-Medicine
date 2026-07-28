@@ -1182,6 +1182,19 @@ export interface RecheckPerformanceRecord {
   lastRecheckedAt: string | null;
 }
 
+export interface RecheckPerformanceDetailRecord {
+  rechecker: string;
+  recheckResult: string;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string;
+  patientName: string | null;
+  prescriptionCount: number;
+  doseCount: number;
+  recheckComment: string | null;
+  recheckedAt: string | null;
+}
+
 export interface AuditPerformanceRecord {
   auditor: string;
   auditCount: number;

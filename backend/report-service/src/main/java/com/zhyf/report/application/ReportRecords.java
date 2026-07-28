@@ -174,4 +174,18 @@ public final class ReportRecords {
             Instant dispensedAt
     ) {
     }
+
+    public record RecheckPerformanceDetail(
+            String rechecker,
+            String recheckResult,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String patientName,
+            long prescriptionCount,
+            long doseCount,
+            String recheckComment,
+            Instant recheckedAt
+    ) {
+    }
 }

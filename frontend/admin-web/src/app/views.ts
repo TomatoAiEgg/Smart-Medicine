@@ -26,6 +26,7 @@ export type ImplementedViewKey =
   | 'institutionHerbReconciliation'
   | 'prescriptionHerbDetails'
   | 'recheckPerformance'
+  | 'recheckPerformanceDetails'
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
   | 'integration'
@@ -865,9 +866,11 @@ export const menuItems = [
     path: '/reports/recheck-performance-details',
     legacyRoute: 'exportQuery/recheckPerformanceDetail.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '复核员绩效明细',
-    plannedComponent: 'features/report/RecheckPerformanceDetail.vue',
+    componentKey: 'recheckPerformanceDetails',
+    showCount: true,
+    plannedComponent: 'features/reports/RecheckPerformanceDetails.vue',
     coreActions: ['明细', '导出'],
     apiDependencies: ['复核绩效明细', '人员筛选', '异步导出任务'],
   },

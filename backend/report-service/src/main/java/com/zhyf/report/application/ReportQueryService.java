@@ -351,6 +351,37 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.RecheckPerformanceDetail> recheckPerformanceDetails(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadRecheckPerformanceDetails(from, to);
+    }
+
+    public String exportRecheckPerformanceDetailsCsv(Instant from, Instant to) {
+        List<ReportRecords.RecheckPerformanceDetail> rows = recheckPerformanceDetails(from, to);
+        StringBuilder csv = new StringBuilder("rechecker,recheckResult,orderNo,externalOrderNo,institutionName,patientName,prescriptionCount,doseCount,recheckComment,recheckedAt\n");
+        rows.forEach(row -> csv.append(escape(row.rechecker()))
+                .append(',')
+                .append(escape(row.recheckResult()))
+                .append(',')
+                .append(escape(row.orderNo()))
+                .append(',')
+                .append(escape(row.externalOrderNo()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(escape(row.patientName()))
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(escape(row.recheckComment()))
+                .append(',')
+                .append(row.recheckedAt() == null ? "" : row.recheckedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')
