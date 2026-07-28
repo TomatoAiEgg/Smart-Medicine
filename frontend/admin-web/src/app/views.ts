@@ -51,6 +51,7 @@ export type ImplementedViewKey =
   | 'settingSystemConfigs'
   | 'settingDecoctCenters'
   | 'drugHerbs'
+  | 'drugHerbIndexes'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -779,8 +780,10 @@ export const menuItems = [
     path: '/drugs/herb-indexes',
     legacyRoute: 'drugManage/listHerbsIndex.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '药品匹配索引维护',
+    componentKey: 'drugHerbIndexes',
+    showCount: true,
     plannedComponent: 'features/drug/HerbIndexList.vue',
     coreActions: ['索引列表', '新增', '编辑', '启停'],
     apiDependencies: ['药品索引 CRUD', '重复检查'],

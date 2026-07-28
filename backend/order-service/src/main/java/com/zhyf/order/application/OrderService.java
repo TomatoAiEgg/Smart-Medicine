@@ -407,6 +407,78 @@ public class OrderService {
         );
     }
 
+    public AdminHerbIndexPage listAdminHerbIndexes(AdminHerbIndexQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminHerbIndexes(new AdminHerbIndexQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminHerbIndexRecord createAdminHerbIndex(AdminHerbIndexCommand command) {
+        UUID institutionId = requireUuid(command.institutionId(), "HERB_INDEX_INSTITUTION_REQUIRED", "Institution is required");
+        UUID herbId = requireUuid(command.herbId(), "HERB_INDEX_HERB_REQUIRED", "Herb is required");
+        String externalHerbCode = requireText(
+                command.externalHerbCode(),
+                "HERB_INDEX_EXTERNAL_CODE_REQUIRED",
+                "External herb code is required"
+        );
+        String externalHerbName = requireText(
+                command.externalHerbName(),
+                "HERB_INDEX_EXTERNAL_NAME_REQUIRED",
+                "External herb name is required"
+        );
+        orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        orderRepository.findAdminHerbById(herbId)
+                .orElseThrow(() -> new BusinessException("HERB_NOT_FOUND", "Herb not found"));
+        if (orderRepository.findAdminHerbIndexByExternalCode(
+                DEFAULT_ADMIN_TENANT_ID,
+                institutionId,
+                externalHerbCode
+        ).isPresent()) {
+            throw new BusinessException("HERB_INDEX_DUPLICATED", "Herb index already exists for institution");
+        }
+        return orderRepository.insertAdminHerbIndex(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                institutionId,
+                externalHerbCode,
+                externalHerbName,
+                herbId,
+                defaultText(command.matchType(), "MANUAL"),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminHerbIndexRecord updateAdminHerbIndex(UUID indexId, AdminHerbIndexCommand command) {
+        AdminHerbIndexRecord existing = orderRepository.findAdminHerbIndexById(indexId)
+                .orElseThrow(() -> new BusinessException("HERB_INDEX_NOT_FOUND", "Herb index not found"));
+        UUID herbId = requireUuid(command.herbId(), "HERB_INDEX_HERB_REQUIRED", "Herb is required");
+        String externalHerbName = requireText(
+                command.externalHerbName(),
+                "HERB_INDEX_EXTERNAL_NAME_REQUIRED",
+                "External herb name is required"
+        );
+        orderRepository.findAdminHerbById(herbId)
+                .orElseThrow(() -> new BusinessException("HERB_NOT_FOUND", "Herb not found"));
+        return orderRepository.updateAdminHerbIndex(
+                existing.id(),
+                externalHerbName,
+                herbId,
+                defaultText(command.matchType(), existing.matchType()),
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

@@ -31,6 +31,10 @@ import com.zhyf.order.application.AdminHerbCommand;
 import com.zhyf.order.application.AdminHerbPage;
 import com.zhyf.order.application.AdminHerbQuery;
 import com.zhyf.order.application.AdminHerbRecord;
+import com.zhyf.order.application.AdminHerbIndexCommand;
+import com.zhyf.order.application.AdminHerbIndexPage;
+import com.zhyf.order.application.AdminHerbIndexQuery;
+import com.zhyf.order.application.AdminHerbIndexRecord;
 import com.zhyf.order.application.AdminSystemConfigCommand;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
@@ -642,6 +646,36 @@ public class InstitutionOrderController {
             @RequestBody AdminHerbCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminHerb(herbId, command));
+    }
+
+    @GetMapping("/admin/herb-indexes")
+    public ApiResponse<AdminHerbIndexPage> listHerbIndexes(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminHerbIndexes(new AdminHerbIndexQuery(
+                keyword,
+                institutionId,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/herb-indexes")
+    public ApiResponse<AdminHerbIndexRecord> createHerbIndex(@RequestBody AdminHerbIndexCommand command) {
+        return ApiResponse.ok(orderService.createAdminHerbIndex(command));
+    }
+
+    @PatchMapping("/admin/herb-indexes/{indexId}")
+    public ApiResponse<AdminHerbIndexRecord> updateHerbIndex(
+            @PathVariable UUID indexId,
+            @RequestBody AdminHerbIndexCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminHerbIndex(indexId, command));
     }
 
     @GetMapping("/admin/institutions")

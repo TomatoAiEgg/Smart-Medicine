@@ -32,6 +32,10 @@ import type {
   AdminHerbPage,
   AdminHerbQueryParams,
   AdminHerbRecord,
+  AdminHerbIndexCommand,
+  AdminHerbIndexPage,
+  AdminHerbIndexQueryParams,
+  AdminHerbIndexRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -441,6 +445,26 @@ export function createAdminHerb(command: AdminHerbCommand) {
 
 export function updateAdminHerb(herbId: string, command: AdminHerbCommand) {
   return request<AdminHerbRecord>(`/order-api/api/admin/herbs/${encodeURIComponent(herbId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminHerbIndexes(params: AdminHerbIndexQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/herb-indexes?${query}` : '/order-api/api/admin/herb-indexes';
+  return request<AdminHerbIndexPage>(url);
+}
+
+export function createAdminHerbIndex(command: AdminHerbIndexCommand) {
+  return request<AdminHerbIndexRecord>('/order-api/api/admin/herb-indexes', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminHerbIndex(indexId: string, command: AdminHerbIndexCommand) {
+  return request<AdminHerbIndexRecord>(`/order-api/api/admin/herb-indexes/${encodeURIComponent(indexId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

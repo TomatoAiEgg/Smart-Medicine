@@ -17,6 +17,7 @@ import com.zhyf.order.application.AdminDictItemQuery;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDecoctCenterQuery;
 import com.zhyf.order.application.AdminHerbQuery;
+import com.zhyf.order.application.AdminHerbIndexQuery;
 import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
@@ -382,6 +383,61 @@ class OrderRepositoryTest {
                 true,
                 15,
                 45
+        );
+    }
+
+    @Test
+    void shouldBuildHerbIndexQueryWithKeywordInstitutionStatusAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminHerbIndexes(new AdminHerbIndexQuery("clinic", institutionId, false, 2, 20));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from herb_index x")
+                .contains("join institution i on i.id = x.institution_id")
+                .contains("join herb_catalog h on h.id = x.herb_id")
+                .contains("x.external_herb_code ilike ?")
+                .contains("x.institution_id = ?")
+                .contains("x.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                institutionId,
+                false
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from herb_index x")
+                .contains("order by x.enabled desc, i.institution_name asc, x.external_herb_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                "%clinic%",
+                institutionId,
+                false,
+                20,
+                20
         );
     }
 

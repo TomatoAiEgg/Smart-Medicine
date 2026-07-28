@@ -362,6 +362,49 @@ export interface AdminHerbCommand {
   remark?: string;
 }
 
+export interface AdminHerbIndexQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminHerbIndexRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  externalHerbCode: string;
+  externalHerbName: string;
+  herbId: string;
+  herbCode: string;
+  herbName: string;
+  matchType: string;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminHerbIndexPage {
+  records: AdminHerbIndexRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminHerbIndexCommand {
+  institutionId?: string;
+  externalHerbCode?: string;
+  externalHerbName: string;
+  herbId?: string;
+  matchType?: string;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

@@ -22,6 +22,9 @@ import com.zhyf.order.application.AdminDecoctCenterRecord;
 import com.zhyf.order.application.AdminHerbPage;
 import com.zhyf.order.application.AdminHerbQuery;
 import com.zhyf.order.application.AdminHerbRecord;
+import com.zhyf.order.application.AdminHerbIndexPage;
+import com.zhyf.order.application.AdminHerbIndexQuery;
+import com.zhyf.order.application.AdminHerbIndexRecord;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminSystemConfigRecord;
@@ -885,6 +888,129 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, herbName, drugSpecs, drugOrigin, unit, retailPrice, enabled, remark, id);
         return findAdminHerbById(id).orElseThrow();
+    }
+
+    public AdminHerbIndexPage searchAdminHerbIndexes(AdminHerbIndexQuery query) {
+        QueryParts filters = adminHerbIndexFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from herb_index x
+                join institution i on i.id = x.institution_id
+                join herb_catalog h on h.id = x.herb_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select x.id, x.tenant_id, x.institution_id, i.institution_code, i.institution_name,
+                       x.external_herb_code, x.external_herb_name, x.herb_id, h.herb_code, h.herb_name,
+                       x.match_type, x.enabled, x.remark, x.created_at, x.updated_at
+                from herb_index x
+                join institution i on i.id = x.institution_id
+                join herb_catalog h on h.id = x.herb_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by x.enabled desc, i.institution_name asc, x.external_herb_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminHerbIndexPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminHerbIndexRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminHerbIndexRecord> findAdminHerbIndexById(UUID id) {
+        String sql = """
+                select x.id, x.tenant_id, x.institution_id, i.institution_code, i.institution_name,
+                       x.external_herb_code, x.external_herb_name, x.herb_id, h.herb_code, h.herb_name,
+                       x.match_type, x.enabled, x.remark, x.created_at, x.updated_at
+                from herb_index x
+                join institution i on i.id = x.institution_id
+                join herb_catalog h on h.id = x.herb_id
+                where x.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminHerbIndexRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminHerbIndexRecord> findAdminHerbIndexByExternalCode(
+            UUID tenantId,
+            UUID institutionId,
+            String externalHerbCode
+    ) {
+        String sql = """
+                select x.id, x.tenant_id, x.institution_id, i.institution_code, i.institution_name,
+                       x.external_herb_code, x.external_herb_name, x.herb_id, h.herb_code, h.herb_name,
+                       x.match_type, x.enabled, x.remark, x.created_at, x.updated_at
+                from herb_index x
+                join institution i on i.id = x.institution_id
+                join herb_catalog h on h.id = x.herb_id
+                where x.tenant_id = ? and x.institution_id = ? and x.external_herb_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminHerbIndexRecord, tenantId, institutionId, externalHerbCode)
+                .stream()
+                .findFirst();
+    }
+
+    public AdminHerbIndexRecord insertAdminHerbIndex(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String externalHerbCode,
+            String externalHerbName,
+            UUID herbId,
+            String matchType,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into herb_index (
+                    id, tenant_id, institution_id, external_herb_code, external_herb_name,
+                    herb_id, match_type, enabled, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                institutionId,
+                externalHerbCode,
+                externalHerbName,
+                herbId,
+                matchType,
+                enabled,
+                remark
+        );
+        return findAdminHerbIndexById(id).orElseThrow();
+    }
+
+    public AdminHerbIndexRecord updateAdminHerbIndex(
+            UUID id,
+            String externalHerbName,
+            UUID herbId,
+            String matchType,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update herb_index
+                set external_herb_name = ?,
+                    herb_id = ?,
+                    match_type = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, externalHerbName, herbId, matchType, enabled, remark, id);
+        return findAdminHerbIndexById(id).orElseThrow();
     }
 
     public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
@@ -2628,6 +2754,41 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminHerbIndexFilters(AdminHerbIndexQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        x.external_herb_code ilike ?
+                        or x.external_herb_name ilike ?
+                        or i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or h.herb_code ilike ?
+                        or h.herb_name ilike ?
+                        or coalesce(x.remark, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and x.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and x.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
     private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -4116,6 +4277,26 @@ public class OrderRepository {
                 rs.getString("drug_origin"),
                 rs.getString("unit"),
                 rs.getBigDecimal("retail_price"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminHerbIndexRecord mapAdminHerbIndexRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminHerbIndexRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("external_herb_code"),
+                rs.getString("external_herb_name"),
+                rs.getObject("herb_id", UUID.class),
+                rs.getString("herb_code"),
+                rs.getString("herb_name"),
+                rs.getString("match_type"),
                 rs.getBoolean("enabled"),
                 rs.getString("remark"),
                 instant(rs, "created_at"),
