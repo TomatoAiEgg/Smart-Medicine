@@ -25,6 +25,34 @@ export function bindPrescription(command: SimulatorOperationCommand) {
   });
 }
 
+export function startPdaDecoction(command: SimulatorOperationCommand) {
+  return request<DecoctionTaskRecord>('/decoction-api/simulator/pda/decoction/start', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function finishPdaDecoction(command: SimulatorOperationCommand) {
+  return request<DecoctionTaskRecord>('/decoction-api/simulator/pda/decoction/finish', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function cancelPdaDecoction(command: SimulatorOperationCommand) {
+  return request<DecoctionTaskRecord>('/decoction-api/simulator/pda/decoction/cancel', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function terminatePdaDecoction(command: SimulatorOperationCommand) {
+  return request<DecoctionTaskRecord>('/decoction-api/simulator/pda/decoction/terminate', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
 export function listActiveMesTasks() {
   return request<DecoctionTaskRecord[]>('/decoction-api/simulator/mes/tasks/active');
 }

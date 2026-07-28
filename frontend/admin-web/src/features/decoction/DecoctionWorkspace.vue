@@ -4,7 +4,9 @@ import { ApiError } from '../../api/client';
 import {
   bindPrescription,
   cancelMesTask,
+  cancelPdaDecoction,
   finishMesTask,
+  finishPdaDecoction,
   listActiveMesTasks,
   listCanOperatePrescriptions,
   listDecoctionDevices,
@@ -15,7 +17,9 @@ import {
   recordTemperature,
   recordWaterFinished,
   startMesTask,
+  startPdaDecoction,
   terminateMesTask,
+  terminatePdaDecoction,
 } from '../../api/decoction';
 import type {
   DecoctionEventCommand,
@@ -25,6 +29,7 @@ import type {
   DeviceWorkRecord,
   MesTaskOperationCommand,
   PrescriptionRecord,
+  SimulatorOperationCommand,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { formatDate } from '../../domain/formatters';
@@ -33,6 +38,7 @@ import { statusTone } from '../../domain/status';
 type NoticeTone = 'info' | 'success' | 'error';
 type DecoctionDataset = 'devices' | 'binds' | 'printerConfig' | 'pails' | 'cloudPrints' | 'workRecords';
 type MesAction = 'start' | 'finish' | 'cancel' | 'terminate';
+type PdaAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type TaskEventAction = 'water' | 'temperature' | 'error';
 type EventCommandExtra = Partial<Omit<DecoctionEventCommand, 'operationId' | 'operator' | 'timestamp' | 'sign'>>;
 
@@ -154,6 +160,18 @@ function deviceUseStatus(device: DeviceRecord) {
 function makeMesCommand(prefix: string): MesTaskOperationCommand {
   return {
     operationId: newOperationId(prefix),
+    operator: operatorModel.value.trim(),
+    timestamp: new Date().toISOString(),
+    sign: 'dev-sign',
+  };
+}
+
+function makePdaCommand(task: DecoctionTaskRecord, prefix: string): SimulatorOperationCommand {
+  return {
+    operationId: newOperationId(prefix),
+    deviceCode: task.deviceCode,
+    prescriptionNo: task.prescriptionNo,
+    pailNo: task.pailNo ?? undefined,
     operator: operatorModel.value.trim(),
     timestamp: new Date().toISOString(),
     sign: 'dev-sign',
@@ -317,6 +335,38 @@ async function handleMesTask(task: DecoctionTaskRecord, action: MesAction) {
     };
     selectedEventTaskNo.value = result.taskNo;
     emit('notice', 'success', `${result.taskNo} 已${actionText[action]}`);
+    await refreshDecoctionSimulator();
+  } catch (error) {
+    decoctionError.value = errorMessage(error);
+  } finally {
+    handlingDecoctionTaskNo.value = '';
+  }
+}
+
+async function handlePdaTask(task: DecoctionTaskRecord, action: PdaAction) {
+  if (!requireOperator()) return;
+
+  handlingDecoctionTaskNo.value = task.taskNo;
+  decoctionError.value = '';
+  try {
+    let result: DecoctionTaskRecord;
+    if (action === 'start') {
+      result = await startPdaDecoction(makePdaCommand(task, 'pda-start'));
+    } else if (action === 'finish') {
+      result = await finishPdaDecoction(makePdaCommand(task, 'pda-finish'));
+    } else if (action === 'cancel') {
+      result = await cancelPdaDecoction(makePdaCommand(task, 'pda-cancel'));
+    } else {
+      result = await terminatePdaDecoction(makePdaCommand(task, 'pda-terminate'));
+    }
+    const actionText: Record<PdaAction, string> = {
+      start: '开始煎煮',
+      finish: '完成煎煮',
+      cancel: '取消绑定',
+      terminate: '终止煎煮',
+    };
+    selectedEventTaskNo.value = result.taskNo;
+    emit('notice', 'success', `${result.taskNo} 已通过 PDA ${actionText[action]}`);
     await refreshDecoctionSimulator();
   } catch (error) {
     decoctionError.value = errorMessage(error);
@@ -670,6 +720,10 @@ defineExpose({
                 <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'DECOCTING'" @click="handleMesTask(task, 'finish')">完成</button>
                 <button class="legacy-link-btn workflow-reject-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'BOUND'" @click="handleMesTask(task, 'cancel')">取消</button>
                 <button class="legacy-link-btn workflow-reject-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'DECOCTING'" @click="handleMesTask(task, 'terminate')">终止</button>
+                <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'BOUND'" @click="handlePdaTask(task, 'start')">PDA开始</button>
+                <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'DECOCTING'" @click="handlePdaTask(task, 'finish')">PDA完成</button>
+                <button class="legacy-link-btn workflow-reject-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'BOUND'" @click="handlePdaTask(task, 'cancel')">PDA取消</button>
+                <button class="legacy-link-btn workflow-reject-btn" type="button" :disabled="handlingDecoctionTaskNo === task.taskNo || task.taskStatus !== 'DECOCTING'" @click="handlePdaTask(task, 'terminate')">PDA终止</button>
                 <button class="legacy-link-btn" type="button" :disabled="eventLoading" @click="refreshTaskEvents(task.taskNo)">事件/记录</button>
               </td>
             </tr>
