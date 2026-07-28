@@ -20,6 +20,10 @@ import type {
   AdminInstitutionPage,
   AdminInstitutionQueryParams,
   AdminInstitutionRecord,
+  AdminLogisticsAddressCostCommand,
+  AdminLogisticsAddressCostPage,
+  AdminLogisticsAddressCostQueryParams,
+  AdminLogisticsAddressCostRecord,
   AdminLogisticsSpecialRuleCommand,
   AdminLogisticsSpecialRulePage,
   AdminLogisticsSpecialRuleQueryParams,
@@ -213,6 +217,31 @@ export function createAdminLogisticsSpecialRule(command: AdminLogisticsSpecialRu
 export function updateAdminLogisticsSpecialRule(ruleId: string, command: AdminLogisticsSpecialRuleCommand) {
   return request<AdminLogisticsSpecialRuleRecord>(
     `/order-api/api/admin/logistics-special-rules/${encodeURIComponent(ruleId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function listAdminLogisticsAddressCosts(params: AdminLogisticsAddressCostQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/logistics-address-costs?${query}`
+    : '/order-api/api/admin/logistics-address-costs';
+  return request<AdminLogisticsAddressCostPage>(url);
+}
+
+export function createAdminLogisticsAddressCost(command: AdminLogisticsAddressCostCommand) {
+  return request<AdminLogisticsAddressCostRecord>('/order-api/api/admin/logistics-address-costs', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminLogisticsAddressCost(costId: string, command: AdminLogisticsAddressCostCommand) {
+  return request<AdminLogisticsAddressCostRecord>(
+    `/order-api/api/admin/logistics-address-costs/${encodeURIComponent(costId)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(command),

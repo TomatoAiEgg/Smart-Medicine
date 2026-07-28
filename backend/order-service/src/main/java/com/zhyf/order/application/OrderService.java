@@ -542,6 +542,103 @@ public class OrderService {
         );
     }
 
+    public AdminLogisticsAddressCostPage listAdminLogisticsAddressCosts(AdminLogisticsAddressCostQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminLogisticsAddressCosts(new AdminLogisticsAddressCostQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                cleanText(query.logisticsCompany()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminLogisticsAddressCostRecord createAdminLogisticsAddressCost(
+            AdminLogisticsAddressCostCommand command
+    ) {
+        UUID institutionId = command.institutionId();
+        if (institutionId == null) {
+            throw new BusinessException("INSTITUTION_ID_REQUIRED", "Institution is required");
+        }
+        AdminInstitutionRecord institution = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        String logisticsCompany = requireText(
+                command.logisticsCompany(),
+                "LOGISTICS_COMPANY_REQUIRED",
+                "Logistics company is required"
+        );
+        String province = requireText(command.province(), "PROVINCE_REQUIRED", "Province is required");
+        String city = areaText(command.city());
+        String district = areaText(command.district());
+        if (orderRepository.findAdminLogisticsAddressCostByBusinessKey(
+                institution.tenantId(),
+                institution.id(),
+                logisticsCompany,
+                province,
+                city,
+                district
+        ).isPresent()) {
+            throw new BusinessException("LOGISTICS_ADDRESS_COST_DUPLICATED", "Address cost already exists");
+        }
+        return orderRepository.insertAdminLogisticsAddressCost(
+                UUID.randomUUID(),
+                institution.tenantId(),
+                institution.id(),
+                logisticsCompany,
+                province,
+                city,
+                district,
+                moneyOrZero(command.costAmount(), "COST_AMOUNT_INVALID"),
+                cleanText(command.remark()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminLogisticsAddressCostRecord updateAdminLogisticsAddressCost(
+            UUID costId,
+            AdminLogisticsAddressCostCommand command
+    ) {
+        AdminLogisticsAddressCostRecord existing = orderRepository.findAdminLogisticsAddressCostById(costId)
+                .orElseThrow(() -> new BusinessException(
+                        "LOGISTICS_ADDRESS_COST_NOT_FOUND",
+                        "Address cost not found"
+                ));
+        String logisticsCompany = requireText(
+                command.logisticsCompany(),
+                "LOGISTICS_COMPANY_REQUIRED",
+                "Logistics company is required"
+        );
+        String province = requireText(command.province(), "PROVINCE_REQUIRED", "Province is required");
+        String city = areaText(command.city());
+        String district = areaText(command.district());
+        orderRepository.findAdminLogisticsAddressCostByBusinessKey(
+                        existing.tenantId(),
+                        existing.institutionId(),
+                        logisticsCompany,
+                        province,
+                        city,
+                        district
+                )
+                .filter(duplicated -> !duplicated.id().equals(existing.id()))
+                .ifPresent(duplicated -> {
+                    throw new BusinessException("LOGISTICS_ADDRESS_COST_DUPLICATED", "Address cost already exists");
+                });
+        return orderRepository.updateAdminLogisticsAddressCost(
+                existing.id(),
+                logisticsCompany,
+                province,
+                city,
+                district,
+                moneyOrZero(command.costAmount(), "COST_AMOUNT_INVALID"),
+                cleanText(command.remark()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
@@ -1951,6 +2048,11 @@ public class OrderService {
     private String defaultText(String value, String fallback) {
         String cleaned = cleanText(value);
         return cleaned == null ? fallback : cleaned;
+    }
+
+    private String areaText(String value) {
+        String cleaned = cleanText(value);
+        return cleaned == null ? "" : cleaned;
     }
 
     private BigDecimal moneyOrZero(BigDecimal value, String code) {

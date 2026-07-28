@@ -405,6 +405,51 @@ export interface AdminLogisticsSpecialRuleCommand {
   enabled?: boolean;
 }
 
+export interface AdminLogisticsAddressCostQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  logisticsCompany?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminLogisticsAddressCostRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  logisticsCompany: string;
+  province: string;
+  city: string;
+  district: string;
+  costAmount: number | string;
+  remark: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminLogisticsAddressCostPage {
+  records: AdminLogisticsAddressCostRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminLogisticsAddressCostCommand {
+  institutionId?: string;
+  logisticsCompany: string;
+  province: string;
+  city?: string;
+  district?: string;
+  costAmount?: number | string;
+  remark?: string;
+  enabled?: boolean;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

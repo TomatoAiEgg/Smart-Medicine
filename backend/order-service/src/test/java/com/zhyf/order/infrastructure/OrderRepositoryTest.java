@@ -13,6 +13,7 @@ import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import java.sql.ResultSet;
@@ -455,6 +456,66 @@ class OrderRepositoryTest {
                 true,
                 15,
                 30
+        );
+    }
+
+    @Test
+    void shouldBuildLogisticsAddressCostQueryWithFiltersAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminLogisticsAddressCosts(
+                new AdminLogisticsAddressCostQuery("sz", institutionId, "SF", true, 2, 10)
+        );
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from logistics_address_cost c")
+                .contains("join institution i on i.id = c.institution_id")
+                .contains("i.institution_code ilike ?")
+                .contains("c.province ilike ?")
+                .contains("c.institution_id = ?")
+                .contains("c.logistics_company ilike ?")
+                .contains("c.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                institutionId,
+                "%SF%",
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from logistics_address_cost c")
+                .contains("order by c.enabled desc, i.institution_name asc, c.province asc, c.city asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                "%sz%",
+                institutionId,
+                "%SF%",
+                true,
+                10,
+                10
         );
     }
 }

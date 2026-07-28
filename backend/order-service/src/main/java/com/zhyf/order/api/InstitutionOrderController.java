@@ -23,6 +23,10 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLogisticsAddressCostCommand;
+import com.zhyf.order.application.AdminLogisticsAddressCostPage;
+import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
+import com.zhyf.order.application.AdminLogisticsAddressCostRecord;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleCommand;
 import com.zhyf.order.application.AdminLogisticsSpecialRulePage;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
@@ -620,6 +624,40 @@ public class InstitutionOrderController {
             @RequestBody AdminLogisticsSpecialRuleCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminLogisticsSpecialRule(ruleId, command));
+    }
+
+    @GetMapping("/admin/logistics-address-costs")
+    public ApiResponse<AdminLogisticsAddressCostPage> listLogisticsAddressCosts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) String logisticsCompany,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminLogisticsAddressCosts(new AdminLogisticsAddressCostQuery(
+                keyword,
+                institutionId,
+                logisticsCompany,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/logistics-address-costs")
+    public ApiResponse<AdminLogisticsAddressCostRecord> createLogisticsAddressCost(
+            @RequestBody AdminLogisticsAddressCostCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminLogisticsAddressCost(command));
+    }
+
+    @PatchMapping("/admin/logistics-address-costs/{costId}")
+    public ApiResponse<AdminLogisticsAddressCostRecord> updateLogisticsAddressCost(
+            @PathVariable UUID costId,
+            @RequestBody AdminLogisticsAddressCostCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminLogisticsAddressCost(costId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

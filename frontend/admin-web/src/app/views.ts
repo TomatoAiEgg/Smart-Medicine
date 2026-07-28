@@ -14,6 +14,7 @@ export type ImplementedViewKey =
   | 'logisticsUnreceivedFollowups'
   | 'logisticsPrint'
   | 'logisticsSpecialRules'
+  | 'logisticsAddressCosts'
   | 'exceptionLogs'
   | 'labelPrints'
   | 'portal'
@@ -309,8 +310,10 @@ export const menuItems = [
     path: '/logistics/address-costs',
     legacyRoute: 'logistics/listLogisCompanycostAddr.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '地址维度物流费用维护',
+    componentKey: 'logisticsAddressCosts',
+    showCount: true,
     plannedComponent: 'features/logistics/AddressCost.vue',
     coreActions: ['地址费用列表', '新增', '编辑', '导入', '导出'],
     apiDependencies: ['地址费用 CRUD', '导入任务', '导出任务'],

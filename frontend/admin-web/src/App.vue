@@ -20,6 +20,7 @@ import ApiPermissionList from './features/institution/ApiPermissionList.vue';
 import IpWhitelist from './features/institution/IpWhitelist.vue';
 import InstitutionApps from './features/institution/InstitutionApps.vue';
 import InstitutionList from './features/institution/InstitutionList.vue';
+import AddressCost from './features/logistics/AddressCost.vue';
 import LogisSpecialRule from './features/logistics/LogisSpecialRule.vue';
 import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
@@ -94,6 +95,7 @@ const institutionApiPermissionsRef = ref<InstanceType<typeof ApiPermissionList> 
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
+const addressCostRef = ref<InstanceType<typeof AddressCost> | null>(null);
 const logisSpecialRuleRef = ref<InstanceType<typeof LogisSpecialRule> | null>(null);
 const logisPrintRef = ref<InstanceType<typeof LogisPrint> | null>(null);
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
@@ -151,6 +153,7 @@ const institutionApisActivationKey = ref(0);
 const institutionApiPermissionsActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
+const addressCostCount = ref(0);
 const logisSpecialRuleCount = ref(0);
 const logisPrintCount = ref(0);
 const logisticsCount = ref(0);
@@ -163,6 +166,7 @@ const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
+const addressCostActivationKey = ref(0);
 const logisSpecialRuleActivationKey = ref(0);
 const logisPrintActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
@@ -222,6 +226,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   orderRechecksMulti: workflowCounts.value.rechecks,
   orderRecheckRecords: workflowCounts.value.rechecks,
   decoction: decoctionCount.value,
+  logisticsAddressCosts: addressCostCount.value,
   logisticsSpecialRules: logisSpecialRuleCount.value,
   logistics: logisticsCount.value,
   logisticsPrint: logisPrintCount.value,
@@ -299,6 +304,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
+  if (componentKey === 'logisticsAddressCosts') addressCostActivationKey.value += 1;
   if (componentKey === 'logisticsSpecialRules') logisSpecialRuleActivationKey.value += 1;
   if (componentKey === 'logisticsPrint') logisPrintActivationKey.value += 1;
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
@@ -429,6 +435,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logisticsSpecialRules') {
     await logisSpecialRuleRef.value?.refreshLogisticsSpecialRules();
+    return;
+  }
+  if (componentKey === 'logisticsAddressCosts') {
+    await addressCostRef.value?.refreshAddressCosts();
     return;
   }
   if (componentKey === 'logisticsPrint') {
@@ -738,6 +748,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'logisticsSpecialRules'"
       :activation-key="logisSpecialRuleActivationKey"
       @count-changed="logisSpecialRuleCount = $event"
+      @notice="showNotice"
+    />
+
+    <AddressCost
+      v-show="currentComponentKey === 'logisticsAddressCosts'"
+      ref="addressCostRef"
+      :active="currentComponentKey === 'logisticsAddressCosts'"
+      :activation-key="addressCostActivationKey"
+      @count-changed="addressCostCount = $event"
       @notice="showNotice"
     />
 

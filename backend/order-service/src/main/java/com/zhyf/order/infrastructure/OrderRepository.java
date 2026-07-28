@@ -16,6 +16,9 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLogisticsAddressCostPage;
+import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
+import com.zhyf.order.application.AdminLogisticsAddressCostRecord;
 import com.zhyf.order.application.AdminLogisticsSpecialRulePage;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleRecord;
@@ -1001,6 +1004,148 @@ public class OrderRepository {
         return findAdminLogisticsSpecialRuleById(id).orElseThrow();
     }
 
+    public AdminLogisticsAddressCostPage searchAdminLogisticsAddressCosts(AdminLogisticsAddressCostQuery query) {
+        QueryParts filters = adminLogisticsAddressCostFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from logistics_address_cost c
+                join institution i on i.id = c.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select c.id, c.tenant_id, c.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, c.logistics_company, c.province, c.city, c.district,
+                       c.cost_amount, c.remark, c.enabled, c.created_at, c.updated_at
+                from logistics_address_cost c
+                join institution i on i.id = c.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by c.enabled desc, i.institution_name asc, c.province asc, c.city asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminLogisticsAddressCostPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminLogisticsAddressCostRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminLogisticsAddressCostRecord> findAdminLogisticsAddressCostById(UUID id) {
+        String sql = """
+                select c.id, c.tenant_id, c.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, c.logistics_company, c.province, c.city, c.district,
+                       c.cost_amount, c.remark, c.enabled, c.created_at, c.updated_at
+                from logistics_address_cost c
+                join institution i on i.id = c.institution_id
+                where c.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminLogisticsAddressCostRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminLogisticsAddressCostRecord> findAdminLogisticsAddressCostByBusinessKey(
+            UUID tenantId,
+            UUID institutionId,
+            String logisticsCompany,
+            String province,
+            String city,
+            String district
+    ) {
+        String sql = """
+                select c.id, c.tenant_id, c.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, c.logistics_company, c.province, c.city, c.district,
+                       c.cost_amount, c.remark, c.enabled, c.created_at, c.updated_at
+                from logistics_address_cost c
+                join institution i on i.id = c.institution_id
+                where c.tenant_id = ?
+                  and c.institution_id = ?
+                  and c.logistics_company = ?
+                  and c.province = ?
+                  and c.city = ?
+                  and c.district = ?
+                """;
+        return jdbcTemplate.query(
+                        sql,
+                        this::mapAdminLogisticsAddressCostRecord,
+                        tenantId,
+                        institutionId,
+                        logisticsCompany,
+                        province,
+                        city,
+                        district
+                )
+                .stream()
+                .findFirst();
+    }
+
+    public AdminLogisticsAddressCostRecord insertAdminLogisticsAddressCost(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String logisticsCompany,
+            String province,
+            String city,
+            String district,
+            BigDecimal costAmount,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into logistics_address_cost (
+                    id, tenant_id, institution_id, logistics_company, province, city, district,
+                    cost_amount, remark, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                institutionId,
+                logisticsCompany,
+                province,
+                city,
+                district,
+                costAmount,
+                remark,
+                enabled
+        );
+        return findAdminLogisticsAddressCostById(id).orElseThrow();
+    }
+
+    public AdminLogisticsAddressCostRecord updateAdminLogisticsAddressCost(
+            UUID id,
+            String logisticsCompany,
+            String province,
+            String city,
+            String district,
+            BigDecimal costAmount,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                update logistics_address_cost
+                set logistics_company = ?,
+                    province = ?,
+                    city = ?,
+                    district = ?,
+                    cost_amount = ?,
+                    remark = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, logisticsCompany, province, city, district, costAmount, remark, enabled, id);
+        return findAdminLogisticsAddressCostById(id).orElseThrow();
+    }
+
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -1626,6 +1771,42 @@ public class OrderRepository {
         }
         if (query.enabled() != null) {
             filters.append(" and r.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminLogisticsAddressCostFilters(AdminLogisticsAddressCostQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or c.logistics_company ilike ?
+                        or c.province ilike ?
+                        or c.city ilike ?
+                        or c.district ilike ?
+                        or c.remark ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and c.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        filters.addLikeFilter("c.logistics_company", query.logisticsCompany());
+        if (query.enabled() != null) {
+            filters.append(" and c.enabled = ?");
             filters.add(query.enabled());
         }
         return filters;
@@ -2847,6 +3028,27 @@ public class OrderRepository {
                 rs.getBigDecimal("base_fee"),
                 rs.getBigDecimal("extra_fee"),
                 rs.getBigDecimal("free_threshold"),
+                rs.getString("remark"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminLogisticsAddressCostRecord mapAdminLogisticsAddressCostRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminLogisticsAddressCostRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getString("logistics_company"),
+                rs.getString("province"),
+                rs.getString("city"),
+                rs.getString("district"),
+                rs.getBigDecimal("cost_amount"),
                 rs.getString("remark"),
                 rs.getBoolean("enabled"),
                 instant(rs, "created_at"),
