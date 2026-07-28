@@ -229,6 +229,64 @@ public class OrderService {
         );
     }
 
+    public AdminInstitutionIpWhitelistPage listAdminInstitutionIpWhitelists(
+            AdminInstitutionIpWhitelistQuery query
+    ) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminInstitutionIpWhitelists(new AdminInstitutionIpWhitelistQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                cleanText(query.ipRange()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminInstitutionIpWhitelistRecord createAdminInstitutionIpWhitelist(
+            AdminInstitutionIpWhitelistCommand command
+    ) {
+        UUID institutionId = command.institutionId();
+        if (institutionId == null) {
+            throw new BusinessException("INSTITUTION_ID_REQUIRED", "Institution is required");
+        }
+        AdminInstitutionRecord institution = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        String ipRange = requireText(command.ipRange(), "IP_RANGE_REQUIRED", "IP range is required");
+        if (orderRepository.findAdminInstitutionIpWhitelistByInstitutionAndRange(institution.id(), ipRange).isPresent()) {
+            throw new BusinessException("IP_RANGE_DUPLICATED", "IP range already exists for institution");
+        }
+        return orderRepository.insertAdminInstitutionIpWhitelist(
+                UUID.randomUUID(),
+                institution.tenantId(),
+                institution.id(),
+                ipRange,
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminInstitutionIpWhitelistRecord updateAdminInstitutionIpWhitelist(
+            UUID whitelistId,
+            AdminInstitutionIpWhitelistCommand command
+    ) {
+        AdminInstitutionIpWhitelistRecord existing = orderRepository.findAdminInstitutionIpWhitelistById(whitelistId)
+                .orElseThrow(() -> new BusinessException("IP_WHITELIST_NOT_FOUND", "IP whitelist not found"));
+        String ipRange = requireText(command.ipRange(), "IP_RANGE_REQUIRED", "IP range is required");
+        orderRepository.findAdminInstitutionIpWhitelistByInstitutionAndRange(existing.institutionId(), ipRange)
+                .filter(duplicated -> !duplicated.id().equals(existing.id()))
+                .ifPresent(duplicated -> {
+                    throw new BusinessException("IP_RANGE_DUPLICATED", "IP range already exists for institution");
+                });
+        return orderRepository.updateAdminInstitutionIpWhitelist(
+                existing.id(),
+                ipRange,
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

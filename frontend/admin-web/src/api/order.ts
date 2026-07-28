@@ -1,6 +1,10 @@
 import { request } from './client';
 import type {
   AdminInstitutionCommand,
+  AdminInstitutionIpWhitelistCommand,
+  AdminInstitutionIpWhitelistPage,
+  AdminInstitutionIpWhitelistQueryParams,
+  AdminInstitutionIpWhitelistRecord,
   AdminInstitutionPage,
   AdminInstitutionQueryParams,
   AdminInstitutionRecord,
@@ -80,6 +84,31 @@ export function updateAdminInstitution(institutionId: string, command: AdminInst
     method: 'PATCH',
     body: JSON.stringify(command),
   });
+}
+
+export function listAdminInstitutionIpWhitelists(params: AdminInstitutionIpWhitelistQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/institution-ip-whitelists?${query}`
+    : '/order-api/api/admin/institution-ip-whitelists';
+  return request<AdminInstitutionIpWhitelistPage>(url);
+}
+
+export function createAdminInstitutionIpWhitelist(command: AdminInstitutionIpWhitelistCommand) {
+  return request<AdminInstitutionIpWhitelistRecord>('/order-api/api/admin/institution-ip-whitelists', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminInstitutionIpWhitelist(whitelistId: string, command: AdminInstitutionIpWhitelistCommand) {
+  return request<AdminInstitutionIpWhitelistRecord>(
+    `/order-api/api/admin/institution-ip-whitelists/${encodeURIComponent(whitelistId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
 }
 
 export function listAdminOperators(params: AdminOperatorQueryParams = {}) {

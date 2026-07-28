@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.order.application.AdminInstitutionCommand;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistCommand;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
@@ -438,6 +442,40 @@ public class InstitutionOrderController {
             @RequestBody AdminInstitutionCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminInstitution(institutionId, command));
+    }
+
+    @GetMapping("/admin/institution-ip-whitelists")
+    public ApiResponse<AdminInstitutionIpWhitelistPage> listInstitutionIpWhitelists(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) String ipRange,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminInstitutionIpWhitelists(new AdminInstitutionIpWhitelistQuery(
+                keyword,
+                institutionId,
+                ipRange,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/institution-ip-whitelists")
+    public ApiResponse<AdminInstitutionIpWhitelistRecord> createInstitutionIpWhitelist(
+            @RequestBody AdminInstitutionIpWhitelistCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminInstitutionIpWhitelist(command));
+    }
+
+    @PatchMapping("/admin/institution-ip-whitelists/{whitelistId}")
+    public ApiResponse<AdminInstitutionIpWhitelistRecord> updateInstitutionIpWhitelist(
+            @PathVariable UUID whitelistId,
+            @RequestBody AdminInstitutionIpWhitelistCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminInstitutionIpWhitelist(whitelistId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

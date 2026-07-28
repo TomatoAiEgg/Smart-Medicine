@@ -211,6 +211,40 @@ export interface AdminInstitutionCommand {
   storageType?: string;
 }
 
+export interface AdminInstitutionIpWhitelistQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  ipRange?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminInstitutionIpWhitelistRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  ipRange: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface AdminInstitutionIpWhitelistPage {
+  records: AdminInstitutionIpWhitelistRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminInstitutionIpWhitelistCommand {
+  institutionId?: string;
+  ipRange: string;
+  enabled?: boolean;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

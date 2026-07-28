@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
@@ -463,6 +466,98 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, institutionName, institutionType, status, storageType, id);
         return findAdminInstitutionById(id).orElseThrow();
+    }
+
+    public AdminInstitutionIpWhitelistPage searchAdminInstitutionIpWhitelists(
+            AdminInstitutionIpWhitelistQuery query
+    ) {
+        QueryParts filters = adminInstitutionIpWhitelistFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from institution_ip_whitelist w
+                join institution i on i.id = w.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select w.id, w.tenant_id, w.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, w.ip_range, w.enabled, w.created_at
+                from institution_ip_whitelist w
+                join institution i on i.id = w.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by w.enabled desc, i.institution_name asc, w.ip_range asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminInstitutionIpWhitelistPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminInstitutionIpWhitelistRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminInstitutionIpWhitelistRecord> findAdminInstitutionIpWhitelistById(UUID id) {
+        String sql = """
+                select w.id, w.tenant_id, w.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, w.ip_range, w.enabled, w.created_at
+                from institution_ip_whitelist w
+                join institution i on i.id = w.institution_id
+                where w.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionIpWhitelistRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminInstitutionIpWhitelistRecord> findAdminInstitutionIpWhitelistByInstitutionAndRange(
+            UUID institutionId,
+            String ipRange
+    ) {
+        String sql = """
+                select w.id, w.tenant_id, w.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, w.ip_range, w.enabled, w.created_at
+                from institution_ip_whitelist w
+                join institution i on i.id = w.institution_id
+                where w.institution_id = ? and w.ip_range = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionIpWhitelistRecord, institutionId, ipRange)
+                .stream()
+                .findFirst();
+    }
+
+    public AdminInstitutionIpWhitelistRecord insertAdminInstitutionIpWhitelist(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            String ipRange,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into institution_ip_whitelist (id, tenant_id, institution_id, ip_range, enabled)
+                values (?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, institutionId, ipRange, enabled);
+        return findAdminInstitutionIpWhitelistById(id).orElseThrow();
+    }
+
+    public AdminInstitutionIpWhitelistRecord updateAdminInstitutionIpWhitelist(
+            UUID id,
+            String ipRange,
+            boolean enabled
+    ) {
+        String sql = """
+                update institution_ip_whitelist
+                set ip_range = ?,
+                    enabled = ?
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, ipRange, enabled, id);
+        return findAdminInstitutionIpWhitelistById(id).orElseThrow();
     }
 
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
@@ -942,6 +1037,34 @@ public class OrderRepository {
         }
         filters.addEqualsFilter("i.status", query.status());
         filters.addEqualsFilter("i.institution_type", query.institutionType());
+        return filters;
+    }
+
+    private QueryParts adminInstitutionIpWhitelistFilters(AdminInstitutionIpWhitelistQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or w.ip_range ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and w.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        filters.addLikeFilter("w.ip_range", query.ipRange());
+        if (query.enabled() != null) {
+            filters.append(" and w.enabled = ?");
+            filters.add(query.enabled());
+        }
         return filters;
     }
 
@@ -2076,6 +2199,21 @@ public class OrderRepository {
                 rs.getString("storage_type"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
+        );
+    }
+
+    private AdminInstitutionIpWhitelistRecord mapAdminInstitutionIpWhitelistRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminInstitutionIpWhitelistRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getString("ip_range"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at")
         );
     }
 

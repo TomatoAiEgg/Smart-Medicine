@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'institutionList'
+  | 'institutionIpWhitelist'
   | 'reports'
   | 'auditPerformance'
   | 'auditPerformanceDetails'
@@ -229,10 +230,12 @@ export const menuItems = [
     path: '/institutions/ip-whitelist',
     legacyRoute: 'mechanism/listWhiteIp.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '调用来源 IP 管控',
+    componentKey: 'institutionIpWhitelist',
+    showCount: true,
     plannedComponent: 'features/institution/IpWhitelist.vue',
-    coreActions: ['白名单列表', '新增', '编辑', '删除'],
+    coreActions: ['白名单列表', '新增', '编辑', '启停'],
     apiDependencies: ['IP 白名单 CRUD', '访问日志'],
   },
   {

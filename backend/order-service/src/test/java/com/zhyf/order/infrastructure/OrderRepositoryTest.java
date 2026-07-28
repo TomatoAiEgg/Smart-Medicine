@@ -8,8 +8,9 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.zhyf.order.application.AdminOperatorQuery;
+import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
+import com.zhyf.order.application.AdminOperatorQuery;
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -192,6 +193,57 @@ class OrderRepositoryTest {
                 "HOSPITAL",
                 15,
                 30
+        );
+    }
+
+    @Test
+    void shouldBuildInstitutionIpWhitelistQueryWithFiltersAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminInstitutionIpWhitelists(
+                new AdminInstitutionIpWhitelistQuery("hospital", institutionId, "10.0", true, 2, 25)
+        );
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from institution_ip_whitelist w")
+                .contains("join institution i on i.id = w.institution_id")
+                .contains("i.institution_code ilike ?")
+                .contains("w.institution_id = ?")
+                .contains("w.ip_range ilike ?")
+                .contains("w.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%hospital%",
+                "%hospital%",
+                "%hospital%",
+                institutionId,
+                "%10.0%",
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from institution_ip_whitelist w")
+                .contains("order by w.enabled desc, i.institution_name asc, w.ip_range asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%hospital%",
+                "%hospital%",
+                "%hospital%",
+                institutionId,
+                "%10.0%",
+                true,
+                25,
+                25
         );
     }
 }
