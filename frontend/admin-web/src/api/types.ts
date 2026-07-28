@@ -284,6 +284,44 @@ export interface AdminSystemConfigCommand {
   remark?: string;
 }
 
+export interface AdminDecoctCenterQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminDecoctCenterRecord {
+  id: string;
+  tenantId: string;
+  centerCode: string;
+  centerName: string;
+  contactName: string | null;
+  contactPhone: string | null;
+  address: string | null;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDecoctCenterPage {
+  records: AdminDecoctCenterRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDecoctCenterCommand {
+  centerCode?: string;
+  centerName: string;
+  contactName?: string;
+  contactPhone?: string;
+  address?: string;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

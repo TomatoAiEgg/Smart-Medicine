@@ -16,6 +16,9 @@ import com.zhyf.order.application.AdminDictItemRecord;
 import com.zhyf.order.application.AdminDictTypePage;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDictTypeRecord;
+import com.zhyf.order.application.AdminDecoctCenterPage;
+import com.zhyf.order.application.AdminDecoctCenterQuery;
+import com.zhyf.order.application.AdminDecoctCenterRecord;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminSystemConfigRecord;
@@ -683,6 +686,102 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, configName, configValue, valueType, enabled, remark, id);
         return findAdminSystemConfigById(id).orElseThrow();
+    }
+
+    public AdminDecoctCenterPage searchAdminDecoctCenters(AdminDecoctCenterQuery query) {
+        QueryParts filters = adminDecoctCenterFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from decoct_center c
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, center_code, center_name, contact_name, contact_phone,
+                       address, enabled, remark, created_at, updated_at
+                from decoct_center c
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, center_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminDecoctCenterPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminDecoctCenterRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminDecoctCenterRecord> findAdminDecoctCenterById(UUID id) {
+        String sql = """
+                select id, tenant_id, center_code, center_name, contact_name, contact_phone,
+                       address, enabled, remark, created_at, updated_at
+                from decoct_center
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDecoctCenterRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminDecoctCenterRecord> findAdminDecoctCenterByCode(UUID tenantId, String centerCode) {
+        String sql = """
+                select id, tenant_id, center_code, center_name, contact_name, contact_phone,
+                       address, enabled, remark, created_at, updated_at
+                from decoct_center
+                where tenant_id = ? and center_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminDecoctCenterRecord, tenantId, centerCode).stream().findFirst();
+    }
+
+    public AdminDecoctCenterRecord insertAdminDecoctCenter(
+            UUID id,
+            UUID tenantId,
+            String centerCode,
+            String centerName,
+            String contactName,
+            String contactPhone,
+            String address,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into decoct_center (
+                    id, tenant_id, center_code, center_name, contact_name, contact_phone, address, enabled, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, centerCode, centerName, contactName, contactPhone, address, enabled, remark);
+        return findAdminDecoctCenterById(id).orElseThrow();
+    }
+
+    public AdminDecoctCenterRecord updateAdminDecoctCenter(
+            UUID id,
+            String centerName,
+            String contactName,
+            String contactPhone,
+            String address,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update decoct_center
+                set center_name = ?,
+                    contact_name = ?,
+                    contact_phone = ?,
+                    address = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, centerName, contactName, contactPhone, address, enabled, remark, id);
+        return findAdminDecoctCenterById(id).orElseThrow();
     }
 
     public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
@@ -2368,6 +2467,35 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminDecoctCenterFilters(AdminDecoctCenterQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        c.center_code ilike ?
+                        or c.center_name ilike ?
+                        or coalesce(c.contact_name, '') ilike ?
+                        or coalesce(c.contact_phone, '') ilike ?
+                        or coalesce(c.address, '') ilike ?
+                        or coalesce(c.remark, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.enabled() != null) {
+            filters.append(" and c.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
     private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -3823,6 +3951,22 @@ public class OrderRepository {
                 rs.getString("config_name"),
                 rs.getString("config_value"),
                 rs.getString("value_type"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminDecoctCenterRecord mapAdminDecoctCenterRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminDecoctCenterRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("center_code"),
+                rs.getString("center_name"),
+                rs.getString("contact_name"),
+                rs.getString("contact_phone"),
+                rs.getString("address"),
                 rs.getBoolean("enabled"),
                 rs.getString("remark"),
                 instant(rs, "created_at"),

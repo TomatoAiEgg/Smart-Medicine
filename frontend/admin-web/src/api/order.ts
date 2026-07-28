@@ -24,6 +24,10 @@ import type {
   AdminSystemConfigPage,
   AdminSystemConfigQueryParams,
   AdminSystemConfigRecord,
+  AdminDecoctCenterCommand,
+  AdminDecoctCenterPage,
+  AdminDecoctCenterQueryParams,
+  AdminDecoctCenterRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -393,6 +397,26 @@ export function createAdminSystemConfig(command: AdminSystemConfigCommand) {
 
 export function updateAdminSystemConfig(configId: string, command: AdminSystemConfigCommand) {
   return request<AdminSystemConfigRecord>(`/order-api/api/admin/system-configs/${encodeURIComponent(configId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminDecoctCenters(params: AdminDecoctCenterQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/decoct-centers?${query}` : '/order-api/api/admin/decoct-centers';
+  return request<AdminDecoctCenterPage>(url);
+}
+
+export function createAdminDecoctCenter(command: AdminDecoctCenterCommand) {
+  return request<AdminDecoctCenterRecord>('/order-api/api/admin/decoct-centers', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminDecoctCenter(centerId: string, command: AdminDecoctCenterCommand) {
+  return request<AdminDecoctCenterRecord>(`/order-api/api/admin/decoct-centers/${encodeURIComponent(centerId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

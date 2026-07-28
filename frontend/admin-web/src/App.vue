@@ -61,6 +61,7 @@ import PrescriptionReconciliation from './features/reports/PrescriptionReconcili
 import RecheckPerformance from './features/reports/RecheckPerformance.vue';
 import RecheckPerformanceDetails from './features/reports/RecheckPerformanceDetails.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
+import DecoctCenterConfig from './features/settings/DecoctCenterConfig.vue';
 import DictList from './features/settings/DictList.vue';
 import OperatorManage from './features/settings/OperatorManage.vue';
 import SystemConfig from './features/settings/SystemConfig.vue';
@@ -97,6 +98,7 @@ const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceD
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const dictListRef = ref<InstanceType<typeof DictList> | null>(null);
 const systemConfigRef = ref<InstanceType<typeof SystemConfig> | null>(null);
+const decoctCenterRef = ref<InstanceType<typeof DecoctCenterConfig> | null>(null);
 const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
 const institutionAppsRef = ref<InstanceType<typeof InstitutionApps> | null>(null);
@@ -146,6 +148,7 @@ const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const dictListCount = ref(0);
 const systemConfigCount = ref(0);
+const decoctCenterCount = ref(0);
 const operatorManageCount = ref(0);
 const institutionListCount = ref(0);
 const institutionAppsCount = ref(0);
@@ -167,6 +170,7 @@ const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const dictListActivationKey = ref(0);
 const systemConfigActivationKey = ref(0);
+const decoctCenterActivationKey = ref(0);
 const operatorManageActivationKey = ref(0);
 const institutionListActivationKey = ref(0);
 const institutionAppsActivationKey = ref(0);
@@ -294,6 +298,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   settingDicts: dictListCount.value,
   settingSystemConfigs: systemConfigCount.value,
+  settingDecoctCenters: decoctCenterCount.value,
   orderInterceptRules: orderInterceptRuleCount.value,
   maintenanceProblemRegistrations: problemRegistrationCount.value,
   reports: reportTotalOrders.value,
@@ -340,6 +345,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'settingDicts') dictListActivationKey.value += 1;
   if (componentKey === 'settingSystemConfigs') systemConfigActivationKey.value += 1;
+  if (componentKey === 'settingDecoctCenters') decoctCenterActivationKey.value += 1;
   if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
   if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
   if (componentKey === 'institutionApps') institutionAppsActivationKey.value += 1;
@@ -455,6 +461,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'settingSystemConfigs') {
     await systemConfigRef.value?.refreshSystemConfigs();
+    return;
+  }
+  if (componentKey === 'settingDecoctCenters') {
+    await decoctCenterRef.value?.refreshDecoctCenters();
     return;
   }
   if (componentKey === 'operatorManage') {
@@ -767,6 +777,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'settingSystemConfigs'"
       :activation-key="systemConfigActivationKey"
       @count-changed="systemConfigCount = $event"
+      @notice="showNotice"
+    />
+
+    <DecoctCenterConfig
+      v-show="currentComponentKey === 'settingDecoctCenters'"
+      ref="decoctCenterRef"
+      :active="currentComponentKey === 'settingDecoctCenters'"
+      :activation-key="decoctCenterActivationKey"
+      @count-changed="decoctCenterCount = $event"
       @notice="showNotice"
     />
 

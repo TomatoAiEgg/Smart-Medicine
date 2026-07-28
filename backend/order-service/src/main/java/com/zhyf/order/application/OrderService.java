@@ -311,6 +311,53 @@ public class OrderService {
         );
     }
 
+    public AdminDecoctCenterPage listAdminDecoctCenters(AdminDecoctCenterQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminDecoctCenters(new AdminDecoctCenterQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminDecoctCenterRecord createAdminDecoctCenter(AdminDecoctCenterCommand command) {
+        String centerCode = requireText(command.centerCode(), "DECOCT_CENTER_CODE_REQUIRED", "Center code is required");
+        String centerName = requireText(command.centerName(), "DECOCT_CENTER_NAME_REQUIRED", "Center name is required");
+        if (orderRepository.findAdminDecoctCenterByCode(DEFAULT_ADMIN_TENANT_ID, centerCode).isPresent()) {
+            throw new BusinessException("DECOCT_CENTER_CODE_DUPLICATED", "Center code already exists");
+        }
+        return orderRepository.insertAdminDecoctCenter(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                centerCode,
+                centerName,
+                cleanText(command.contactName()),
+                cleanText(command.contactPhone()),
+                cleanText(command.address()),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminDecoctCenterRecord updateAdminDecoctCenter(UUID centerId, AdminDecoctCenterCommand command) {
+        AdminDecoctCenterRecord existing = orderRepository.findAdminDecoctCenterById(centerId)
+                .orElseThrow(() -> new BusinessException("DECOCT_CENTER_NOT_FOUND", "Center not found"));
+        String centerName = requireText(command.centerName(), "DECOCT_CENTER_NAME_REQUIRED", "Center name is required");
+        return orderRepository.updateAdminDecoctCenter(
+                existing.id(),
+                centerName,
+                cleanText(command.contactName()),
+                cleanText(command.contactPhone()),
+                cleanText(command.address()),
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

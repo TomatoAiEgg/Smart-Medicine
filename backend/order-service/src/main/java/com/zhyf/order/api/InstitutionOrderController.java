@@ -23,6 +23,10 @@ import com.zhyf.order.application.AdminDictTypeCommand;
 import com.zhyf.order.application.AdminDictTypePage;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDictTypeRecord;
+import com.zhyf.order.application.AdminDecoctCenterCommand;
+import com.zhyf.order.application.AdminDecoctCenterPage;
+import com.zhyf.order.application.AdminDecoctCenterQuery;
+import com.zhyf.order.application.AdminDecoctCenterRecord;
 import com.zhyf.order.application.AdminSystemConfigCommand;
 import com.zhyf.order.application.AdminSystemConfigPage;
 import com.zhyf.order.application.AdminSystemConfigQuery;
@@ -578,6 +582,34 @@ public class InstitutionOrderController {
             @RequestBody AdminSystemConfigCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminSystemConfig(configId, command));
+    }
+
+    @GetMapping("/admin/decoct-centers")
+    public ApiResponse<AdminDecoctCenterPage> listDecoctCenters(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminDecoctCenters(new AdminDecoctCenterQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/decoct-centers")
+    public ApiResponse<AdminDecoctCenterRecord> createDecoctCenter(@RequestBody AdminDecoctCenterCommand command) {
+        return ApiResponse.ok(orderService.createAdminDecoctCenter(command));
+    }
+
+    @PatchMapping("/admin/decoct-centers/{centerId}")
+    public ApiResponse<AdminDecoctCenterRecord> updateDecoctCenter(
+            @PathVariable UUID centerId,
+            @RequestBody AdminDecoctCenterCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminDecoctCenter(centerId, command));
     }
 
     @GetMapping("/admin/institutions")

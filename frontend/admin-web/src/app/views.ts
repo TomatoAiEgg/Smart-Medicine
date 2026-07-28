@@ -49,6 +49,7 @@ export type ImplementedViewKey =
   | 'operatorManage'
   | 'settingDicts'
   | 'settingSystemConfigs'
+  | 'settingDecoctCenters'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -205,8 +206,10 @@ export const menuItems = [
     path: '/settings/decoct-centers',
     legacyRoute: 'systemSetting/listDecoctCenter.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '煎煮中心基础配置维护',
+    componentKey: 'settingDecoctCenters',
+    showCount: true,
     plannedComponent: 'features/settings/DecoctCenterConfig.vue',
     coreActions: ['列表', '新增', '编辑', '删除'],
     apiDependencies: ['煎煮中心 CRUD'],
