@@ -47,6 +47,7 @@ import PrescriptionReconciliation from './features/reports/PrescriptionReconcili
 import RecheckPerformance from './features/reports/RecheckPerformance.vue';
 import RecheckPerformanceDetails from './features/reports/RecheckPerformanceDetails.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
+import OperatorManage from './features/settings/OperatorManage.vue';
 import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
@@ -78,6 +79,7 @@ const prescriptionHerbDetailsRef = ref<InstanceType<typeof PrescriptionHerbDetai
 const recheckPerformanceRef = ref<InstanceType<typeof RecheckPerformance> | null>(null);
 const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceDetails> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
+const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
@@ -110,6 +112,7 @@ const prescriptionHerbDetailsCount = ref(0);
 const recheckPerformanceCount = ref(0);
 const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
+const operatorManageCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
 const auditPerformanceDetailsActivationKey = ref(0);
@@ -123,6 +126,7 @@ const prescriptionHerbDetailsActivationKey = ref(0);
 const recheckPerformanceActivationKey = ref(0);
 const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
+const operatorManageActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
 const logisPrintCount = ref(0);
@@ -199,6 +203,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
+  settingOperators: operatorManageCount.value,
   labelPrints: labelPrintCount.value,
   reportAuditPerformance: auditPerformanceCount.value,
   reportAuditPerformanceDetails: auditPerformanceDetailsCount.value,
@@ -255,6 +260,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'recheckPerformance') recheckPerformanceActivationKey.value += 1;
   if (componentKey === 'recheckPerformanceDetails') recheckPerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
+  if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
@@ -347,6 +353,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'institutionPrescriptionCounts') {
     await institutionPrescriptionCountsRef.value?.refreshInstitutionPrescriptionCounts();
+    return;
+  }
+  if (componentKey === 'operatorManage') {
+    await operatorManageRef.value?.refreshOperators();
     return;
   }
   if (componentKey === 'prescriptionReconciliation') {
@@ -572,6 +582,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'institutionPrescriptionCounts'"
       :activation-key="institutionPrescriptionCountsActivationKey"
       @count-changed="institutionPrescriptionCountsCount = $event"
+      @notice="showNotice"
+    />
+
+    <OperatorManage
+      v-show="currentComponentKey === 'operatorManage'"
+      ref="operatorManageRef"
+      :active="currentComponentKey === 'operatorManage'"
+      :activation-key="operatorManageActivationKey"
+      @count-changed="operatorManageCount = $event"
       @notice="showNotice"
     />
 

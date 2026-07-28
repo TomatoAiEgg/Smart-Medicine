@@ -33,6 +33,7 @@ export type ImplementedViewKey =
   | 'integration'
   | 'observability'
   | 'ops'
+  | 'operatorManage'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -197,8 +198,10 @@ export const menuItems = [
     path: '/settings/operators',
     legacyRoute: 'systemSetting/listOperUser.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '生产工号和作业人员维护',
+    componentKey: 'operatorManage',
+    showCount: true,
     plannedComponent: 'features/settings/OperatorManage.vue',
     coreActions: ['工号列表', '新增', '编辑', '启停'],
     apiDependencies: ['操作员工号 CRUD', '作业类型'],

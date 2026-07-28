@@ -18,6 +18,10 @@ import com.zhyf.order.application.AdminOrderReceiptResult;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderSearchQuery;
+import com.zhyf.order.application.AdminOperatorCommand;
+import com.zhyf.order.application.AdminOperatorPage;
+import com.zhyf.order.application.AdminOperatorQuery;
+import com.zhyf.order.application.AdminOperatorRecord;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
 import com.zhyf.order.application.AdminManualProcessCommand;
@@ -372,6 +376,34 @@ public class InstitutionOrderController {
     @GetMapping("/admin/orders/{orderNo}/detail")
     public ApiResponse<AdminOrderDetail> getOrderDetail(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.getAdminOrderDetail(orderNo));
+    }
+
+    @GetMapping("/admin/operators")
+    public ApiResponse<AdminOperatorPage> listOperators(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOperators(new AdminOperatorQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/operators")
+    public ApiResponse<AdminOperatorRecord> createOperator(@RequestBody AdminOperatorCommand command) {
+        return ApiResponse.ok(orderService.createAdminOperator(command));
+    }
+
+    @PatchMapping("/admin/operators/{operatorId}")
+    public ApiResponse<AdminOperatorRecord> updateOperator(
+            @PathVariable UUID operatorId,
+            @RequestBody AdminOperatorCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminOperator(operatorId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

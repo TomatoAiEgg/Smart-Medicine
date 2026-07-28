@@ -70,6 +70,7 @@ public class OrderService {
     private static final String MANUAL_PROCESS_SOURCE = "admin-manual-process";
     private static final String MANUAL_PROCESS_LOGISTICS_COMPANY = "默认物流";
     private static final String MANUAL_PROCESS_DEVICE = "MANUAL-PROCESS";
+    private static final UUID DEFAULT_ADMIN_TENANT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final OrderRepository orderRepository;
     private final ObjectMapper objectMapper;
@@ -129,6 +130,47 @@ public class OrderService {
         }
         return orderRepository.findAdminOrderDetailByOrderNo(orderNo.trim())
                 .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "订单不存在"));
+    }
+
+    public AdminOperatorPage listAdminOperators(AdminOperatorQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminOperators(new AdminOperatorQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminOperatorRecord createAdminOperator(AdminOperatorCommand command) {
+        String username = requireText(command.username(), "OPERATOR_USERNAME_REQUIRED", "Operator username is required");
+        String displayName = requireText(command.displayName(), "OPERATOR_DISPLAY_NAME_REQUIRED", "Operator display name is required");
+        if (orderRepository.findAdminOperatorByUsername(DEFAULT_ADMIN_TENANT_ID, username).isPresent()) {
+            throw new BusinessException("OPERATOR_USERNAME_DUPLICATED", "Operator username already exists");
+        }
+        return orderRepository.insertAdminOperator(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                username,
+                displayName,
+                cleanText(command.roleCode()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminOperatorRecord updateAdminOperator(UUID operatorId, AdminOperatorCommand command) {
+        AdminOperatorRecord existing = orderRepository.findAdminOperatorById(operatorId)
+                .orElseThrow(() -> new BusinessException("OPERATOR_NOT_FOUND", "Operator not found"));
+        String displayName = requireText(command.displayName(), "OPERATOR_DISPLAY_NAME_REQUIRED", "Operator display name is required");
+        return orderRepository.updateAdminOperator(
+                existing.id(),
+                displayName,
+                cleanText(command.roleCode()),
+                command.enabled() == null || command.enabled()
+        );
     }
 
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {

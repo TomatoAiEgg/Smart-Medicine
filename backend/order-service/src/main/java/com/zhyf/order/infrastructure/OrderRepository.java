@@ -11,6 +11,9 @@ import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderWarehouseItem;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
+import com.zhyf.order.application.AdminOperatorPage;
+import com.zhyf.order.application.AdminOperatorQuery;
+import com.zhyf.order.application.AdminOperatorRecord;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminPrescriptionReprintItem;
@@ -285,6 +288,88 @@ public class OrderRepository {
                 order by sort_no asc, created_at asc
                 """;
         return jdbcTemplate.query(sql, this::mapAdminOrderDetailDrugDetail, prescriptionId);
+    }
+
+    public AdminOperatorPage searchAdminOperators(AdminOperatorQuery query) {
+        QueryParts filters = adminOperatorFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from operator_user u
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, username, display_name, role_code, enabled, created_at, updated_at
+                from operator_user u
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, username asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminOperatorPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOperatorRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminOperatorRecord> findAdminOperatorById(UUID id) {
+        String sql = """
+                select id, tenant_id, username, display_name, role_code, enabled, created_at, updated_at
+                from operator_user
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOperatorRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminOperatorRecord> findAdminOperatorByUsername(UUID tenantId, String username) {
+        String sql = """
+                select id, tenant_id, username, display_name, role_code, enabled, created_at, updated_at
+                from operator_user
+                where tenant_id = ? and username = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOperatorRecord, tenantId, username).stream().findFirst();
+    }
+
+    public AdminOperatorRecord insertAdminOperator(
+            UUID id,
+            UUID tenantId,
+            String username,
+            String displayName,
+            String roleCode,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into operator_user (id, tenant_id, username, display_name, role_code, enabled)
+                values (?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, username, displayName, roleCode, enabled);
+        return findAdminOperatorById(id).orElseThrow();
+    }
+
+    public AdminOperatorRecord updateAdminOperator(
+            UUID id,
+            String displayName,
+            String roleCode,
+            boolean enabled
+    ) {
+        String sql = """
+                update operator_user
+                set display_name = ?,
+                    role_code = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, displayName, roleCode, enabled, id);
+        return findAdminOperatorById(id).orElseThrow();
     }
 
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
@@ -721,6 +806,29 @@ public class OrderRepository {
         return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("order_no"), prescriptionNo)
                 .stream()
                 .findFirst();
+    }
+
+    private QueryParts adminOperatorFilters(AdminOperatorQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        u.username ilike ?
+                        or u.display_name ilike ?
+                        or u.role_code ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.enabled() != null) {
+            filters.append(" and u.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
     }
 
     private QueryParts adminOrderFilters(AdminOrderSearchQuery query) {
@@ -1825,6 +1933,19 @@ public class OrderRepository {
                 rs.getString("logistics_no"),
                 rs.getString("logistics_status"),
                 instant(rs, "latest_trace_time"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOperatorRecord mapAdminOperatorRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOperatorRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("username"),
+                rs.getString("display_name"),
+                rs.getString("role_code"),
+                rs.getBoolean("enabled"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

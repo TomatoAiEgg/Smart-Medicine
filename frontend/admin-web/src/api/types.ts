@@ -144,6 +144,38 @@ export interface AdminBatchOrderReceiptResult {
   items: AdminOrderReceiptResult[];
 }
 
+export interface AdminOperatorQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOperatorRecord {
+  id: string;
+  tenantId: string;
+  username: string;
+  displayName: string;
+  roleCode: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOperatorPage {
+  records: AdminOperatorRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminOperatorCommand {
+  username?: string;
+  displayName: string;
+  roleCode?: string;
+  enabled?: boolean;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

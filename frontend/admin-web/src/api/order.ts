@@ -18,6 +18,10 @@ import type {
   AdminOrderDetailPrescription,
   AdminOrderPage,
   AdminOrderQueryParams,
+  AdminOperatorCommand,
+  AdminOperatorPage,
+  AdminOperatorQueryParams,
+  AdminOperatorRecord,
   AdminOrderReceiptCommand,
   AdminOrderReceiptPage,
   AdminOrderReceiptQueryParams,
@@ -52,6 +56,26 @@ export function listAdminOrderReceipts(params: AdminOrderReceiptQueryParams = {}
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/order-receipts?${query}` : '/order-api/api/admin/order-receipts';
   return request<AdminOrderReceiptPage>(url);
+}
+
+export function listAdminOperators(params: AdminOperatorQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/operators?${query}` : '/order-api/api/admin/operators';
+  return request<AdminOperatorPage>(url);
+}
+
+export function createAdminOperator(command: AdminOperatorCommand) {
+  return request<AdminOperatorRecord>('/order-api/api/admin/operators', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminOperator(operatorId: string, command: AdminOperatorCommand) {
+  return request<AdminOperatorRecord>(`/order-api/api/admin/operators/${encodeURIComponent(operatorId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
 }
 
 export function listAdminPrescriptionReprints(params: AdminPrescriptionReprintQueryParams = {}) {
