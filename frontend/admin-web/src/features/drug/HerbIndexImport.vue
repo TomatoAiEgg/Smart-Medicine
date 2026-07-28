@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
-import { createAdminHerbIndex, listAdminHerbs, listAdminInstitutions } from '../../api/order';
-import type { AdminHerbRecord, AdminInstitutionRecord } from '../../api/types';
+import {
+  createAdminHerbIndex,
+  listAdminHerbIndexes,
+  listAdminHerbs,
+  listAdminInstitutions,
+  updateAdminHerbIndex,
+} from '../../api/order';
+import type { AdminHerbIndexCommand, AdminHerbRecord, AdminInstitutionRecord } from '../../api/types';
 import { formatNumber } from '../../domain/formatters';
 import { csvCell, downloadCsv, parseCsv, parseEnabled, type CsvRow } from './csvImport';
 
@@ -41,6 +47,7 @@ const errorLine = ref('');
 const loaded = ref(false);
 const optionPageSize = 100;
 const maxOptionPages = 50;
+const overwriteExisting = ref(false);
 
 const totalRows = computed(() => rows.value.length);
 const successCount = computed(() => results.value.filter((row) => row.status === 'SUCCESS').length);
@@ -125,6 +132,23 @@ async function listAllEnabledHerbs() {
   return records;
 }
 
+async function findExistingIndex(institutionId: string, externalHerbCode: string) {
+  const page = await listAdminHerbIndexes({ institutionId, keyword: externalHerbCode, page: 1, pageSize: 100 });
+  return page.records.find((row) => row.institutionId === institutionId && row.externalHerbCode === externalHerbCode) ?? null;
+}
+
+async function saveHerbIndex(command: AdminHerbIndexCommand) {
+  if (overwriteExisting.value && command.institutionId && command.externalHerbCode) {
+    const existing = await findExistingIndex(command.institutionId, command.externalHerbCode);
+    if (existing) {
+      await updateAdminHerbIndex(existing.id, command);
+      return '覆盖成功';
+    }
+  }
+  await createAdminHerbIndex(command);
+  return '导入成功';
+}
+
 async function refreshOptions() {
   loadingOptions.value = true;
   errorLine.value = '';
@@ -179,7 +203,7 @@ async function importIndexes() {
     try {
       const institution = findInstitution(row);
       const herb = findHerb(row);
-      await createAdminHerbIndex({
+      const command = {
         institutionId: institution.id,
         externalHerbCode: requiredCell(row, ['externalHerbCode', '机构药品编码', '院内药品编码'], '机构药品编码'),
         externalHerbName: requiredCell(row, ['externalHerbName', '机构药品名称', '院内药品名称'], '机构药品名称'),
@@ -187,7 +211,8 @@ async function importIndexes() {
         matchType: csvCell(row, ['matchType', '匹配类型']) || 'IMPORT',
         enabled: parseEnabled(csvCell(row, ['enabled', '状态', '启用'])),
         remark: csvCell(row, ['remark', '备注']),
-      });
+      };
+      const message = await saveHerbIndex(command);
       results.value.push({
         rowNumber: row.rowNumber,
         institution: institutionLabel || institution.institutionName,
@@ -195,7 +220,7 @@ async function importIndexes() {
         externalHerbName,
         herb: herbLabel || herb.herbName,
         status: 'SUCCESS',
-        message: '导入成功',
+        message,
       });
     } catch (error) {
       results.value.push({
@@ -282,6 +307,12 @@ defineExpose({
         <button class="legacy-btn" type="button" @click="downloadTemplate">下载模板</button>
       </li>
       <li>
+        <label class="form-check import-check">
+          <input v-model="overwriteExisting" type="checkbox" />
+          覆盖已存在
+        </label>
+      </li>
+      <li>
         <button class="legacy-btn" type="button" :disabled="failedResults.length === 0 || importing" @click="downloadFailures">
           下载失败明细
         </button>
@@ -358,6 +389,12 @@ defineExpose({
 
 .herb-index-import-stats {
   margin-bottom: 10px;
+}
+
+.import-check {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
 }
 
 .herb-index-import-table {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
-import { createAdminHerb } from '../../api/order';
+import { createAdminHerb, listAdminHerbs, updateAdminHerb } from '../../api/order';
+import type { AdminHerbCommand } from '../../api/types';
 import { formatNumber } from '../../domain/formatters';
 import { csvCell, downloadCsv, parseCsv, parseEnabled, type CsvRow } from './csvImport';
 
@@ -33,6 +34,7 @@ const results = ref<ImportResult[]>([]);
 const importing = ref(false);
 const errorLine = ref('');
 const loaded = ref(false);
+const overwriteExisting = ref(false);
 
 const totalRows = computed(() => rows.value.length);
 const successCount = computed(() => results.value.filter((row) => row.status === 'SUCCESS').length);
@@ -62,6 +64,23 @@ function optionalNumber(value: string) {
     throw new Error('零售价必须是数字');
   }
   return parsed;
+}
+
+async function findExistingHerb(herbCode: string) {
+  const page = await listAdminHerbs({ keyword: herbCode, page: 1, pageSize: 100 });
+  return page.records.find((row) => row.herbCode === herbCode) ?? null;
+}
+
+async function saveHerb(command: AdminHerbCommand) {
+  if (overwriteExisting.value && command.herbCode) {
+    const existing = await findExistingHerb(command.herbCode);
+    if (existing) {
+      await updateAdminHerb(existing.id, command);
+      return '覆盖成功';
+    }
+  }
+  await createAdminHerb(command);
+  return '导入成功';
 }
 
 async function handleFileChange(event: Event) {
@@ -104,13 +123,13 @@ async function importHerbs() {
         enabled: parseEnabled(csvCell(row, ['enabled', '状态', '启用'])),
         remark: csvCell(row, ['remark', '备注']),
       };
-      await createAdminHerb(command);
+      const message = await saveHerb(command);
       results.value.push({
         rowNumber: row.rowNumber,
         herbCode,
         herbName,
         status: 'SUCCESS',
-        message: '导入成功',
+        message,
       });
     } catch (error) {
       results.value.push({
@@ -192,6 +211,12 @@ defineExpose({
         <button class="legacy-btn" type="button" @click="downloadTemplate">下载模板</button>
       </li>
       <li>
+        <label class="form-check import-check">
+          <input v-model="overwriteExisting" type="checkbox" />
+          覆盖已存在
+        </label>
+      </li>
+      <li>
         <button class="legacy-btn" type="button" :disabled="failedResults.length === 0 || importing" @click="downloadFailures">
           下载失败明细
         </button>
@@ -263,6 +288,12 @@ defineExpose({
 
 .herb-import-stats {
   margin-bottom: 10px;
+}
+
+.import-check {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
 }
 
 .herb-import-table {
