@@ -267,6 +267,30 @@ public class ReportController {
                 .body(content);
     }
 
+    @GetMapping("/logistics-performance-details")
+    public ApiResponse<List<ReportRecords.LogisticsPerformanceDetail>> logisticsPerformanceDetails(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.logisticsPerformanceDetails(from, to));
+    }
+
+    @GetMapping("/logistics-performance-details.csv")
+    public ResponseEntity<byte[]> logisticsPerformanceDetailsCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportLogisticsPerformanceDetailsCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("logistics-performance-details.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
+
     @GetMapping("/audit-performance-details")
     public ApiResponse<List<ReportRecords.AuditPerformanceDetail>> auditPerformanceDetails(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,

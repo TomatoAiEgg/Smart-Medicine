@@ -201,6 +201,42 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapLogisticsPerformance, query.args());
     }
 
+    public List<ReportRecords.LogisticsPerformanceDetail> loadLogisticsPerformanceDetails(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select coalesce(nullif(s.logistics_company, ''), '未指定') as logistics_company,
+                       s.logistics_no,
+                       s.logistics_status,
+                       o.order_no,
+                       o.external_order_no,
+                       i.institution_name,
+                       o.patient_name,
+                       order_prescriptions.prescription_count,
+                       order_prescriptions.dose_count,
+                       s.pkg_weight as package_weight,
+                       coalesce(s.pkg_num, 0) as package_count,
+                       s.package_time,
+                       s.outbound_time,
+                       s.sign_time
+                from shipment s
+                join order_main o on o.id = s.order_id
+                join institution i on i.id = o.institution_id
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = s.order_id
+                ) order_prescriptions on true
+                where 1 = 1
+                """);
+        query.addRangeFilter("coalesce(s.outbound_time, s.package_time, s.created_at)", from, to);
+        query.append("""
+                 order by coalesce(s.outbound_time, s.package_time, s.created_at) desc,
+                          logistics_company asc,
+                          s.logistics_no asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapLogisticsPerformanceDetail, query.args());
+    }
+
     public List<ReportRecords.HerbDosage> loadHerbDosage(Instant from, Instant to) {
         QueryParts query = new QueryParts("""
                 select coalesce(nullif(d.platform_drug_code, ''), nullif(d.drug_code, ''), '-') as herb_code,
@@ -588,6 +624,26 @@ public class ReportQueryRepository {
                 instant(rs, "last_outbound_at"),
                 instant(rs, "first_signed_at"),
                 instant(rs, "last_signed_at")
+        );
+    }
+
+    private ReportRecords.LogisticsPerformanceDetail mapLogisticsPerformanceDetail(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.LogisticsPerformanceDetail(
+                rs.getString("logistics_company"),
+                rs.getString("logistics_no"),
+                rs.getString("logistics_status"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getBigDecimal("package_weight"),
+                rs.getLong("package_count"),
+                instant(rs, "package_time"),
+                instant(rs, "outbound_time"),
+                instant(rs, "sign_time")
         );
     }
 

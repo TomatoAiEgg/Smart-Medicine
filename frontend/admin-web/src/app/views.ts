@@ -38,6 +38,7 @@ export type ImplementedViewKey =
   | 'herbDosage'
   | 'institutionHerbReconciliation'
   | 'logisticsPerformance'
+  | 'logisticsPerformanceDetails'
   | 'prescriptionHerbDetails'
   | 'recheckPerformance'
   | 'recheckPerformanceDetails'
@@ -1006,11 +1007,13 @@ export const menuItems = [
     path: '/reports/logistics-performance-details',
     legacyRoute: 'exportQuery/packagePerformanceDetail.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '物流员绩效明细',
-    plannedComponent: 'features/report/LogisticsPerformanceDetail.vue',
-    coreActions: ['明细', '导出'],
-    apiDependencies: ['物流绩效明细', '物流人员筛选', '异步导出任务'],
+    componentKey: 'logisticsPerformanceDetails',
+    showCount: true,
+    plannedComponent: 'features/reports/LogisticsPerformanceDetails.vue',
+    coreActions: ['明细查询', '汇总小计', 'CSV 导出'],
+    apiDependencies: ['物流绩效明细', '物流绩效明细 CSV 导出'],
   },
   {
     key: 'reportInstitutionHerbReconciliation',

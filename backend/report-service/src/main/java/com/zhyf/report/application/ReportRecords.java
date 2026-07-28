@@ -106,6 +106,24 @@ public final class ReportRecords {
     ) {
     }
 
+    public record LogisticsPerformanceDetail(
+            String logisticsCompany,
+            String logisticsNo,
+            String logisticsStatus,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String patientName,
+            long prescriptionCount,
+            long doseCount,
+            BigDecimal packageWeight,
+            long packageCount,
+            Instant packageTime,
+            Instant outboundTime,
+            Instant signTime
+    ) {
+    }
+
     public record HerbDosage(
             String herbCode,
             String herbName,

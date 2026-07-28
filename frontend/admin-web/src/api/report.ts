@@ -9,6 +9,7 @@ import type {
   HerbDosageRecord,
   InstitutionHerbReconciliationRecord,
   InstitutionPrescriptionCountRecord,
+  LogisticsPerformanceDetailRecord,
   LogisticsPerformanceRecord,
   PrescriptionHerbDetailRecord,
   RecheckPerformanceDetailRecord,
@@ -187,6 +188,22 @@ export function listLogisticsPerformance(params: ReportTimeRangeQuery = {}) {
 export async function downloadLogisticsPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/logistics-performance.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listLogisticsPerformanceDetails(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<LogisticsPerformanceDetailRecord[]>(
+    `/report-api/api/admin/reports/logistics-performance-details${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadLogisticsPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/logistics-performance-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }

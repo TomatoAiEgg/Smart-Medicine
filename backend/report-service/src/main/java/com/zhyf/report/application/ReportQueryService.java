@@ -203,6 +203,45 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.LogisticsPerformanceDetail> logisticsPerformanceDetails(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadLogisticsPerformanceDetails(from, to);
+    }
+
+    public String exportLogisticsPerformanceDetailsCsv(Instant from, Instant to) {
+        List<ReportRecords.LogisticsPerformanceDetail> rows = logisticsPerformanceDetails(from, to);
+        StringBuilder csv = new StringBuilder("logisticsCompany,logisticsNo,logisticsStatus,orderNo,externalOrderNo,institutionName,patientName,prescriptionCount,doseCount,packageWeight,packageCount,packageTime,outboundTime,signTime\n");
+        rows.forEach(row -> csv.append(escape(row.logisticsCompany()))
+                .append(',')
+                .append(escape(row.logisticsNo()))
+                .append(',')
+                .append(escape(row.logisticsStatus()))
+                .append(',')
+                .append(escape(row.orderNo()))
+                .append(',')
+                .append(escape(row.externalOrderNo()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(escape(row.patientName()))
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.packageWeight() == null ? "" : row.packageWeight())
+                .append(',')
+                .append(row.packageCount())
+                .append(',')
+                .append(row.packageTime() == null ? "" : row.packageTime())
+                .append(',')
+                .append(row.outboundTime() == null ? "" : row.outboundTime())
+                .append(',')
+                .append(row.signTime() == null ? "" : row.signTime())
+                .append('\n'));
+        return csv.toString();
+    }
+
     public List<ReportRecords.HerbDosage> herbDosage(Instant from, Instant to) {
         validateTimeRange(from, to);
         return repository.loadHerbDosage(from, to);

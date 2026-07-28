@@ -2109,6 +2109,23 @@ export interface LogisticsPerformanceRecord {
   lastSignedAt: string | null;
 }
 
+export interface LogisticsPerformanceDetailRecord {
+  logisticsCompany: string;
+  logisticsNo: string | null;
+  logisticsStatus: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string;
+  patientName: string | null;
+  prescriptionCount: number;
+  doseCount: number;
+  packageWeight: number | string | null;
+  packageCount: number;
+  packageTime: string | null;
+  outboundTime: string | null;
+  signTime: string | null;
+}
+
 export interface DecoctionPerformanceDetailRecord {
   operator: string;
   orderNo: string;
