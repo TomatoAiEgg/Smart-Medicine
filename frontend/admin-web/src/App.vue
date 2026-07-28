@@ -30,6 +30,7 @@ import OrderMergeList from './features/logistics/OrderMergeList.vue';
 import UnreceivedFollowup from './features/logistics/UnreceivedFollowup.vue';
 import AddressModify from './features/orders/AddressModify.vue';
 import ManualProcess from './features/orders/ManualProcess.vue';
+import OrderInterceptRule from './features/orders/OrderInterceptRule.vue';
 import OrderCenter from './features/orders/OrderCenter.vue';
 import OrderWarehouse from './features/orders/OrderWarehouse.vue';
 import OrderManageAction from './features/orders/OrderManageAction.vue';
@@ -112,6 +113,7 @@ const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
 const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
 const prescriptionReprintRef = ref<InstanceType<typeof PrescriptionReprint> | null>(null);
+const orderInterceptRuleRef = ref<InstanceType<typeof OrderInterceptRule> | null>(null);
 const manualProcessRef = ref<InstanceType<typeof ManualProcess> | null>(null);
 const orderWarehouseRef = ref<InstanceType<typeof OrderWarehouse> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
@@ -165,6 +167,7 @@ const unreceivedFollowupCount = ref(0);
 const exceptionLogCount = ref(0);
 const labelPrintCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
+const orderInterceptRuleCount = ref(0);
 const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
@@ -185,6 +188,7 @@ const addressModifyActivationKey = ref(0);
 const prescriptionModifyActivationKey = ref(0);
 const orderManageActionActivationKey = ref(0);
 const prescriptionReprintActivationKey = ref(0);
+const orderInterceptRuleActivationKey = ref(0);
 const manualProcessActivationKey = ref(0);
 const orderWarehouseActivationKey = ref(0);
 const orderReceiptActivationKey = ref(0);
@@ -258,6 +262,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportRecheckPerformanceDetails: recheckPerformanceDetailsCount.value,
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
+  orderInterceptRules: orderInterceptRuleCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
   observability: observabilityCount.value,
@@ -324,6 +329,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
   if (componentKey === 'orderManageAction') orderManageActionActivationKey.value += 1;
   if (componentKey === 'prescriptionReprint') prescriptionReprintActivationKey.value += 1;
+  if (componentKey === 'orderInterceptRules') orderInterceptRuleActivationKey.value += 1;
   if (componentKey === 'manualProcess') manualProcessActivationKey.value += 1;
   if (componentKey === 'orderWarehouse') orderWarehouseActivationKey.value += 1;
   if (componentKey === 'orderReceipt') orderReceiptActivationKey.value += 1;
@@ -485,6 +491,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'prescriptionReprint') {
     await prescriptionReprintRef.value?.refreshPrescriptionReprints();
+    return;
+  }
+  if (componentKey === 'orderInterceptRules') {
+    await orderInterceptRuleRef.value?.refreshOrderInterceptRules();
     return;
   }
   if (componentKey === 'manualProcess') {
@@ -870,6 +880,15 @@ function closeTab(view: ViewKey) {
       ref="prescriptionReprintRef"
       active
       :activation-key="prescriptionReprintActivationKey"
+      @notice="showNotice"
+    />
+
+    <OrderInterceptRule
+      v-else-if="currentComponentKey === 'orderInterceptRules'"
+      ref="orderInterceptRuleRef"
+      active
+      :activation-key="orderInterceptRuleActivationKey"
+      @count-changed="orderInterceptRuleCount = $event"
       @notice="showNotice"
     />
 

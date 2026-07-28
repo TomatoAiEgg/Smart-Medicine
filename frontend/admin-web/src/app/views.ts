@@ -48,6 +48,7 @@ export type ImplementedViewKey =
   | 'prescriptionReprint'
   | 'manualProcess'
   | 'orderWarehouse'
+  | 'orderInterceptRules'
   | 'orderReceipt';
 
 export interface AppRouteItem {
@@ -558,8 +559,10 @@ export const menuItems = [
     path: '/orders/intercept-rules',
     legacyRoute: 'order/listFillpushPrescriptionsIntercept.html',
     priority: 'P2',
-    implemented: false,
+    implemented: true,
     subtitle: '推送和流转拦截规则配置',
+    componentKey: 'orderInterceptRules',
+    showCount: true,
     plannedComponent: 'features/orders/OrderInterceptRule.vue',
     coreActions: ['拦截规则新增', '编辑', '删除'],
     apiDependencies: ['拦截规则 CRUD', '操作审计'],

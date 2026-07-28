@@ -38,6 +38,10 @@ import com.zhyf.order.application.AdminOrderCancelResult;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderInitializeCommand;
 import com.zhyf.order.application.AdminOrderInitializeResult;
+import com.zhyf.order.application.AdminOrderInterceptRuleCommand;
+import com.zhyf.order.application.AdminOrderInterceptRulePage;
+import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
+import com.zhyf.order.application.AdminOrderInterceptRuleRecord;
 import com.zhyf.order.application.AdminOrderMergeCommand;
 import com.zhyf.order.application.AdminOrderMergePage;
 import com.zhyf.order.application.AdminOrderMergeQuery;
@@ -690,6 +694,38 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderMergeCommand command
     ) {
         return ApiResponse.ok(orderService.cancelAdminOrderMerge(mergeId, command));
+    }
+
+    @GetMapping("/admin/order-intercept-rules")
+    public ApiResponse<AdminOrderInterceptRulePage> listOrderInterceptRules(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String interceptStage,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderInterceptRules(new AdminOrderInterceptRuleQuery(
+                keyword,
+                interceptStage,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/order-intercept-rules")
+    public ApiResponse<AdminOrderInterceptRuleRecord> createOrderInterceptRule(
+            @RequestBody AdminOrderInterceptRuleCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminOrderInterceptRule(command));
+    }
+
+    @PatchMapping("/admin/order-intercept-rules/{ruleId}")
+    public ApiResponse<AdminOrderInterceptRuleRecord> updateOrderInterceptRule(
+            @PathVariable UUID ruleId,
+            @RequestBody AdminOrderInterceptRuleCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminOrderInterceptRule(ruleId, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/address")

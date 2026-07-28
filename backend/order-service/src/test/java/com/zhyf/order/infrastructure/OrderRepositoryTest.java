@@ -15,6 +15,7 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
+import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
 import com.zhyf.order.application.AdminOrderMergeQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import java.sql.ResultSet;
@@ -565,6 +566,56 @@ class OrderRepositoryTest {
                 "%MG%",
                 "ACTIVE",
                 20,
+                20
+        );
+    }
+
+    @Test
+    void shouldBuildOrderInterceptRuleQueryWithFiltersAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminOrderInterceptRules(
+                new AdminOrderInterceptRuleQuery("phone", "CREATE_ORDER", true, 3, 10)
+        );
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from order_intercept_rule r")
+                .contains("r.rule_code ilike ?")
+                .contains("r.intercept_stage = ?")
+                .contains("r.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "CREATE_ORDER",
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from order_intercept_rule r")
+                .contains("order by enabled desc, priority asc, rule_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "%phone%",
+                "CREATE_ORDER",
+                true,
+                10,
                 20
         );
     }

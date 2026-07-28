@@ -714,6 +714,62 @@ public class OrderService {
         return orderRepository.cancelAdminOrderMerge(existing.id(), cleanText(command.remark()));
     }
 
+    public AdminOrderInterceptRulePage listAdminOrderInterceptRules(AdminOrderInterceptRuleQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminOrderInterceptRules(new AdminOrderInterceptRuleQuery(
+                cleanText(query.keyword()),
+                cleanText(query.interceptStage()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminOrderInterceptRuleRecord createAdminOrderInterceptRule(AdminOrderInterceptRuleCommand command) {
+        String ruleCode = requireText(command.ruleCode(), "INTERCEPT_RULE_CODE_REQUIRED", "Rule code is required");
+        if (orderRepository.findAdminOrderInterceptRuleByCode(DEFAULT_ADMIN_TENANT_ID, ruleCode).isPresent()) {
+            throw new BusinessException("INTERCEPT_RULE_CODE_DUPLICATED", "Rule code already exists");
+        }
+        return orderRepository.insertAdminOrderInterceptRule(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                ruleCode,
+                requireText(command.ruleName(), "INTERCEPT_RULE_NAME_REQUIRED", "Rule name is required"),
+                defaultText(command.interceptStage(), "CREATE_ORDER"),
+                requireText(command.matchField(), "INTERCEPT_MATCH_FIELD_REQUIRED", "Match field is required"),
+                defaultText(command.matchType(), "CONTAINS"),
+                requireText(command.matchValue(), "INTERCEPT_MATCH_VALUE_REQUIRED", "Match value is required"),
+                requireText(command.reason(), "INTERCEPT_REASON_REQUIRED", "Intercept reason is required"),
+                priorityOrDefault(command.priority()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminOrderInterceptRuleRecord updateAdminOrderInterceptRule(
+            UUID ruleId,
+            AdminOrderInterceptRuleCommand command
+    ) {
+        AdminOrderInterceptRuleRecord existing = orderRepository.findAdminOrderInterceptRuleById(ruleId)
+                .orElseThrow(() -> new BusinessException(
+                        "INTERCEPT_RULE_NOT_FOUND",
+                        "Order intercept rule not found"
+                ));
+        return orderRepository.updateAdminOrderInterceptRule(
+                existing.id(),
+                requireText(command.ruleName(), "INTERCEPT_RULE_NAME_REQUIRED", "Rule name is required"),
+                defaultText(command.interceptStage(), existing.interceptStage()),
+                requireText(command.matchField(), "INTERCEPT_MATCH_FIELD_REQUIRED", "Match field is required"),
+                defaultText(command.matchType(), existing.matchType()),
+                requireText(command.matchValue(), "INTERCEPT_MATCH_VALUE_REQUIRED", "Match value is required"),
+                requireText(command.reason(), "INTERCEPT_REASON_REQUIRED", "Intercept reason is required"),
+                priorityOrDefault(command.priority()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
@@ -2141,6 +2197,14 @@ public class OrderService {
                 .toList();
         if (normalized.size() < 2) {
             throw new BusinessException("ORDER_MERGE_ORDER_NOS_REQUIRED", "At least two orders are required");
+        }
+        return normalized;
+    }
+
+    private int priorityOrDefault(Integer priority) {
+        int normalized = priority == null ? 100 : priority;
+        if (normalized < 0) {
+            throw new BusinessException("INTERCEPT_PRIORITY_INVALID", "Priority cannot be negative");
         }
         return normalized;
     }

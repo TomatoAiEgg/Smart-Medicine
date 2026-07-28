@@ -30,6 +30,9 @@ import com.zhyf.order.application.AdminOrderMergeCandidate;
 import com.zhyf.order.application.AdminOrderMergePage;
 import com.zhyf.order.application.AdminOrderMergeQuery;
 import com.zhyf.order.application.AdminOrderMergeRecord;
+import com.zhyf.order.application.AdminOrderInterceptRulePage;
+import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
+import com.zhyf.order.application.AdminOrderInterceptRuleRecord;
 import com.zhyf.order.application.AdminOrderReceiptItem;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
@@ -1283,6 +1286,127 @@ public class OrderRepository {
         return findAdminOrderMergeById(id).orElseThrow();
     }
 
+    public AdminOrderInterceptRulePage searchAdminOrderInterceptRules(AdminOrderInterceptRuleQuery query) {
+        QueryParts filters = adminOrderInterceptRuleFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from order_intercept_rule r
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, rule_code, rule_name, intercept_stage, match_field, match_type,
+                       match_value, reason, priority, enabled, created_at, updated_at
+                from order_intercept_rule r
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, priority asc, rule_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminOrderInterceptRulePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderInterceptRuleRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminOrderInterceptRuleRecord> findAdminOrderInterceptRuleById(UUID id) {
+        String sql = """
+                select id, tenant_id, rule_code, rule_name, intercept_stage, match_field, match_type,
+                       match_value, reason, priority, enabled, created_at, updated_at
+                from order_intercept_rule
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderInterceptRuleRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminOrderInterceptRuleRecord> findAdminOrderInterceptRuleByCode(
+            UUID tenantId,
+            String ruleCode
+    ) {
+        String sql = """
+                select id, tenant_id, rule_code, rule_name, intercept_stage, match_field, match_type,
+                       match_value, reason, priority, enabled, created_at, updated_at
+                from order_intercept_rule
+                where tenant_id = ? and rule_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOrderInterceptRuleRecord, tenantId, ruleCode)
+                .stream()
+                .findFirst();
+    }
+
+    public AdminOrderInterceptRuleRecord insertAdminOrderInterceptRule(
+            UUID id,
+            UUID tenantId,
+            String ruleCode,
+            String ruleName,
+            String interceptStage,
+            String matchField,
+            String matchType,
+            String matchValue,
+            String reason,
+            int priority,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into order_intercept_rule (
+                    id, tenant_id, rule_code, rule_name, intercept_stage, match_field, match_type,
+                    match_value, reason, priority, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                ruleCode,
+                ruleName,
+                interceptStage,
+                matchField,
+                matchType,
+                matchValue,
+                reason,
+                priority,
+                enabled
+        );
+        return findAdminOrderInterceptRuleById(id).orElseThrow();
+    }
+
+    public AdminOrderInterceptRuleRecord updateAdminOrderInterceptRule(
+            UUID id,
+            String ruleName,
+            String interceptStage,
+            String matchField,
+            String matchType,
+            String matchValue,
+            String reason,
+            int priority,
+            boolean enabled
+    ) {
+        String sql = """
+                update order_intercept_rule
+                set rule_name = ?,
+                    intercept_stage = ?,
+                    match_field = ?,
+                    match_type = ?,
+                    match_value = ?,
+                    reason = ?,
+                    priority = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, ruleName, interceptStage, matchField, matchType, matchValue, reason, priority, enabled, id);
+        return findAdminOrderInterceptRuleById(id).orElseThrow();
+    }
+
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -1978,6 +2102,34 @@ public class OrderRepository {
             filters.add(pattern);
         }
         filters.addEqualsFilter("m.status", query.status());
+        return filters;
+    }
+
+    private QueryParts adminOrderInterceptRuleFilters(AdminOrderInterceptRuleQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        r.rule_code ilike ?
+                        or r.rule_name ilike ?
+                        or r.match_field ilike ?
+                        or r.match_value ilike ?
+                        or r.reason ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        filters.addEqualsFilter("r.intercept_stage", query.interceptStage());
+        if (query.enabled() != null) {
+            filters.append(" and r.enabled = ?");
+            filters.add(query.enabled());
+        }
         return filters;
     }
 
@@ -3247,6 +3399,25 @@ public class OrderRepository {
                 rs.getObject("tenant_id", UUID.class),
                 rs.getObject("order_id", UUID.class),
                 rs.getString("order_no")
+        );
+    }
+
+    private AdminOrderInterceptRuleRecord mapAdminOrderInterceptRuleRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminOrderInterceptRuleRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("rule_code"),
+                rs.getString("rule_name"),
+                rs.getString("intercept_stage"),
+                rs.getString("match_field"),
+                rs.getString("match_type"),
+                rs.getString("match_value"),
+                rs.getString("reason"),
+                rs.getInt("priority"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
         );
     }
 

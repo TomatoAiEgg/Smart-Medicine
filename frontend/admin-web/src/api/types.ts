@@ -486,6 +486,49 @@ export interface AdminOrderMergeCommand {
   remark?: string;
 }
 
+export interface AdminOrderInterceptRuleQueryParams {
+  keyword?: string;
+  interceptStage?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderInterceptRuleRecord {
+  id: string;
+  tenantId: string;
+  ruleCode: string;
+  ruleName: string;
+  interceptStage: string;
+  matchField: string;
+  matchType: string;
+  matchValue: string;
+  reason: string;
+  priority: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrderInterceptRulePage {
+  records: AdminOrderInterceptRuleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminOrderInterceptRuleCommand {
+  ruleCode?: string;
+  ruleName: string;
+  interceptStage?: string;
+  matchField: string;
+  matchType?: string;
+  matchValue: string;
+  reason: string;
+  priority?: number;
+  enabled?: boolean;
+}
+
 export interface AdminManualProcessQueryParams {
   startTime?: string;
   endTime?: string;

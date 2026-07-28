@@ -44,6 +44,10 @@ import type {
   AdminOrderInitializeCommand,
   AdminOrderInitializeResult,
   AdminOrderDetailPrescription,
+  AdminOrderInterceptRuleCommand,
+  AdminOrderInterceptRulePage,
+  AdminOrderInterceptRuleQueryParams,
+  AdminOrderInterceptRuleRecord,
   AdminOrderMergeCommand,
   AdminOrderMergePage,
   AdminOrderMergeQueryParams,
@@ -271,6 +275,31 @@ export function cancelAdminOrderMerge(mergeId: string, command: AdminOrderMergeC
     method: 'PATCH',
     body: JSON.stringify(command),
   });
+}
+
+export function listAdminOrderInterceptRules(params: AdminOrderInterceptRuleQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/order-intercept-rules?${query}`
+    : '/order-api/api/admin/order-intercept-rules';
+  return request<AdminOrderInterceptRulePage>(url);
+}
+
+export function createAdminOrderInterceptRule(command: AdminOrderInterceptRuleCommand) {
+  return request<AdminOrderInterceptRuleRecord>('/order-api/api/admin/order-intercept-rules', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminOrderInterceptRule(ruleId: string, command: AdminOrderInterceptRuleCommand) {
+  return request<AdminOrderInterceptRuleRecord>(
+    `/order-api/api/admin/order-intercept-rules/${encodeURIComponent(ruleId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
 }
 
 export function listAdminOperators(params: AdminOperatorQueryParams = {}) {
