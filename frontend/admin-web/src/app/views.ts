@@ -20,6 +20,7 @@ export type ImplementedViewKey =
   | 'labelTemplates'
   | 'labelPrints'
   | 'smsTemplates'
+  | 'smsSendSingle'
   | 'portal'
   | 'institutionList'
   | 'institutionApps'
@@ -710,8 +711,9 @@ export const menuItems = [
     path: '/sms/send-single',
     legacyRoute: 'sms/sendUnitSmsInit.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '手工发送短信',
+    componentKey: 'smsSendSingle',
     plannedComponent: 'features/sms/SingleSmsSend.vue',
     coreActions: ['选择模板', '录入号码', '发送'],
     apiDependencies: ['单发短信', '余额查询', '发送记录'],

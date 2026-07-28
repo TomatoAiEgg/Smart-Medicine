@@ -838,6 +838,36 @@ export interface SmsTemplateCommand {
   enabled?: boolean;
 }
 
+export interface SmsSendCommand {
+  templateId: string;
+  receiverPhone: string;
+  receiverName?: string;
+  relatedOrderNo?: string;
+  variables?: Record<string, string>;
+  operator?: string;
+}
+
+export interface SmsSendResult {
+  id: string;
+  tenantId: string;
+  templateId: string;
+  templateCode: string;
+  templateName: string;
+  receiverPhone: string;
+  receiverName: string | null;
+  relatedOrderNo: string | null;
+  signature: string | null;
+  content: string;
+  sendStatus: string;
+  providerMessageId: string | null;
+  failureReason: string | null;
+  retryCount: number;
+  operator: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sentAt: string | null;
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;

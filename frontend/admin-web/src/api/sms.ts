@@ -1,5 +1,7 @@
 import { request } from './client';
 import type {
+  SmsSendCommand,
+  SmsSendResult,
   SmsTemplateCommand,
   SmsTemplatePage,
   SmsTemplateQueryParams,
@@ -32,6 +34,13 @@ export function createSmsTemplate(command: SmsTemplateCommand) {
 export function updateSmsTemplate(templateId: string, command: SmsTemplateCommand) {
   return request<SmsTemplateRecord>(`/message-api/api/admin/sms/templates/${encodeURIComponent(templateId)}`, {
     method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function sendSingleSms(command: SmsSendCommand) {
+  return request<SmsSendResult>('/message-api/api/admin/sms/send-single', {
+    method: 'POST',
     body: JSON.stringify(command),
   });
 }
