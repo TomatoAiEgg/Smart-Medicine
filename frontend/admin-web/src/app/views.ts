@@ -20,6 +20,7 @@ export type ImplementedViewKey =
   | 'institutionApps'
   | 'institutionIpWhitelist'
   | 'institutionApis'
+  | 'institutionApiPermissions'
   | 'reports'
   | 'auditPerformance'
   | 'auditPerformanceDetails'
@@ -277,8 +278,10 @@ export const menuItems = [
     path: '/institutions/api-permissions',
     legacyRoute: 'mechanism/listApiPermission.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '机构 API 授权与接入控制',
+    componentKey: 'institutionApiPermissions',
+    showCount: true,
     plannedComponent: 'features/institution/ApiPermissionList.vue',
     coreActions: ['按机构授权接口', '刷新缓存'],
     apiDependencies: ['机构列表', 'API 列表', '授权保存', '网关缓存刷新'],

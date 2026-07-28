@@ -335,6 +335,67 @@ public class OrderService {
         );
     }
 
+    public AdminInstitutionApiPermissionPage listAdminInstitutionApiPermissions(
+            AdminInstitutionApiPermissionQuery query
+    ) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminInstitutionApiPermissions(new AdminInstitutionApiPermissionQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                query.apiId(),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminInstitutionApiPermissionRecord createAdminInstitutionApiPermission(
+            AdminInstitutionApiPermissionCommand command
+    ) {
+        UUID institutionId = command.institutionId();
+        UUID apiId = command.apiId();
+        if (institutionId == null) {
+            throw new BusinessException("INSTITUTION_ID_REQUIRED", "Institution is required");
+        }
+        if (apiId == null) {
+            throw new BusinessException("API_ID_REQUIRED", "Institution API is required");
+        }
+        AdminInstitutionRecord institution = orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"));
+        AdminInstitutionApiRecord api = orderRepository.findAdminInstitutionApiById(apiId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_API_NOT_FOUND", "Institution API not found"));
+        if (orderRepository.findAdminInstitutionApiPermissionByInstitutionAndApi(institution.id(), api.id()).isPresent()) {
+            throw new BusinessException("API_PERMISSION_DUPLICATED", "API permission already exists for institution");
+        }
+        return orderRepository.insertAdminInstitutionApiPermission(
+                UUID.randomUUID(),
+                institution.tenantId(),
+                institution.id(),
+                api.id(),
+                cleanText(command.remark()),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminInstitutionApiPermissionRecord updateAdminInstitutionApiPermission(
+            UUID permissionId,
+            AdminInstitutionApiPermissionCommand command
+    ) {
+        AdminInstitutionApiPermissionRecord existing = orderRepository.findAdminInstitutionApiPermissionById(permissionId)
+                .orElseThrow(() -> new BusinessException(
+                        "API_PERMISSION_NOT_FOUND",
+                        "Institution API permission not found"
+                ));
+        return orderRepository.updateAdminInstitutionApiPermission(
+                existing.id(),
+                cleanText(command.remark()),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminInstitutionIpWhitelistPage listAdminInstitutionIpWhitelists(
             AdminInstitutionIpWhitelistQuery query
     ) {

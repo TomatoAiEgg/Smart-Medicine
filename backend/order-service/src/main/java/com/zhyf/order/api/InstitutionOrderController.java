@@ -5,6 +5,10 @@ import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.order.application.AdminInstitutionApiCommand;
 import com.zhyf.order.application.AdminInstitutionApiPage;
+import com.zhyf.order.application.AdminInstitutionApiPermissionCommand;
+import com.zhyf.order.application.AdminInstitutionApiPermissionPage;
+import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
+import com.zhyf.order.application.AdminInstitutionApiPermissionRecord;
 import com.zhyf.order.application.AdminInstitutionApiQuery;
 import com.zhyf.order.application.AdminInstitutionApiRecord;
 import com.zhyf.order.application.AdminInstitutionAppCommand;
@@ -512,6 +516,40 @@ public class InstitutionOrderController {
             @RequestBody AdminInstitutionApiCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminInstitutionApi(apiId, command));
+    }
+
+    @GetMapping("/admin/institution-api-permissions")
+    public ApiResponse<AdminInstitutionApiPermissionPage> listInstitutionApiPermissions(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) UUID apiId,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminInstitutionApiPermissions(new AdminInstitutionApiPermissionQuery(
+                keyword,
+                institutionId,
+                apiId,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/institution-api-permissions")
+    public ApiResponse<AdminInstitutionApiPermissionRecord> createInstitutionApiPermission(
+            @RequestBody AdminInstitutionApiPermissionCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminInstitutionApiPermission(command));
+    }
+
+    @PatchMapping("/admin/institution-api-permissions/{permissionId}")
+    public ApiResponse<AdminInstitutionApiPermissionRecord> updateInstitutionApiPermission(
+            @PathVariable UUID permissionId,
+            @RequestBody AdminInstitutionApiPermissionCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminInstitutionApiPermission(permissionId, command));
     }
 
     @GetMapping("/admin/institution-ip-whitelists")

@@ -1,6 +1,9 @@
 package com.zhyf.order.infrastructure;
 
 import com.zhyf.order.application.AdminOrderListItem;
+import com.zhyf.order.application.AdminInstitutionApiPermissionPage;
+import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
+import com.zhyf.order.application.AdminInstitutionApiPermissionRecord;
 import com.zhyf.order.application.AdminInstitutionApiPage;
 import com.zhyf.order.application.AdminInstitutionApiQuery;
 import com.zhyf.order.application.AdminInstitutionApiRecord;
@@ -667,6 +670,109 @@ public class OrderRepository {
         return findAdminInstitutionApiById(id).orElseThrow();
     }
 
+    public AdminInstitutionApiPermissionPage searchAdminInstitutionApiPermissions(
+            AdminInstitutionApiPermissionQuery query
+    ) {
+        QueryParts filters = adminInstitutionApiPermissionFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from institution_api_permission p
+                join institution i on i.id = p.institution_id
+                join institution_api_definition a on a.id = p.api_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select p.id, p.tenant_id, p.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, p.api_id, a.api_code, a.api_name, a.request_method,
+                       a.request_path, p.enabled, p.remark, p.created_at, p.updated_at
+                from institution_api_permission p
+                join institution i on i.id = p.institution_id
+                join institution_api_definition a on a.id = p.api_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by p.enabled desc, i.institution_name asc, a.api_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminInstitutionApiPermissionPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminInstitutionApiPermissionRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminInstitutionApiPermissionRecord> findAdminInstitutionApiPermissionById(UUID id) {
+        String sql = """
+                select p.id, p.tenant_id, p.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, p.api_id, a.api_code, a.api_name, a.request_method,
+                       a.request_path, p.enabled, p.remark, p.created_at, p.updated_at
+                from institution_api_permission p
+                join institution i on i.id = p.institution_id
+                join institution_api_definition a on a.id = p.api_id
+                where p.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionApiPermissionRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminInstitutionApiPermissionRecord> findAdminInstitutionApiPermissionByInstitutionAndApi(
+            UUID institutionId,
+            UUID apiId
+    ) {
+        String sql = """
+                select p.id, p.tenant_id, p.institution_id, i.institution_code, i.institution_name,
+                       i.institution_type, p.api_id, a.api_code, a.api_name, a.request_method,
+                       a.request_path, p.enabled, p.remark, p.created_at, p.updated_at
+                from institution_api_permission p
+                join institution i on i.id = p.institution_id
+                join institution_api_definition a on a.id = p.api_id
+                where p.institution_id = ? and p.api_id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminInstitutionApiPermissionRecord, institutionId, apiId)
+                .stream()
+                .findFirst();
+    }
+
+    public AdminInstitutionApiPermissionRecord insertAdminInstitutionApiPermission(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            UUID apiId,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into institution_api_permission (
+                    id, tenant_id, institution_id, api_id, remark, enabled
+                )
+                values (?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, institutionId, apiId, remark, enabled);
+        return findAdminInstitutionApiPermissionById(id).orElseThrow();
+    }
+
+    public AdminInstitutionApiPermissionRecord updateAdminInstitutionApiPermission(
+            UUID id,
+            String remark,
+            boolean enabled
+    ) {
+        String sql = """
+                update institution_api_permission
+                set remark = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, remark, enabled, id);
+        return findAdminInstitutionApiPermissionById(id).orElseThrow();
+    }
+
     public AdminInstitutionIpWhitelistPage searchAdminInstitutionIpWhitelists(
             AdminInstitutionIpWhitelistQuery query
     ) {
@@ -1288,6 +1394,43 @@ public class OrderRepository {
         }
         if (query.enabled() != null) {
             filters.append(" and a.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminInstitutionApiPermissionFilters(AdminInstitutionApiPermissionQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        i.institution_code ilike ?
+                        or i.institution_name ilike ?
+                        or a.api_code ilike ?
+                        or a.api_name ilike ?
+                        or a.request_path ilike ?
+                        or p.remark ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and p.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        if (query.apiId() != null) {
+            filters.append(" and p.api_id = ?");
+            filters.add(query.apiId());
+        }
+        if (query.enabled() != null) {
+            filters.append(" and p.enabled = ?");
             filters.add(query.enabled());
         }
         return filters;
@@ -2482,6 +2625,27 @@ public class OrderRepository {
                 rs.getString("request_path"),
                 rs.getString("description"),
                 rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminInstitutionApiPermissionRecord mapAdminInstitutionApiPermissionRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminInstitutionApiPermissionRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("institution_type"),
+                rs.getObject("api_id", UUID.class),
+                rs.getString("api_code"),
+                rs.getString("api_name"),
+                rs.getString("request_method"),
+                rs.getString("request_path"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

@@ -286,6 +286,47 @@ export interface AdminInstitutionApiCommand {
   enabled?: boolean;
 }
 
+export interface AdminInstitutionApiPermissionQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  apiId?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminInstitutionApiPermissionRecord {
+  id: string;
+  tenantId: string;
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  institutionType: string;
+  apiId: string;
+  apiCode: string;
+  apiName: string;
+  requestMethod: string;
+  requestPath: string;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInstitutionApiPermissionPage {
+  records: AdminInstitutionApiPermissionRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminInstitutionApiPermissionCommand {
+  institutionId?: string;
+  apiId?: string;
+  remark?: string;
+  enabled?: boolean;
+}
+
 export interface AdminInstitutionIpWhitelistQueryParams {
   keyword?: string;
   institutionId?: string;

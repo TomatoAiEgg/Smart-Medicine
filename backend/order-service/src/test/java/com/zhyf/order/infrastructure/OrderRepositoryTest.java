@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhyf.order.application.AdminInstitutionApiQuery;
+import com.zhyf.order.application.AdminInstitutionApiPermissionQuery;
 import com.zhyf.order.application.AdminInstitutionAppQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
@@ -289,6 +290,66 @@ class OrderRepositoryTest {
                 true,
                 30,
                 30
+        );
+    }
+
+    @Test
+    void shouldBuildInstitutionApiPermissionQueryWithFiltersAndPagination() {
+        UUID institutionId = UUID.randomUUID();
+        UUID apiId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminInstitutionApiPermissions(
+                new AdminInstitutionApiPermissionQuery("order", institutionId, apiId, true, 3, 20)
+        );
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from institution_api_permission p")
+                .contains("join institution i on i.id = p.institution_id")
+                .contains("join institution_api_definition a on a.id = p.api_id")
+                .contains("i.institution_code ilike ?")
+                .contains("a.api_code ilike ?")
+                .contains("p.institution_id = ?")
+                .contains("p.api_id = ?")
+                .contains("p.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                institutionId,
+                apiId,
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from institution_api_permission p")
+                .contains("order by p.enabled desc, i.institution_name asc, a.api_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                "%order%",
+                institutionId,
+                apiId,
+                true,
+                20,
+                40
         );
     }
 

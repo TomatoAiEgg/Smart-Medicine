@@ -2,6 +2,10 @@ import { request } from './client';
 import type {
   AdminInstitutionApiCommand,
   AdminInstitutionApiPage,
+  AdminInstitutionApiPermissionCommand,
+  AdminInstitutionApiPermissionPage,
+  AdminInstitutionApiPermissionQueryParams,
+  AdminInstitutionApiPermissionRecord,
   AdminInstitutionApiQueryParams,
   AdminInstitutionApiRecord,
   AdminInstitutionAppCommand,
@@ -132,6 +136,34 @@ export function updateAdminInstitutionApi(apiId: string, command: AdminInstituti
     method: 'PATCH',
     body: JSON.stringify(command),
   });
+}
+
+export function listAdminInstitutionApiPermissions(params: AdminInstitutionApiPermissionQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query
+    ? `/order-api/api/admin/institution-api-permissions?${query}`
+    : '/order-api/api/admin/institution-api-permissions';
+  return request<AdminInstitutionApiPermissionPage>(url);
+}
+
+export function createAdminInstitutionApiPermission(command: AdminInstitutionApiPermissionCommand) {
+  return request<AdminInstitutionApiPermissionRecord>('/order-api/api/admin/institution-api-permissions', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminInstitutionApiPermission(
+  permissionId: string,
+  command: AdminInstitutionApiPermissionCommand,
+) {
+  return request<AdminInstitutionApiPermissionRecord>(
+    `/order-api/api/admin/institution-api-permissions/${encodeURIComponent(permissionId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
 }
 
 export function listAdminInstitutionIpWhitelists(params: AdminInstitutionIpWhitelistQueryParams = {}) {
