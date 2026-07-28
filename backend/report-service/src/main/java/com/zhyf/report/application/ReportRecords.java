@@ -89,6 +89,23 @@ public final class ReportRecords {
     ) {
     }
 
+    public record LogisticsPerformance(
+            String logisticsCompany,
+            long shipmentCount,
+            long shippedCount,
+            long signedCount,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            BigDecimal totalPackageWeight,
+            long packageCount,
+            Instant firstOutboundAt,
+            Instant lastOutboundAt,
+            Instant firstSignedAt,
+            Instant lastSignedAt
+    ) {
+    }
+
     public record HerbDosage(
             String herbCode,
             String herbName,

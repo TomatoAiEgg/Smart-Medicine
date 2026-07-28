@@ -240,6 +240,35 @@ class ReportQueryServiceTest {
     }
 
     @Test
+    void shouldExportLogisticsPerformanceAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadLogisticsPerformance(from, to)).thenReturn(List.of(
+                new ReportRecords.LogisticsPerformance(
+                        "SF",
+                        8,
+                        7,
+                        6,
+                        5,
+                        9,
+                        48,
+                        new BigDecimal("25.5000"),
+                        12,
+                        Instant.parse("2026-07-02T07:00:00Z"),
+                        Instant.parse("2026-07-09T08:00:00Z"),
+                        Instant.parse("2026-07-03T09:00:00Z"),
+                        Instant.parse("2026-07-10T10:00:00Z")
+                )
+        ));
+
+        String csv = service.exportLogisticsPerformanceCsv(from, to);
+
+        verify(repository).loadLogisticsPerformance(from, to);
+        assertThat(csv).startsWith("logisticsCompany,shipmentCount,shippedCount,signedCount,orderCount,prescriptionCount,doseCount,totalPackageWeight,packageCount,firstOutboundAt,lastOutboundAt,firstSignedAt,lastSignedAt");
+        assertThat(csv).contains("SF,8,7,6,5,9,48,25.5000,12,2026-07-02T07:00:00Z,2026-07-09T08:00:00Z,2026-07-03T09:00:00Z,2026-07-10T10:00:00Z");
+    }
+
+    @Test
     void shouldExportDecoctionPerformanceDetailsAsCsv() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");

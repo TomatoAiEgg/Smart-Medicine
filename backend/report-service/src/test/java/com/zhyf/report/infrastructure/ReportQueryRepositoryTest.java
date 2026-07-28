@@ -196,6 +196,29 @@ class ReportQueryRepositoryTest {
     }
 
     @Test
+    void shouldBuildLogisticsPerformanceQueryWithRange() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.loadLogisticsPerformance(from, to);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("from shipment s")
+                .contains("join lateral")
+                .contains("coalesce(s.outbound_time, s.package_time, s.created_at)")
+                .contains("group by coalesce(nullif(s.logistics_company")
+                .contains("order by shipment_count desc");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(to, ZoneOffset.UTC)
+        );
+    }
+
+    @Test
     void shouldBuildDecoctionPerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");

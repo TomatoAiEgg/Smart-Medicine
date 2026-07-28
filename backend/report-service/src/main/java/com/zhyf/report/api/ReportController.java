@@ -171,6 +171,30 @@ public class ReportController {
                 .body(content);
     }
 
+    @GetMapping("/logistics-performance")
+    public ApiResponse<List<ReportRecords.LogisticsPerformance>> logisticsPerformance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.logisticsPerformance(from, to));
+    }
+
+    @GetMapping("/logistics-performance.csv")
+    public ResponseEntity<byte[]> logisticsPerformanceCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportLogisticsPerformanceCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("logistics-performance.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
+
     @GetMapping("/herb-dosage")
     public ApiResponse<List<ReportRecords.HerbDosage>> herbDosage(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,

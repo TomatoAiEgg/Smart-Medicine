@@ -166,6 +166,43 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.LogisticsPerformance> logisticsPerformance(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadLogisticsPerformance(from, to);
+    }
+
+    public String exportLogisticsPerformanceCsv(Instant from, Instant to) {
+        List<ReportRecords.LogisticsPerformance> rows = logisticsPerformance(from, to);
+        StringBuilder csv = new StringBuilder("logisticsCompany,shipmentCount,shippedCount,signedCount,orderCount,prescriptionCount,doseCount,totalPackageWeight,packageCount,firstOutboundAt,lastOutboundAt,firstSignedAt,lastSignedAt\n");
+        rows.forEach(row -> csv.append(escape(row.logisticsCompany()))
+                .append(',')
+                .append(row.shipmentCount())
+                .append(',')
+                .append(row.shippedCount())
+                .append(',')
+                .append(row.signedCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.totalPackageWeight())
+                .append(',')
+                .append(row.packageCount())
+                .append(',')
+                .append(row.firstOutboundAt() == null ? "" : row.firstOutboundAt())
+                .append(',')
+                .append(row.lastOutboundAt() == null ? "" : row.lastOutboundAt())
+                .append(',')
+                .append(row.firstSignedAt() == null ? "" : row.firstSignedAt())
+                .append(',')
+                .append(row.lastSignedAt() == null ? "" : row.lastSignedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     public List<ReportRecords.HerbDosage> herbDosage(Instant from, Instant to) {
         validateTimeRange(from, to);
         return repository.loadHerbDosage(from, to);

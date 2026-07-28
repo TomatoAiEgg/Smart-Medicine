@@ -169,6 +169,38 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapDecoctionPerformance, query.args());
     }
 
+    public List<ReportRecords.LogisticsPerformance> loadLogisticsPerformance(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select coalesce(nullif(s.logistics_company, ''), '未指定') as logistics_company,
+                       count(s.id) as shipment_count,
+                       count(s.id) filter (where s.outbound_time is not null or s.logistics_status in ('SHIPPED', 'SIGNED')) as shipped_count,
+                       count(s.id) filter (where s.sign_time is not null or s.logistics_status = 'SIGNED') as signed_count,
+                       count(distinct s.order_id) as order_count,
+                       coalesce(sum(order_prescriptions.prescription_count), 0) as prescription_count,
+                       coalesce(sum(order_prescriptions.dose_count), 0) as dose_count,
+                       coalesce(sum(s.pkg_weight), 0) as total_package_weight,
+                       coalesce(sum(s.pkg_num), 0) as package_count,
+                       min(s.outbound_time) as first_outbound_at,
+                       max(s.outbound_time) as last_outbound_at,
+                       min(s.sign_time) as first_signed_at,
+                       max(s.sign_time) as last_signed_at
+                from shipment s
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = s.order_id
+                ) order_prescriptions on true
+                where 1 = 1
+                """);
+        query.addRangeFilter("coalesce(s.outbound_time, s.package_time, s.created_at)", from, to);
+        query.append("""
+                 group by coalesce(nullif(s.logistics_company, ''), '未指定')
+                 order by shipment_count desc, logistics_company asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapLogisticsPerformance, query.args());
+    }
+
     public List<ReportRecords.HerbDosage> loadHerbDosage(Instant from, Instant to) {
         QueryParts query = new QueryParts("""
                 select coalesce(nullif(d.platform_drug_code, ''), nullif(d.drug_code, ''), '-') as herb_code,
@@ -538,6 +570,24 @@ public class ReportQueryRepository {
                 rs.getLong("device_count"),
                 instant(rs, "first_finished_at"),
                 instant(rs, "last_finished_at")
+        );
+    }
+
+    private ReportRecords.LogisticsPerformance mapLogisticsPerformance(ResultSet rs, int rowNum) throws SQLException {
+        return new ReportRecords.LogisticsPerformance(
+                rs.getString("logistics_company"),
+                rs.getLong("shipment_count"),
+                rs.getLong("shipped_count"),
+                rs.getLong("signed_count"),
+                rs.getLong("order_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getBigDecimal("total_package_weight"),
+                rs.getLong("package_count"),
+                instant(rs, "first_outbound_at"),
+                instant(rs, "last_outbound_at"),
+                instant(rs, "first_signed_at"),
+                instant(rs, "last_signed_at")
         );
     }
 

@@ -37,6 +37,7 @@ export type ImplementedViewKey =
   | 'dispensePerformanceDetails'
   | 'herbDosage'
   | 'institutionHerbReconciliation'
+  | 'logisticsPerformance'
   | 'prescriptionHerbDetails'
   | 'recheckPerformance'
   | 'recheckPerformanceDetails'
@@ -990,11 +991,13 @@ export const menuItems = [
     path: '/reports/logistics-performance',
     legacyRoute: 'exportQuery/packagePerformanceStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '物流员绩效汇总',
-    plannedComponent: 'features/report/LogisticsPerformanceReport.vue',
-    coreActions: ['汇总', '导出'],
-    apiDependencies: ['物流绩效统计', '打包/发货事件'],
+    componentKey: 'logisticsPerformance',
+    showCount: true,
+    plannedComponent: 'features/reports/LogisticsPerformance.vue',
+    coreActions: ['物流绩效查询', '汇总小计', 'CSV 导出'],
+    apiDependencies: ['物流绩效统计', '物流绩效 CSV 导出'],
   },
   {
     key: 'reportLogisticsPerformanceDetails',

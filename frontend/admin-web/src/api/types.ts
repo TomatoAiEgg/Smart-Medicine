@@ -2093,6 +2093,22 @@ export interface DecoctionPerformanceRecord {
   lastFinishedAt: string | null;
 }
 
+export interface LogisticsPerformanceRecord {
+  logisticsCompany: string;
+  shipmentCount: number;
+  shippedCount: number;
+  signedCount: number;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  totalPackageWeight: number | string | null;
+  packageCount: number;
+  firstOutboundAt: string | null;
+  lastOutboundAt: string | null;
+  firstSignedAt: string | null;
+  lastSignedAt: string | null;
+}
+
 export interface DecoctionPerformanceDetailRecord {
   operator: string;
   orderNo: string;
