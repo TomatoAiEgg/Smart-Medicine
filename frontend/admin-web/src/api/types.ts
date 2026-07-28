@@ -1181,6 +1181,17 @@ export interface AuditPerformanceRecord {
   lastAuditedAt: string | null;
 }
 
+export interface DecoctionPerformanceRecord {
+  operator: string;
+  decoctionCount: number;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  deviceCount: number;
+  firstFinishedAt: string | null;
+  lastFinishedAt: string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

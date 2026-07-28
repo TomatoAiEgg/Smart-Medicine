@@ -76,4 +76,16 @@ public final class ReportRecords {
             Instant lastAuditedAt
     ) {
     }
+
+    public record DecoctionPerformance(
+            String operator,
+            long decoctionCount,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            long deviceCount,
+            Instant firstFinishedAt,
+            Instant lastFinishedAt
+    ) {
+    }
 }

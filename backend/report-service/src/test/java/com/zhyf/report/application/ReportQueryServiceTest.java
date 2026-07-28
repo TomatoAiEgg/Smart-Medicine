@@ -163,6 +163,30 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("A001,8,7,1,6,10,42,2026-07-02T05:00:00Z,2026-07-09T06:00:00Z");
     }
 
+    @Test
+    void shouldExportDecoctionPerformanceAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadDecoctionPerformance(from, to)).thenReturn(List.of(
+                new ReportRecords.DecoctionPerformance(
+                        "B001",
+                        5,
+                        4,
+                        5,
+                        36,
+                        2,
+                        Instant.parse("2026-07-02T07:00:00Z"),
+                        Instant.parse("2026-07-09T08:00:00Z")
+                )
+        ));
+
+        String csv = service.exportDecoctionPerformanceCsv(from, to);
+
+        verify(repository).loadDecoctionPerformance(from, to);
+        assertThat(csv).startsWith("operator,decoctionCount,orderCount,prescriptionCount,doseCount,deviceCount,firstFinishedAt,lastFinishedAt");
+        assertThat(csv).contains("B001,5,4,5,36,2,2026-07-02T07:00:00Z,2026-07-09T08:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

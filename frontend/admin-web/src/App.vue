@@ -34,6 +34,7 @@ import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import AuditPerformance from './features/reports/AuditPerformance.vue';
+import DecoctionPerformance from './features/reports/DecoctionPerformance.vue';
 import DispensePerformance from './features/reports/DispensePerformance.vue';
 import InstitutionPrescriptionCounts from './features/reports/InstitutionPrescriptionCounts.vue';
 import PrescriptionReconciliation from './features/reports/PrescriptionReconciliation.vue';
@@ -59,6 +60,7 @@ const dispensePrintRef = ref<InstanceType<typeof DispensePrintWorkspace> | null>
 const recheckScanRef = ref<InstanceType<typeof RecheckScanWorkspace> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
 const auditPerformanceRef = ref<InstanceType<typeof AuditPerformance> | null>(null);
+const decoctionPerformanceRef = ref<InstanceType<typeof DecoctionPerformance> | null>(null);
 const dispensePerformanceRef = ref<InstanceType<typeof DispensePerformance> | null>(null);
 const recheckPerformanceRef = ref<InstanceType<typeof RecheckPerformance> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
@@ -83,11 +85,13 @@ const orderWarehouseRef = ref<InstanceType<typeof OrderWarehouse> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
 const auditPerformanceCount = ref(0);
+const decoctionPerformanceCount = ref(0);
 const dispensePerformanceCount = ref(0);
 const recheckPerformanceCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const reportActivationKey = ref(0);
 const auditPerformanceActivationKey = ref(0);
+const decoctionPerformanceActivationKey = ref(0);
 const dispensePerformanceActivationKey = ref(0);
 const recheckPerformanceActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
@@ -169,6 +173,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   maintenanceExceptionLogs: exceptionLogCount.value,
   labelPrints: labelPrintCount.value,
   reportAuditPerformance: auditPerformanceCount.value,
+  reportDecoctionPerformance: decoctionPerformanceCount.value,
   reportDispensePerformance: dispensePerformanceCount.value,
   reportRecheckPerformance: recheckPerformanceCount.value,
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
@@ -204,6 +209,7 @@ watch(activeView, (view) => {
 watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'reports') reportActivationKey.value += 1;
   if (componentKey === 'auditPerformance') auditPerformanceActivationKey.value += 1;
+  if (componentKey === 'decoctionPerformance') decoctionPerformanceActivationKey.value += 1;
   if (componentKey === 'dispensePerformance') dispensePerformanceActivationKey.value += 1;
   if (componentKey === 'recheckPerformance') recheckPerformanceActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
@@ -255,6 +261,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'auditPerformance') {
     await auditPerformanceRef.value?.refreshAuditPerformance();
+    return;
+  }
+  if (componentKey === 'decoctionPerformance') {
+    await decoctionPerformanceRef.value?.refreshDecoctionPerformance();
     return;
   }
   if (componentKey === 'dispensePerformance') {
@@ -384,6 +394,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'auditPerformance'"
       :activation-key="auditPerformanceActivationKey"
       @count-changed="auditPerformanceCount = $event"
+      @notice="showNotice"
+    />
+
+    <DecoctionPerformance
+      v-show="currentComponentKey === 'decoctionPerformance'"
+      ref="decoctionPerformanceRef"
+      :active="currentComponentKey === 'decoctionPerformance'"
+      :activation-key="decoctionPerformanceActivationKey"
+      @count-changed="decoctionPerformanceCount = $event"
       @notice="showNotice"
     />
 

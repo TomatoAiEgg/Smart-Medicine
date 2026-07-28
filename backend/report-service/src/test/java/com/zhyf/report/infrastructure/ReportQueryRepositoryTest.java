@@ -124,6 +124,29 @@ class ReportQueryRepositoryTest {
         );
     }
 
+    @Test
+    void shouldBuildDecoctionPerformanceQueryWithRange() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.loadDecoctionPerformance(from, to);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("from decoction_device_work_record r")
+                .contains("r.action_type = 'FINISH'")
+                .contains("r.action_result = 'ACCEPTED'")
+                .contains("left join prescription p")
+                .contains("group by r.operator");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(to, ZoneOffset.UTC)
+        );
+    }
+
     private Object[] capturedFirstCountArgs() {
         ArgumentCaptor<Object[]> captor = ArgumentCaptor.forClass(Object[].class);
         verify(jdbcTemplate, atLeastOnce()).queryForObject(anyString(), eq(Long.class), captor.capture());

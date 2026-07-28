@@ -144,6 +144,31 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapAuditPerformance, query.args());
     }
 
+    public List<ReportRecords.DecoctionPerformance> loadDecoctionPerformance(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select r.operator as decoction_operator,
+                       count(r.id) as decoction_count,
+                       count(distinct r.order_id) as order_count,
+                       count(distinct r.task_id) as prescription_count,
+                       coalesce(sum(p.dose_count), 0) as dose_count,
+                       count(distinct r.device_code) as device_count,
+                       min(r.action_time) as first_finished_at,
+                       max(r.action_time) as last_finished_at
+                from decoction_device_work_record r
+                left join prescription p on p.order_id = r.order_id
+                    and p.prescription_no = r.prescription_no
+                where r.action_type = 'FINISH'
+                  and r.action_result = 'ACCEPTED'
+                  and nullif(r.operator, '') is not null
+                """);
+        query.addRangeFilter("r.action_time", from, to);
+        query.append("""
+                 group by r.operator
+                 order by decoction_count desc, r.operator asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapDecoctionPerformance, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -250,6 +275,19 @@ public class ReportQueryRepository {
                 rs.getLong("dose_count"),
                 instant(rs, "first_audited_at"),
                 instant(rs, "last_audited_at")
+        );
+    }
+
+    private ReportRecords.DecoctionPerformance mapDecoctionPerformance(ResultSet rs, int rowNum) throws SQLException {
+        return new ReportRecords.DecoctionPerformance(
+                rs.getString("decoction_operator"),
+                rs.getLong("decoction_count"),
+                rs.getLong("order_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getLong("device_count"),
+                instant(rs, "first_finished_at"),
+                instant(rs, "last_finished_at")
         );
     }
 

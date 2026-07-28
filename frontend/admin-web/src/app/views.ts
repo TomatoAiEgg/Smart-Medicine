@@ -18,6 +18,7 @@ export type ImplementedViewKey =
   | 'portal'
   | 'reports'
   | 'auditPerformance'
+  | 'decoctionPerformance'
   | 'dispensePerformance'
   | 'recheckPerformance'
   | 'institutionPrescriptionCounts'
@@ -868,11 +869,13 @@ export const menuItems = [
     path: '/reports/decoction-performance',
     legacyRoute: 'exportQuery/boilPerformanceStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '煎煮员绩效汇总',
-    plannedComponent: 'features/report/DecoctionPerformanceReport.vue',
-    coreActions: ['汇总', '导出'],
-    apiDependencies: ['煎煮绩效统计', '煎煮事件'],
+    componentKey: 'decoctionPerformance',
+    showCount: true,
+    plannedComponent: 'features/reports/DecoctionPerformance.vue',
+    coreActions: ['煎煮员绩效查询', '设备数统计', 'CSV 导出'],
+    apiDependencies: ['煎煮绩效统计', '煎煮绩效 CSV 导出'],
   },
   {
     key: 'reportDecoctionPerformanceDetails',

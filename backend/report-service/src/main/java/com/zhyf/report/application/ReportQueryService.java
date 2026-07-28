@@ -139,6 +139,33 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.DecoctionPerformance> decoctionPerformance(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadDecoctionPerformance(from, to);
+    }
+
+    public String exportDecoctionPerformanceCsv(Instant from, Instant to) {
+        List<ReportRecords.DecoctionPerformance> rows = decoctionPerformance(from, to);
+        StringBuilder csv = new StringBuilder("operator,decoctionCount,orderCount,prescriptionCount,doseCount,deviceCount,firstFinishedAt,lastFinishedAt\n");
+        rows.forEach(row -> csv.append(escape(row.operator()))
+                .append(',')
+                .append(row.decoctionCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.deviceCount())
+                .append(',')
+                .append(row.firstFinishedAt() == null ? "" : row.firstFinishedAt())
+                .append(',')
+                .append(row.lastFinishedAt() == null ? "" : row.lastFinishedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

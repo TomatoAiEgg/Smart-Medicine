@@ -146,4 +146,28 @@ public class ReportController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(content);
     }
+
+    @GetMapping("/decoction-performance")
+    public ApiResponse<List<ReportRecords.DecoctionPerformance>> decoctionPerformance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.decoctionPerformance(from, to));
+    }
+
+    @GetMapping("/decoction-performance.csv")
+    public ResponseEntity<byte[]> decoctionPerformanceCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportDecoctionPerformanceCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("decoction-performance.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
 }
