@@ -22,6 +22,9 @@ import com.zhyf.order.application.AdminDecoctCenterRecord;
 import com.zhyf.order.application.AdminHerbPage;
 import com.zhyf.order.application.AdminHerbQuery;
 import com.zhyf.order.application.AdminHerbRecord;
+import com.zhyf.order.application.AdminHerbAreaPage;
+import com.zhyf.order.application.AdminHerbAreaQuery;
+import com.zhyf.order.application.AdminHerbAreaRecord;
 import com.zhyf.order.application.AdminHerbIndexPage;
 import com.zhyf.order.application.AdminHerbIndexQuery;
 import com.zhyf.order.application.AdminHerbIndexRecord;
@@ -891,6 +894,90 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, herbName, drugSpecs, drugOrigin, unit, retailPrice, enabled, remark, id);
         return findAdminHerbById(id).orElseThrow();
+    }
+
+    public AdminHerbAreaPage searchAdminHerbAreas(AdminHerbAreaQuery query) {
+        QueryParts filters = adminHerbAreaFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from herb_area a
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, area_code, area_name, enabled, remark, created_at, updated_at
+                from herb_area a
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, area_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminHerbAreaPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminHerbAreaRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminHerbAreaRecord> findAdminHerbAreaById(UUID id) {
+        String sql = """
+                select id, tenant_id, area_code, area_name, enabled, remark, created_at, updated_at
+                from herb_area
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminHerbAreaRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminHerbAreaRecord> findAdminHerbAreaByCode(UUID tenantId, String areaCode) {
+        String sql = """
+                select id, tenant_id, area_code, area_name, enabled, remark, created_at, updated_at
+                from herb_area
+                where tenant_id = ? and area_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminHerbAreaRecord, tenantId, areaCode).stream().findFirst();
+    }
+
+    public AdminHerbAreaRecord insertAdminHerbArea(
+            UUID id,
+            UUID tenantId,
+            String areaCode,
+            String areaName,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into herb_area (
+                    id, tenant_id, area_code, area_name, enabled, remark
+                )
+                values (?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, areaCode, areaName, enabled, remark);
+        return findAdminHerbAreaById(id).orElseThrow();
+    }
+
+    public AdminHerbAreaRecord updateAdminHerbArea(
+            UUID id,
+            String areaName,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update herb_area
+                set area_name = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, areaName, enabled, remark, id);
+        return findAdminHerbAreaById(id).orElseThrow();
     }
 
     public AdminHerbIndexPage searchAdminHerbIndexes(AdminHerbIndexQuery query) {
@@ -2834,6 +2921,29 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminHerbAreaFilters(AdminHerbAreaQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        a.area_code ilike ?
+                        or a.area_name ilike ?
+                        or coalesce(a.remark, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.enabled() != null) {
+            filters.append(" and a.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
     private QueryParts adminHerbIndexFilters(AdminHerbIndexQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -4389,6 +4499,19 @@ public class OrderRepository {
                 rs.getString("drug_origin"),
                 rs.getString("unit"),
                 rs.getBigDecimal("retail_price"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminHerbAreaRecord mapAdminHerbAreaRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminHerbAreaRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("area_code"),
+                rs.getString("area_name"),
                 rs.getBoolean("enabled"),
                 rs.getString("remark"),
                 instant(rs, "created_at"),

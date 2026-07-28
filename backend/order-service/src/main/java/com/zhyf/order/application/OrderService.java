@@ -431,6 +431,47 @@ public class OrderService {
         ));
     }
 
+    public AdminHerbAreaPage listAdminHerbAreas(AdminHerbAreaQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminHerbAreas(new AdminHerbAreaQuery(
+                cleanText(query.keyword()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminHerbAreaRecord createAdminHerbArea(AdminHerbAreaCommand command) {
+        String areaCode = requireText(command.areaCode(), "HERB_AREA_CODE_REQUIRED", "Area code is required");
+        String areaName = requireText(command.areaName(), "HERB_AREA_NAME_REQUIRED", "Area name is required");
+        if (orderRepository.findAdminHerbAreaByCode(DEFAULT_ADMIN_TENANT_ID, areaCode).isPresent()) {
+            throw new BusinessException("HERB_AREA_CODE_DUPLICATED", "Area code already exists");
+        }
+        return orderRepository.insertAdminHerbArea(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                areaCode,
+                areaName,
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminHerbAreaRecord updateAdminHerbArea(UUID areaId, AdminHerbAreaCommand command) {
+        AdminHerbAreaRecord existing = orderRepository.findAdminHerbAreaById(areaId)
+                .orElseThrow(() -> new BusinessException("HERB_AREA_NOT_FOUND", "Area not found"));
+        String areaName = requireText(command.areaName(), "HERB_AREA_NAME_REQUIRED", "Area name is required");
+        return orderRepository.updateAdminHerbArea(
+                existing.id(),
+                areaName,
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     @Transactional
     public AdminHerbIndexRecord createAdminHerbIndex(AdminHerbIndexCommand command) {
         UUID institutionId = requireUuid(command.institutionId(), "HERB_INDEX_INSTITUTION_REQUIRED", "Institution is required");

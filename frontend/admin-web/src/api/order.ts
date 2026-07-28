@@ -32,6 +32,10 @@ import type {
   AdminHerbPage,
   AdminHerbQueryParams,
   AdminHerbRecord,
+  AdminHerbAreaCommand,
+  AdminHerbAreaPage,
+  AdminHerbAreaQueryParams,
+  AdminHerbAreaRecord,
   AdminHerbIndexCommand,
   AdminHerbIndexPage,
   AdminHerbIndexQueryParams,
@@ -447,6 +451,26 @@ export function createAdminHerb(command: AdminHerbCommand) {
 
 export function updateAdminHerb(herbId: string, command: AdminHerbCommand) {
   return request<AdminHerbRecord>(`/order-api/api/admin/herbs/${encodeURIComponent(herbId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminHerbAreas(params: AdminHerbAreaQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/herb-areas?${query}` : '/order-api/api/admin/herb-areas';
+  return request<AdminHerbAreaPage>(url);
+}
+
+export function createAdminHerbArea(command: AdminHerbAreaCommand) {
+  return request<AdminHerbAreaRecord>('/order-api/api/admin/herb-areas', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminHerbArea(areaId: string, command: AdminHerbAreaCommand) {
+  return request<AdminHerbAreaRecord>(`/order-api/api/admin/herb-areas/${encodeURIComponent(areaId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

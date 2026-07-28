@@ -17,6 +17,7 @@ import com.zhyf.order.application.AdminDictItemQuery;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDecoctCenterQuery;
 import com.zhyf.order.application.AdminHerbQuery;
+import com.zhyf.order.application.AdminHerbAreaQuery;
 import com.zhyf.order.application.AdminHerbIndexQuery;
 import com.zhyf.order.application.AdminHerbIndexOperationLogQuery;
 import com.zhyf.order.application.AdminSystemConfigQuery;
@@ -384,6 +385,47 @@ class OrderRepositoryTest {
                 true,
                 15,
                 45
+        );
+    }
+
+    @Test
+    void shouldBuildHerbAreaQueryWithKeywordStatusAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminHerbAreas(new AdminHerbAreaQuery("area", false, 3, 12));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from herb_area a")
+                .contains("a.area_code ilike ?")
+                .contains("a.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%area%",
+                "%area%",
+                "%area%",
+                false
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from herb_area a")
+                .contains("order by enabled desc, area_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%area%",
+                "%area%",
+                "%area%",
+                false,
+                12,
+                24
         );
     }
 

@@ -362,6 +362,38 @@ export interface AdminHerbCommand {
   remark?: string;
 }
 
+export interface AdminHerbAreaQueryParams {
+  keyword?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminHerbAreaRecord {
+  id: string;
+  tenantId: string;
+  areaCode: string;
+  areaName: string;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminHerbAreaPage {
+  records: AdminHerbAreaRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminHerbAreaCommand {
+  areaCode?: string;
+  areaName: string;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminHerbIndexQueryParams {
   keyword?: string;
   institutionId?: string;

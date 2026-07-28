@@ -31,6 +31,10 @@ import com.zhyf.order.application.AdminHerbCommand;
 import com.zhyf.order.application.AdminHerbPage;
 import com.zhyf.order.application.AdminHerbQuery;
 import com.zhyf.order.application.AdminHerbRecord;
+import com.zhyf.order.application.AdminHerbAreaCommand;
+import com.zhyf.order.application.AdminHerbAreaPage;
+import com.zhyf.order.application.AdminHerbAreaQuery;
+import com.zhyf.order.application.AdminHerbAreaRecord;
 import com.zhyf.order.application.AdminHerbIndexCommand;
 import com.zhyf.order.application.AdminHerbIndexPage;
 import com.zhyf.order.application.AdminHerbIndexQuery;
@@ -648,6 +652,34 @@ public class InstitutionOrderController {
             @RequestBody AdminHerbCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminHerb(herbId, command));
+    }
+
+    @GetMapping("/admin/herb-areas")
+    public ApiResponse<AdminHerbAreaPage> listHerbAreas(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminHerbAreas(new AdminHerbAreaQuery(
+                keyword,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/herb-areas")
+    public ApiResponse<AdminHerbAreaRecord> createHerbArea(@RequestBody AdminHerbAreaCommand command) {
+        return ApiResponse.ok(orderService.createAdminHerbArea(command));
+    }
+
+    @PatchMapping("/admin/herb-areas/{areaId}")
+    public ApiResponse<AdminHerbAreaRecord> updateHerbArea(
+            @PathVariable UUID areaId,
+            @RequestBody AdminHerbAreaCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminHerbArea(areaId, command));
     }
 
     @GetMapping("/admin/herb-indexes")

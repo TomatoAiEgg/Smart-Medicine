@@ -51,6 +51,7 @@ export type ImplementedViewKey =
   | 'settingSystemConfigs'
   | 'settingDecoctCenters'
   | 'drugHerbs'
+  | 'drugHerbAreas'
   | 'drugHerbIndexes'
   | 'drugIndexOperationLogs'
   | 'addressModify'
@@ -824,11 +825,13 @@ export const menuItems = [
     path: '/drugs/herb-areas',
     legacyRoute: 'drugManage/listHerbsArea.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '药材区域配置',
+    componentKey: 'drugHerbAreas',
+    showCount: true,
     plannedComponent: 'features/drug/HerbAreaManage.vue',
-    coreActions: ['列表', '新增', '编辑', '删除', '导入'],
-    apiDependencies: ['药材区域 CRUD', '导入任务'],
+    coreActions: ['列表', '新增', '编辑', '启停'],
+    apiDependencies: ['药材区域 CRUD'],
   },
   {
     key: 'reports',
