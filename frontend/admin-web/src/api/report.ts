@@ -1,5 +1,6 @@
 import { request } from './client';
 import type {
+  AuditPerformanceDetailRecord,
   AuditPerformanceRecord,
   DecoctionPerformanceRecord,
   DispensePerformanceRecord,
@@ -102,6 +103,22 @@ export function listAuditPerformance(params: ReportTimeRangeQuery = {}) {
 export async function downloadAuditPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/audit-performance.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listAuditPerformanceDetails(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<AuditPerformanceDetailRecord[]>(
+    `/report-api/api/admin/reports/audit-performance-details${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadAuditPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/audit-performance-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }

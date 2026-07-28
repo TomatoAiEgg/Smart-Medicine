@@ -18,6 +18,7 @@ export type ImplementedViewKey =
   | 'portal'
   | 'reports'
   | 'auditPerformance'
+  | 'auditPerformanceDetails'
   | 'decoctionPerformance'
   | 'dispensePerformance'
   | 'herbDosage'
@@ -803,11 +804,13 @@ export const menuItems = [
     path: '/reports/audit-performance-details',
     legacyRoute: 'exportQuery/auditPerformanceDetail.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '审核员绩效明细',
-    plannedComponent: 'features/report/AuditPerformanceDetail.vue',
-    coreActions: ['明细', '导出'],
-    apiDependencies: ['审核绩效明细', '异步导出任务'],
+    componentKey: 'auditPerformanceDetails',
+    showCount: true,
+    plannedComponent: 'features/reports/AuditPerformanceDetails.vue',
+    coreActions: ['审核明细查询', '通过驳回明细', 'CSV 导出'],
+    apiDependencies: ['审核绩效明细', '审核绩效明细 CSV 导出'],
   },
   {
     key: 'reportDispensePerformance',

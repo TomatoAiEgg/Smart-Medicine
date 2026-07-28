@@ -146,4 +146,18 @@ public final class ReportRecords {
             Instant prescriptionCreatedAt
     ) {
     }
+
+    public record AuditPerformanceDetail(
+            String auditor,
+            String auditResult,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String patientName,
+            long prescriptionCount,
+            long doseCount,
+            String reviewComment,
+            Instant auditedAt
+    ) {
+    }
 }

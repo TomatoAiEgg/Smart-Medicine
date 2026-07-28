@@ -1181,6 +1181,19 @@ export interface AuditPerformanceRecord {
   lastAuditedAt: string | null;
 }
 
+export interface AuditPerformanceDetailRecord {
+  auditor: string;
+  auditResult: string;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string;
+  patientName: string | null;
+  prescriptionCount: number;
+  doseCount: number;
+  reviewComment: string | null;
+  auditedAt: string | null;
+}
+
 export interface DecoctionPerformanceRecord {
   operator: string;
   decoctionCount: number;

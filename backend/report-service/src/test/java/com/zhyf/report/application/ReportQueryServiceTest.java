@@ -281,6 +281,32 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("H001,测试医院,ZHYF001,EXT001,RX001,ERX001,M001,党参,片,山西,10,g,先煎,12.5000,1.2000,15.00,1.0000,12.50,B001,无,2026-07-02T09:00:00Z");
     }
 
+    @Test
+    void shouldExportAuditPerformanceDetailsAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadAuditPerformanceDetails(from, to)).thenReturn(List.of(
+                new ReportRecords.AuditPerformanceDetail(
+                        "A001",
+                        "APPROVED",
+                        "ZHYF001",
+                        "EXT001",
+                        "测试医院",
+                        "张三",
+                        2,
+                        14,
+                        "通过",
+                        Instant.parse("2026-07-02T10:00:00Z")
+                )
+        ));
+
+        String csv = service.exportAuditPerformanceDetailsCsv(from, to);
+
+        verify(repository).loadAuditPerformanceDetails(from, to);
+        assertThat(csv).startsWith("auditor,auditResult,orderNo,externalOrderNo,institutionName,patientName,prescriptionCount,doseCount,reviewComment,auditedAt");
+        assertThat(csv).contains("A001,APPROVED,ZHYF001,EXT001,测试医院,张三,2,14,通过,2026-07-02T10:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,
