@@ -6,6 +6,7 @@ import type { AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/t
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
+type CsvExportValue = string | number | null | undefined;
 
 interface RenameForm {
   oldRoleCode: string;
@@ -28,8 +29,11 @@ const pageSize = ref(20);
 const rolePage = ref<AdminOperatorRolePage | null>(null);
 const loading = ref(false);
 const saving = ref(false);
+const exporting = ref(false);
 const loaded = ref(false);
 const errorLine = ref('');
+const exportPageSize = 100;
+const maxExportPages = 50;
 const renameForm = ref<RenameForm>({
   oldRoleCode: '',
   newRoleCode: '',
@@ -49,6 +53,62 @@ function errorMessage(error: unknown) {
     return error.status ? `${error.message}(HTTP ${error.status})` : error.message;
   }
   return error instanceof Error ? error.message : '请求失败';
+}
+
+function escapeCsvCell(value: CsvExportValue) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+async function listExportRoles() {
+  const records: AdminOperatorRoleRecord[] = [];
+  for (let nextPageNo = 1; nextPageNo <= maxExportPages; nextPageNo += 1) {
+    const nextPage = await listAdminOperatorRoles({
+      keyword: keyword.value,
+      page: nextPageNo,
+      pageSize: exportPageSize,
+    });
+    records.push(...nextPage.records);
+    if (records.length >= nextPage.total || nextPage.records.length < exportPageSize) {
+      break;
+    }
+  }
+  return records;
+}
+
+async function downloadRoleCsv() {
+  exporting.value = true;
+  errorLine.value = '';
+  try {
+    const records = await listExportRoles();
+    const headers = ['角色标识', '操作员数', '启用数', '停用数', '首次创建', '最近更新'];
+    const lines = [
+      headers.map(escapeCsvCell).join(','),
+      ...records.map((row) => [
+        row.roleCode,
+        row.operatorCount,
+        row.enabledCount,
+        row.disabledCount,
+        formatDate(row.createdAt),
+        formatDate(row.updatedAt),
+      ].map(escapeCsvCell).join(',')),
+    ];
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'operator-roles.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+    emit('notice', 'success', `已导出 ${formatNumber(records.length)} 个角色标识`);
+  } catch (error) {
+    errorLine.value = errorMessage(error);
+  } finally {
+    exporting.value = false;
+  }
 }
 
 async function refreshRoles() {
@@ -153,6 +213,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="exporting || loading || total === 0" @click="downloadRoleCsv">
+          {{ exporting ? '导出中' : '导出角色' }}
         </button>
       </li>
     </ul>
