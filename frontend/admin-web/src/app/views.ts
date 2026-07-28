@@ -12,6 +12,7 @@ export type ImplementedViewKey =
   | 'logistics'
   | 'logisticsInfo'
   | 'logisticsUnreceivedFollowups'
+  | 'logisticsPrint'
   | 'exceptionLogs'
   | 'labelPrints'
   | 'portal'
@@ -304,11 +305,13 @@ export const menuItems = [
     path: '/logistics/print',
     legacyRoute: 'logistics/logisPrint.html',
     priority: 'P2',
-    implemented: false,
-    subtitle: '面单打印和重打记录',
+    implemented: true,
+    subtitle: '按物流单生成浏览器发货清单',
+    componentKey: 'logisticsPrint',
+    showCount: true,
     plannedComponent: 'features/logistics/LogisPrint.vue',
-    coreActions: ['面单查询', '打印', '重打'],
-    apiDependencies: ['面单信息', '打印任务', '重打记录'],
+    coreActions: ['物流单查询', '发货清单打印', '本页合计'],
+    apiDependencies: ['物流单查询'],
   },
   {
     key: 'logisticsMerges',

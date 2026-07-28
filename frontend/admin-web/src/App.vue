@@ -15,6 +15,7 @@ import {
 import DashboardHome from './features/dashboard/DashboardHome.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
+import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import LogisticsInfo from './features/logistics/LogisticsInfo.vue';
@@ -56,6 +57,7 @@ const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
+const logisPrintRef = ref<InstanceType<typeof LogisPrint> | null>(null);
 const logisticsFulfillmentRef = ref<InstanceType<typeof LogisticsFulfillment> | null>(null);
 const logisticsInfoRef = ref<InstanceType<typeof LogisticsInfo> | null>(null);
 const unreceivedFollowupRef = ref<InstanceType<typeof UnreceivedFollowup> | null>(null);
@@ -75,6 +77,7 @@ const reportTotalOrders = ref(0);
 const reportActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
+const logisPrintCount = ref(0);
 const logisticsCount = ref(0);
 const logisticsInfoCount = ref(0);
 const unreceivedFollowupCount = ref(0);
@@ -85,6 +88,7 @@ const decoctionCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
+const logisPrintActivationKey = ref(0);
 const logisticsActivationKey = ref(0);
 const logisticsInfoActivationKey = ref(0);
 const unreceivedFollowupActivationKey = ref(0);
@@ -143,6 +147,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   orderRecheckRecords: workflowCounts.value.rechecks,
   decoction: decoctionCount.value,
   logistics: logisticsCount.value,
+  logisticsPrint: logisPrintCount.value,
   logisticsTraces: logisticsInfoCount.value,
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
@@ -181,6 +186,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
+  if (componentKey === 'logisticsPrint') logisPrintActivationKey.value += 1;
   if (componentKey === 'logistics') logisticsActivationKey.value += 1;
   if (componentKey === 'logisticsInfo') logisticsInfoActivationKey.value += 1;
   if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
@@ -233,6 +239,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'logistics') {
     await logisticsFulfillmentRef.value?.refreshLogisticsRecords();
+    return;
+  }
+  if (componentKey === 'logisticsPrint') {
+    await logisPrintRef.value?.refreshLogisPrints();
     return;
   }
   if (componentKey === 'logisticsInfo') {
@@ -377,6 +387,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'logistics'"
       :activation-key="logisticsActivationKey"
       @count-changed="logisticsCount = $event"
+      @notice="showNotice"
+    />
+
+    <LogisPrint
+      v-show="currentComponentKey === 'logisticsPrint'"
+      ref="logisPrintRef"
+      :active="currentComponentKey === 'logisticsPrint'"
+      :activation-key="logisPrintActivationKey"
+      @count-changed="logisPrintCount = $event"
       @notice="showNotice"
     />
 
