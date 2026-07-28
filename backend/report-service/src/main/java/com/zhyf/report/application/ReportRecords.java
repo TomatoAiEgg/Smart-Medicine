@@ -188,4 +188,24 @@ public final class ReportRecords {
             Instant recheckedAt
     ) {
     }
+
+    public record DecoctionPerformanceDetail(
+            String operator,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String patientName,
+            String taskNo,
+            String prescriptionNo,
+            String deviceCode,
+            String pailNo,
+            String actionType,
+            String actionResult,
+            String taskStatusBefore,
+            String taskStatusAfter,
+            long doseCount,
+            String source,
+            Instant actionTime
+    ) {
+    }
 }

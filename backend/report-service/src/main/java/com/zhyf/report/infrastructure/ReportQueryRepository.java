@@ -385,6 +385,40 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapRecheckPerformanceDetail, query.args());
     }
 
+    public List<ReportRecords.DecoctionPerformanceDetail> loadDecoctionPerformanceDetails(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select r.operator as decoction_operator,
+                       o.order_no,
+                       o.external_order_no,
+                       i.institution_name,
+                       o.patient_name,
+                       r.task_no,
+                       r.prescription_no,
+                       r.device_code,
+                       r.pail_no,
+                       r.action_type,
+                       r.action_result,
+                       r.task_status_before,
+                       r.task_status_after,
+                       coalesce(p.dose_count, 0) as dose_count,
+                       r.source,
+                       r.action_time
+                from decoction_device_work_record r
+                join order_main o on o.id = r.order_id
+                join institution i on i.id = o.institution_id
+                left join prescription p on p.order_id = r.order_id
+                    and p.prescription_no = r.prescription_no
+                where r.action_type = 'FINISH'
+                  and r.action_result = 'ACCEPTED'
+                  and nullif(r.operator, '') is not null
+                """);
+        query.addRangeFilter("r.action_time", from, to);
+        query.append("""
+                 order by r.action_time desc, r.operator asc, r.task_no asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapDecoctionPerformanceDetail, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -615,6 +649,28 @@ public class ReportQueryRepository {
                 rs.getLong("dose_count"),
                 rs.getString("recheck_comment"),
                 instant(rs, "rechecked_at")
+        );
+    }
+
+    private ReportRecords.DecoctionPerformanceDetail mapDecoctionPerformanceDetail(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.DecoctionPerformanceDetail(
+                rs.getString("decoction_operator"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getString("task_no"),
+                rs.getString("prescription_no"),
+                rs.getString("device_code"),
+                rs.getString("pail_no"),
+                rs.getString("action_type"),
+                rs.getString("action_result"),
+                rs.getString("task_status_before"),
+                rs.getString("task_status_after"),
+                rs.getLong("dose_count"),
+                rs.getString("source"),
+                instant(rs, "action_time")
         );
     }
 

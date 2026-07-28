@@ -20,6 +20,7 @@ export type ImplementedViewKey =
   | 'auditPerformance'
   | 'auditPerformanceDetails'
   | 'decoctionPerformance'
+  | 'decoctionPerformanceDetails'
   | 'dispensePerformance'
   | 'dispensePerformanceDetails'
   | 'herbDosage'
@@ -896,9 +897,11 @@ export const menuItems = [
     path: '/reports/decoction-performance-details',
     legacyRoute: 'exportQuery/boilPerformanceDetail.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '煎煮员绩效明细',
-    plannedComponent: 'features/report/DecoctionPerformanceDetail.vue',
+    componentKey: 'decoctionPerformanceDetails',
+    showCount: true,
+    plannedComponent: 'features/reports/DecoctionPerformanceDetails.vue',
     coreActions: ['明细', '导出'],
     apiDependencies: ['煎煮绩效明细', '设备作业记录', '异步导出任务'],
   },

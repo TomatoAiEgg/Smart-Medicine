@@ -240,6 +240,38 @@ class ReportQueryServiceTest {
     }
 
     @Test
+    void shouldExportDecoctionPerformanceDetailsAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadDecoctionPerformanceDetails(from, to)).thenReturn(List.of(
+                new ReportRecords.DecoctionPerformanceDetail(
+                        "B001",
+                        "ZHYF001",
+                        "EXT001",
+                        "Test Hospital",
+                        "Patient A",
+                        "DCT001",
+                        "RX001",
+                        "DEV001",
+                        "P001",
+                        "FINISH",
+                        "ACCEPTED",
+                        "DECOCTING",
+                        "FINISHED",
+                        7,
+                        "pda",
+                        Instant.parse("2026-07-02T13:00:00Z")
+                )
+        ));
+
+        String csv = service.exportDecoctionPerformanceDetailsCsv(from, to);
+
+        verify(repository).loadDecoctionPerformanceDetails(from, to);
+        assertThat(csv).startsWith("operator,orderNo,externalOrderNo,institutionName,patientName,taskNo,prescriptionNo,deviceCode,pailNo,actionType,actionResult,taskStatusBefore,taskStatusAfter,doseCount,source,actionTime");
+        assertThat(csv).contains("B001,ZHYF001,EXT001,Test Hospital,Patient A,DCT001,RX001,DEV001,P001,FINISH,ACCEPTED,DECOCTING,FINISHED,7,pda,2026-07-02T13:00:00Z");
+    }
+
+    @Test
     void shouldExportHerbDosageAsCsv() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");

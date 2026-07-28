@@ -1231,6 +1231,25 @@ export interface DecoctionPerformanceRecord {
   lastFinishedAt: string | null;
 }
 
+export interface DecoctionPerformanceDetailRecord {
+  operator: string;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string;
+  patientName: string | null;
+  taskNo: string;
+  prescriptionNo: string | null;
+  deviceCode: string;
+  pailNo: string | null;
+  actionType: string;
+  actionResult: string;
+  taskStatusBefore: string | null;
+  taskStatusAfter: string | null;
+  doseCount: number;
+  source: string | null;
+  actionTime: string | null;
+}
+
 export interface HerbDosageRecord {
   herbCode: string;
   herbName: string;

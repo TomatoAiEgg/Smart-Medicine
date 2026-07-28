@@ -382,6 +382,49 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.DecoctionPerformanceDetail> decoctionPerformanceDetails(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadDecoctionPerformanceDetails(from, to);
+    }
+
+    public String exportDecoctionPerformanceDetailsCsv(Instant from, Instant to) {
+        List<ReportRecords.DecoctionPerformanceDetail> rows = decoctionPerformanceDetails(from, to);
+        StringBuilder csv = new StringBuilder("operator,orderNo,externalOrderNo,institutionName,patientName,taskNo,prescriptionNo,deviceCode,pailNo,actionType,actionResult,taskStatusBefore,taskStatusAfter,doseCount,source,actionTime\n");
+        rows.forEach(row -> csv.append(escape(row.operator()))
+                .append(',')
+                .append(escape(row.orderNo()))
+                .append(',')
+                .append(escape(row.externalOrderNo()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(escape(row.patientName()))
+                .append(',')
+                .append(escape(row.taskNo()))
+                .append(',')
+                .append(escape(row.prescriptionNo()))
+                .append(',')
+                .append(escape(row.deviceCode()))
+                .append(',')
+                .append(escape(row.pailNo()))
+                .append(',')
+                .append(escape(row.actionType()))
+                .append(',')
+                .append(escape(row.actionResult()))
+                .append(',')
+                .append(escape(row.taskStatusBefore()))
+                .append(',')
+                .append(escape(row.taskStatusAfter()))
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(escape(row.source()))
+                .append(',')
+                .append(row.actionTime() == null ? "" : row.actionTime())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

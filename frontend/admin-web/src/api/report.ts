@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   AuditPerformanceDetailRecord,
   AuditPerformanceRecord,
+  DecoctionPerformanceDetailRecord,
   DecoctionPerformanceRecord,
   DispensePerformanceDetailRecord,
   DispensePerformanceRecord,
@@ -171,6 +172,22 @@ export async function downloadDecoctionPerformanceCsv(params: ReportTimeRangeQue
   const response = await fetch(`/report-api/api/admin/reports/decoction-performance.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listDecoctionPerformanceDetails(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<DecoctionPerformanceDetailRecord[]>(
+    `/report-api/api/admin/reports/decoction-performance-details${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadDecoctionPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/decoction-performance-details.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`瀵煎嚭澶辫触锛欻TTP ${response.status}`);
   }
   return response.blob();
 }
