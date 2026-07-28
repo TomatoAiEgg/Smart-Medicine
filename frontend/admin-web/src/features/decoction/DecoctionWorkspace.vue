@@ -41,6 +41,7 @@ type MesAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type PdaAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type TaskEventAction = 'water' | 'temperature' | 'error';
 type EventCommandExtra = Partial<Omit<DecoctionEventCommand, 'operationId' | 'operator' | 'timestamp' | 'sign'>>;
+type CsvExportValue = string | number | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -137,6 +138,28 @@ function rowValue(value: string | number | null | undefined) {
   return String(value);
 }
 
+function escapeCsvCell(value: CsvExportValue) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function pageSummary(total: number) {
   return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
 }
@@ -155,6 +178,62 @@ function bindType(task: DecoctionTaskRecord) {
 
 function deviceUseStatus(device: DeviceRecord) {
   return device.activeTaskNo ? '使用中' : '空闲';
+}
+
+function downloadDeviceCsv() {
+  downloadCsv(
+    `煎煮设备列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['设备编号', '设备名称', '设备状态', '使用状态', '活动任务', '活动处方'],
+    decoctionDevices.value.map((device) => [
+      device.deviceCode,
+      device.deviceName,
+      device.deviceStatus,
+      deviceUseStatus(device),
+      device.activeTaskNo,
+      device.activePrescriptionNo,
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${decoctionDevices.value.length} 台煎煮设备`);
+}
+
+function downloadEventCsv() {
+  downloadCsv(
+    `煎煮事件记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['任务编号', '事件类型', '操作编号', '操作人', '事件时间', '事件内容', '创建时间'],
+    decoctionEvents.value.map((event) => [
+      event.taskNo,
+      event.eventType,
+      event.operationId,
+      event.operator,
+      formatDate(event.eventTime),
+      event.eventPayload,
+      formatDate(event.createdAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${decoctionEvents.value.length} 条事件记录`);
+}
+
+function downloadWorkRecordCsv() {
+  downloadCsv(
+    `煎煮作业记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['任务编号', '处方号', '设备编号', '水桶号', '动作', '结果', '前状态', '后状态', '操作编号', '来源', '操作人', '作业时间', '作业内容'],
+    decoctionWorkRecords.value.map((record) => [
+      record.taskNo,
+      record.prescriptionNo,
+      record.deviceCode,
+      record.pailNo,
+      record.actionType,
+      record.actionResult,
+      record.taskStatusBefore,
+      record.taskStatusAfter,
+      record.operationId,
+      record.source,
+      record.operator,
+      formatDate(record.actionTime),
+      record.detailPayload,
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${decoctionWorkRecords.value.length} 条作业记录`);
 }
 
 function makeMesCommand(prefix: string): MesTaskOperationCommand {
@@ -805,7 +884,7 @@ defineExpose({
     <div class="decoction-management-actions" v-if="activeDecoctionDataset !== 'binds' && activeDecoctionDataset !== 'workRecords'">
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增设备</button>
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">删除设备</button>
-      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">导出设备</button>
+      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionDevices.length === 0" @click="downloadDeviceCsv">导出设备</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增PDA</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增打码机</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">编辑配置</button>
@@ -832,6 +911,8 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="eventLoading || !selectedEventTaskNo" @click="refreshTaskEvents()">
           {{ eventLoading ? '加载中' : '刷新记录' }}
         </button>
+        <button class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionEvents.length === 0" @click="downloadEventCsv">导出事件</button>
+        <button class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionWorkRecords.length === 0" @click="downloadWorkRecordCsv">导出作业</button>
         <span class="decoction-selected-task">
           当前任务：{{ selectedEventTask ? `${selectedEventTask.taskNo} / ${selectedEventTask.prescriptionNo}` : '-' }}
         </span>
