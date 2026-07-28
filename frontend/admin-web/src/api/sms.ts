@@ -1,5 +1,7 @@
 import { request } from './client';
 import type {
+  SmsRecordPage,
+  SmsRecordQueryParams,
   SmsSendCommand,
   SmsSendResult,
   SmsTemplateCommand,
@@ -43,4 +45,10 @@ export function sendSingleSms(command: SmsSendCommand) {
     method: 'POST',
     body: JSON.stringify(command),
   });
+}
+
+export function listSmsRecords(params: SmsRecordQueryParams = {}) {
+  const query = buildSmsQuery(params);
+  const url = query ? `/message-api/api/admin/sms/records?${query}` : '/message-api/api/admin/sms/records';
+  return request<SmsRecordPage>(url);
 }

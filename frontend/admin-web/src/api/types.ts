@@ -868,6 +868,20 @@ export interface SmsSendResult {
   sentAt: string | null;
 }
 
+export interface SmsRecordQueryParams {
+  keyword?: string;
+  sendStatus?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SmsRecordPage {
+  records: SmsSendResult[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;

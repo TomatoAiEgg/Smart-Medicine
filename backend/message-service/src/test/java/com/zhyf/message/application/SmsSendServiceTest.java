@@ -77,6 +77,18 @@ class SmsSendServiceTest {
         ))).isInstanceOf(BusinessException.class);
     }
 
+    @Test
+    void shouldNormalizePagingWhenListingSmsRecords() {
+        service.listSmsRecords(new SmsSendRecords.SmsRecordQuery(" order ", " SIMULATED ", 0, 500));
+
+        verify(sendRecordRepository).searchSmsRecords(new SmsSendRecords.SmsRecordQuery(
+                "order",
+                "SIMULATED",
+                1,
+                100
+        ));
+    }
+
     private SmsTemplateRecords.SmsTemplateRecord template(boolean enabled) {
         return new SmsTemplateRecords.SmsTemplateRecord(
                 TEMPLATE_ID,

@@ -54,6 +54,20 @@ public class SmsSendService {
         );
     }
 
+    public SmsSendRecords.SmsRecordPage listSmsRecords(SmsSendRecords.SmsRecordQuery query) {
+        SmsSendRecords.SmsRecordQuery currentQuery = query == null
+                ? new SmsSendRecords.SmsRecordQuery(null, null, 1, 20)
+                : query;
+        int page = Math.max(currentQuery.page(), 1);
+        int pageSize = Math.min(Math.max(currentQuery.pageSize(), 1), 100);
+        return sendRecordRepository.searchSmsRecords(new SmsSendRecords.SmsRecordQuery(
+                cleanText(currentQuery.keyword()),
+                cleanText(currentQuery.sendStatus()),
+                page,
+                pageSize
+        ));
+    }
+
     private void requireCommand(SmsSendRecords.SmsSendCommand command) {
         if (command == null || command.templateId() == null) {
             throw new BusinessException("SMS_SEND_COMMAND_REQUIRED", "Sms send command is required");

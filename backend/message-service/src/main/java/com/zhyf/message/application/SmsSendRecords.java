@@ -1,6 +1,7 @@
 package com.zhyf.message.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,6 +17,22 @@ public final class SmsSendRecords {
             String relatedOrderNo,
             Map<String, String> variables,
             String operator
+    ) {
+    }
+
+    public record SmsRecordQuery(
+            String keyword,
+            String sendStatus,
+            int page,
+            int pageSize
+    ) {
+    }
+
+    public record SmsRecordPage(
+            List<SmsSendResult> records,
+            long total,
+            int page,
+            int pageSize
     ) {
     }
 

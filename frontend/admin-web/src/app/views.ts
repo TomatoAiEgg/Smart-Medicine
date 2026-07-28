@@ -21,6 +21,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'smsTemplates'
   | 'smsSendSingle'
+  | 'smsRecords'
   | 'portal'
   | 'institutionList'
   | 'institutionApps'
@@ -725,8 +726,10 @@ export const menuItems = [
     path: '/sms/records',
     legacyRoute: 'sms/listSms.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '短信发送记录查询和失败重试',
+    componentKey: 'smsRecords',
+    showCount: true,
     plannedComponent: 'features/sms/SmsRecordList.vue',
     coreActions: ['发送记录', '详情', '失败重试'],
     apiDependencies: ['短信记录', '重试接口'],
