@@ -48,6 +48,7 @@ export type ImplementedViewKey =
   | 'problemRegistrations'
   | 'operatorManage'
   | 'settingDicts'
+  | 'settingSystemConfigs'
   | 'addressModify'
   | 'prescriptionModify'
   | 'orderManageAction'
@@ -189,8 +190,10 @@ export const menuItems = [
     path: '/settings/system-configs',
     legacyRoute: 'systemSetting/listSystemConfig.html',
     priority: 'P3',
-    implemented: false,
+    implemented: true,
     subtitle: '系统参数查询、编辑和缓存刷新',
+    componentKey: 'settingSystemConfigs',
+    showCount: true,
     plannedComponent: 'features/settings/SystemConfig.vue',
     coreActions: ['参数列表', '编辑', '启停', '刷新缓存'],
     apiDependencies: ['参数查询', '参数保存', '缓存刷新', '操作审计'],

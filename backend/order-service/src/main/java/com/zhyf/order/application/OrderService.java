@@ -263,6 +263,54 @@ public class OrderService {
         );
     }
 
+    public AdminSystemConfigPage listAdminSystemConfigs(AdminSystemConfigQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminSystemConfigs(new AdminSystemConfigQuery(
+                cleanText(query.keyword()),
+                cleanText(query.valueType()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminSystemConfigRecord createAdminSystemConfig(AdminSystemConfigCommand command) {
+        String configKey = requireText(command.configKey(), "SYSTEM_CONFIG_KEY_REQUIRED", "Config key is required");
+        String configName = requireText(command.configName(), "SYSTEM_CONFIG_NAME_REQUIRED", "Config name is required");
+        String configValue = requireText(command.configValue(), "SYSTEM_CONFIG_VALUE_REQUIRED", "Config value is required");
+        if (orderRepository.findAdminSystemConfigByKey(DEFAULT_ADMIN_TENANT_ID, configKey).isPresent()) {
+            throw new BusinessException("SYSTEM_CONFIG_KEY_DUPLICATED", "Config key already exists");
+        }
+        return orderRepository.insertAdminSystemConfig(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                configKey,
+                configName,
+                configValue,
+                defaultText(command.valueType(), "STRING"),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
+    @Transactional
+    public AdminSystemConfigRecord updateAdminSystemConfig(UUID configId, AdminSystemConfigCommand command) {
+        AdminSystemConfigRecord existing = orderRepository.findAdminSystemConfigById(configId)
+                .orElseThrow(() -> new BusinessException("SYSTEM_CONFIG_NOT_FOUND", "Config not found"));
+        String configName = requireText(command.configName(), "SYSTEM_CONFIG_NAME_REQUIRED", "Config name is required");
+        String configValue = requireText(command.configValue(), "SYSTEM_CONFIG_VALUE_REQUIRED", "Config value is required");
+        return orderRepository.updateAdminSystemConfig(
+                existing.id(),
+                configName,
+                configValue,
+                defaultText(command.valueType(), existing.valueType()),
+                command.enabled() == null ? existing.enabled() : command.enabled(),
+                cleanText(command.remark())
+        );
+    }
+
     public AdminInstitutionPage listAdminInstitutions(AdminInstitutionQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);

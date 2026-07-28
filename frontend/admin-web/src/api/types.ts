@@ -247,6 +247,43 @@ export interface AdminDictItemCommand {
   remark?: string;
 }
 
+export interface AdminSystemConfigQueryParams {
+  keyword?: string;
+  valueType?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminSystemConfigRecord {
+  id: string;
+  tenantId: string;
+  configKey: string;
+  configName: string;
+  configValue: string;
+  valueType: string;
+  enabled: boolean;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSystemConfigPage {
+  records: AdminSystemConfigRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminSystemConfigCommand {
+  configKey?: string;
+  configName: string;
+  configValue: string;
+  valueType?: string;
+  enabled?: boolean;
+  remark?: string;
+}
+
 export interface AdminInstitutionQueryParams {
   keyword?: string;
   status?: string;

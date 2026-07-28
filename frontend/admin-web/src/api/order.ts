@@ -20,6 +20,10 @@ import type {
   AdminDictTypePage,
   AdminDictTypeQueryParams,
   AdminDictTypeRecord,
+  AdminSystemConfigCommand,
+  AdminSystemConfigPage,
+  AdminSystemConfigQueryParams,
+  AdminSystemConfigRecord,
   AdminInstitutionCommand,
   AdminInstitutionIpWhitelistCommand,
   AdminInstitutionIpWhitelistPage,
@@ -369,6 +373,26 @@ export function createAdminDictItem(command: AdminDictItemCommand) {
 
 export function updateAdminDictItem(itemId: string, command: AdminDictItemCommand) {
   return request<AdminDictItemRecord>(`/order-api/api/admin/dict-items/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminSystemConfigs(params: AdminSystemConfigQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/system-configs?${query}` : '/order-api/api/admin/system-configs';
+  return request<AdminSystemConfigPage>(url);
+}
+
+export function createAdminSystemConfig(command: AdminSystemConfigCommand) {
+  return request<AdminSystemConfigRecord>('/order-api/api/admin/system-configs', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminSystemConfig(configId: string, command: AdminSystemConfigCommand) {
+  return request<AdminSystemConfigRecord>(`/order-api/api/admin/system-configs/${encodeURIComponent(configId)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

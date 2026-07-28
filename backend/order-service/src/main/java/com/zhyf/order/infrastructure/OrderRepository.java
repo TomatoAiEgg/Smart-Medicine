@@ -16,6 +16,9 @@ import com.zhyf.order.application.AdminDictItemRecord;
 import com.zhyf.order.application.AdminDictTypePage;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDictTypeRecord;
+import com.zhyf.order.application.AdminSystemConfigPage;
+import com.zhyf.order.application.AdminSystemConfigQuery;
+import com.zhyf.order.application.AdminSystemConfigRecord;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
@@ -587,6 +590,99 @@ public class OrderRepository {
                 """;
         jdbcTemplate.update(sql, itemName, itemValue, sortNo, enabled, remark, id);
         return findAdminDictItemById(id).orElseThrow();
+    }
+
+    public AdminSystemConfigPage searchAdminSystemConfigs(AdminSystemConfigQuery query) {
+        QueryParts filters = adminSystemConfigFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from system_config c
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select id, tenant_id, config_key, config_name, config_value, value_type,
+                       enabled, remark, created_at, updated_at
+                from system_config c
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by enabled desc, config_key asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminSystemConfigPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminSystemConfigRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminSystemConfigRecord> findAdminSystemConfigById(UUID id) {
+        String sql = """
+                select id, tenant_id, config_key, config_name, config_value, value_type,
+                       enabled, remark, created_at, updated_at
+                from system_config
+                where id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminSystemConfigRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminSystemConfigRecord> findAdminSystemConfigByKey(UUID tenantId, String configKey) {
+        String sql = """
+                select id, tenant_id, config_key, config_name, config_value, value_type,
+                       enabled, remark, created_at, updated_at
+                from system_config
+                where tenant_id = ? and config_key = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminSystemConfigRecord, tenantId, configKey).stream().findFirst();
+    }
+
+    public AdminSystemConfigRecord insertAdminSystemConfig(
+            UUID id,
+            UUID tenantId,
+            String configKey,
+            String configName,
+            String configValue,
+            String valueType,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into system_config (
+                    id, tenant_id, config_key, config_name, config_value, value_type, enabled, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, tenantId, configKey, configName, configValue, valueType, enabled, remark);
+        return findAdminSystemConfigById(id).orElseThrow();
+    }
+
+    public AdminSystemConfigRecord updateAdminSystemConfig(
+            UUID id,
+            String configName,
+            String configValue,
+            String valueType,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update system_config
+                set config_name = ?,
+                    config_value = ?,
+                    value_type = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, configName, configValue, valueType, enabled, remark, id);
+        return findAdminSystemConfigById(id).orElseThrow();
     }
 
     public AdminInstitutionPage searchAdminInstitutions(AdminInstitutionQuery query) {
@@ -2246,6 +2342,32 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminSystemConfigFilters(AdminSystemConfigQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        c.config_key ilike ?
+                        or c.config_name ilike ?
+                        or c.config_value ilike ?
+                        or coalesce(c.remark, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        filters.addEqualsFilter("c.value_type", query.valueType());
+        if (query.enabled() != null) {
+            filters.append(" and c.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
     private QueryParts adminInstitutionFilters(AdminInstitutionQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -3686,6 +3808,21 @@ public class OrderRepository {
                 rs.getString("item_name"),
                 rs.getString("item_value"),
                 rs.getInt("sort_no"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminSystemConfigRecord mapAdminSystemConfigRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminSystemConfigRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("config_key"),
+                rs.getString("config_name"),
+                rs.getString("config_value"),
+                rs.getString("value_type"),
                 rs.getBoolean("enabled"),
                 rs.getString("remark"),
                 instant(rs, "created_at"),

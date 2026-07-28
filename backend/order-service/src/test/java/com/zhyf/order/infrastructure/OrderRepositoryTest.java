@@ -15,6 +15,7 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistQuery;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminDictItemQuery;
 import com.zhyf.order.application.AdminDictTypeQuery;
+import com.zhyf.order.application.AdminSystemConfigQuery;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
@@ -239,6 +240,52 @@ class OrderRepositoryTest {
                 false,
                 15,
                 30
+        );
+    }
+
+    @Test
+    void shouldBuildSystemConfigQueryWithKeywordTypeStatusAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminSystemConfigs(new AdminSystemConfigQuery("sms", "BOOLEAN", true, 2, 25));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from system_config c")
+                .contains("c.config_key ilike ?")
+                .contains("c.value_type = ?")
+                .contains("c.enabled = ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(
+                "%sms%",
+                "%sms%",
+                "%sms%",
+                "%sms%",
+                "BOOLEAN",
+                true
+        );
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from system_config c")
+                .contains("order by enabled desc, config_key asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                "%sms%",
+                "%sms%",
+                "%sms%",
+                "%sms%",
+                "BOOLEAN",
+                true,
+                25,
+                25
         );
     }
 

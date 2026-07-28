@@ -63,6 +63,7 @@ import RecheckPerformanceDetails from './features/reports/RecheckPerformanceDeta
 import ReportOverview from './features/reports/ReportOverview.vue';
 import DictList from './features/settings/DictList.vue';
 import OperatorManage from './features/settings/OperatorManage.vue';
+import SystemConfig from './features/settings/SystemConfig.vue';
 import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
@@ -95,6 +96,7 @@ const recheckPerformanceRef = ref<InstanceType<typeof RecheckPerformance> | null
 const recheckPerformanceDetailsRef = ref<InstanceType<typeof RecheckPerformanceDetails> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const dictListRef = ref<InstanceType<typeof DictList> | null>(null);
+const systemConfigRef = ref<InstanceType<typeof SystemConfig> | null>(null);
 const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
 const institutionAppsRef = ref<InstanceType<typeof InstitutionApps> | null>(null);
@@ -143,6 +145,7 @@ const recheckPerformanceCount = ref(0);
 const recheckPerformanceDetailsCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const dictListCount = ref(0);
+const systemConfigCount = ref(0);
 const operatorManageCount = ref(0);
 const institutionListCount = ref(0);
 const institutionAppsCount = ref(0);
@@ -163,6 +166,7 @@ const recheckPerformanceActivationKey = ref(0);
 const recheckPerformanceDetailsActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const dictListActivationKey = ref(0);
+const systemConfigActivationKey = ref(0);
 const operatorManageActivationKey = ref(0);
 const institutionListActivationKey = ref(0);
 const institutionAppsActivationKey = ref(0);
@@ -289,6 +293,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   settingDicts: dictListCount.value,
+  settingSystemConfigs: systemConfigCount.value,
   orderInterceptRules: orderInterceptRuleCount.value,
   maintenanceProblemRegistrations: problemRegistrationCount.value,
   reports: reportTotalOrders.value,
@@ -334,6 +339,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'recheckPerformanceDetails') recheckPerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'settingDicts') dictListActivationKey.value += 1;
+  if (componentKey === 'settingSystemConfigs') systemConfigActivationKey.value += 1;
   if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
   if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
   if (componentKey === 'institutionApps') institutionAppsActivationKey.value += 1;
@@ -445,6 +451,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'settingDicts') {
     await dictListRef.value?.refreshDictTypes();
+    return;
+  }
+  if (componentKey === 'settingSystemConfigs') {
+    await systemConfigRef.value?.refreshSystemConfigs();
     return;
   }
   if (componentKey === 'operatorManage') {
@@ -748,6 +758,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'settingDicts'"
       :activation-key="dictListActivationKey"
       @count-changed="dictListCount = $event"
+      @notice="showNotice"
+    />
+
+    <SystemConfig
+      v-show="currentComponentKey === 'settingSystemConfigs'"
+      ref="systemConfigRef"
+      :active="currentComponentKey === 'settingSystemConfigs'"
+      :activation-key="systemConfigActivationKey"
+      @count-changed="systemConfigCount = $event"
       @notice="showNotice"
     />
 

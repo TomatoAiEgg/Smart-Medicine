@@ -23,6 +23,10 @@ import com.zhyf.order.application.AdminDictTypeCommand;
 import com.zhyf.order.application.AdminDictTypePage;
 import com.zhyf.order.application.AdminDictTypeQuery;
 import com.zhyf.order.application.AdminDictTypeRecord;
+import com.zhyf.order.application.AdminSystemConfigCommand;
+import com.zhyf.order.application.AdminSystemConfigPage;
+import com.zhyf.order.application.AdminSystemConfigQuery;
+import com.zhyf.order.application.AdminSystemConfigRecord;
 import com.zhyf.order.application.AdminInstitutionCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistCommand;
 import com.zhyf.order.application.AdminInstitutionIpWhitelistPage;
@@ -544,6 +548,36 @@ public class InstitutionOrderController {
             @RequestBody AdminDictItemCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminDictItem(itemId, command));
+    }
+
+    @GetMapping("/admin/system-configs")
+    public ApiResponse<AdminSystemConfigPage> listSystemConfigs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String valueType,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminSystemConfigs(new AdminSystemConfigQuery(
+                keyword,
+                valueType,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/system-configs")
+    public ApiResponse<AdminSystemConfigRecord> createSystemConfig(@RequestBody AdminSystemConfigCommand command) {
+        return ApiResponse.ok(orderService.createAdminSystemConfig(command));
+    }
+
+    @PatchMapping("/admin/system-configs/{configId}")
+    public ApiResponse<AdminSystemConfigRecord> updateSystemConfig(
+            @PathVariable UUID configId,
+            @RequestBody AdminSystemConfigCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminSystemConfig(configId, command));
     }
 
     @GetMapping("/admin/institutions")
