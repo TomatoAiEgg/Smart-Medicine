@@ -18,6 +18,7 @@ export type ImplementedViewKey =
   | 'portal'
   | 'reports'
   | 'dispensePerformance'
+  | 'recheckPerformance'
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
   | 'integration'
@@ -836,11 +837,13 @@ export const menuItems = [
     path: '/reports/recheck-performance',
     legacyRoute: 'exportQuery/recheckPerformanceStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '复核员绩效汇总',
-    plannedComponent: 'features/report/RecheckPerformanceReport.vue',
-    coreActions: ['汇总', '导出'],
-    apiDependencies: ['复核绩效统计', '复核事件'],
+    componentKey: 'recheckPerformance',
+    showCount: true,
+    plannedComponent: 'features/reports/RecheckPerformance.vue',
+    coreActions: ['复核员绩效查询', '汇总小计', 'CSV 导出'],
+    apiDependencies: ['复核绩效统计', '复核绩效 CSV 导出'],
   },
   {
     key: 'reportRecheckPerformanceDetails',

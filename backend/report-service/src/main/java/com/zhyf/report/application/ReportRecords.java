@@ -52,4 +52,15 @@ public final class ReportRecords {
             Instant lastDispensedAt
     ) {
     }
+
+    public record RecheckPerformance(
+            String rechecker,
+            long recheckCount,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            Instant firstRecheckedAt,
+            Instant lastRecheckedAt
+    ) {
+    }
 }

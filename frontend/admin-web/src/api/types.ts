@@ -1159,6 +1159,16 @@ export interface DispensePerformanceRecord {
   lastDispensedAt: string | null;
 }
 
+export interface RecheckPerformanceRecord {
+  rechecker: string;
+  recheckCount: number;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  firstRecheckedAt: string | null;
+  lastRecheckedAt: string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

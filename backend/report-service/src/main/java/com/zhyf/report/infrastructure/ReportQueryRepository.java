@@ -84,6 +84,35 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapDispensePerformance, query.args());
     }
 
+    public List<ReportRecords.RecheckPerformance> loadRecheckPerformance(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select t.assigned_to as rechecker,
+                       count(t.id) as recheck_count,
+                       count(distinct t.order_id) as order_count,
+                       coalesce(sum(order_prescriptions.prescription_count), 0) as prescription_count,
+                       coalesce(sum(order_prescriptions.dose_count), 0) as dose_count,
+                       min(t.completed_at) as first_rechecked_at,
+                       max(t.completed_at) as last_rechecked_at
+                from workflow_task t
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = t.order_id
+                ) order_prescriptions on true
+                where t.task_type = 'PRESCRIPTION_RECHECK'
+                  and t.task_status = 'COMPLETED'
+                  and t.completed_at is not null
+                  and nullif(t.assigned_to, '') is not null
+                """);
+        query.addRangeFilter("t.completed_at", from, to);
+        query.append("""
+                 group by t.assigned_to
+                 order by recheck_count desc, t.assigned_to asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapRecheckPerformance, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -164,6 +193,18 @@ public class ReportQueryRepository {
                 rs.getLong("dose_count"),
                 instant(rs, "first_dispensed_at"),
                 instant(rs, "last_dispensed_at")
+        );
+    }
+
+    private ReportRecords.RecheckPerformance mapRecheckPerformance(ResultSet rs, int rowNum) throws SQLException {
+        return new ReportRecords.RecheckPerformance(
+                rs.getString("rechecker"),
+                rs.getLong("recheck_count"),
+                rs.getLong("order_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                instant(rs, "first_rechecked_at"),
+                instant(rs, "last_rechecked_at")
         );
     }
 

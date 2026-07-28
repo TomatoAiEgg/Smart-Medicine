@@ -98,4 +98,28 @@ public class ReportController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(content);
     }
+
+    @GetMapping("/recheck-performance")
+    public ApiResponse<List<ReportRecords.RecheckPerformance>> recheckPerformance(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.recheckPerformance(from, to));
+    }
+
+    @GetMapping("/recheck-performance.csv")
+    public ResponseEntity<byte[]> recheckPerformanceCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportRecheckPerformanceCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("recheck-performance.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
 }

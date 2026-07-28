@@ -115,6 +115,29 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("D001,4,3,5,24,2026-07-02T01:00:00Z,2026-07-09T02:00:00Z");
     }
 
+    @Test
+    void shouldExportRecheckPerformanceAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadRecheckPerformance(from, to)).thenReturn(List.of(
+                new ReportRecords.RecheckPerformance(
+                        "R001",
+                        6,
+                        4,
+                        7,
+                        31,
+                        Instant.parse("2026-07-02T03:00:00Z"),
+                        Instant.parse("2026-07-09T04:00:00Z")
+                )
+        ));
+
+        String csv = service.exportRecheckPerformanceCsv(from, to);
+
+        verify(repository).loadRecheckPerformance(from, to);
+        assertThat(csv).startsWith("rechecker,recheckCount,orderCount,prescriptionCount,doseCount,firstRecheckedAt,lastRecheckedAt");
+        assertThat(csv).contains("R001,6,4,7,31,2026-07-02T03:00:00Z,2026-07-09T04:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

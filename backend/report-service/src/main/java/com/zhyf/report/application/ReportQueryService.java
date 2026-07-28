@@ -85,6 +85,31 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.RecheckPerformance> recheckPerformance(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadRecheckPerformance(from, to);
+    }
+
+    public String exportRecheckPerformanceCsv(Instant from, Instant to) {
+        List<ReportRecords.RecheckPerformance> rows = recheckPerformance(from, to);
+        StringBuilder csv = new StringBuilder("rechecker,recheckCount,orderCount,prescriptionCount,doseCount,firstRecheckedAt,lastRecheckedAt\n");
+        rows.forEach(row -> csv.append(escape(row.rechecker()))
+                .append(',')
+                .append(row.recheckCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.firstRecheckedAt() == null ? "" : row.firstRecheckedAt())
+                .append(',')
+                .append(row.lastRecheckedAt() == null ? "" : row.lastRecheckedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')
