@@ -110,6 +110,35 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.AuditPerformance> auditPerformance(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadAuditPerformance(from, to);
+    }
+
+    public String exportAuditPerformanceCsv(Instant from, Instant to) {
+        List<ReportRecords.AuditPerformance> rows = auditPerformance(from, to);
+        StringBuilder csv = new StringBuilder("auditor,auditCount,approvedCount,rejectedCount,orderCount,prescriptionCount,doseCount,firstAuditedAt,lastAuditedAt\n");
+        rows.forEach(row -> csv.append(escape(row.auditor()))
+                .append(',')
+                .append(row.auditCount())
+                .append(',')
+                .append(row.approvedCount())
+                .append(',')
+                .append(row.rejectedCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.firstAuditedAt() == null ? "" : row.firstAuditedAt())
+                .append(',')
+                .append(row.lastAuditedAt() == null ? "" : row.lastAuditedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

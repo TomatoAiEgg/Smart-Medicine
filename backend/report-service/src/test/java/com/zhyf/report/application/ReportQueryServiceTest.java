@@ -138,6 +138,31 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("R001,6,4,7,31,2026-07-02T03:00:00Z,2026-07-09T04:00:00Z");
     }
 
+    @Test
+    void shouldExportAuditPerformanceAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadAuditPerformance(from, to)).thenReturn(List.of(
+                new ReportRecords.AuditPerformance(
+                        "A001",
+                        8,
+                        7,
+                        1,
+                        6,
+                        10,
+                        42,
+                        Instant.parse("2026-07-02T05:00:00Z"),
+                        Instant.parse("2026-07-09T06:00:00Z")
+                )
+        ));
+
+        String csv = service.exportAuditPerformanceCsv(from, to);
+
+        verify(repository).loadAuditPerformance(from, to);
+        assertThat(csv).startsWith("auditor,auditCount,approvedCount,rejectedCount,orderCount,prescriptionCount,doseCount,firstAuditedAt,lastAuditedAt");
+        assertThat(csv).contains("A001,8,7,1,6,10,42,2026-07-02T05:00:00Z,2026-07-09T06:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

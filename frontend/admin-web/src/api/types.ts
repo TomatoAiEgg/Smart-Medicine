@@ -1169,6 +1169,18 @@ export interface RecheckPerformanceRecord {
   lastRecheckedAt: string | null;
 }
 
+export interface AuditPerformanceRecord {
+  auditor: string;
+  auditCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  firstAuditedAt: string | null;
+  lastAuditedAt: string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

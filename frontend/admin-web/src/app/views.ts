@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'reports'
+  | 'auditPerformance'
   | 'dispensePerformance'
   | 'recheckPerformance'
   | 'institutionPrescriptionCounts'
@@ -783,11 +784,13 @@ export const menuItems = [
     path: '/reports/audit-performance',
     legacyRoute: 'exportQuery/auditPerformanceStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '审核员绩效汇总',
-    plannedComponent: 'features/report/AuditPerformanceReport.vue',
-    coreActions: ['汇总', '导出'],
-    apiDependencies: ['审核绩效统计', '流程事件'],
+    componentKey: 'auditPerformance',
+    showCount: true,
+    plannedComponent: 'features/reports/AuditPerformance.vue',
+    coreActions: ['审核员绩效查询', '通过驳回统计', 'CSV 导出'],
+    apiDependencies: ['审核绩效统计', '审核绩效 CSV 导出'],
   },
   {
     key: 'reportAuditPerformanceDetails',

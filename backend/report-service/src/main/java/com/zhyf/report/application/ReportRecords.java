@@ -63,4 +63,17 @@ public final class ReportRecords {
             Instant lastRecheckedAt
     ) {
     }
+
+    public record AuditPerformance(
+            String auditor,
+            long auditCount,
+            long approvedCount,
+            long rejectedCount,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            Instant firstAuditedAt,
+            Instant lastAuditedAt
+    ) {
+    }
 }
