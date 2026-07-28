@@ -92,6 +92,29 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("H001,测试医院,2,3,18,126.50");
     }
 
+    @Test
+    void shouldExportDispensePerformanceAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadDispensePerformance(from, to)).thenReturn(List.of(
+                new ReportRecords.DispensePerformance(
+                        "D001",
+                        4,
+                        3,
+                        5,
+                        24,
+                        Instant.parse("2026-07-02T01:00:00Z"),
+                        Instant.parse("2026-07-09T02:00:00Z")
+                )
+        ));
+
+        String csv = service.exportDispensePerformanceCsv(from, to);
+
+        verify(repository).loadDispensePerformance(from, to);
+        assertThat(csv).startsWith("dispenser,dispenseCount,orderCount,prescriptionCount,doseCount,firstDispensedAt,lastDispensedAt");
+        assertThat(csv).contains("D001,4,3,5,24,2026-07-02T01:00:00Z,2026-07-09T02:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

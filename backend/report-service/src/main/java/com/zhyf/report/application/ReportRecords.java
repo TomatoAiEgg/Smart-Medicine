@@ -41,4 +41,15 @@ public final class ReportRecords {
             BigDecimal totalAmount
     ) {
     }
+
+    public record DispensePerformance(
+            String dispenser,
+            long dispenseCount,
+            long orderCount,
+            long prescriptionCount,
+            long doseCount,
+            Instant firstDispensedAt,
+            Instant lastDispensedAt
+    ) {
+    }
 }

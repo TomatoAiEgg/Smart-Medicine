@@ -1,5 +1,5 @@
 import { request } from './client';
-import type { InstitutionPrescriptionCountRecord, ReportOverview } from './types';
+import type { DispensePerformanceRecord, InstitutionPrescriptionCountRecord, ReportOverview } from './types';
 
 interface ReportTimeRangeQuery {
   from?: string;
@@ -44,6 +44,22 @@ export function listInstitutionPrescriptionCounts(params: ReportTimeRangeQuery =
 export async function downloadInstitutionPrescriptionCountsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/institution-prescription-counts.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listDispensePerformance(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<DispensePerformanceRecord[]>(
+    `/report-api/api/admin/reports/dispense-performance${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadDispensePerformanceCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/dispense-performance.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }

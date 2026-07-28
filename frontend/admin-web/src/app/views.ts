@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'labelPrints'
   | 'portal'
   | 'reports'
+  | 'dispensePerformance'
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
   | 'integration'
@@ -807,11 +808,13 @@ export const menuItems = [
     path: '/reports/dispense-performance',
     legacyRoute: 'exportQuery/dispensePerformanceStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '调剂员绩效汇总',
-    plannedComponent: 'features/report/DispensePerformanceReport.vue',
-    coreActions: ['汇总', '导出'],
-    apiDependencies: ['调剂绩效统计', '调剂记录'],
+    componentKey: 'dispensePerformance',
+    showCount: true,
+    plannedComponent: 'features/reports/DispensePerformance.vue',
+    coreActions: ['调剂员绩效查询', '汇总小计', 'CSV 导出'],
+    apiDependencies: ['调剂绩效统计', '调剂绩效 CSV 导出'],
   },
   {
     key: 'reportDispensePerformanceDetails',

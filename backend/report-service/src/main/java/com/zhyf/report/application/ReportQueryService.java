@@ -60,6 +60,31 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.DispensePerformance> dispensePerformance(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadDispensePerformance(from, to);
+    }
+
+    public String exportDispensePerformanceCsv(Instant from, Instant to) {
+        List<ReportRecords.DispensePerformance> rows = dispensePerformance(from, to);
+        StringBuilder csv = new StringBuilder("dispenser,dispenseCount,orderCount,prescriptionCount,doseCount,firstDispensedAt,lastDispensedAt\n");
+        rows.forEach(row -> csv.append(escape(row.dispenser()))
+                .append(',')
+                .append(row.dispenseCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.doseCount())
+                .append(',')
+                .append(row.firstDispensedAt() == null ? "" : row.firstDispensedAt())
+                .append(',')
+                .append(row.lastDispensedAt() == null ? "" : row.lastDispensedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

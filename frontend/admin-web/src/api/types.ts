@@ -1149,6 +1149,16 @@ export interface InstitutionPrescriptionCountRecord {
   totalAmount: number | string | null;
 }
 
+export interface DispensePerformanceRecord {
+  dispenser: string;
+  dispenseCount: number;
+  orderCount: number;
+  prescriptionCount: number;
+  doseCount: number;
+  firstDispensedAt: string | null;
+  lastDispensedAt: string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

@@ -58,6 +58,32 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapInstitutionPrescriptionCount, query.args());
     }
 
+    public List<ReportRecords.DispensePerformance> loadDispensePerformance(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select d.dispenser,
+                       count(d.id) as dispense_count,
+                       count(distinct d.order_id) as order_count,
+                       coalesce(sum(order_prescriptions.prescription_count), 0) as prescription_count,
+                       coalesce(sum(order_prescriptions.dose_count), 0) as dose_count,
+                       min(d.dispensed_at) as first_dispensed_at,
+                       max(d.dispensed_at) as last_dispensed_at
+                from dispense_record d
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = d.order_id
+                ) order_prescriptions on true
+                where 1 = 1
+                """);
+        query.addRangeFilter("d.dispensed_at", from, to);
+        query.append("""
+                 group by d.dispenser
+                 order by dispense_count desc, d.dispenser asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapDispensePerformance, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -127,6 +153,23 @@ public class ReportQueryRepository {
                 rs.getLong("dose_count"),
                 rs.getBigDecimal("total_amount")
         );
+    }
+
+    private ReportRecords.DispensePerformance mapDispensePerformance(ResultSet rs, int rowNum) throws SQLException {
+        return new ReportRecords.DispensePerformance(
+                rs.getString("dispenser"),
+                rs.getLong("dispense_count"),
+                rs.getLong("order_count"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                instant(rs, "first_dispensed_at"),
+                instant(rs, "last_dispensed_at")
+        );
+    }
+
+    private Instant instant(ResultSet rs, String column) throws SQLException {
+        OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+        return value == null ? null : value.toInstant();
     }
 
     private OffsetDateTime offsetDateTime(Instant value) {

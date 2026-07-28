@@ -33,6 +33,7 @@ import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue'
 import OpsConsole from './features/ops/OpsConsole.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
+import DispensePerformance from './features/reports/DispensePerformance.vue';
 import InstitutionPrescriptionCounts from './features/reports/InstitutionPrescriptionCounts.vue';
 import PrescriptionReconciliation from './features/reports/PrescriptionReconciliation.vue';
 import ReportOverview from './features/reports/ReportOverview.vue';
@@ -55,6 +56,7 @@ const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
 const dispensePrintRef = ref<InstanceType<typeof DispensePrintWorkspace> | null>(null);
 const recheckScanRef = ref<InstanceType<typeof RecheckScanWorkspace> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
+const dispensePerformanceRef = ref<InstanceType<typeof DispensePerformance> | null>(null);
 const institutionPrescriptionCountsRef = ref<InstanceType<typeof InstitutionPrescriptionCounts> | null>(null);
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
@@ -76,8 +78,10 @@ const manualProcessRef = ref<InstanceType<typeof ManualProcess> | null>(null);
 const orderWarehouseRef = ref<InstanceType<typeof OrderWarehouse> | null>(null);
 const orderReceiptRef = ref<InstanceType<typeof OrderReceipt> | null>(null);
 const reportTotalOrders = ref(0);
+const dispensePerformanceCount = ref(0);
 const institutionPrescriptionCountsCount = ref(0);
 const reportActivationKey = ref(0);
+const dispensePerformanceActivationKey = ref(0);
 const institutionPrescriptionCountsActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
@@ -156,6 +160,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   logisticsUnreceivedFollowups: unreceivedFollowupCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   labelPrints: labelPrintCount.value,
+  reportDispensePerformance: dispensePerformanceCount.value,
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   reports: reportTotalOrders.value,
@@ -188,6 +193,7 @@ watch(activeView, (view) => {
 
 watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'reports') reportActivationKey.value += 1;
+  if (componentKey === 'dispensePerformance') dispensePerformanceActivationKey.value += 1;
   if (componentKey === 'institutionPrescriptionCounts') institutionPrescriptionCountsActivationKey.value += 1;
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
@@ -233,6 +239,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'reports') {
     await reportOverviewRef.value?.refreshReports();
+    return;
+  }
+  if (componentKey === 'dispensePerformance') {
+    await dispensePerformanceRef.value?.refreshDispensePerformance();
     return;
   }
   if (componentKey === 'institutionPrescriptionCounts') {
@@ -345,6 +355,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'reports'"
       :activation-key="reportActivationKey"
       @count-changed="reportTotalOrders = $event"
+      @notice="showNotice"
+    />
+
+    <DispensePerformance
+      v-show="currentComponentKey === 'dispensePerformance'"
+      ref="dispensePerformanceRef"
+      :active="currentComponentKey === 'dispensePerformance'"
+      :activation-key="dispensePerformanceActivationKey"
+      @count-changed="dispensePerformanceCount = $event"
       @notice="showNotice"
     />
 
