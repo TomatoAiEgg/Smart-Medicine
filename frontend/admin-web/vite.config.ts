@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/workflow-api/, ''),
         },
+        '/message-api': {
+          target: env.VITE_MESSAGE_SERVICE_URL || 'http://127.0.0.1:18083',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/message-api/, ''),
+        },
         '/decoction-api': {
           target: env.VITE_DECOCTION_SERVICE_URL || 'http://127.0.0.1:18087',
           changeOrigin: true,

@@ -801,6 +801,43 @@ export interface AdminLabelTemplateCommand {
   enabled?: boolean;
 }
 
+export interface SmsTemplateQueryParams {
+  keyword?: string;
+  templateType?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SmsTemplateRecord {
+  id: string;
+  tenantId: string;
+  templateCode: string;
+  templateName: string;
+  templateType: string;
+  contentTemplate: string;
+  signature: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SmsTemplatePage {
+  records: SmsTemplateRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface SmsTemplateCommand {
+  templateCode?: string;
+  templateName: string;
+  templateType?: string;
+  contentTemplate: string;
+  signature?: string;
+  enabled?: boolean;
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;

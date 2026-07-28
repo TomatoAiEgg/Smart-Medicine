@@ -25,6 +25,7 @@ import LogisSpecialRule from './features/logistics/LogisSpecialRule.vue';
 import LogisPrint from './features/logistics/LogisPrint.vue';
 import LabelPrint from './features/label/LabelPrint.vue';
 import LabelTemplate from './features/label/LabelTemplate.vue';
+import SmsTemplate from './features/sms/SmsTemplate.vue';
 import LogisticsFulfillment from './features/logistics/LogisticsFulfillment.vue';
 import LogisticsInfo from './features/logistics/LogisticsInfo.vue';
 import OrderMergeList from './features/logistics/OrderMergeList.vue';
@@ -110,6 +111,7 @@ const exceptionLogRef = ref<InstanceType<typeof ExceptionLogList> | null>(null);
 const problemRegistrationRef = ref<InstanceType<typeof ProblemRegistration> | null>(null);
 const labelPrintRef = ref<InstanceType<typeof LabelPrint> | null>(null);
 const labelTemplateRef = ref<InstanceType<typeof LabelTemplate> | null>(null);
+const smsTemplateRef = ref<InstanceType<typeof SmsTemplate> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
 const prescriptionReconciliationRef = ref<InstanceType<typeof PrescriptionReconciliation> | null>(null);
@@ -172,6 +174,7 @@ const exceptionLogCount = ref(0);
 const problemRegistrationCount = ref(0);
 const labelPrintCount = ref(0);
 const labelTemplateCount = ref(0);
+const smsTemplateCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
 const orderInterceptRuleCount = ref(0);
 const decoctionCount = ref(0);
@@ -189,6 +192,7 @@ const exceptionLogActivationKey = ref(0);
 const problemRegistrationActivationKey = ref(0);
 const labelPrintActivationKey = ref(0);
 const labelTemplateActivationKey = ref(0);
+const smsTemplateActivationKey = ref(0);
 const prescriptionReconciliationActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
 const observabilityActivationKey = ref(0);
@@ -258,6 +262,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   settingOperators: operatorManageCount.value,
   labelTemplates: labelTemplateCount.value,
   labelPrints: labelPrintCount.value,
+  smsTemplates: smsTemplateCount.value,
   reportAuditPerformance: auditPerformanceCount.value,
   reportAuditPerformanceDetails: auditPerformanceDetailsCount.value,
   reportDecoctionPerformance: decoctionPerformanceCount.value,
@@ -335,6 +340,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'problemRegistrations') problemRegistrationActivationKey.value += 1;
   if (componentKey === 'labelTemplates') labelTemplateActivationKey.value += 1;
   if (componentKey === 'labelPrints') labelPrintActivationKey.value += 1;
+  if (componentKey === 'smsTemplates') smsTemplateActivationKey.value += 1;
   if (componentKey === 'prescriptionReconciliation') prescriptionReconciliationActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
   if (componentKey === 'addressModify') addressModifyActivationKey.value += 1;
@@ -495,6 +501,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'labelPrints') {
     await labelPrintRef.value?.refreshLabelPrints();
+    return;
+  }
+  if (componentKey === 'smsTemplates') {
+    await smsTemplateRef.value?.refreshSmsTemplates();
     return;
   }
   if (componentKey === 'addressModify') {
@@ -990,6 +1000,15 @@ function closeTab(view: ViewKey) {
       active
       :activation-key="labelPrintActivationKey"
       @count-changed="labelPrintCount = $event"
+      @notice="showNotice"
+    />
+
+    <SmsTemplate
+      v-else-if="currentComponentKey === 'smsTemplates'"
+      ref="smsTemplateRef"
+      active
+      :activation-key="smsTemplateActivationKey"
+      @count-changed="smsTemplateCount = $event"
       @notice="showNotice"
     />
 

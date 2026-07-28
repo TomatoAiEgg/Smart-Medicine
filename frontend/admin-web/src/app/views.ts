@@ -19,6 +19,7 @@ export type ImplementedViewKey =
   | 'exceptionLogs'
   | 'labelTemplates'
   | 'labelPrints'
+  | 'smsTemplates'
   | 'portal'
   | 'institutionList'
   | 'institutionApps'
@@ -694,8 +695,10 @@ export const menuItems = [
     path: '/sms/templates',
     legacyRoute: 'sms/listSmsMoudle.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '短信模板维护',
+    componentKey: 'smsTemplates',
+    showCount: true,
     plannedComponent: 'features/sms/SmsTemplate.vue',
     coreActions: ['模板列表', '新增', '编辑', '删除'],
     apiDependencies: ['短信模板 CRUD', '操作审计'],
