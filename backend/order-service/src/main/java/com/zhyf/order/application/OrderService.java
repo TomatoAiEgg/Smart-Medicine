@@ -144,6 +144,32 @@ public class OrderService {
         ));
     }
 
+    public AdminOperatorRolePage listAdminOperatorRoles(AdminOperatorRoleQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminOperatorRoles(new AdminOperatorRoleQuery(
+                cleanText(query.keyword()),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminOperatorRoleRecord renameAdminOperatorRole(String roleCode, AdminOperatorRoleRenameCommand command) {
+        String oldRoleCode = requireText(roleCode, "OPERATOR_ROLE_CODE_REQUIRED", "Operator role code is required");
+        String newRoleCode = requireText(command.roleCode(), "OPERATOR_ROLE_CODE_REQUIRED", "Operator role code is required");
+        if (oldRoleCode.equals(newRoleCode)) {
+            return orderRepository.findAdminOperatorRole(newRoleCode)
+                    .orElseThrow(() -> new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found"));
+        }
+        int updated = orderRepository.renameAdminOperatorRole(oldRoleCode, newRoleCode);
+        if (updated == 0) {
+            throw new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found");
+        }
+        return orderRepository.findAdminOperatorRole(newRoleCode)
+                .orElseThrow(() -> new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found"));
+    }
+
     @Transactional
     public AdminOperatorRecord createAdminOperator(AdminOperatorCommand command) {
         String username = requireText(command.username(), "OPERATOR_USERNAME_REQUIRED", "Operator username is required");

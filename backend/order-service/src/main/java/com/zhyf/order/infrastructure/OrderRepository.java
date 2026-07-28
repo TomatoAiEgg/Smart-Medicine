@@ -69,6 +69,9 @@ import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOperatorPage;
 import com.zhyf.order.application.AdminOperatorQuery;
 import com.zhyf.order.application.AdminOperatorRecord;
+import com.zhyf.order.application.AdminOperatorRolePage;
+import com.zhyf.order.application.AdminOperatorRoleQuery;
+import com.zhyf.order.application.AdminOperatorRoleRecord;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminPrescriptionReprintItem;
@@ -373,6 +376,69 @@ public class OrderRepository {
                 query.page(),
                 query.pageSize()
         );
+    }
+
+    public AdminOperatorRolePage searchAdminOperatorRoles(AdminOperatorRoleQuery query) {
+        QueryParts filters = adminOperatorRoleFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from (
+                    select u.role_code
+                    from operator_user u
+                    where u.role_code is not null and u.role_code <> ''
+                """);
+        countQuery.append(filters.sql());
+        countQuery.append(" group by u.role_code) roles");
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select u.role_code,
+                       count(*) as operator_count,
+                       count(*) filter (where u.enabled) as enabled_count,
+                       count(*) filter (where not u.enabled) as disabled_count,
+                       min(u.created_at) as created_at,
+                       max(u.updated_at) as updated_at
+                from operator_user u
+                where u.role_code is not null and u.role_code <> ''
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" group by u.role_code order by u.role_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminOperatorRolePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOperatorRoleRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminOperatorRoleRecord> findAdminOperatorRole(String roleCode) {
+        String sql = """
+                select u.role_code,
+                       count(*) as operator_count,
+                       count(*) filter (where u.enabled) as enabled_count,
+                       count(*) filter (where not u.enabled) as disabled_count,
+                       min(u.created_at) as created_at,
+                       max(u.updated_at) as updated_at
+                from operator_user u
+                where u.role_code = ?
+                group by u.role_code
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminOperatorRoleRecord, roleCode).stream().findFirst();
+    }
+
+    public int renameAdminOperatorRole(String oldRoleCode, String newRoleCode) {
+        String sql = """
+                update operator_user
+                set role_code = ?,
+                    updated_at = now()
+                where role_code = ?
+                """;
+        return jdbcTemplate.update(sql, newRoleCode, oldRoleCode);
     }
 
     public Optional<AdminOperatorRecord> findAdminOperatorById(UUID id) {
@@ -2785,6 +2851,16 @@ public class OrderRepository {
         return filters;
     }
 
+    private QueryParts adminOperatorRoleFilters(AdminOperatorRoleQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append(" and u.role_code ilike ?");
+            filters.add("%" + keyword + "%");
+        }
+        return filters;
+    }
+
     private QueryParts adminDictTypeFilters(AdminDictTypeQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
@@ -4423,6 +4499,17 @@ public class OrderRepository {
                 rs.getString("display_name"),
                 rs.getString("role_code"),
                 rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOperatorRoleRecord mapAdminOperatorRoleRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOperatorRoleRecord(
+                rs.getString("role_code"),
+                rs.getLong("operator_count"),
+                rs.getLong("enabled_count"),
+                rs.getLong("disabled_count"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")
         );

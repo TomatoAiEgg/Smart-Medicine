@@ -72,6 +72,7 @@ import DictList from './features/settings/DictList.vue';
 import OperatorManage from './features/settings/OperatorManage.vue';
 import SystemConfig from './features/settings/SystemConfig.vue';
 import MenuRegistry from './features/system/MenuRegistry.vue';
+import RoleManage from './features/system/RoleManage.vue';
 import DispensePrintWorkspace from './features/workflow/DispensePrintWorkspace.vue';
 import RecheckScanWorkspace from './features/workflow/RecheckScanWorkspace.vue';
 import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
@@ -110,6 +111,7 @@ const systemConfigRef = ref<InstanceType<typeof SystemConfig> | null>(null);
 const decoctCenterRef = ref<InstanceType<typeof DecoctCenterConfig> | null>(null);
 const operatorManageRef = ref<InstanceType<typeof OperatorManage> | null>(null);
 const menuRegistryRef = ref<InstanceType<typeof MenuRegistry> | null>(null);
+const roleManageRef = ref<InstanceType<typeof RoleManage> | null>(null);
 const institutionListRef = ref<InstanceType<typeof InstitutionList> | null>(null);
 const institutionAppsRef = ref<InstanceType<typeof InstitutionApps> | null>(null);
 const institutionIpWhitelistRef = ref<InstanceType<typeof IpWhitelist> | null>(null);
@@ -167,6 +169,7 @@ const systemConfigCount = ref(0);
 const decoctCenterCount = ref(0);
 const operatorManageCount = ref(0);
 const menuRegistryCount = ref(0);
+const roleManageCount = ref(0);
 const institutionListCount = ref(0);
 const institutionAppsCount = ref(0);
 const institutionIpWhitelistCount = ref(0);
@@ -192,6 +195,7 @@ const systemConfigActivationKey = ref(0);
 const decoctCenterActivationKey = ref(0);
 const operatorManageActivationKey = ref(0);
 const menuRegistryActivationKey = ref(0);
+const roleManageActivationKey = ref(0);
 const institutionListActivationKey = ref(0);
 const institutionAppsActivationKey = ref(0);
 const institutionIpWhitelistActivationKey = ref(0);
@@ -307,6 +311,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   institutionApiPermissions: institutionApiPermissionsCount.value,
   maintenanceExceptionLogs: exceptionLogCount.value,
   systemUsers: operatorManageCount.value,
+  systemRoles: roleManageCount.value,
   systemMenus: menuRegistryCount.value,
   settingOperators: operatorManageCount.value,
   labelTemplates: labelTemplateCount.value,
@@ -386,6 +391,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'settingDecoctCenters') decoctCenterActivationKey.value += 1;
   if (componentKey === 'operatorManage') operatorManageActivationKey.value += 1;
   if (componentKey === 'menuRegistry') menuRegistryActivationKey.value += 1;
+  if (componentKey === 'roleManage') roleManageActivationKey.value += 1;
   if (componentKey === 'institutionList') institutionListActivationKey.value += 1;
   if (componentKey === 'institutionApps') institutionAppsActivationKey.value += 1;
   if (componentKey === 'institutionIpWhitelist') institutionIpWhitelistActivationKey.value += 1;
@@ -524,6 +530,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'menuRegistry') {
     menuRegistryRef.value?.refreshMenus();
+    return;
+  }
+  if (componentKey === 'roleManage') {
+    await roleManageRef.value?.refreshRoles();
     return;
   }
   if (componentKey === 'institutionList') {
@@ -857,6 +867,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'menuRegistry'"
       :activation-key="menuRegistryActivationKey"
       @count-changed="menuRegistryCount = $event"
+      @notice="showNotice"
+    />
+
+    <RoleManage
+      v-show="currentComponentKey === 'roleManage'"
+      ref="roleManageRef"
+      :active="currentComponentKey === 'roleManage'"
+      :activation-key="roleManageActivationKey"
+      @count-changed="roleManageCount = $event"
       @notice="showNotice"
     />
 

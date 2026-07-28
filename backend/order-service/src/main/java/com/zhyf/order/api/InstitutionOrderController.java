@@ -92,6 +92,10 @@ import com.zhyf.order.application.AdminOperatorCommand;
 import com.zhyf.order.application.AdminOperatorPage;
 import com.zhyf.order.application.AdminOperatorQuery;
 import com.zhyf.order.application.AdminOperatorRecord;
+import com.zhyf.order.application.AdminOperatorRolePage;
+import com.zhyf.order.application.AdminOperatorRoleQuery;
+import com.zhyf.order.application.AdminOperatorRoleRecord;
+import com.zhyf.order.application.AdminOperatorRoleRenameCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
 import com.zhyf.order.application.AdminManualProcessCommand;
@@ -508,6 +512,27 @@ public class InstitutionOrderController {
             @RequestBody AdminOperatorCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminOperator(operatorId, command));
+    }
+
+    @GetMapping("/admin/operator-roles")
+    public ApiResponse<AdminOperatorRolePage> listOperatorRoles(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOperatorRoles(new AdminOperatorRoleQuery(
+                keyword,
+                page,
+                pageSize
+        )));
+    }
+
+    @PatchMapping("/admin/operator-roles/{roleCode}")
+    public ApiResponse<AdminOperatorRoleRecord> renameOperatorRole(
+            @PathVariable String roleCode,
+            @RequestBody AdminOperatorRoleRenameCommand command
+    ) {
+        return ApiResponse.ok(orderService.renameAdminOperatorRole(roleCode, command));
     }
 
     @GetMapping("/admin/dict-types")

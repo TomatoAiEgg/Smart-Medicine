@@ -176,6 +176,32 @@ export interface AdminOperatorCommand {
   enabled?: boolean;
 }
 
+export interface AdminOperatorRoleQueryParams {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOperatorRoleRecord {
+  roleCode: string;
+  operatorCount: number;
+  enabledCount: number;
+  disabledCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOperatorRolePage {
+  records: AdminOperatorRoleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminOperatorRoleRenameCommand {
+  roleCode: string;
+}
+
 export interface AdminDictTypeQueryParams {
   keyword?: string;
   enabled?: boolean | string;

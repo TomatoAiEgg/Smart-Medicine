@@ -27,6 +27,7 @@ import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
 import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
 import com.zhyf.order.application.AdminOrderMergeQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
+import com.zhyf.order.application.AdminOperatorRoleQuery;
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -167,6 +168,36 @@ class OrderRepositoryTest {
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
         assertThat(listArgsCaptor.getValue()).containsExactly("%disp%", "%disp%", "%disp%", true, 10, 10);
+    }
+
+    @Test
+    void shouldBuildOperatorRoleQueryWithKeywordAndPagination() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminOperatorRoles(new AdminOperatorRoleQuery("AUD", 2, 10));
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from operator_user u")
+                .contains("u.role_code is not null")
+                .contains("u.role_code ilike ?")
+                .contains("group by u.role_code");
+        assertThat(countArgsCaptor.getValue()).containsExactly("%AUD%");
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("count(*) filter (where u.enabled) as enabled_count")
+                .contains("group by u.role_code order by u.role_code asc limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly("%AUD%", 10, 10);
     }
 
     @Test

@@ -92,6 +92,10 @@ import type {
   AdminOperatorPage,
   AdminOperatorQueryParams,
   AdminOperatorRecord,
+  AdminOperatorRolePage,
+  AdminOperatorRoleQueryParams,
+  AdminOperatorRoleRecord,
+  AdminOperatorRoleRenameCommand,
   AdminOrderReceiptCommand,
   AdminOrderReceiptPage,
   AdminOrderReceiptQueryParams,
@@ -351,6 +355,19 @@ export function createAdminOperator(command: AdminOperatorCommand) {
 
 export function updateAdminOperator(operatorId: string, command: AdminOperatorCommand) {
   return request<AdminOperatorRecord>(`/order-api/api/admin/operators/${encodeURIComponent(operatorId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminOperatorRoles(params: AdminOperatorRoleQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/operator-roles?${query}` : '/order-api/api/admin/operator-roles';
+  return request<AdminOperatorRolePage>(url);
+}
+
+export function renameAdminOperatorRole(roleCode: string, command: AdminOperatorRoleRenameCommand) {
+  return request<AdminOperatorRoleRecord>(`/order-api/api/admin/operator-roles/${encodeURIComponent(roleCode)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

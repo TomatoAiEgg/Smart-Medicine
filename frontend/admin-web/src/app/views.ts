@@ -49,6 +49,7 @@ export type ImplementedViewKey =
   | 'ops'
   | 'problemRegistrations'
   | 'operatorManage'
+  | 'roleManage'
   | 'menuRegistry'
   | 'settingDicts'
   | 'settingSystemConfigs'
@@ -159,11 +160,13 @@ export const menuItems = [
     path: '/system/roles',
     legacyRoute: 'role.html',
     priority: 'P4',
-    implemented: false,
-    subtitle: '角色维护和权限分配',
+    implemented: true,
+    subtitle: '后台操作员角色标识汇总和重命名',
+    componentKey: 'roleManage',
+    showCount: true,
     plannedComponent: 'features/system/RoleManage.vue',
-    coreActions: ['列表', '新增', '编辑', '删除', '角色授权'],
-    apiDependencies: ['角色 CRUD', '菜单树', '权限点', '操作审计'],
+    coreActions: ['列表', '筛选', '角色标识重命名', '人员数量统计'],
+    apiDependencies: ['操作员角色标识汇总', '角色标识批量更新'],
   },
   {
     key: 'systemMenus',
