@@ -20,6 +20,10 @@ import type {
   AdminInstitutionPage,
   AdminInstitutionQueryParams,
   AdminInstitutionRecord,
+  AdminLabelTemplateCommand,
+  AdminLabelTemplatePage,
+  AdminLabelTemplateQueryParams,
+  AdminLabelTemplateRecord,
   AdminLogisticsAddressCostCommand,
   AdminLogisticsAddressCostPage,
   AdminLogisticsAddressCostQueryParams,
@@ -367,6 +371,26 @@ export function getAdminPrescriptionPrintPayload(prescriptionNo: string) {
   return request<AdminPrescriptionPrintPayload>(
     `/order-api/api/admin/prescription-reprints/${encodeURIComponent(prescriptionNo)}/print-payload`,
   );
+}
+
+export function listAdminLabelTemplates(params: AdminLabelTemplateQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/label-templates?${query}` : '/order-api/api/admin/label-templates';
+  return request<AdminLabelTemplatePage>(url);
+}
+
+export function createAdminLabelTemplate(command: AdminLabelTemplateCommand) {
+  return request<AdminLabelTemplateRecord>('/order-api/api/admin/label-templates', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminLabelTemplate(templateId: string, command: AdminLabelTemplateCommand) {
+  return request<AdminLabelTemplateRecord>(`/order-api/api/admin/label-templates/${encodeURIComponent(templateId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
 }
 
 export async function downloadAdminOrdersCsv(params: AdminOrderQueryParams = {}) {

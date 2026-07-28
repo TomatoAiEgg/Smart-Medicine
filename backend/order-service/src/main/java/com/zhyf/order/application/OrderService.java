@@ -770,6 +770,64 @@ public class OrderService {
         );
     }
 
+    public AdminLabelTemplatePage listAdminLabelTemplates(AdminLabelTemplateQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        return orderRepository.searchAdminLabelTemplates(new AdminLabelTemplateQuery(
+                cleanText(query.keyword()),
+                query.institutionId(),
+                cleanText(query.prescriptionType()),
+                query.enabled(),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminLabelTemplateRecord createAdminLabelTemplate(AdminLabelTemplateCommand command) {
+        String templateCode = requireText(command.templateCode(), "LABEL_TEMPLATE_CODE_REQUIRED", "Template code is required");
+        if (orderRepository.findAdminLabelTemplateByCode(DEFAULT_ADMIN_TENANT_ID, templateCode).isPresent()) {
+            throw new BusinessException("LABEL_TEMPLATE_CODE_DUPLICATED", "Template code already exists");
+        }
+        UUID institutionId = verifiedTemplateInstitutionId(command.scopeType(), command.institutionId());
+        return orderRepository.insertAdminLabelTemplate(
+                UUID.randomUUID(),
+                DEFAULT_ADMIN_TENANT_ID,
+                templateCode,
+                requireText(command.templateName(), "LABEL_TEMPLATE_NAME_REQUIRED", "Template name is required"),
+                defaultText(command.scopeType(), "GLOBAL"),
+                institutionId,
+                cleanText(command.prescriptionType()),
+                labelDimension(command.labelWidthMm(), 90, "LABEL_WIDTH_INVALID"),
+                labelDimension(command.labelHeightMm(), 60, "LABEL_HEIGHT_INVALID"),
+                requireText(command.contentTemplate(), "LABEL_TEMPLATE_CONTENT_REQUIRED", "Template content is required"),
+                command.enabled() == null || command.enabled()
+        );
+    }
+
+    @Transactional
+    public AdminLabelTemplateRecord updateAdminLabelTemplate(UUID templateId, AdminLabelTemplateCommand command) {
+        AdminLabelTemplateRecord existing = orderRepository.findAdminLabelTemplateById(templateId)
+                .orElseThrow(() -> new BusinessException(
+                        "LABEL_TEMPLATE_NOT_FOUND",
+                        "Label template not found"
+                ));
+        String scopeType = defaultText(command.scopeType(), existing.scopeType());
+        UUID requestedInstitutionId = command.institutionId() == null ? existing.institutionId() : command.institutionId();
+        UUID institutionId = verifiedTemplateInstitutionId(scopeType, requestedInstitutionId);
+        return orderRepository.updateAdminLabelTemplate(
+                existing.id(),
+                requireText(command.templateName(), "LABEL_TEMPLATE_NAME_REQUIRED", "Template name is required"),
+                scopeType,
+                institutionId,
+                cleanText(command.prescriptionType()),
+                labelDimension(command.labelWidthMm(), existing.labelWidthMm(), "LABEL_WIDTH_INVALID"),
+                labelDimension(command.labelHeightMm(), existing.labelHeightMm(), "LABEL_HEIGHT_INVALID"),
+                requireText(command.contentTemplate(), "LABEL_TEMPLATE_CONTENT_REQUIRED", "Template content is required"),
+                command.enabled() == null ? existing.enabled() : command.enabled()
+        );
+    }
+
     public AdminOrderPage listAdminOrders(AdminOrderSearchQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
@@ -2205,6 +2263,27 @@ public class OrderService {
         int normalized = priority == null ? 100 : priority;
         if (normalized < 0) {
             throw new BusinessException("INTERCEPT_PRIORITY_INVALID", "Priority cannot be negative");
+        }
+        return normalized;
+    }
+
+    private UUID verifiedTemplateInstitutionId(String scopeType, UUID institutionId) {
+        String normalizedScope = defaultText(scopeType, "GLOBAL");
+        if (!"INSTITUTION".equals(normalizedScope)) {
+            return null;
+        }
+        if (institutionId == null) {
+            throw new BusinessException("LABEL_TEMPLATE_INSTITUTION_REQUIRED", "Institution is required");
+        }
+        return orderRepository.findAdminInstitutionById(institutionId)
+                .orElseThrow(() -> new BusinessException("INSTITUTION_NOT_FOUND", "Institution not found"))
+                .id();
+    }
+
+    private int labelDimension(Integer value, int fallback, String code) {
+        int normalized = value == null ? fallback : value;
+        if (normalized <= 0 || normalized > 300) {
+            throw new BusinessException(code, "Label dimension must be between 1 and 300");
         }
         return normalized;
     }

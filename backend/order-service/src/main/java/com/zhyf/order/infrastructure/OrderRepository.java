@@ -16,6 +16,9 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLabelTemplatePage;
+import com.zhyf.order.application.AdminLabelTemplateQuery;
+import com.zhyf.order.application.AdminLabelTemplateRecord;
 import com.zhyf.order.application.AdminLogisticsAddressCostPage;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostRecord;
@@ -1407,6 +1410,145 @@ public class OrderRepository {
         return findAdminOrderInterceptRuleById(id).orElseThrow();
     }
 
+    public AdminLabelTemplatePage searchAdminLabelTemplates(AdminLabelTemplateQuery query) {
+        QueryParts filters = adminLabelTemplateFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from label_template t
+                left join institution i on i.id = t.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select t.id, t.tenant_id, t.template_code, t.template_name, t.scope_type,
+                       t.institution_id, i.name as institution_name, t.prescription_type,
+                       t.label_width_mm, t.label_height_mm, t.content_template, t.enabled,
+                       t.created_at, t.updated_at
+                from label_template t
+                left join institution i on i.id = t.institution_id
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by t.enabled desc, t.updated_at desc, t.template_code asc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+        return new AdminLabelTemplatePage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminLabelTemplateRecord, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public Optional<AdminLabelTemplateRecord> findAdminLabelTemplateById(UUID id) {
+        String sql = """
+                select t.id, t.tenant_id, t.template_code, t.template_name, t.scope_type,
+                       t.institution_id, i.name as institution_name, t.prescription_type,
+                       t.label_width_mm, t.label_height_mm, t.content_template, t.enabled,
+                       t.created_at, t.updated_at
+                from label_template t
+                left join institution i on i.id = t.institution_id
+                where t.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminLabelTemplateRecord, id).stream().findFirst();
+    }
+
+    public Optional<AdminLabelTemplateRecord> findAdminLabelTemplateByCode(UUID tenantId, String templateCode) {
+        String sql = """
+                select t.id, t.tenant_id, t.template_code, t.template_name, t.scope_type,
+                       t.institution_id, i.name as institution_name, t.prescription_type,
+                       t.label_width_mm, t.label_height_mm, t.content_template, t.enabled,
+                       t.created_at, t.updated_at
+                from label_template t
+                left join institution i on i.id = t.institution_id
+                where t.tenant_id = ? and t.template_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminLabelTemplateRecord, tenantId, templateCode)
+                .stream()
+                .findFirst();
+    }
+
+    public AdminLabelTemplateRecord insertAdminLabelTemplate(
+            UUID id,
+            UUID tenantId,
+            String templateCode,
+            String templateName,
+            String scopeType,
+            UUID institutionId,
+            String prescriptionType,
+            int labelWidthMm,
+            int labelHeightMm,
+            String contentTemplate,
+            boolean enabled
+    ) {
+        String sql = """
+                insert into label_template (
+                    id, tenant_id, template_code, template_name, scope_type, institution_id,
+                    prescription_type, label_width_mm, label_height_mm, content_template, enabled
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                templateCode,
+                templateName,
+                scopeType,
+                institutionId,
+                prescriptionType,
+                labelWidthMm,
+                labelHeightMm,
+                contentTemplate,
+                enabled
+        );
+        return findAdminLabelTemplateById(id).orElseThrow();
+    }
+
+    public AdminLabelTemplateRecord updateAdminLabelTemplate(
+            UUID id,
+            String templateName,
+            String scopeType,
+            UUID institutionId,
+            String prescriptionType,
+            int labelWidthMm,
+            int labelHeightMm,
+            String contentTemplate,
+            boolean enabled
+    ) {
+        String sql = """
+                update label_template
+                set template_name = ?,
+                    scope_type = ?,
+                    institution_id = ?,
+                    prescription_type = ?,
+                    label_width_mm = ?,
+                    label_height_mm = ?,
+                    content_template = ?,
+                    enabled = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(
+                sql,
+                templateName,
+                scopeType,
+                institutionId,
+                prescriptionType,
+                labelWidthMm,
+                labelHeightMm,
+                contentTemplate,
+                enabled,
+                id
+        );
+        return findAdminLabelTemplateById(id).orElseThrow();
+    }
+
     public AdminOrderPage searchAdminOrders(AdminOrderSearchQuery query) {
         QueryParts filters = adminOrderFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -2128,6 +2270,36 @@ public class OrderRepository {
         filters.addEqualsFilter("r.intercept_stage", query.interceptStage());
         if (query.enabled() != null) {
             filters.append(" and r.enabled = ?");
+            filters.add(query.enabled());
+        }
+        return filters;
+    }
+
+    private QueryParts adminLabelTemplateFilters(AdminLabelTemplateQuery query) {
+        QueryParts filters = new QueryParts("");
+        String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
+        if (keyword != null) {
+            filters.append("""
+                     and (
+                        t.template_code ilike ?
+                        or t.template_name ilike ?
+                        or t.content_template ilike ?
+                        or coalesce(i.name, '') ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword + "%";
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+            filters.add(pattern);
+        }
+        if (query.institutionId() != null) {
+            filters.append(" and t.institution_id = ?");
+            filters.add(query.institutionId());
+        }
+        filters.addEqualsFilter("t.prescription_type", query.prescriptionType());
+        if (query.enabled() != null) {
+            filters.append(" and t.enabled = ?");
             filters.add(query.enabled());
         }
         return filters;
@@ -3415,6 +3587,26 @@ public class OrderRepository {
                 rs.getString("match_value"),
                 rs.getString("reason"),
                 rs.getInt("priority"),
+                rs.getBoolean("enabled"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminLabelTemplateRecord mapAdminLabelTemplateRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new AdminLabelTemplateRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("template_code"),
+                rs.getString("template_name"),
+                rs.getString("scope_type"),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("prescription_type"),
+                rs.getInt("label_width_mm"),
+                rs.getInt("label_height_mm"),
+                rs.getString("content_template"),
                 rs.getBoolean("enabled"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at")

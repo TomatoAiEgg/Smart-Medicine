@@ -23,6 +23,10 @@ import com.zhyf.order.application.AdminInstitutionIpWhitelistRecord;
 import com.zhyf.order.application.AdminInstitutionPage;
 import com.zhyf.order.application.AdminInstitutionQuery;
 import com.zhyf.order.application.AdminInstitutionRecord;
+import com.zhyf.order.application.AdminLabelTemplateCommand;
+import com.zhyf.order.application.AdminLabelTemplatePage;
+import com.zhyf.order.application.AdminLabelTemplateQuery;
+import com.zhyf.order.application.AdminLabelTemplateRecord;
 import com.zhyf.order.application.AdminLogisticsAddressCostCommand;
 import com.zhyf.order.application.AdminLogisticsAddressCostPage;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
@@ -266,6 +270,40 @@ public class InstitutionOrderController {
             @PathVariable String prescriptionNo
     ) {
         return ApiResponse.ok(orderService.getAdminPrescriptionPrintPayload(prescriptionNo));
+    }
+
+    @GetMapping("/admin/label-templates")
+    public ApiResponse<AdminLabelTemplatePage> listLabelTemplates(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID institutionId,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) Boolean enabled,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminLabelTemplates(new AdminLabelTemplateQuery(
+                keyword,
+                institutionId,
+                prescriptionType,
+                enabled,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/label-templates")
+    public ApiResponse<AdminLabelTemplateRecord> createLabelTemplate(
+            @RequestBody AdminLabelTemplateCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminLabelTemplate(command));
+    }
+
+    @PatchMapping("/admin/label-templates/{templateId}")
+    public ApiResponse<AdminLabelTemplateRecord> updateLabelTemplate(
+            @PathVariable UUID templateId,
+            @RequestBody AdminLabelTemplateCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminLabelTemplate(templateId, command));
     }
 
     @GetMapping("/admin/manual-process-orders")

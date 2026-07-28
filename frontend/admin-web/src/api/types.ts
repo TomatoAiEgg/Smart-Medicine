@@ -756,6 +756,51 @@ export interface AdminPrescriptionPrintPayload {
   printedAt: string;
 }
 
+export interface AdminLabelTemplateQueryParams {
+  keyword?: string;
+  institutionId?: string;
+  prescriptionType?: string;
+  enabled?: boolean | string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminLabelTemplateRecord {
+  id: string;
+  tenantId: string;
+  templateCode: string;
+  templateName: string;
+  scopeType: string;
+  institutionId: string | null;
+  institutionName: string | null;
+  prescriptionType: string | null;
+  labelWidthMm: number;
+  labelHeightMm: number;
+  contentTemplate: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminLabelTemplatePage {
+  records: AdminLabelTemplateRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminLabelTemplateCommand {
+  templateCode?: string;
+  templateName: string;
+  scopeType?: string;
+  institutionId?: string | null;
+  prescriptionType?: string;
+  labelWidthMm?: number;
+  labelHeightMm?: number;
+  contentTemplate: string;
+  enabled?: boolean;
+}
+
 export interface AdminOrderAddressUpdateCommand {
   receiverName: string;
   receiverPhone: string;

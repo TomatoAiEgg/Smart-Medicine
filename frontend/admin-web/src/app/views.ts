@@ -17,6 +17,7 @@ export type ImplementedViewKey =
   | 'logisticsAddressCosts'
   | 'logisticsMerges'
   | 'exceptionLogs'
+  | 'labelTemplates'
   | 'labelPrints'
   | 'portal'
   | 'institutionList'
@@ -663,8 +664,10 @@ export const menuItems = [
     path: '/labels/templates',
     legacyRoute: 'lable/listDecotingLableset.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '标签模板配置和预览',
+    componentKey: 'labelTemplates',
+    showCount: true,
     plannedComponent: 'features/label/LabelTemplate.vue',
     coreActions: ['模板列表', '新增', '编辑', '删除', '预览'],
     apiDependencies: ['标签模板 CRUD', '标签预览', '操作审计'],
