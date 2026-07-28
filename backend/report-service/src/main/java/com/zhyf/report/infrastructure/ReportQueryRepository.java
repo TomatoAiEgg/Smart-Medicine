@@ -246,6 +246,48 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapInstitutionHerbReconciliation, query.args());
     }
 
+    public List<ReportRecords.PrescriptionHerbDetail> loadPrescriptionHerbDetails(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select i.institution_code,
+                       i.institution_name,
+                       o.order_no,
+                       o.external_order_no,
+                       p.prescription_no,
+                       p.external_prescription_no,
+                       coalesce(nullif(d.platform_drug_code, ''), nullif(d.drug_code, ''), '-') as herb_code,
+                       coalesce(nullif(d.platform_drug_name, ''), nullif(d.drug_name, ''), '未命名药材') as herb_name,
+                       d.drug_specs,
+                       d.drug_origin,
+                       d.dose,
+                       d.unit,
+                       d.special_usage,
+                       d.quantity,
+                       d.unit_price,
+                       d.total_price,
+                       d.settlement_unit_price,
+                       d.settlement_total_price,
+                       d.batch_no,
+                       d.remark,
+                       p.created_at as prescription_created_at
+                from prescription_detail d
+                join prescription p on p.id = d.prescription_id
+                join order_main o on o.id = p.order_id
+                join institution i on i.id = p.institution_id
+                where 1 = 1
+                """);
+        query.addRangeFilter("p.created_at", from, to);
+        query.append("""
+                  and (
+                      nullif(d.platform_drug_code, '') is not null
+                      or nullif(d.drug_code, '') is not null
+                      or nullif(d.platform_drug_name, '') is not null
+                      or nullif(d.drug_name, '') is not null
+                  )
+                 order by p.created_at desc, o.order_no desc, p.prescription_no asc, d.sort_no asc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapPrescriptionHerbDetail, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -401,6 +443,33 @@ public class ReportQueryRepository {
                 rs.getBigDecimal("total_quantity"),
                 rs.getBigDecimal("total_amount"),
                 rs.getBigDecimal("settlement_amount")
+        );
+    }
+
+    private ReportRecords.PrescriptionHerbDetail mapPrescriptionHerbDetail(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.PrescriptionHerbDetail(
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("herb_code"),
+                rs.getString("herb_name"),
+                rs.getString("drug_specs"),
+                rs.getString("drug_origin"),
+                rs.getString("dose"),
+                rs.getString("unit"),
+                rs.getString("special_usage"),
+                rs.getBigDecimal("quantity"),
+                rs.getBigDecimal("unit_price"),
+                rs.getBigDecimal("total_price"),
+                rs.getBigDecimal("settlement_unit_price"),
+                rs.getBigDecimal("settlement_total_price"),
+                rs.getString("batch_no"),
+                rs.getString("remark"),
+                instant(rs, "prescription_created_at")
         );
     }
 

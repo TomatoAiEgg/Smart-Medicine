@@ -1223,6 +1223,30 @@ export interface InstitutionHerbReconciliationRecord {
   settlementAmount: number | string | null;
 }
 
+export interface PrescriptionHerbDetailRecord {
+  institutionCode: string;
+  institutionName: string;
+  orderNo: string;
+  externalOrderNo: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  herbCode: string;
+  herbName: string;
+  drugSpecs: string | null;
+  drugOrigin: string | null;
+  dose: string | null;
+  unit: string | null;
+  specialUsage: string | null;
+  quantity: number | string | null;
+  unitPrice: number | string | null;
+  totalPrice: number | string | null;
+  settlementUnitPrice: number | string | null;
+  settlementTotalPrice: number | string | null;
+  batchNo: string | null;
+  remark: string | null;
+  prescriptionCreatedAt: string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

@@ -244,6 +244,43 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("H001,测试医院,M001,党参,片,山西,g,7,5,3,86.0000,129.00,118.50");
     }
 
+    @Test
+    void shouldExportPrescriptionHerbDetailsAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadPrescriptionHerbDetails(from, to)).thenReturn(List.of(
+                new ReportRecords.PrescriptionHerbDetail(
+                        "H001",
+                        "测试医院",
+                        "ZHYF001",
+                        "EXT001",
+                        "RX001",
+                        "ERX001",
+                        "M001",
+                        "党参",
+                        "片",
+                        "山西",
+                        "10",
+                        "g",
+                        "先煎",
+                        new BigDecimal("12.5000"),
+                        new BigDecimal("1.2000"),
+                        new BigDecimal("15.00"),
+                        new BigDecimal("1.0000"),
+                        new BigDecimal("12.50"),
+                        "B001",
+                        "无",
+                        Instant.parse("2026-07-02T09:00:00Z")
+                )
+        ));
+
+        String csv = service.exportPrescriptionHerbDetailsCsv(from, to);
+
+        verify(repository).loadPrescriptionHerbDetails(from, to);
+        assertThat(csv).startsWith("institutionCode,institutionName,orderNo,externalOrderNo,prescriptionNo,externalPrescriptionNo,herbCode,herbName");
+        assertThat(csv).contains("H001,测试医院,ZHYF001,EXT001,RX001,ERX001,M001,党参,片,山西,10,g,先煎,12.5000,1.2000,15.00,1.0000,12.50,B001,无,2026-07-02T09:00:00Z");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

@@ -236,6 +236,59 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.PrescriptionHerbDetail> prescriptionHerbDetails(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadPrescriptionHerbDetails(from, to);
+    }
+
+    public String exportPrescriptionHerbDetailsCsv(Instant from, Instant to) {
+        List<ReportRecords.PrescriptionHerbDetail> rows = prescriptionHerbDetails(from, to);
+        StringBuilder csv = new StringBuilder("institutionCode,institutionName,orderNo,externalOrderNo,prescriptionNo,externalPrescriptionNo,herbCode,herbName,drugSpecs,drugOrigin,dose,unit,specialUsage,quantity,unitPrice,totalPrice,settlementUnitPrice,settlementTotalPrice,batchNo,remark,prescriptionCreatedAt\n");
+        rows.forEach(row -> csv.append(escape(row.institutionCode()))
+                .append(',')
+                .append(escape(row.institutionName()))
+                .append(',')
+                .append(escape(row.orderNo()))
+                .append(',')
+                .append(escape(row.externalOrderNo()))
+                .append(',')
+                .append(escape(row.prescriptionNo()))
+                .append(',')
+                .append(escape(row.externalPrescriptionNo()))
+                .append(',')
+                .append(escape(row.herbCode()))
+                .append(',')
+                .append(escape(row.herbName()))
+                .append(',')
+                .append(escape(row.drugSpecs()))
+                .append(',')
+                .append(escape(row.drugOrigin()))
+                .append(',')
+                .append(escape(row.dose()))
+                .append(',')
+                .append(escape(row.unit()))
+                .append(',')
+                .append(escape(row.specialUsage()))
+                .append(',')
+                .append(row.quantity() == null ? "" : row.quantity())
+                .append(',')
+                .append(row.unitPrice() == null ? "" : row.unitPrice())
+                .append(',')
+                .append(row.totalPrice() == null ? "" : row.totalPrice())
+                .append(',')
+                .append(row.settlementUnitPrice() == null ? "" : row.settlementUnitPrice())
+                .append(',')
+                .append(row.settlementTotalPrice() == null ? "" : row.settlementTotalPrice())
+                .append(',')
+                .append(escape(row.batchNo()))
+                .append(',')
+                .append(escape(row.remark()))
+                .append(',')
+                .append(row.prescriptionCreatedAt() == null ? "" : row.prescriptionCreatedAt())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')

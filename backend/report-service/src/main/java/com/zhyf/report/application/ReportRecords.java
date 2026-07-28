@@ -121,4 +121,29 @@ public final class ReportRecords {
             BigDecimal settlementAmount
     ) {
     }
+
+    public record PrescriptionHerbDetail(
+            String institutionCode,
+            String institutionName,
+            String orderNo,
+            String externalOrderNo,
+            String prescriptionNo,
+            String externalPrescriptionNo,
+            String herbCode,
+            String herbName,
+            String drugSpecs,
+            String drugOrigin,
+            String dose,
+            String unit,
+            String specialUsage,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal totalPrice,
+            BigDecimal settlementUnitPrice,
+            BigDecimal settlementTotalPrice,
+            String batchNo,
+            String remark,
+            Instant prescriptionCreatedAt
+    ) {
+    }
 }

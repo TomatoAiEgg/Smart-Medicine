@@ -6,6 +6,7 @@ import type {
   HerbDosageRecord,
   InstitutionHerbReconciliationRecord,
   InstitutionPrescriptionCountRecord,
+  PrescriptionHerbDetailRecord,
   RecheckPerformanceRecord,
   ReportOverview,
 } from './types';
@@ -147,6 +148,22 @@ export function listInstitutionHerbReconciliation(params: ReportTimeRangeQuery =
 export async function downloadInstitutionHerbReconciliationCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/institution-herb-reconciliation.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listPrescriptionHerbDetails(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<PrescriptionHerbDetailRecord[]>(
+    `/report-api/api/admin/reports/prescription-herb-details${query ? `?${query}` : ''}`,
+  );
+}
+
+export async function downloadPrescriptionHerbDetailsCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/prescription-herb-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }
