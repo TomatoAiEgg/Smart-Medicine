@@ -5,6 +5,7 @@ import { formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type StatusFilter = 'all' | 'implemented' | 'pending';
+type CsvExportValue = string | number | boolean | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -57,10 +58,45 @@ const groupedRows = computed(() => {
     .filter((entry) => entry.rows.length > 0);
 });
 const filteredCount = computed(() => groupedRows.value.reduce((count, entry) => count + entry.rows.length, 0));
+const exportRows = computed(() => groupedRows.value.flatMap((entry) => entry.rows));
 
 function rowValue(value: string | null | undefined) {
   if (!value) return '-';
   return value;
+}
+
+function escapeCsvCell(value: CsvExportValue) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadMenuCsv() {
+  const headers = ['菜单', '分组', '路径', '旧系统路由', '优先级', '状态', '组件', '核心动作', '接口依赖'];
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...exportRows.value.map((row) => [
+      row.label,
+      row.group,
+      row.path,
+      row.legacyRoute ?? '',
+      row.priority,
+      row.implemented ? '已接入' : '待接入',
+      row.plannedComponent,
+      row.coreActions.join('、'),
+      row.apiDependencies.join('、'),
+    ].map(escapeCsvCell).join(',')),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'menu-registry.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+  emit('notice', 'success', `已导出 ${formatNumber(exportRows.value.length)} 个菜单入口`);
 }
 
 function resetFilters() {
@@ -126,6 +162,9 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" @click="resetFilters">清空</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="filteredCount === 0" @click="downloadMenuCsv">导出当前结果</button>
       </li>
     </ul>
 
