@@ -1253,6 +1253,63 @@ export interface IntegrationRetryIssueRecord {
   failureReason: string | null;
 }
 
+export interface ProblemRegistrationQueryParams {
+  status?: string;
+  orderNo?: string;
+  keyword?: string;
+  limit?: number;
+}
+
+export interface ProblemRegistrationRecord {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  institutionId: string | null;
+  orderNo: string;
+  externalOrderNo: string | null;
+  institutionName: string | null;
+  problemType: string;
+  problemReason: string;
+  handlingPlan: string;
+  amount: number;
+  status: string;
+  operator: string;
+  remark: string | null;
+  createdAt: string;
+  updatedAt: string;
+  processedAt: string | null;
+  closedAt: string | null;
+}
+
+export interface ProblemRegistrationActionRecord {
+  id: string;
+  registrationId: string;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  operator: string;
+  remark: string | null;
+  createdAt: string;
+}
+
+export interface ProblemRegistrationCommand {
+  orderNo?: string;
+  problemType?: string;
+  problemReason: string;
+  handlingPlan: string;
+  amount?: number;
+  operator?: string;
+  remark?: string;
+}
+
+export interface ProblemRegistrationHandleCommand {
+  status: string;
+  handlingPlan?: string;
+  amount?: number;
+  operator?: string;
+  remark?: string;
+}
+
 export interface OpsHealthOverview {
   recentHours: number;
   pendingOutbox: number;

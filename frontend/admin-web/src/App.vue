@@ -40,6 +40,7 @@ import PrescriptionReprint from './features/orders/PrescriptionReprint.vue';
 import ExceptionLogList from './features/ops/ExceptionLogList.vue';
 import OrderObservabilityPanel from './features/ops/OrderObservabilityPanel.vue';
 import OpsConsole from './features/ops/OpsConsole.vue';
+import ProblemRegistration from './features/ops/ProblemRegistration.vue';
 import PendingMenuPage from './features/pending/PendingMenuPage.vue';
 import PortalLookup from './features/portal/PortalLookup.vue';
 import AuditPerformance from './features/reports/AuditPerformance.vue';
@@ -105,6 +106,7 @@ const logisticsInfoRef = ref<InstanceType<typeof LogisticsInfo> | null>(null);
 const orderMergeListRef = ref<InstanceType<typeof OrderMergeList> | null>(null);
 const unreceivedFollowupRef = ref<InstanceType<typeof UnreceivedFollowup> | null>(null);
 const exceptionLogRef = ref<InstanceType<typeof ExceptionLogList> | null>(null);
+const problemRegistrationRef = ref<InstanceType<typeof ProblemRegistration> | null>(null);
 const labelPrintRef = ref<InstanceType<typeof LabelPrint> | null>(null);
 const decoctionWorkspaceRef = ref<InstanceType<typeof DecoctionWorkspace> | null>(null);
 const orderObservabilityRef = ref<InstanceType<typeof OrderObservabilityPanel> | null>(null);
@@ -165,6 +167,7 @@ const logisticsInfoCount = ref(0);
 const orderMergeCount = ref(0);
 const unreceivedFollowupCount = ref(0);
 const exceptionLogCount = ref(0);
+const problemRegistrationCount = ref(0);
 const labelPrintCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
 const orderInterceptRuleCount = ref(0);
@@ -180,6 +183,7 @@ const logisticsInfoActivationKey = ref(0);
 const orderMergeActivationKey = ref(0);
 const unreceivedFollowupActivationKey = ref(0);
 const exceptionLogActivationKey = ref(0);
+const problemRegistrationActivationKey = ref(0);
 const labelPrintActivationKey = ref(0);
 const prescriptionReconciliationActivationKey = ref(0);
 const decoctionActivationKey = ref(0);
@@ -263,6 +267,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportInstitutionPrescriptionCounts: institutionPrescriptionCountsCount.value,
   reportPrescriptionReconciliation: prescriptionReconciliationCount.value,
   orderInterceptRules: orderInterceptRuleCount.value,
+  maintenanceProblemRegistrations: problemRegistrationCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
   observability: observabilityCount.value,
@@ -322,6 +327,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'logisticsMerges') orderMergeActivationKey.value += 1;
   if (componentKey === 'logisticsUnreceivedFollowups') unreceivedFollowupActivationKey.value += 1;
   if (componentKey === 'exceptionLogs') exceptionLogActivationKey.value += 1;
+  if (componentKey === 'problemRegistrations') problemRegistrationActivationKey.value += 1;
   if (componentKey === 'labelPrints') labelPrintActivationKey.value += 1;
   if (componentKey === 'prescriptionReconciliation') prescriptionReconciliationActivationKey.value += 1;
   if (componentKey === 'decoction') decoctionActivationKey.value += 1;
@@ -471,6 +477,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'exceptionLogs') {
     await exceptionLogRef.value?.refreshExceptionLogs();
+    return;
+  }
+  if (componentKey === 'problemRegistrations') {
+    await problemRegistrationRef.value?.refreshProblemRegistrations();
     return;
   }
   if (componentKey === 'labelPrints') {
@@ -942,6 +952,16 @@ function closeTab(view: ViewKey) {
       active
       :activation-key="exceptionLogActivationKey"
       @count-changed="exceptionLogCount = $event"
+      @notice="showNotice"
+    />
+
+    <ProblemRegistration
+      v-else-if="currentComponentKey === 'problemRegistrations'"
+      ref="problemRegistrationRef"
+      v-model:operation-operator="operationOperator"
+      active
+      :activation-key="problemRegistrationActivationKey"
+      @count-changed="problemRegistrationCount = $event"
       @notice="showNotice"
     />
 

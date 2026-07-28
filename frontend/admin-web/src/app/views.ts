@@ -41,6 +41,7 @@ export type ImplementedViewKey =
   | 'integration'
   | 'observability'
   | 'ops'
+  | 'problemRegistrations'
   | 'operatorManage'
   | 'addressModify'
   | 'prescriptionModify'
@@ -647,8 +648,10 @@ export const menuItems = [
     path: '/maintenance/problem-registrations',
     legacyRoute: 'mainten/listOrderProblemRegistration.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '问题订单登记与处理',
+    componentKey: 'problemRegistrations',
+    showCount: true,
     plannedComponent: 'features/ops/ProblemRegistration.vue',
     coreActions: ['新增', '编辑', '处理', '关闭', '导出'],
     apiDependencies: ['问题件 CRUD', '处理记录', '操作审计'],

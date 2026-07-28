@@ -1,6 +1,7 @@
 package com.zhyf.ops.infrastructure;
 
 import com.zhyf.ops.application.OpsRecords;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -449,6 +450,181 @@ public class OpsQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapIntegrationRetryIssueRecord, query.args());
     }
 
+    public List<OpsRecords.ProblemRegistrationRecord> findProblemRegistrations(
+            String status,
+            String orderNo,
+            String keyword,
+            int limit
+    ) {
+        QueryParts query = new QueryParts("""
+                select p.id, p.tenant_id, p.order_id, p.institution_id, p.order_no, p.external_order_no,
+                       i.name as institution_name, p.problem_type, p.problem_reason, p.handling_plan,
+                       p.amount, p.status, p.operator, p.remark, p.created_at, p.updated_at,
+                       p.processed_at, p.closed_at
+                from order_problem_registration p
+                left join institution i on i.id = p.institution_id
+                where 1 = 1
+                """);
+        if (StringUtils.hasText(status) && !"ALL".equalsIgnoreCase(status.trim())) {
+            query.addTextFilter("p.status", status.trim().toUpperCase());
+        } else {
+            query.append(" and p.status in ('OPEN', 'PROCESSING')");
+        }
+        if (StringUtils.hasText(orderNo)) {
+            query.append(" and p.order_no ilike ?");
+            query.add("%" + orderNo.trim() + "%");
+        }
+        if (StringUtils.hasText(keyword)) {
+            query.append("""
+                     and (
+                        p.problem_reason ilike ?
+                        or p.handling_plan ilike ?
+                        or coalesce(p.remark, '') ilike ?
+                        or p.operator ilike ?
+                    )
+                    """);
+            String pattern = "%" + keyword.trim() + "%";
+            query.add(pattern);
+            query.add(pattern);
+            query.add(pattern);
+            query.add(pattern);
+        }
+        query.append(" order by p.updated_at desc, p.created_at desc limit ?");
+        query.add(limit);
+        return jdbcTemplate.query(query.sql(), this::mapProblemRegistrationRecord, query.args());
+    }
+
+    public List<OpsRecords.ProblemRegistrationRecord> findProblemRegistrationById(UUID id) {
+        String sql = """
+                select p.id, p.tenant_id, p.order_id, p.institution_id, p.order_no, p.external_order_no,
+                       i.name as institution_name, p.problem_type, p.problem_reason, p.handling_plan,
+                       p.amount, p.status, p.operator, p.remark, p.created_at, p.updated_at,
+                       p.processed_at, p.closed_at
+                from order_problem_registration p
+                left join institution i on i.id = p.institution_id
+                where p.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapProblemRegistrationRecord, id);
+    }
+
+    public OpsRecords.ProblemRegistrationRecord insertProblemRegistration(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID institutionId,
+            String orderNo,
+            String externalOrderNo,
+            String problemType,
+            String problemReason,
+            String handlingPlan,
+            BigDecimal amount,
+            String operator,
+            String remark
+    ) {
+        String sql = """
+                insert into order_problem_registration (
+                    id, tenant_id, order_id, institution_id, order_no, external_order_no,
+                    problem_type, problem_reason, handling_plan, amount, operator, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                orderId,
+                institutionId,
+                orderNo,
+                externalOrderNo,
+                problemType,
+                problemReason,
+                handlingPlan,
+                amount,
+                operator,
+                remark
+        );
+        return findProblemRegistrationById(id).stream().findFirst().orElseThrow();
+    }
+
+    public OpsRecords.ProblemRegistrationRecord updateProblemRegistration(
+            UUID id,
+            String problemType,
+            String problemReason,
+            String handlingPlan,
+            BigDecimal amount,
+            String operator,
+            String remark
+    ) {
+        String sql = """
+                update order_problem_registration
+                set problem_type = ?,
+                    problem_reason = ?,
+                    handling_plan = ?,
+                    amount = ?,
+                    operator = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, problemType, problemReason, handlingPlan, amount, operator, remark, id);
+        return findProblemRegistrationById(id).stream().findFirst().orElseThrow();
+    }
+
+    public OpsRecords.ProblemRegistrationRecord handleProblemRegistration(
+            UUID id,
+            String status,
+            String handlingPlan,
+            BigDecimal amount,
+            String operator,
+            String remark
+    ) {
+        String sql = """
+                update order_problem_registration
+                set status = ?,
+                    handling_plan = ?,
+                    amount = ?,
+                    operator = ?,
+                    remark = ?,
+                    updated_at = now(),
+                    processed_at = case
+                        when ? in ('PROCESSING', 'RESOLVED', 'CLOSED') then now()
+                        else processed_at
+                    end,
+                    closed_at = case when ? = 'CLOSED' then now() else closed_at end
+                where id = ?
+                """;
+        jdbcTemplate.update(sql, status, handlingPlan, amount, operator, remark, status, status, id);
+        return findProblemRegistrationById(id).stream().findFirst().orElseThrow();
+    }
+
+    public void insertProblemRegistrationAction(
+            UUID id,
+            UUID registrationId,
+            String action,
+            String fromStatus,
+            String toStatus,
+            String operator,
+            String remark
+    ) {
+        String sql = """
+                insert into order_problem_registration_action (
+                    id, registration_id, action, from_status, to_status, operator, remark
+                )
+                values (?, ?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, id, registrationId, action, fromStatus, toStatus, operator, remark);
+    }
+
+    public List<OpsRecords.ProblemRegistrationActionRecord> findProblemRegistrationActions(UUID registrationId, int limit) {
+        String sql = """
+                select id, registration_id, action, from_status, to_status, operator, remark, created_at
+                from order_problem_registration_action
+                where registration_id = ?
+                order by created_at desc limit ?
+                """;
+        return jdbcTemplate.query(sql, this::mapProblemRegistrationActionRecord, registrationId, limit);
+    }
+
     public OpsRecords.OpsHealthOverview loadHealthOverview(int recentHours) {
         return new OpsRecords.OpsHealthOverview(
                 recentHours,
@@ -696,6 +872,44 @@ public class OpsQueryRepository {
                 rs.getString("message_type"),
                 rs.getString("process_status"),
                 rs.getString("failure_reason")
+        );
+    }
+
+    private OpsRecords.ProblemRegistrationRecord mapProblemRegistrationRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OpsRecords.ProblemRegistrationRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("problem_type"),
+                rs.getString("problem_reason"),
+                rs.getString("handling_plan"),
+                rs.getBigDecimal("amount"),
+                rs.getString("status"),
+                rs.getString("operator"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at"),
+                instant(rs, "processed_at"),
+                instant(rs, "closed_at")
+        );
+    }
+
+    private OpsRecords.ProblemRegistrationActionRecord mapProblemRegistrationActionRecord(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new OpsRecords.ProblemRegistrationActionRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("registration_id", UUID.class),
+                rs.getString("action"),
+                rs.getString("from_status"),
+                rs.getString("to_status"),
+                rs.getString("operator"),
+                rs.getString("remark"),
+                instant(rs, "created_at")
         );
     }
 

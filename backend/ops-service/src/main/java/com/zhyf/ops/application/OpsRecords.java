@@ -1,5 +1,6 @@
 package com.zhyf.ops.application;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -213,6 +214,60 @@ public final class OpsRecords {
             String messageType,
             String processStatus,
             String failureReason
+    ) {
+    }
+
+    public record ProblemRegistrationRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID institutionId,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String problemType,
+            String problemReason,
+            String handlingPlan,
+            BigDecimal amount,
+            String status,
+            String operator,
+            String remark,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant processedAt,
+            Instant closedAt
+    ) {
+    }
+
+    public record ProblemRegistrationActionRecord(
+            UUID id,
+            UUID registrationId,
+            String action,
+            String fromStatus,
+            String toStatus,
+            String operator,
+            String remark,
+            Instant createdAt
+    ) {
+    }
+
+    public record ProblemRegistrationCommand(
+            String orderNo,
+            String problemType,
+            String problemReason,
+            String handlingPlan,
+            BigDecimal amount,
+            String operator,
+            String remark
+    ) {
+    }
+
+    public record ProblemRegistrationHandleCommand(
+            String status,
+            String handlingPlan,
+            BigDecimal amount,
+            String operator,
+            String remark
     ) {
     }
 

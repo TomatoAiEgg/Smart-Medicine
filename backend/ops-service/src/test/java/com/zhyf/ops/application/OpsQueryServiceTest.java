@@ -1,8 +1,10 @@
 package com.zhyf.ops.application;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import com.zhyf.ops.infrastructure.OpsQueryRepository;
 import java.time.Instant;
 import java.util.List;
@@ -41,6 +43,24 @@ class OpsQueryServiceTest {
         service.listIntegrationRetryIssues("FAILED", "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 500);
 
         verify(repository).findIntegrationRetryIssues("FAILED", "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 200);
+    }
+
+    @Test
+    void shouldNormalizeLimitForProblemRegistrations() {
+        service.listProblemRegistrations(null, "ZHYF1", "破损", 0);
+
+        verify(repository).findProblemRegistrations(null, "ZHYF1", "破损", 50);
+    }
+
+    @Test
+    void shouldRequireCloseReasonForProblemRegistration() {
+        UUID id = UUID.randomUUID();
+        when(repository.findProblemRegistrationById(id)).thenReturn(List.of(problemRegistration(id)));
+
+        assertThatThrownBy(() -> service.handleProblemRegistration(
+                id,
+                new OpsRecords.ProblemRegistrationHandleCommand("CLOSED", null, null, "ops", "")
+        )).hasMessageContaining("Close reason is required");
     }
 
     @Test
@@ -92,6 +112,29 @@ class OpsQueryServiceTest {
                 null,
                 Instant.parse("2026-07-21T00:00:00Z"),
                 Instant.parse("2026-07-21T00:00:00Z")
+        );
+    }
+
+    private OpsRecords.ProblemRegistrationRecord problemRegistration(UUID id) {
+        return new OpsRecords.ProblemRegistrationRecord(
+                id,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "ZHYF1",
+                "HIS-1",
+                "演示机构",
+                "ORDER",
+                "包裹破损",
+                "联系补发",
+                BigDecimal.ZERO,
+                "OPEN",
+                "ops",
+                null,
+                Instant.parse("2026-07-21T00:00:00Z"),
+                Instant.parse("2026-07-21T00:00:00Z"),
+                null,
+                null
         );
     }
 }

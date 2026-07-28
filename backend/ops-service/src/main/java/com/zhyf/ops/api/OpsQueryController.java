@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -126,6 +127,46 @@ public class OpsQueryController {
                 sourceSystem,
                 limit
         ));
+    }
+
+    @GetMapping("/problem-registrations")
+    public ApiResponse<List<OpsRecords.ProblemRegistrationRecord>> listProblemRegistrations(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ApiResponse.ok(queryService.listProblemRegistrations(status, orderNo, keyword, limit));
+    }
+
+    @PostMapping("/problem-registrations")
+    public ApiResponse<OpsRecords.ProblemRegistrationRecord> createProblemRegistration(
+            @RequestBody OpsRecords.ProblemRegistrationCommand command
+    ) {
+        return ApiResponse.ok(queryService.createProblemRegistration(command));
+    }
+
+    @PatchMapping("/problem-registrations/{id}")
+    public ApiResponse<OpsRecords.ProblemRegistrationRecord> updateProblemRegistration(
+            @PathVariable UUID id,
+            @RequestBody OpsRecords.ProblemRegistrationCommand command
+    ) {
+        return ApiResponse.ok(queryService.updateProblemRegistration(id, command));
+    }
+
+    @PatchMapping("/problem-registrations/{id}/handle")
+    public ApiResponse<OpsRecords.ProblemRegistrationRecord> handleProblemRegistration(
+            @PathVariable UUID id,
+            @RequestBody OpsRecords.ProblemRegistrationHandleCommand command
+    ) {
+        return ApiResponse.ok(queryService.handleProblemRegistration(id, command));
+    }
+
+    @GetMapping("/problem-registrations/{id}/actions")
+    public ApiResponse<List<OpsRecords.ProblemRegistrationActionRecord>> listProblemRegistrationActions(
+            @PathVariable UUID id
+    ) {
+        return ApiResponse.ok(queryService.listProblemRegistrationActions(id));
     }
 
     @GetMapping("/health-overview")

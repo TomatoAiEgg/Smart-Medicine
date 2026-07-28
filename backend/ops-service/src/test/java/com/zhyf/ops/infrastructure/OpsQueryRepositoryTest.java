@@ -105,6 +105,22 @@ class OpsQueryRepositoryTest {
     }
 
     @Test
+    void shouldQueryProblemRegistrationsWithFilters() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.findProblemRegistrations("OPEN", "ZHYF1", "破损", 50);
+
+        String sql = capturedSql();
+        Object[] args = capturedArgs();
+        assertThat(sql).contains("from order_problem_registration p");
+        assertThat(sql).contains("left join institution i on i.id = p.institution_id");
+        assertThat(sql).contains("p.status = ?");
+        assertThat(sql).contains("p.order_no ilike ?");
+        assertThat(sql).contains("p.problem_reason ilike ?");
+        assertThat(args).containsExactly("OPEN", "%ZHYF1%", "%破损%", "%破损%", "%破损%", "%破损%", 50);
+    }
+
+    @Test
     void shouldLoadHealthOverviewFromCoreTables() {
         when(jdbcTemplate.queryForObject(anyString(), org.mockito.ArgumentMatchers.eq(Long.class), any(Object[].class)))
                 .thenReturn(1L);

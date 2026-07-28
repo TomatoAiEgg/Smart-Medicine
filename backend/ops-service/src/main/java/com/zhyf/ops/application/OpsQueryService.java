@@ -2,6 +2,7 @@ package com.zhyf.ops.application;
 
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.ops.infrastructure.OpsQueryRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -133,6 +134,118 @@ public class OpsQueryService {
         );
     }
 
+    public List<OpsRecords.ProblemRegistrationRecord> listProblemRegistrations(
+            String status,
+            String orderNo,
+            String keyword,
+            int limit
+    ) {
+        return repository.findProblemRegistrations(status, orderNo, keyword, normalizeLimit(limit));
+    }
+
+    @Transactional
+    public OpsRecords.ProblemRegistrationRecord createProblemRegistration(
+            OpsRecords.ProblemRegistrationCommand command
+    ) {
+        if (command == null) {
+            throw new BusinessException("PROBLEM_REGISTRATION_COMMAND_REQUIRED", "Problem registration command is required");
+        }
+        String orderNo = requireText(command.orderNo(), "PROBLEM_ORDER_NO_REQUIRED", "Order no is required");
+        OpsRecords.OrderIdentityRecord order = repository.findOrderIdentity(orderNo, null)
+                .orElseThrow(() -> new BusinessException("PROBLEM_ORDER_NOT_FOUND", "Order not found"));
+        UUID id = UUID.randomUUID();
+        String operator = normalizedOperator(command.operator());
+        OpsRecords.ProblemRegistrationRecord record = repository.insertProblemRegistration(
+                id,
+                order.tenantId(),
+                order.id(),
+                order.institutionId(),
+                order.orderNo(),
+                order.externalOrderNo(),
+                defaultText(command.problemType(), "ORDER"),
+                requireText(command.problemReason(), "PROBLEM_REASON_REQUIRED", "Problem reason is required"),
+                requireText(command.handlingPlan(), "PROBLEM_HANDLING_PLAN_REQUIRED", "Handling plan is required"),
+                normalizeAmount(command.amount()),
+                operator,
+                normalizeText(command.remark())
+        );
+        repository.insertProblemRegistrationAction(
+                UUID.randomUUID(),
+                id,
+                "CREATE",
+                null,
+                record.status(),
+                operator,
+                normalizedRemark(command.remark(), "create problem registration")
+        );
+        return record;
+    }
+
+    @Transactional
+    public OpsRecords.ProblemRegistrationRecord updateProblemRegistration(
+            UUID id,
+            OpsRecords.ProblemRegistrationCommand command
+    ) {
+        OpsRecords.ProblemRegistrationRecord existing = findProblemRegistration(id);
+        String operator = normalizedOperator(command == null ? null : command.operator());
+        OpsRecords.ProblemRegistrationRecord updated = repository.updateProblemRegistration(
+                id,
+                defaultText(command == null ? null : command.problemType(), existing.problemType()),
+                requireText(command == null ? null : command.problemReason(), "PROBLEM_REASON_REQUIRED", "Problem reason is required"),
+                requireText(command == null ? null : command.handlingPlan(), "PROBLEM_HANDLING_PLAN_REQUIRED", "Handling plan is required"),
+                command == null || command.amount() == null ? existing.amount() : normalizeAmount(command.amount()),
+                operator,
+                normalizeText(command == null ? null : command.remark())
+        );
+        repository.insertProblemRegistrationAction(
+                UUID.randomUUID(),
+                id,
+                "UPDATE",
+                existing.status(),
+                existing.status(),
+                operator,
+                normalizedRemark(command == null ? null : command.remark(), "update problem registration")
+        );
+        return updated;
+    }
+
+    @Transactional
+    public OpsRecords.ProblemRegistrationRecord handleProblemRegistration(
+            UUID id,
+            OpsRecords.ProblemRegistrationHandleCommand command
+    ) {
+        OpsRecords.ProblemRegistrationRecord existing = findProblemRegistration(id);
+        String status = normalizeHandleStatus(command == null ? null : command.status());
+        String remark = command == null ? null : command.remark();
+        if ("CLOSED".equals(status) && !StringUtils.hasText(remark)) {
+            throw new BusinessException("PROBLEM_CLOSE_REASON_REQUIRED", "Close reason is required");
+        }
+        String operator = normalizedOperator(command == null ? null : command.operator());
+        OpsRecords.ProblemRegistrationRecord updated = repository.handleProblemRegistration(
+                id,
+                status,
+                defaultText(command == null ? null : command.handlingPlan(), existing.handlingPlan()),
+                command == null || command.amount() == null ? existing.amount() : normalizeAmount(command.amount()),
+                operator,
+                normalizeText(remark)
+        );
+        repository.insertProblemRegistrationAction(
+                UUID.randomUUID(),
+                id,
+                "CLOSED".equals(status) ? "CLOSE" : "HANDLE",
+                existing.status(),
+                status,
+                operator,
+                normalizedRemark(remark, "handle problem registration")
+        );
+        return updated;
+    }
+
+    public List<OpsRecords.ProblemRegistrationActionRecord> listProblemRegistrationActions(UUID id) {
+        findProblemRegistration(id);
+        return repository.findProblemRegistrationActions(id, normalizeLimit(DEFAULT_LIMIT));
+    }
+
     public OpsRecords.OpsHealthOverview healthOverview(int recentHours) {
         return repository.loadHealthOverview(normalizeHealthHours(recentHours));
     }
@@ -195,12 +308,50 @@ public class OpsQueryService {
                 .orElseThrow(() -> new BusinessException("DEAD_LETTER_NOT_FOUND", "Dead letter not found"));
     }
 
+    private OpsRecords.ProblemRegistrationRecord findProblemRegistration(UUID id) {
+        return repository.findProblemRegistrationById(id).stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        "PROBLEM_REGISTRATION_NOT_FOUND",
+                        "Problem registration not found"
+                ));
+    }
+
     private String normalizedOperator(String operator) {
         return StringUtils.hasText(operator) ? operator.trim() : "admin-console";
     }
 
     private String normalizedRemark(String remark, String defaultRemark) {
         return StringUtils.hasText(remark) ? remark.trim() : defaultRemark;
+    }
+
+    private String requireText(String value, String code, String message) {
+        String normalized = normalizeText(value);
+        if (!StringUtils.hasText(normalized)) {
+            throw new BusinessException(code, message);
+        }
+        return normalized;
+    }
+
+    private String defaultText(String value, String defaultValue) {
+        String normalized = normalizeText(value);
+        return StringUtils.hasText(normalized) ? normalized : defaultValue;
+    }
+
+    private BigDecimal normalizeAmount(BigDecimal amount) {
+        BigDecimal normalized = amount == null ? BigDecimal.ZERO : amount;
+        if (normalized.signum() < 0) {
+            throw new BusinessException("PROBLEM_AMOUNT_INVALID", "Amount cannot be negative");
+        }
+        return normalized;
+    }
+
+    private String normalizeHandleStatus(String status) {
+        String normalized = requireText(status, "PROBLEM_STATUS_REQUIRED", "Problem status is required").toUpperCase();
+        if (!List.of("PROCESSING", "RESOLVED", "CLOSED").contains(normalized)) {
+            throw new BusinessException("PROBLEM_STATUS_INVALID", "Problem status is invalid");
+        }
+        return normalized;
     }
 
     private String normalizeText(String value) {

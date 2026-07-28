@@ -10,6 +10,11 @@ import type {
   OrderObservabilityBundle,
   OrderValidationRecord,
   OpsHealthOverview,
+  ProblemRegistrationActionRecord,
+  ProblemRegistrationCommand,
+  ProblemRegistrationHandleCommand,
+  ProblemRegistrationQueryParams,
+  ProblemRegistrationRecord,
 } from './types';
 
 interface OpsQueryParams {
@@ -105,6 +110,38 @@ export function listIntegrationRetryIssues(
   params: Pick<OpsQueryParams, 'taskStatus' | 'taskType' | 'businessKey' | 'sourceSystem' | 'limit'> = {},
 ) {
   return request<IntegrationRetryIssueRecord[]>(opsUrl('integration-retry-issues', params));
+}
+
+export function listProblemRegistrations(params: ProblemRegistrationQueryParams = {}) {
+  return request<ProblemRegistrationRecord[]>(opsUrl('problem-registrations', params));
+}
+
+export function createProblemRegistration(command: ProblemRegistrationCommand) {
+  return request<ProblemRegistrationRecord>(opsUrl('problem-registrations', {}), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateProblemRegistration(id: string, command: ProblemRegistrationCommand) {
+  return request<ProblemRegistrationRecord>(opsUrl(`problem-registrations/${id}`, {}), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
+}
+
+export function handleProblemRegistration(id: string, command: ProblemRegistrationHandleCommand) {
+  return request<ProblemRegistrationRecord>(opsUrl(`problem-registrations/${id}/handle`, {}), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
+}
+
+export function listProblemRegistrationActions(id: string) {
+  return request<ProblemRegistrationActionRecord[]>(opsUrl(`problem-registrations/${id}/actions`, {}));
 }
 
 export function getOpsHealthOverview(params: Pick<OpsQueryParams, 'recentHours'> = {}) {
