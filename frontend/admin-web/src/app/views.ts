@@ -21,6 +21,7 @@ export type ImplementedViewKey =
   | 'auditPerformanceDetails'
   | 'decoctionPerformance'
   | 'dispensePerformance'
+  | 'dispensePerformanceDetails'
   | 'herbDosage'
   | 'institutionHerbReconciliation'
   | 'prescriptionHerbDetails'
@@ -834,9 +835,11 @@ export const menuItems = [
     path: '/reports/dispense-performance-details',
     legacyRoute: 'exportQuery/dispensePerformanceDetail.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '调剂员绩效明细',
-    plannedComponent: 'features/report/DispensePerformanceDetail.vue',
+    componentKey: 'dispensePerformanceDetails',
+    showCount: true,
+    plannedComponent: 'features/reports/DispensePerformanceDetails.vue',
     coreActions: ['明细', '导出'],
     apiDependencies: ['调剂绩效明细', '异步导出任务'],
   },

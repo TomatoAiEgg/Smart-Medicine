@@ -266,4 +266,28 @@ public class ReportController {
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
                 .body(content);
     }
+
+    @GetMapping("/dispense-performance-details")
+    public ApiResponse<List<ReportRecords.DispensePerformanceDetail>> dispensePerformanceDetails(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        return ApiResponse.ok(reportQueryService.dispensePerformanceDetails(from, to));
+    }
+
+    @GetMapping("/dispense-performance-details.csv")
+    public ResponseEntity<byte[]> dispensePerformanceDetailsCsv(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to
+    ) {
+        byte[] content = reportQueryService.exportDispensePerformanceDetailsCsv(from, to)
+                .getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("dispense-performance-details.csv", StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(content);
+    }
 }

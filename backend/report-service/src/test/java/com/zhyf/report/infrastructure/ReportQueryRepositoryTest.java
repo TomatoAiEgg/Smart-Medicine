@@ -82,6 +82,30 @@ class ReportQueryRepositoryTest {
     }
 
     @Test
+    void shouldBuildDispensePerformanceDetailQueryWithRange() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        repository.loadDispensePerformanceDetails(from, to);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("from dispense_record d")
+                .contains("join order_main o on o.id = d.order_id")
+                .contains("join institution i on i.id = o.institution_id")
+                .contains("join lateral")
+                .contains("d.dispensed_at is not null")
+                .contains("order by d.dispensed_at desc");
+        assertThat(argsCaptor.getValue()).containsExactly(
+                OffsetDateTime.ofInstant(from, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(to, ZoneOffset.UTC)
+        );
+    }
+
+    @Test
     void shouldBuildRecheckPerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");

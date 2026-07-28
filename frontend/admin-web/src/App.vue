@@ -37,6 +37,7 @@ import AuditPerformance from './features/reports/AuditPerformance.vue';
 import AuditPerformanceDetails from './features/reports/AuditPerformanceDetails.vue';
 import DecoctionPerformance from './features/reports/DecoctionPerformance.vue';
 import DispensePerformance from './features/reports/DispensePerformance.vue';
+import DispensePerformanceDetails from './features/reports/DispensePerformanceDetails.vue';
 import HerbDosage from './features/reports/HerbDosage.vue';
 import InstitutionHerbReconciliation from './features/reports/InstitutionHerbReconciliation.vue';
 import InstitutionPrescriptionCounts from './features/reports/InstitutionPrescriptionCounts.vue';
@@ -67,6 +68,7 @@ const auditPerformanceRef = ref<InstanceType<typeof AuditPerformance> | null>(nu
 const auditPerformanceDetailsRef = ref<InstanceType<typeof AuditPerformanceDetails> | null>(null);
 const decoctionPerformanceRef = ref<InstanceType<typeof DecoctionPerformance> | null>(null);
 const dispensePerformanceRef = ref<InstanceType<typeof DispensePerformance> | null>(null);
+const dispensePerformanceDetailsRef = ref<InstanceType<typeof DispensePerformanceDetails> | null>(null);
 const herbDosageRef = ref<InstanceType<typeof HerbDosage> | null>(null);
 const institutionHerbReconciliationRef = ref<InstanceType<typeof InstitutionHerbReconciliation> | null>(null);
 const prescriptionHerbDetailsRef = ref<InstanceType<typeof PrescriptionHerbDetails> | null>(null);
@@ -96,6 +98,7 @@ const auditPerformanceCount = ref(0);
 const auditPerformanceDetailsCount = ref(0);
 const decoctionPerformanceCount = ref(0);
 const dispensePerformanceCount = ref(0);
+const dispensePerformanceDetailsCount = ref(0);
 const herbDosageCount = ref(0);
 const institutionHerbReconciliationCount = ref(0);
 const prescriptionHerbDetailsCount = ref(0);
@@ -106,6 +109,7 @@ const auditPerformanceActivationKey = ref(0);
 const auditPerformanceDetailsActivationKey = ref(0);
 const decoctionPerformanceActivationKey = ref(0);
 const dispensePerformanceActivationKey = ref(0);
+const dispensePerformanceDetailsActivationKey = ref(0);
 const herbDosageActivationKey = ref(0);
 const institutionHerbReconciliationActivationKey = ref(0);
 const prescriptionHerbDetailsActivationKey = ref(0);
@@ -192,6 +196,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reportAuditPerformanceDetails: auditPerformanceDetailsCount.value,
   reportDecoctionPerformance: decoctionPerformanceCount.value,
   reportDispensePerformance: dispensePerformanceCount.value,
+  reportDispensePerformanceDetails: dispensePerformanceDetailsCount.value,
   reportHerbDosage: herbDosageCount.value,
   reportInstitutionHerbReconciliation: institutionHerbReconciliationCount.value,
   reportPrescriptionHerbDetails: prescriptionHerbDetailsCount.value,
@@ -232,6 +237,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'auditPerformanceDetails') auditPerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'decoctionPerformance') decoctionPerformanceActivationKey.value += 1;
   if (componentKey === 'dispensePerformance') dispensePerformanceActivationKey.value += 1;
+  if (componentKey === 'dispensePerformanceDetails') dispensePerformanceDetailsActivationKey.value += 1;
   if (componentKey === 'herbDosage') herbDosageActivationKey.value += 1;
   if (componentKey === 'institutionHerbReconciliation') institutionHerbReconciliationActivationKey.value += 1;
   if (componentKey === 'prescriptionHerbDetails') prescriptionHerbDetailsActivationKey.value += 1;
@@ -297,6 +303,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'dispensePerformance') {
     await dispensePerformanceRef.value?.refreshDispensePerformance();
+    return;
+  }
+  if (componentKey === 'dispensePerformanceDetails') {
+    await dispensePerformanceDetailsRef.value?.refreshDispensePerformanceDetails();
     return;
   }
   if (componentKey === 'herbDosage') {
@@ -461,6 +471,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'dispensePerformance'"
       :activation-key="dispensePerformanceActivationKey"
       @count-changed="dispensePerformanceCount = $event"
+      @notice="showNotice"
+    />
+
+    <DispensePerformanceDetails
+      v-show="currentComponentKey === 'dispensePerformanceDetails'"
+      ref="dispensePerformanceDetailsRef"
+      :active="currentComponentKey === 'dispensePerformanceDetails'"
+      :activation-key="dispensePerformanceDetailsActivationKey"
+      @count-changed="dispensePerformanceDetailsCount = $event"
       @notice="showNotice"
     />
 

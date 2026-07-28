@@ -160,4 +160,18 @@ public final class ReportRecords {
             Instant auditedAt
     ) {
     }
+
+    public record DispensePerformanceDetail(
+            String dispenser,
+            String orderNo,
+            String externalOrderNo,
+            String institutionName,
+            String patientName,
+            long prescriptionCount,
+            long doseCount,
+            String printStatus,
+            String dispenseComment,
+            Instant dispensedAt
+    ) {
+    }
 }

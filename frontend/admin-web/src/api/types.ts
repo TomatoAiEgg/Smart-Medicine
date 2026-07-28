@@ -1159,6 +1159,19 @@ export interface DispensePerformanceRecord {
   lastDispensedAt: string | null;
 }
 
+export interface DispensePerformanceDetailRecord {
+  dispenser: string;
+  orderNo: string;
+  externalOrderNo: string;
+  institutionName: string;
+  patientName: string | null;
+  prescriptionCount: number;
+  doseCount: number;
+  printStatus: string | null;
+  dispenseComment: string | null;
+  dispensedAt: string | null;
+}
+
 export interface RecheckPerformanceRecord {
   rechecker: string;
   recheckCount: number;

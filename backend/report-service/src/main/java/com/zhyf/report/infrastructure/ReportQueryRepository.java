@@ -321,6 +321,37 @@ public class ReportQueryRepository {
         return jdbcTemplate.query(query.sql(), this::mapAuditPerformanceDetail, query.args());
     }
 
+    public List<ReportRecords.DispensePerformanceDetail> loadDispensePerformanceDetails(Instant from, Instant to) {
+        QueryParts query = new QueryParts("""
+                select d.dispenser,
+                       o.order_no,
+                       o.external_order_no,
+                       i.institution_name,
+                       o.patient_name,
+                       order_prescriptions.prescription_count,
+                       order_prescriptions.dose_count,
+                       d.print_status,
+                       d.dispense_comment,
+                       d.dispensed_at
+                from dispense_record d
+                join order_main o on o.id = d.order_id
+                join institution i on i.id = o.institution_id
+                join lateral (
+                    select count(p.id) as prescription_count,
+                           coalesce(sum(p.dose_count), 0) as dose_count
+                    from prescription p
+                    where p.order_id = d.order_id
+                ) order_prescriptions on true
+                where d.dispensed_at is not null
+                  and nullif(d.dispenser, '') is not null
+                """);
+        query.addRangeFilter("d.dispensed_at", from, to);
+        query.append("""
+                 order by d.dispensed_at desc, d.dispenser asc, o.order_no desc
+                """);
+        return jdbcTemplate.query(query.sql(), this::mapDispensePerformanceDetail, query.args());
+    }
+
     private long countRows(String table, String timeColumn, Instant from, Instant to) {
         QueryParts query = new QueryParts("select count(*) from " + table + " where 1 = 1");
         query.addRangeFilter(timeColumn, from, to);
@@ -519,6 +550,22 @@ public class ReportQueryRepository {
                 rs.getLong("dose_count"),
                 rs.getString("review_comment"),
                 instant(rs, "audited_at")
+        );
+    }
+
+    private ReportRecords.DispensePerformanceDetail mapDispensePerformanceDetail(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new ReportRecords.DispensePerformanceDetail(
+                rs.getString("dispenser"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getLong("prescription_count"),
+                rs.getLong("dose_count"),
+                rs.getString("print_status"),
+                rs.getString("dispense_comment"),
+                instant(rs, "dispensed_at")
         );
     }
 

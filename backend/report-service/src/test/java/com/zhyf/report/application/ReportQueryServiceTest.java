@@ -116,6 +116,32 @@ class ReportQueryServiceTest {
     }
 
     @Test
+    void shouldExportDispensePerformanceDetailsAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadDispensePerformanceDetails(from, to)).thenReturn(List.of(
+                new ReportRecords.DispensePerformanceDetail(
+                        "D001",
+                        "ZHYF001",
+                        "EXT001",
+                        "Test Hospital",
+                        "Patient A",
+                        2,
+                        14,
+                        "PRINTED",
+                        "printed",
+                        Instant.parse("2026-07-02T11:00:00Z")
+                )
+        ));
+
+        String csv = service.exportDispensePerformanceDetailsCsv(from, to);
+
+        verify(repository).loadDispensePerformanceDetails(from, to);
+        assertThat(csv).startsWith("dispenser,orderNo,externalOrderNo,institutionName,patientName,prescriptionCount,doseCount,printStatus,dispenseComment,dispensedAt");
+        assertThat(csv).contains("D001,ZHYF001,EXT001,Test Hospital,Patient A,2,14,PRINTED,printed,2026-07-02T11:00:00Z");
+    }
+
+    @Test
     void shouldExportRecheckPerformanceAsCsv() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
