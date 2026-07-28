@@ -187,6 +187,33 @@ class ReportQueryServiceTest {
         assertThat(csv).contains("B001,5,4,5,36,2,2026-07-02T07:00:00Z,2026-07-09T08:00:00Z");
     }
 
+    @Test
+    void shouldExportHerbDosageAsCsv() {
+        Instant from = Instant.parse("2026-07-01T00:00:00Z");
+        Instant to = Instant.parse("2026-07-10T00:00:00Z");
+        when(repository.loadHerbDosage(from, to)).thenReturn(List.of(
+                new ReportRecords.HerbDosage(
+                        "H001",
+                        "黄芪",
+                        "片",
+                        "甘肃",
+                        "g",
+                        9,
+                        6,
+                        4,
+                        new BigDecimal("125.5000"),
+                        new BigDecimal("188.25"),
+                        new BigDecimal("160.00")
+                )
+        ));
+
+        String csv = service.exportHerbDosageCsv(from, to);
+
+        verify(repository).loadHerbDosage(from, to);
+        assertThat(csv).startsWith("herbCode,herbName,drugSpecs,drugOrigin,unit,detailCount,prescriptionCount,orderCount,totalQuantity,totalAmount,settlementAmount");
+        assertThat(csv).contains("H001,黄芪,片,甘肃,g,9,6,4,125.5000,188.25,160.00");
+    }
+
     private ReportRecords.ReportOverview emptyOverview(Instant from, Instant to, int trendDays) {
         return new ReportRecords.ReportOverview(
                 from,

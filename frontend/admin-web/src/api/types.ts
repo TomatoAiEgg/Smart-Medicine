@@ -1192,6 +1192,20 @@ export interface DecoctionPerformanceRecord {
   lastFinishedAt: string | null;
 }
 
+export interface HerbDosageRecord {
+  herbCode: string;
+  herbName: string;
+  drugSpecs: string | null;
+  drugOrigin: string | null;
+  unit: string | null;
+  detailCount: number;
+  prescriptionCount: number;
+  orderCount: number;
+  totalQuantity: number | string | null;
+  totalAmount: number | string | null;
+  settlementAmount: number | string | null;
+}
+
 export interface CommunityMessageCommand {
   areaCode?: string;
   communityCode: string;

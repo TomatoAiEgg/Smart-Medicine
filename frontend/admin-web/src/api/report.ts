@@ -3,6 +3,7 @@ import type {
   AuditPerformanceRecord,
   DecoctionPerformanceRecord,
   DispensePerformanceRecord,
+  HerbDosageRecord,
   InstitutionPrescriptionCountRecord,
   RecheckPerformanceRecord,
   ReportOverview,
@@ -115,6 +116,20 @@ export function listDecoctionPerformance(params: ReportTimeRangeQuery = {}) {
 export async function downloadDecoctionPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/decoction-performance.csv${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error(`导出失败：HTTP ${response.status}`);
+  }
+  return response.blob();
+}
+
+export function listHerbDosage(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  return request<HerbDosageRecord[]>(`/report-api/api/admin/reports/herb-dosage${query ? `?${query}` : ''}`);
+}
+
+export async function downloadHerbDosageCsv(params: ReportTimeRangeQuery = {}) {
+  const query = buildQuery(params);
+  const response = await fetch(`/report-api/api/admin/reports/herb-dosage.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
     throw new Error(`导出失败：HTTP ${response.status}`);
   }

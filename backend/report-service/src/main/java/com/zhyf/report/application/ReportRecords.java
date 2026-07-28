@@ -88,4 +88,19 @@ public final class ReportRecords {
             Instant lastFinishedAt
     ) {
     }
+
+    public record HerbDosage(
+            String herbCode,
+            String herbName,
+            String drugSpecs,
+            String drugOrigin,
+            String unit,
+            long detailCount,
+            long prescriptionCount,
+            long orderCount,
+            BigDecimal totalQuantity,
+            BigDecimal totalAmount,
+            BigDecimal settlementAmount
+    ) {
+    }
 }

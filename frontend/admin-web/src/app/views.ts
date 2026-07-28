@@ -20,6 +20,7 @@ export type ImplementedViewKey =
   | 'auditPerformance'
   | 'decoctionPerformance'
   | 'dispensePerformance'
+  | 'herbDosage'
   | 'recheckPerformance'
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
@@ -964,11 +965,13 @@ export const menuItems = [
     path: '/reports/herb-dosage',
     legacyRoute: 'exportQuery/medicinalDoseStatistics.html',
     priority: 'P4',
-    implemented: false,
+    implemented: true,
     subtitle: '药材消耗统计',
-    plannedComponent: 'features/report/HerbDosageReport.vue',
-    coreActions: ['药材用量统计', '导出'],
-    apiDependencies: ['药材用量统计', '导出任务'],
+    componentKey: 'herbDosage',
+    showCount: true,
+    plannedComponent: 'features/reports/HerbDosage.vue',
+    coreActions: ['药材用量查询', '数量金额汇总', 'CSV 导出'],
+    apiDependencies: ['药材用量统计', '药材用量 CSV 导出'],
   },
   {
     key: 'decoction',

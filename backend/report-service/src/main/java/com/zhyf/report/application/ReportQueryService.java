@@ -166,6 +166,39 @@ public class ReportQueryService {
         return csv.toString();
     }
 
+    public List<ReportRecords.HerbDosage> herbDosage(Instant from, Instant to) {
+        validateTimeRange(from, to);
+        return repository.loadHerbDosage(from, to);
+    }
+
+    public String exportHerbDosageCsv(Instant from, Instant to) {
+        List<ReportRecords.HerbDosage> rows = herbDosage(from, to);
+        StringBuilder csv = new StringBuilder("herbCode,herbName,drugSpecs,drugOrigin,unit,detailCount,prescriptionCount,orderCount,totalQuantity,totalAmount,settlementAmount\n");
+        rows.forEach(row -> csv.append(escape(row.herbCode()))
+                .append(',')
+                .append(escape(row.herbName()))
+                .append(',')
+                .append(escape(row.drugSpecs()))
+                .append(',')
+                .append(escape(row.drugOrigin()))
+                .append(',')
+                .append(escape(row.unit()))
+                .append(',')
+                .append(row.detailCount())
+                .append(',')
+                .append(row.prescriptionCount())
+                .append(',')
+                .append(row.orderCount())
+                .append(',')
+                .append(row.totalQuantity())
+                .append(',')
+                .append(row.totalAmount())
+                .append(',')
+                .append(row.settlementAmount())
+                .append('\n'));
+        return csv.toString();
+    }
+
     private void append(StringBuilder csv, String section, String item, long count) {
         csv.append(escape(section))
                 .append(',')
