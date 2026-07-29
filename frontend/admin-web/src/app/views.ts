@@ -436,7 +436,7 @@ export const menuItems = [
     subtitle: '查询订单详情、处方和履约进度',
     componentKey: 'orders',
     plannedComponent: 'features/orders/OrderCenter.vue',
-    coreActions: ['列表', '筛选', '详情', '进度', '状态日志'],
+    coreActions: ['列表', '筛选', '详情', '进度', '状态日志', '导出'],
     apiDependencies: ['订单分页', '订单详情', '处方明细', '进度'],
   },
   {
@@ -451,7 +451,7 @@ export const menuItems = [
     componentKey: 'reviews',
     showCount: true,
     plannedComponent: 'features/workflow/WorkflowTasks.vue',
-    coreActions: ['审核任务', '通过', '驳回', '锁定'],
+    coreActions: ['审核任务', '通过', '驳回', '锁定', '导出'],
     apiDependencies: ['审核任务', '通过/驳回', '乐观锁'],
   },
   {
@@ -466,7 +466,7 @@ export const menuItems = [
     componentKey: 'dispensePrint',
     showCount: true,
     plannedComponent: 'features/workflow/DispensePrintWorkspace.vue',
-    coreActions: ['调剂任务', '打印预览', '完成调剂/打印'],
+    coreActions: ['调剂任务', '打印预览', '完成调剂/打印', '导出'],
     apiDependencies: ['调剂任务', '订单进度', '完成动作'],
   },
   {
@@ -481,7 +481,7 @@ export const menuItems = [
     componentKey: 'recheckScan',
     showCount: true,
     plannedComponent: 'features/workflow/RecheckScanWorkspace.vue',
-    coreActions: ['单桶复核', '完成', '异常处理'],
+    coreActions: ['单桶复核', '完成', '异常处理', '导出'],
     apiDependencies: ['复核任务', '完成动作', '异常处理'],
   },
   {
@@ -496,7 +496,7 @@ export const menuItems = [
     componentKey: 'recheckScan',
     showCount: true,
     plannedComponent: 'features/workflow/RecheckScanWorkspace.vue',
-    coreActions: ['多桶复核', '批量确认'],
+    coreActions: ['多桶复核', '批量确认', '导出'],
     apiDependencies: ['多桶复核任务', '绑定关系', '状态一致性校验'],
   },
   {
@@ -525,7 +525,7 @@ export const menuItems = [
     subtitle: '收件地址维护和变更记录',
     componentKey: 'addressModify',
     plannedComponent: 'features/orders/AddressModify.vue',
-    coreActions: ['单改', '批量改', '记录查询'],
+    coreActions: ['单改', '批量改', '记录查询', '导出'],
     apiDependencies: ['地址修改', '地址变更记录', '批量导入预检'],
   },
   {
@@ -539,7 +539,7 @@ export const menuItems = [
     subtitle: '处方信息维护和重新校验',
     componentKey: 'prescriptionModify',
     plannedComponent: 'features/orders/PrescriptionModify.vue',
-    coreActions: ['处方修改', '重新校验'],
+    coreActions: ['处方修改', '重新校验', '导出'],
     apiDependencies: ['处方修改', '校验事件'],
   },
   {
@@ -553,7 +553,7 @@ export const menuItems = [
     subtitle: '取消、回退、补偿等管理动作',
     componentKey: 'orderManageAction',
     plannedComponent: 'features/orders/OrderManageAction.vue',
-    coreActions: ['处方初始化', '取消处方', '操作审计'],
+    coreActions: ['处方初始化', '取消处方', '操作审计', '导出'],
     apiDependencies: ['订单操作列表', '处方级初始化', '处方级取消', '操作审计'],
   },
   {
@@ -567,7 +567,7 @@ export const menuItems = [
     subtitle: '处方单据重打申请和打印记录',
     componentKey: 'prescriptionReprint',
     plannedComponent: 'features/orders/PrescriptionReprint.vue',
-    coreActions: ['处方查询', '处方重打预览'],
+    coreActions: ['处方查询', '处方重打预览', '导出'],
     apiDependencies: ['处方重打列表', '处方打印数据'],
   },
   {
@@ -610,7 +610,7 @@ export const menuItems = [
     subtitle: '手工推进流程和补齐数据',
     componentKey: 'manualProcess',
     plannedComponent: 'features/orders/ManualProcess.vue',
-    coreActions: ['手工推进流程', '补齐数据'],
+    coreActions: ['手工推进流程', '补齐数据', '导出'],
     apiDependencies: ['手工流程推进', '状态机', '操作审计'],
   },
   {
@@ -624,7 +624,7 @@ export const menuItems = [
     subtitle: '签收确认和批量签收导入',
     componentKey: 'orderReceipt',
     plannedComponent: 'features/orders/OrderReceipt.vue',
-    coreActions: ['手工签收', '批量签收导入'],
+    coreActions: ['手工签收', '批量签收导入', '导出'],
     apiDependencies: ['签收', '批量导入', '物流状态'],
   },
   {
@@ -654,7 +654,7 @@ export const menuItems = [
     componentKey: 'exceptionLogs',
     showCount: true,
     plannedComponent: 'features/ops/ExceptionLogList.vue',
-    coreActions: ['死信查询', '回调失败查询', '集成失败查询', '死信重放/关闭'],
+    coreActions: ['死信查询', '回调失败查询', '集成失败查询', '死信重放/关闭', '导出'],
     apiDependencies: ['死信记录', '物流回调失败', '集成重试失败'],
   },
   {
@@ -669,7 +669,7 @@ export const menuItems = [
     componentKey: 'ops',
     showCount: true,
     plannedComponent: 'features/ops/OpsConsole.vue',
-    coreActions: ['MQ 查询', '重试', '死信处理'],
+    coreActions: ['MQ 查询', '重试', '死信处理', '导出'],
     apiDependencies: ['Outbox', '消费日志', '死信', '重放'],
   },
   {
@@ -714,7 +714,7 @@ export const menuItems = [
     componentKey: 'labelPrints',
     showCount: true,
     plannedComponent: 'features/label/LabelPrint.vue',
-    coreActions: ['处方查询', '标签预览', '浏览器打印'],
+    coreActions: ['处方查询', '标签预览', '浏览器打印', '导出'],
     apiDependencies: ['处方重打列表', '处方打印数据'],
   },
   {
@@ -743,7 +743,7 @@ export const menuItems = [
     subtitle: '手工发送短信',
     componentKey: 'smsSendSingle',
     plannedComponent: 'features/sms/SingleSmsSend.vue',
-    coreActions: ['选择模板', '录入号码', '发送'],
+    coreActions: ['选择模板', '录入号码', '发送', '登记结果导出'],
     apiDependencies: ['单发短信', '余额查询', '发送记录'],
   },
   {
@@ -758,7 +758,7 @@ export const menuItems = [
     componentKey: 'smsRecords',
     showCount: true,
     plannedComponent: 'features/sms/SmsRecordList.vue',
-    coreActions: ['发送记录', '详情', '失败重试'],
+    coreActions: ['发送记录', '详情', '失败重试', '导出'],
     apiDependencies: ['短信记录', '重试接口'],
   },
   {
