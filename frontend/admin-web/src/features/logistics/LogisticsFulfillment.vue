@@ -158,6 +158,15 @@ function rowValue(value: string | number | null | undefined) {
   return String(value);
 }
 
+function escapeHtml(value: string | number | null | undefined) {
+  return rowValue(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function escapeCsvCell(value: CsvExportValue) {
   const text = value === null || value === undefined ? '' : String(value);
   if (/[",\r\n]/.test(text)) {
@@ -206,6 +215,104 @@ function canShip(shipment: ShipmentRecord) {
 
 function canSign(shipment: ShipmentRecord) {
   return shipment.logisticsStatus !== 'SIGNED';
+}
+
+function renderReadyOrderPrintHtml(record: DeliveryOrderRecord) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>物流清单-${escapeHtml(record.orderNo)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 13px; }
+    .toolbar { position: fixed; right: 14px; top: 14px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    h1 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0; }
+    .grid { display: grid; grid-template-columns: 30mm 1fr; border: 1px solid #cbd5e1; border-bottom: 0; }
+    .grid div { padding: 8px; border-bottom: 1px solid #cbd5e1; }
+    .label { background: #f8fafc; color: #475569; font-weight: 700; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  <h1>物流发货清单</h1>
+  <section class="grid">
+    <div class="label">订单号</div><div>${escapeHtml(record.orderNo)} / ${escapeHtml(record.externalOrderNo)}</div>
+    <div class="label">机构/患者</div><div>${escapeHtml(record.institutionName)} / ${escapeHtml(record.patientName)}</div>
+    <div class="label">收货人</div><div>${escapeHtml(record.receiverName)} / ${escapeHtml(record.receiverPhone)}</div>
+    <div class="label">收货地址</div><div>${escapeHtml(record.receiverAddress)}</div>
+    <div class="label">配送方式</div><div>${escapeHtml(record.addressType)}</div>
+    <div class="label">订单状态</div><div>${escapeHtml(record.orderStatus)}</div>
+    <div class="label">配送时间</div><div>${escapeHtml(formatDate(record.deliveryTime))}</div>
+    <div class="label">接单时间</div><div>${escapeHtml(formatDate(record.orderCreatedAt))}</div>
+    <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+  </section>
+</body>
+</html>`;
+}
+
+function renderShipmentPrintHtml(record: ShipmentRecord) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>物流清单-${escapeHtml(record.orderNo)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 13px; }
+    .toolbar { position: fixed; right: 14px; top: 14px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    h1 { margin: 0 0 14px; font-size: 22px; letter-spacing: 0; }
+    .grid { display: grid; grid-template-columns: 30mm 1fr; border: 1px solid #cbd5e1; border-bottom: 0; }
+    .grid div { padding: 8px; border-bottom: 1px solid #cbd5e1; }
+    .label { background: #f8fafc; color: #475569; font-weight: 700; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  <h1>物流发货清单</h1>
+  <section class="grid">
+    <div class="label">订单号</div><div>${escapeHtml(record.orderNo)} / ${escapeHtml(record.externalOrderNo)}</div>
+    <div class="label">机构/患者</div><div>${escapeHtml(record.institutionName)} / ${escapeHtml(record.patientName)}</div>
+    <div class="label">收货人</div><div>${escapeHtml(record.receiverName)} / ${escapeHtml(record.receiverPhone)}</div>
+    <div class="label">收货地址</div><div>${escapeHtml(record.receiverAddress)}</div>
+    <div class="label">物流</div><div>${escapeHtml(record.logisticsCompany)} / ${escapeHtml(record.logisticsNo)} / ${escapeHtml(record.logisticsStatus)}</div>
+    <div class="label">件数/重量</div><div>${escapeHtml(record.pkgNum)} 件 / ${escapeHtml(record.pkgWeight)} kg</div>
+    <div class="label">配送方式</div><div>${escapeHtml(record.addressType)} / ${escapeHtml(paymentLabel(record.payMethod))}</div>
+    <div class="label">配送时间</div><div>${escapeHtml(formatDate(record.deliveryTime))}</div>
+    <div class="label">打包/出库</div><div>${escapeHtml(formatDate(record.packageTime))} / ${escapeHtml(formatDate(record.outboundTime))}</div>
+    <div class="label">签收时间</div><div>${escapeHtml(formatDate(record.signTime))}</div>
+    <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+  </section>
+</body>
+</html>`;
+}
+
+function openPrintWindow(html: string, title: string) {
+  const printWindow = window.open('', '_blank', 'width=900,height=680');
+  if (!printWindow) {
+    logisticsError.value = '浏览器阻止了物流清单打印窗口';
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  emit('notice', 'success', `${title} 打印窗口已打开`);
+}
+
+function printReadyOrderList(record: DeliveryOrderRecord) {
+  logisticsError.value = '';
+  openPrintWindow(renderReadyOrderPrintHtml(record), `订单 ${record.orderNo} 物流清单`);
+}
+
+function printShipmentList(record: ShipmentRecord) {
+  logisticsError.value = '';
+  openPrintWindow(renderShipmentPrintHtml(record), `订单 ${record.orderNo} 物流清单`);
 }
 
 function deliveryOrderCsvRows(records: readonly DeliveryOrderRecord[]) {
@@ -734,6 +841,7 @@ defineExpose({
                 <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingShipmentId === item.orderId" @click="handlePackShipment(item)">
                   打包
                 </button>
+                <button class="legacy-link-btn" type="button" @click="printReadyOrderList(item)">打印清单</button>
                 <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
                 <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
               </td>
@@ -764,6 +872,7 @@ defineExpose({
               <td><StatusPill :value="shipment.logisticsStatus" :tone="statusTone(shipment.logisticsStatus)" /></td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn" type="button" @click="refreshShipmentTraces(shipment)">轨迹</button>
+                <button class="legacy-link-btn" type="button" @click="printShipmentList(shipment)">打印清单</button>
                 <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
                 <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
                 <button

@@ -362,7 +362,7 @@ export const menuItems = [
     componentKey: 'logistics',
     showCount: true,
     plannedComponent: 'features/logistics/LogisticsFulfillment.vue',
-    coreActions: ['发货查询', '打包发货', '发货/签收', '轨迹补录', '导出'],
+    coreActions: ['发货查询', '打包发货', '发货/签收', '轨迹补录', '行级清单打印', '导出'],
     apiDependencies: ['待发货查询', '物流单查询', '打包', '发货', '签收', '轨迹查询'],
   },
   {
