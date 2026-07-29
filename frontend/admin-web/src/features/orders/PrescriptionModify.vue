@@ -15,7 +15,8 @@ import type {
   AdminPrescriptionUpdateCommand,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -177,6 +178,26 @@ function queryParams(): AdminOrderQueryParams {
     page: page.value,
     pageSize: pageSize.value,
   };
+}
+
+function downloadPrescriptionCsv() {
+  downloadCsv(
+    `处方修改-第${page.value}页.csv`,
+    ['平台处方号', '平台订单号', '机构名称', '机构处方号', '病人信息', '处方类型', '剂数', '门诊住院', '订单时间', '订单状态'],
+    rows.value.map((row) => [
+      row.prescriptionNos,
+      row.orderNo,
+      row.institutionName,
+      row.externalPrescriptionNos,
+      row.patientName,
+      prescriptionTypeText(row.prescriptionTypes),
+      row.doseCount,
+      hospitalTypeText(row.hospitalTypes),
+      formatDate(row.createdAt),
+      row.orderStatus,
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条处方修改记录`);
 }
 
 function fillPrescriptionForm(prescription: AdminOrderDetailPrescription) {
@@ -395,6 +416,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadPrescriptionCsv">
+          导出当前页
         </button>
       </li>
     </ul>

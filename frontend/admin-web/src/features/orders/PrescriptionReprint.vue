@@ -13,7 +13,8 @@ import type {
   AdminPrescriptionReprintQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -136,6 +137,53 @@ function batchText(value: string | null | undefined) {
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
   return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
+}
+
+function downloadReprintCsv() {
+  downloadCsv(
+    `处方重打-第${page.value}页.csv`,
+    [
+      '平台处方号',
+      '外部处方号',
+      '平台订单号',
+      '外部订单号',
+      '病人信息',
+      '收货地址',
+      '送货时间',
+      '接单时间',
+      '送货方式',
+      '机构名称',
+      '门诊住院',
+      '处方类型',
+      '服用方法',
+      '剂数',
+      '批次',
+      '调剂工号',
+      '处方状态',
+      '订单状态',
+    ],
+    rows.value.map((row) => [
+      row.prescriptionNo,
+      row.externalPrescriptionNo,
+      row.orderNo,
+      row.externalOrderNo,
+      patientInfo(row),
+      fullAddress(row),
+      formatDate(row.deliveryTime),
+      formatDate(row.createdAt),
+      addressTypeText(row.addressType),
+      row.institutionName,
+      hospitalTypeText(row.hospitalType),
+      prescriptionTypeText(row.prescriptionType),
+      medicationMethodText(row.isWithin),
+      row.doseCount,
+      batchText(row.batchNo),
+      row.dispenser,
+      row.prescriptionStatus,
+      row.orderStatus,
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条处方重打记录`);
 }
 
 async function refreshPrescriptionReprints() {
@@ -329,6 +377,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadReprintCsv">
+          导出当前页
         </button>
       </li>
     </ul>

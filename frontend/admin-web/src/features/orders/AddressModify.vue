@@ -14,7 +14,8 @@ import type {
   AdminOrderQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -120,6 +121,26 @@ function queryParams(): AdminOrderQueryParams {
     page: page.value,
     pageSize: pageSize.value,
   };
+}
+
+function downloadAddressCsv() {
+  downloadCsv(
+    `订单地址修改-第${page.value}页.csv`,
+    ['订单号', '机构', '下单时间', '病人姓名', '收货人', '收货电话', '收货地址', '送货方式', '配送日期', '订单状态'],
+    rows.value.map((row) => [
+      row.orderNo,
+      row.institutionName,
+      formatDate(row.createdAt),
+      row.patientName,
+      row.receiverName,
+      row.receiverPhone,
+      fullAddress(row),
+      addressTypeLabel(row.addressType),
+      formatDate(row.deliveryTime),
+      row.orderStatus,
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条订单地址`);
 }
 
 function fillAddressForm(order: AdminOrderDetail) {
@@ -284,6 +305,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadAddressCsv">
+          导出当前页
         </button>
       </li>
       <li>
