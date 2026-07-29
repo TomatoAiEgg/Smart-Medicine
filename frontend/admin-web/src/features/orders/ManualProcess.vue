@@ -11,6 +11,7 @@ import type {
   AdminManualProcessQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -160,6 +161,32 @@ function queryParams(): AdminManualProcessQueryParams {
     page: page.value,
     pageSize: pageSize.value,
   };
+}
+
+function downloadManualProcessCsv() {
+  downloadCsv(
+    `订单走流程列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['平台订单号', '机构', '收货地址', '送货时间', '接单时间', '送医院', '机构处方号', '门诊住院', '病人信息', '处方类型', '剂数', '处方列表', '处方数', '备注', '订单状态', '更新时间'],
+    rows.value.map((row) => [
+      row.orderNo,
+      row.institutionName,
+      fullAddress(row),
+      formatDate(row.deliveryTime),
+      formatDate(row.createdAt),
+      deliveryTypeText(row.addressType),
+      row.externalPrescriptionNos,
+      hospitalTypeText(row.hospitalTypes),
+      row.patientNames,
+      prescriptionTypeText(row.prescriptionTypes),
+      row.doseCounts,
+      row.prescriptionNos,
+      row.prescriptionCount,
+      row.orderRemark,
+      row.orderStatus,
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${rows.value.length} 条订单走流程记录`);
 }
 
 function pad(value: number) {
@@ -370,6 +397,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadManualProcessCsv">导出当前页</button>
       </li>
     </ul>
 

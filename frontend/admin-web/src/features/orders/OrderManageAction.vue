@@ -12,6 +12,7 @@ import type {
   AdminOrderQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -106,6 +107,15 @@ function patientInfo(row: AdminOrderListItem) {
   return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
 }
 
+function fullAddress(row: AdminOrderListItem) {
+  return [
+    row.receiverProvince,
+    row.receiverCity,
+    row.receiverZone,
+    row.receiverAddress,
+  ].filter(Boolean).join('') || '-';
+}
+
 function canInitialize(row: AdminOrderListItem) {
   return row.orderStatus !== 'CREATED' && row.orderStatus !== 'SIGNED';
 }
@@ -113,6 +123,33 @@ function canInitialize(row: AdminOrderListItem) {
 function canCancel(row: AdminOrderListItem) {
   return !['SIGNED', 'CANCELLED', 'AUDIT_FAILED'].includes(row.orderStatus)
     && row.prescriptionStatus !== 'CANCELLED';
+}
+
+function downloadManageActionCsv() {
+  downloadCsv(
+    `订单管理动作列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['平台处方号', '平台订单号', '机构', '机构处方号', '病人信息', '收货地址', '处方类型', '剂数', '服用方式', '金额', '物流公司', '物流单号', '物流状态', '订单状态', '处方状态', '订单时间', '更新时间'],
+    rows.value.map((row) => [
+      row.prescriptionNos,
+      row.orderNo,
+      row.institutionName,
+      row.externalPrescriptionNos,
+      patientInfo(row),
+      fullAddress(row),
+      prescriptionTypeText(row.prescriptionTypes),
+      row.doseCount,
+      medicationMethodText(row.isWithin),
+      row.totalAmount,
+      row.logisticsCompany,
+      row.logisticsNo,
+      row.logisticsStatus,
+      row.orderStatus,
+      row.prescriptionStatus,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${rows.value.length} 条订单管理动作记录`);
 }
 
 async function refreshOrderManageActions() {
@@ -232,6 +269,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadManageActionCsv">导出当前页</button>
       </li>
     </ul>
 

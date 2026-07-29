@@ -13,6 +13,7 @@ import type {
   AdminOrderReceiptQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -117,6 +118,30 @@ function splitOrderNos(value: string) {
   return Array.from(new Set(value.split(/[\s,，;；]+/)
     .map((item) => item.trim())
     .filter(Boolean)));
+}
+
+function downloadReceiptCsv() {
+  downloadCsv(
+    `待签收订单-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['订单号', '外部订单号', '机构名称', '收货人', '收货电话', '收货地址', '患者', '处方类型', '物流公司', '物流单号', '订单状态', '物流状态', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.orderNo,
+      row.externalOrderNo,
+      row.institutionName,
+      row.receiverName,
+      row.receiverPhone,
+      fullAddress(row),
+      row.patientName,
+      prescriptionTypeText(row.prescriptionTypes),
+      row.logisticsCompany,
+      row.logisticsNo,
+      row.orderStatus,
+      row.logisticsStatus,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${rows.value.length} 条待签收订单`);
 }
 
 async function refreshOrderReceipts() {
@@ -261,6 +286,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadReceiptCsv">导出当前页</button>
       </li>
     </ul>
 

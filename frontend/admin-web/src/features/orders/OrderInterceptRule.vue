@@ -11,6 +11,7 @@ import type {
   AdminOrderInterceptRulePage,
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -123,6 +124,27 @@ function commandFromForm(): AdminOrderInterceptRuleCommand {
     priority: normalizedPriority(),
     enabled: form.value.enabled,
   };
+}
+
+function downloadRuleCsv() {
+  downloadCsv(
+    `订单拦截规则-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['规则编码', '规则名称', '场景', '匹配字段', '匹配类型', '匹配值', '优先级', '状态', '原因', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.ruleCode,
+      row.ruleName,
+      stageLabel(row.interceptStage),
+      row.matchField,
+      matchTypeLabel(row.matchType),
+      row.matchValue,
+      row.priority,
+      enabledLabel(row.enabled),
+      row.reason,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条拦截规则`);
 }
 
 async function refreshOrderInterceptRules() {
@@ -300,6 +322,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadRuleCsv">导出当前页</button>
       </li>
     </ul>
 
