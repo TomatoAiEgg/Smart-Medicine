@@ -13,6 +13,7 @@ import type {
   AdminLogisticsAddressCostPage,
   AdminLogisticsAddressCostRecord,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -130,6 +131,26 @@ function commandFromForm(): AdminLogisticsAddressCostCommand {
     remark: form.value.remark.trim(),
     enabled: form.value.enabled,
   };
+}
+
+function downloadAddressCostCsv() {
+  downloadCsv(
+    `物流地址费用-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['机构', '物流公司', '省份', '城市', '区县', '地址', '费用', '状态', '备注', '更新时间'],
+    rows.value.map((row) => [
+      institutionText(row),
+      row.logisticsCompany,
+      row.province,
+      row.city,
+      row.district,
+      addressText(row),
+      amountText(row.costAmount),
+      enabledLabel(row.enabled),
+      row.remark,
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条地址费用`);
 }
 
 async function loadInstitutionOptions() {
@@ -317,6 +338,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadAddressCostCsv">导出当前页</button>
       </li>
     </ul>
 
