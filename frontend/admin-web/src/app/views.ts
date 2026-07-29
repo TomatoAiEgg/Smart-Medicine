@@ -4,7 +4,6 @@ export type ImplementedViewKey =
   | 'dashboard'
   | 'orders'
   | 'reviews'
-  | 'dispenses'
   | 'dispensePrint'
   | 'rechecks'
   | 'recheckScan'

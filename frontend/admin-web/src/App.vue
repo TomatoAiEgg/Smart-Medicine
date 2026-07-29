@@ -81,7 +81,7 @@ import WorkflowTasks from './features/workflow/WorkflowTasks.vue';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
-type WorkflowViewKey = Extract<ViewKey, 'reviews' | 'dispenses' | 'rechecks'>;
+type WorkflowViewKey = Extract<ViewKey, 'reviews' | 'rechecks'>;
 type RecheckScanMode = 'single' | 'multi';
 
 const route = useRoute();
@@ -280,7 +280,7 @@ const currentViewTitle = computed(() => ({
 const currentComponentKey = computed<ImplementedViewKey | undefined>(() => currentRouteItem.value.componentKey);
 const workflowRouteKey = computed<WorkflowViewKey | null>(() => {
   const key = currentComponentKey.value;
-  if (key === 'reviews' || key === 'dispenses' || key === 'rechecks') return key;
+  if (key === 'reviews' || key === 'rechecks') return key;
   return null;
 });
 const recheckScanMode = computed<RecheckScanMode>(() => (activeView.value === 'orderRechecksMulti' ? 'multi' : 'single'));
