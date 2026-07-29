@@ -17,6 +17,7 @@ import { formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
+type CsvExportValue = string | number | null | undefined;
 
 const props = defineProps<{
   activeView: Extract<ViewKey, 'reviews' | 'dispenses' | 'rechecks'>;
@@ -89,6 +90,12 @@ const activePageSummary = computed(() => {
   return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
 });
 
+const activeWorkflowLabel = computed(() => {
+  if (props.activeView === 'reviews') return '审核';
+  if (props.activeView === 'dispenses') return '调剂';
+  return '复核';
+});
+
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
@@ -99,6 +106,28 @@ function errorMessage(error: unknown) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function escapeCsvCell(value: CsvExportValue) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function selectedValue(value: string) {
@@ -156,6 +185,31 @@ function taskStatusText(status: string) {
     CANCELLED: '已取消',
   };
   return labels[status] || status;
+}
+
+function exportActiveWorkflowTasks() {
+  const label = activeWorkflowLabel.value;
+  downloadCsv(
+    `${label}待办任务-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['任务ID', '任务类型', '任务状态', '平台订单号', '外部订单号', '订单状态', '来源事件', '处理人', '处理意见', '校验状态', '校验提示', '创建时间', '更新时间', '完成时间'],
+    activeWorkflowTasks.value.map((task) => [
+      task.taskId,
+      taskTypeText(task.taskType),
+      taskStatusText(task.taskStatus),
+      task.orderNo,
+      task.externalOrderNo,
+      task.orderStatus,
+      task.sourceEventId,
+      task.reviewer,
+      task.reviewComment,
+      task.validationStatus,
+      task.validationMessage,
+      formatDate(task.createdAt),
+      formatDate(task.updatedAt),
+      formatDate(task.completedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${activeWorkflowTasks.value.length} 条${label}待办任务`);
 }
 
 async function loadReviewOrderProgress(task: WorkflowTaskSnapshot) {
@@ -663,8 +717,10 @@ defineExpose({
           {{ activeWorkflowLoading ? '刷新中' : '查询' }}
         </button>
       </li>
-      <li v-if="activeView === 'rechecks'">
-        <button class="legacy-btn legacy-btn-export" type="button" disabled>导出</button>
+      <li>
+        <button class="legacy-btn legacy-btn-export" type="button" :disabled="activeWorkflowLoading || activeWorkflowTasks.length === 0" @click="exportActiveWorkflowTasks">
+          导出
+        </button>
       </li>
     </ul>
 
