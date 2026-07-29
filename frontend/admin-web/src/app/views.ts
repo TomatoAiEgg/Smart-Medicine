@@ -362,7 +362,7 @@ export const menuItems = [
     componentKey: 'logistics',
     showCount: true,
     plannedComponent: 'features/logistics/LogisticsFulfillment.vue',
-    coreActions: ['发货查询', '打包发货', '发货/签收', '轨迹补录'],
+    coreActions: ['发货查询', '打包发货', '发货/签收', '轨迹补录', '导出'],
     apiDependencies: ['待发货查询', '物流单查询', '打包', '发货', '签收', '轨迹查询'],
   },
   {
@@ -377,7 +377,7 @@ export const menuItems = [
     componentKey: 'logisticsInfo',
     showCount: true,
     plannedComponent: 'features/logistics/LogisticsInfo.vue',
-    coreActions: ['运单查询', '轨迹查询', '签收状态查询'],
+    coreActions: ['运单查询', '轨迹查询', '签收状态查询', '导出'],
     apiDependencies: ['物流单查询', '轨迹查询'],
   },
   {
@@ -392,7 +392,7 @@ export const menuItems = [
     componentKey: 'logisticsPrint',
     showCount: true,
     plannedComponent: 'features/logistics/LogisPrint.vue',
-    coreActions: ['物流单查询', '发货清单打印', '本页合计'],
+    coreActions: ['物流单查询', '发货清单打印', '本页合计', '导出'],
     apiDependencies: ['物流单查询'],
   },
   {
@@ -407,7 +407,7 @@ export const menuItems = [
     componentKey: 'logisticsMerges',
     showCount: true,
     plannedComponent: 'features/logistics/OrderMergeList.vue',
-    coreActions: ['合单列表', '合并', '删除合并'],
+    coreActions: ['合单列表', '合并', '删除合并', '导出'],
     apiDependencies: ['合单查询', '合单保存', '合单删除'],
   },
   {
@@ -422,7 +422,7 @@ export const menuItems = [
     componentKey: 'logisticsUnreceivedFollowups',
     showCount: true,
     plannedComponent: 'features/logistics/UnreceivedFollowup.vue',
-    coreActions: ['未签收筛选', '轨迹跟进', '手动签收'],
+    coreActions: ['未签收筛选', '轨迹跟进', '手动签收', '导出'],
     apiDependencies: ['物流单查询', '物流轨迹', '签收接口'],
   },
   {
@@ -1103,7 +1103,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['设备列表', '作业状态', '事件记录'],
+    coreActions: ['设备列表', '作业状态', '事件记录', '设备/作业导出'],
     apiDependencies: ['设备列表', '活动任务', '作业记录'],
   },
   {
@@ -1118,7 +1118,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['可操作处方', '绑定设备/水桶', '加水/开始/完成'],
+    coreActions: ['可操作处方', '绑定设备/水桶', '加水/开始/完成', '事件/作业导出'],
     apiDependencies: ['可操作处方', '设备列表', '绑定处方', 'MES 作业动作'],
   },
   {
@@ -1160,7 +1160,7 @@ export const menuItems = [
     subtitle: '云打印记录、失败重试和重打',
     componentKey: 'decoction',
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['云打印记录入口', '补打缺口提示'],
+    coreActions: ['云打印记录入口', '云打印导出', '补打缺口提示'],
     apiDependencies: ['打印记录待补', '重试接口待补', '重打记录待补'],
   },
 ] as const satisfies readonly MenuItem[];
