@@ -102,17 +102,17 @@ const previewPrescriptionNo = computed(() => {
   const prescriptionNos = selectedPrescriptions.value
     .map((prescription) => prescription.prescriptionNo)
     .filter((value) => value.trim().length > 0);
-  return prescriptionNos.length > 0 ? prescriptionNos.join('、') : '等待后端调剂详情接口';
+  return prescriptionNos.length > 0 ? prescriptionNos.join('、') : emptyDetailText();
 });
 
 const previewExternalPrescriptionNo = computed(() => {
   const prescriptionNos = selectedPrescriptions.value
     .map((prescription) => prescription.externalPrescriptionNo)
     .filter((value) => value.trim().length > 0);
-  return prescriptionNos.length > 0 ? prescriptionNos.join('、') : '等待后端调剂详情接口';
+  return prescriptionNos.length > 0 ? prescriptionNos.join('、') : emptyDetailText();
 });
 
-const previewBatchNo = computed(() => orderDetail.value?.batchNo || batchNo.value || '等待后端调剂详情接口');
+const previewBatchNo = computed(() => orderDetail.value?.batchNo || batchNo.value || emptyDetailText());
 const previewPatient = computed(() => {
   const pieces = [orderDetail.value?.patientName, orderDetail.value?.patientPhone].filter(Boolean);
   return pieces.length > 0 ? pieces.join(' / ') : patientName.value || waitingDetail();
@@ -176,8 +176,12 @@ function amountValue(value: NumericValue) {
   return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
+function emptyDetailText() {
+  return selectedTask.value ? '暂无订单详情' : '选择后查看订单详情';
+}
+
 function waitingDetail() {
-  return '等待后端调剂详情接口';
+  return emptyDetailText();
 }
 
 function selectedFilterValue(value: string) {
@@ -498,7 +502,7 @@ defineExpose({
               >
                 <td>
                   <strong>{{ rowValue(task.orderNo) }}</strong>
-                  <small>处方号等待后端调剂详情接口</small>
+                  <small>选择后加载处方号</small>
                 </td>
                 <td>{{ patientName || waitingDetail() }}</td>
                 <td class="legacy-left">{{ waitingDetail() }}</td>
@@ -653,7 +657,7 @@ defineExpose({
               </thead>
               <tbody>
                 <tr v-if="selectedPrescriptions.length === 0">
-                  <td colspan="4">等待后端调剂详情接口</td>
+                  <td colspan="4">暂无处方信息</td>
                 </tr>
                 <tr v-for="prescription in selectedPrescriptions" :key="prescription.prescriptionId">
                   <td>{{ rowValue(prescription.prescriptionNo) }}</td>
