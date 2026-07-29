@@ -24,6 +24,7 @@ import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type LogisticsDataset = 'shipments' | 'ready' | 'callbacks';
+type CsvExportValue = string | number | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -96,6 +97,12 @@ const filterContractHint = computed(() => {
   return '发货查询已接入时间、机构、平台订单号/处方号、病人姓名、收货人、收货电话、门诊住院、订单状态、送货方式、物流公司和物流单号筛选。';
 });
 
+const pickupDeliveryOrders = computed(() => readyDeliveryOrders.value.filter((record) => isPickupType(record.addressType)));
+const pickupShipments = computed(() => shipments.value.filter((record) => isPickupType(record.addressType)));
+const hasPickupRecords = computed(() => (
+  activeLogisticsDataset.value === 'ready' ? pickupDeliveryOrders.value.length > 0 : pickupShipments.value.length > 0
+));
+
 const tracePanelTitle = computed(() => (
   selectedTraceShipmentNo.value ? `轨迹补录/查询：${selectedTraceShipmentNo.value}` : '轨迹补录/查询'
 ));
@@ -151,6 +158,32 @@ function rowValue(value: string | number | null | undefined) {
   return String(value);
 }
 
+function escapeCsvCell(value: CsvExportValue) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function isPickupType(value: string | null | undefined) {
+  return !!value && /自提|到店|门店|pickup/i.test(value);
+}
+
 function paymentLabel(value: string | null) {
   if (!value) return '-';
   if (value === 'MONTHLY') return '寄付';
@@ -173,6 +206,107 @@ function canShip(shipment: ShipmentRecord) {
 
 function canSign(shipment: ShipmentRecord) {
   return shipment.logisticsStatus !== 'SIGNED';
+}
+
+function deliveryOrderCsvRows(records: readonly DeliveryOrderRecord[]) {
+  return records.map((record) => [
+    record.orderNo,
+    record.externalOrderNo,
+    record.orderStatus,
+    record.institutionName,
+    record.patientName,
+    record.receiverName,
+    record.receiverPhone,
+    record.receiverAddress,
+    record.addressType,
+    record.hospitalTypes,
+    formatDate(record.deliveryTime),
+    formatDate(record.orderCreatedAt),
+  ]);
+}
+
+function shipmentCsvRows(records: readonly ShipmentRecord[]) {
+  return records.map((record) => [
+    record.orderNo,
+    record.externalOrderNo,
+    record.logisticsNo,
+    record.logisticsCompany,
+    record.logisticsStatus,
+    paymentLabel(record.payMethod),
+    record.pkgWeight,
+    record.pkgNum,
+    record.institutionName,
+    record.patientName,
+    record.receiverName,
+    record.receiverPhone,
+    record.receiverAddress,
+    record.addressType,
+    record.hospitalTypes,
+    formatDate(record.deliveryTime),
+    formatDate(record.orderCreatedAt),
+    formatDate(record.packageTime),
+    formatDate(record.outboundTime),
+    formatDate(record.signTime),
+  ]);
+}
+
+function exportLogisticsRecords() {
+  if (activeLogisticsDataset.value === 'ready') {
+    downloadCsv(
+      `待打包订单-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['订单号', '外部订单号', '订单状态', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间'],
+      deliveryOrderCsvRows(readyDeliveryOrders.value),
+    );
+    emit('notice', 'success', `已导出 ${readyDeliveryOrders.value.length} 条待打包订单`);
+    return;
+  }
+
+  downloadCsv(
+    `物流发货记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['订单号', '外部订单号', '运单号', '物流公司', '物流状态', '收款方式', '重量', '件数', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间', '打包时间', '出库时间', '签收时间'],
+    shipmentCsvRows(shipments.value),
+  );
+  emit('notice', 'success', `已导出 ${shipments.value.length} 条物流发货记录`);
+}
+
+function exportPickupRecords() {
+  if (activeLogisticsDataset.value === 'ready') {
+    downloadCsv(
+      `自提待打包订单-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['订单号', '外部订单号', '订单状态', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间'],
+      deliveryOrderCsvRows(pickupDeliveryOrders.value),
+    );
+    emit('notice', 'success', `已导出 ${pickupDeliveryOrders.value.length} 条自提待打包订单`);
+    return;
+  }
+
+  downloadCsv(
+    `自提物流发货记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['订单号', '外部订单号', '运单号', '物流公司', '物流状态', '收款方式', '重量', '件数', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间', '打包时间', '出库时间', '签收时间'],
+    shipmentCsvRows(pickupShipments.value),
+  );
+  emit('notice', 'success', `已导出 ${pickupShipments.value.length} 条自提物流发货记录`);
+}
+
+function exportCallbackRecords() {
+  downloadCsv(
+    `物流回调记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['订单号', '业务ID', '回调类型', '状态', '重试次数', '下次重试', '创建时间', '更新时间', '请求地址', '请求内容', '响应内容'],
+    callbackRecords.value.map((record) => [
+      record.orderNo,
+      record.businessId,
+      record.callbackType,
+      record.status,
+      record.retryCount,
+      formatDate(record.nextRetryAt),
+      formatDate(record.createdAt),
+      formatDate(record.updatedAt),
+      record.requestUrl,
+      record.requestBody,
+      record.responseBody,
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${callbackRecords.value.length} 条物流回调记录`);
 }
 
 async function refreshLogisticsRecords() {
@@ -465,10 +599,10 @@ defineExpose({
           </button>
         </li>
         <li>
-          <button class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端导出接口">导出</button>
+          <button class="legacy-btn legacy-btn-export" type="button" :disabled="logisticsLoading || activeLogisticsCount === 0" @click="exportLogisticsRecords">导出</button>
         </li>
         <li>
-          <button class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端导出接口">导出自提订单</button>
+          <button class="legacy-btn legacy-btn-export" type="button" :disabled="logisticsLoading || !hasPickupRecords" @click="exportPickupRecords">导出自提订单</button>
         </li>
       </ul>
 
@@ -520,6 +654,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-export" type="button" :disabled="logisticsLoading" @click="handleDispatchDueCallbacks">
           派发到期回调
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn legacy-btn-export" type="button" :disabled="logisticsLoading || callbackRecords.length === 0" @click="exportCallbackRecords">
+          导出回调
         </button>
       </li>
     </ul>
