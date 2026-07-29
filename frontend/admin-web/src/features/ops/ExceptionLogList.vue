@@ -14,7 +14,8 @@ import type {
   LogisticsCallbackIssueRecord,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -85,6 +86,118 @@ function errorMessage(error: unknown) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function downloadExceptionCsv() {
+  if (activeDataset.value === 'deadLetters') {
+    downloadCsv(
+      `异常日志-死信消息-${limit.value}条.csv`,
+      ['事件ID', '聚合对象', 'Topic', 'Tag', '消费者', '状态', '错误信息', '重试次数', '操作人', '备注', '创建时间', '更新时间'],
+      deadLetters.value.map((record) => [
+        record.eventId,
+        record.aggregateId,
+        record.topic,
+        record.tag,
+        record.consumerGroup,
+        record.status,
+        record.errorMessage,
+        record.retryCount,
+        record.operator,
+        record.remark,
+        formatDate(record.createdAt),
+        formatDate(record.updatedAt),
+      ]),
+    );
+  } else if (activeDataset.value === 'callbackIssues') {
+    downloadCsv(
+      `异常日志-物流回调失败-${limit.value}条.csv`,
+      [
+        '回调ID',
+        '回调类型',
+        '订单号',
+        '业务ID',
+        '物流公司',
+        '物流单号',
+        '回调状态',
+        '物流状态',
+        '重试次数',
+        '下次重试',
+        '请求地址',
+        '响应内容',
+        '最新轨迹状态',
+        '最新轨迹内容',
+        '最新轨迹时间',
+        '创建时间',
+        '更新时间',
+      ],
+      callbackIssues.value.map((record) => [
+        record.callbackId,
+        record.callbackType,
+        record.orderNo,
+        record.businessId,
+        record.logisticsCompany,
+        record.logisticsNo,
+        record.callbackStatus,
+        record.logisticsStatus,
+        record.retryCount,
+        formatDate(record.nextRetryAt),
+        record.requestUrl,
+        record.responseBody,
+        record.latestTraceStatus,
+        record.latestTraceContent,
+        formatDate(record.latestTraceTime),
+        formatDate(record.callbackCreatedAt),
+        formatDate(record.callbackUpdatedAt),
+      ]),
+    );
+  } else {
+    downloadCsv(
+      `异常日志-集成重试失败-${limit.value}条.csv`,
+      [
+        '任务ID',
+        '消息ID',
+        '任务类型',
+        '来源系统',
+        '目标系统',
+        '来源类型',
+        '业务键',
+        '请求地址',
+        '响应内容',
+        '失败原因',
+        '任务状态',
+        '重试次数',
+        '下次重试',
+        '消息类型',
+        '处理状态',
+        '外部消息ID',
+        '处理时间',
+        '创建时间',
+        '更新时间',
+      ],
+      integrationIssues.value.map((record) => [
+        record.taskId,
+        record.messageId,
+        record.taskType,
+        record.sourceSystem,
+        record.targetSystem,
+        record.sourceType,
+        record.businessKey,
+        record.requestUrl,
+        record.responseBody,
+        record.failureReason,
+        record.taskStatus,
+        record.retryCount,
+        formatDate(record.nextRetryAt),
+        record.messageType,
+        record.processStatus,
+        record.externalMessageId,
+        formatDate(record.processedAt),
+        formatDate(record.taskCreatedAt),
+        formatDate(record.taskUpdatedAt),
+      ]),
+    );
+  }
+  emit('notice', 'success', `已导出${datasetLabels[activeDataset.value]} ${formatNumber(currentCount.value)} 条`);
 }
 
 function normalizedLimit() {
@@ -300,6 +413,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">重置</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || currentCount === 0" @click="downloadExceptionCsv">
+          导出当前结果
+        </button>
       </li>
     </ul>
 

@@ -13,7 +13,8 @@ import type {
   ProblemRegistrationRecord,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -267,6 +268,45 @@ function problemTypeLabel(type: string) {
   return problemTypeOptions.find((option) => option.value === type)?.label ?? type;
 }
 
+function downloadProblemCsv() {
+  downloadCsv(
+    `问题件登记-${limit.value}条.csv`,
+    [
+      '订单号',
+      '外部订单号',
+      '机构',
+      '问题类型',
+      '状态',
+      '登记原因',
+      '处理方案',
+      '金额',
+      '操作人',
+      '备注',
+      '创建时间',
+      '更新时间',
+      '处理时间',
+      '关闭时间',
+    ],
+    records.value.map((record) => [
+      record.orderNo,
+      record.externalOrderNo,
+      record.institutionName,
+      problemTypeLabel(record.problemType),
+      statusLabel(record.status),
+      record.problemReason,
+      record.handlingPlan,
+      record.amount,
+      record.operator,
+      record.remark,
+      formatDate(record.createdAt),
+      formatDate(record.updatedAt),
+      formatDate(record.processedAt),
+      formatDate(record.closedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(records.value.length)} 条问题件登记`);
+}
+
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
@@ -309,6 +349,9 @@ defineExpose({
         </button>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">
           重置
+        </button>
+        <button class="legacy-btn" type="button" :disabled="loading || records.length === 0" @click="downloadProblemCsv">
+          导出当前结果
         </button>
       </li>
     </ul>
