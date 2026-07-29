@@ -122,6 +122,24 @@ const selectedEventTask = computed(() => (
   decoctionTasks.value.find((task) => task.taskNo === selectedEventTaskNo.value) ?? null
 ));
 
+const decoctionDeviceByCode = computed(() => (
+  new Map(decoctionDevices.value.map((device) => [device.deviceCode, device]))
+));
+
+const waterPailRows = computed(() => {
+  const rows = new Map<string, DecoctionTaskRecord>();
+  decoctionTasks.value.forEach((task) => {
+    const nextPailNo = task.pailNo?.trim();
+    if (nextPailNo && !rows.has(nextPailNo)) {
+      rows.set(nextPailNo, task);
+    }
+  });
+  return Array.from(rows.entries()).map(([nextPailNo, task]) => ({
+    pailNo: nextPailNo,
+    task,
+  }));
+});
+
 const activeDecoctionTableColspan = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return 12;
   if (activeDecoctionDataset.value === 'printerConfig') return 8;
@@ -134,6 +152,8 @@ const activeDecoctionTableColspan = computed(() => {
 const activePageTotal = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return decoctionDevices.value.length;
   if (activeDecoctionDataset.value === 'binds') return decoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'printerConfig') return decoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'pails') return waterPailRows.value.length;
   if (activeDecoctionDataset.value === 'cloudPrints') return filteredCloudPrintRecords.value.length;
   if (activeDecoctionDataset.value === 'workRecords') return decoctionWorkRecords.value.length;
   return 0;
@@ -209,6 +229,10 @@ function deviceUseStatus(device: DeviceRecord) {
   return device.activeTaskNo ? '使用中' : '空闲';
 }
 
+function deviceName(deviceCode: string) {
+  return decoctionDeviceByCode.value.get(deviceCode)?.deviceName ?? '待接口';
+}
+
 function downloadDeviceCsv() {
   downloadCsv(
     `煎煮设备列表-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -223,6 +247,43 @@ function downloadDeviceCsv() {
     ]),
   );
   emit('notice', 'success', `已导出 ${decoctionDevices.value.length} 台煎煮设备`);
+}
+
+function downloadPrinterConfigCsv() {
+  downloadCsv(
+    `打码机打印配置-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['ID', 'PDA/操作人', '设备编号', '设备名称', '打印模板', '状态', '修改时间', '任务号', '处方号'],
+    decoctionTasks.value.map((task) => [
+      task.taskId,
+      task.operator,
+      task.deviceCode,
+      deviceName(task.deviceCode),
+      '待后端模板契约',
+      task.taskStatus,
+      formatDate(task.updatedAt),
+      task.taskNo,
+      task.prescriptionNo,
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${decoctionTasks.value.length} 条当前设备绑定配置`);
+}
+
+function downloadWaterPailCsv() {
+  downloadCsv(
+    `加水桶当前绑定-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['加水桶号', '关联任务', '处方号', '设备编号', '状态', '操作人', '创建时间', '修改时间'],
+    waterPailRows.value.map((row) => [
+      row.pailNo,
+      row.task.taskNo,
+      row.task.prescriptionNo,
+      row.task.deviceCode,
+      row.task.taskStatus,
+      row.task.operator,
+      formatDate(row.task.createdAt),
+      formatDate(row.task.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${waterPailRows.value.length} 个当前绑定加水桶`);
 }
 
 function downloadEventCsv() {
@@ -838,9 +899,9 @@ defineExpose({
           </tr>
           <tr v-else-if="activeDecoctionDataset === 'printerConfig'" class="legacy-main-head">
             <th>ID</th>
-            <th>PDA编号</th>
-            <th>打码机编号</th>
-            <th>打码机名称</th>
+            <th>PDA/操作人</th>
+            <th>设备编号</th>
+            <th>设备名称</th>
             <th>打印模板</th>
             <th>状态</th>
             <th>修改时间</th>
@@ -945,14 +1006,39 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'printerConfig'">
-            <tr class="legacy-main-info">
-              <td colspan="8" class="legacy-empty">等待后端管理契约，当前不展示本地配置或输入值</td>
+            <tr v-if="decoctionTasks.length === 0" class="legacy-main-info">
+              <td colspan="8" class="legacy-empty">暂无当前设备绑定配置</td>
+            </tr>
+            <tr v-for="task in decoctionTasks" :key="`printer-${task.taskId}`" class="legacy-main-info">
+              <td>{{ task.taskId }}</td>
+              <td>{{ rowValue(task.operator) }}</td>
+              <td>{{ rowValue(task.deviceCode) }}</td>
+              <td>{{ deviceName(task.deviceCode) }}</td>
+              <td>待后端模板契约</td>
+              <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
+              <td>{{ formatDate(task.updatedAt) }}</td>
+              <td class="decoction-action-cell">
+                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">编辑</button>
+                <button class="legacy-link-btn workflow-reject-btn" type="button" disabled title="等待后端管理契约">停用</button>
+              </td>
             </tr>
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'pails'">
-            <tr class="legacy-main-info">
-              <td colspan="7" class="legacy-empty">等待后端加水桶管理契约，当前不展示本地输入的水桶号</td>
+            <tr v-if="waterPailRows.length === 0" class="legacy-main-info">
+              <td colspan="7" class="legacy-empty">暂无当前绑定加水桶</td>
+            </tr>
+            <tr v-for="(row, index) in waterPailRows" :key="row.pailNo" class="legacy-main-info">
+              <td>{{ index + 1 }}</td>
+              <td>{{ row.pailNo }}</td>
+              <td>待接口</td>
+              <td><StatusPill :value="row.task.taskStatus" :tone="statusTone(row.task.taskStatus)" /></td>
+              <td>{{ formatDate(row.task.createdAt) }}</td>
+              <td>{{ formatDate(row.task.updatedAt) }}</td>
+              <td class="decoction-action-cell">
+                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">编辑</button>
+                <button class="legacy-link-btn workflow-reject-btn" type="button" disabled title="等待后端管理契约">停用</button>
+              </td>
             </tr>
           </template>
 
@@ -1020,10 +1106,9 @@ defineExpose({
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增PDA</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增打码机</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">编辑配置</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">删除配置</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">停用配置</button>
+      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionTasks.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">批量新增</button>
-      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">导出</button>
+      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="waterPailRows.length === 0" @click="downloadWaterPailCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" :disabled="cloudPrintLoading" @click="refreshCloudPrintRecords">
         {{ cloudPrintLoading ? '查询中' : '查询云打印记录' }}
       </button>

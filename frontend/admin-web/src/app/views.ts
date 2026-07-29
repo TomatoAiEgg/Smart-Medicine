@@ -1132,8 +1132,8 @@ export const menuItems = [
     subtitle: 'PDA 和打码机关系配置',
     componentKey: 'decoction',
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['PDA/打码机配置入口', '配置缺口提示'],
-    apiDependencies: ['关系 CRUD 待补', '操作审计待补'],
+    coreActions: ['PDA/打码机配置入口', '当前绑定导出', '配置维护缺口提示'],
+    apiDependencies: ['设备/任务查询', '关系 CRUD 待补', '操作审计待补'],
   },
   {
     key: 'decoctionWaterPails',
@@ -1146,8 +1146,8 @@ export const menuItems = [
     subtitle: '加水桶列表和批量新增',
     componentKey: 'decoction',
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['加水桶管理入口', '批量新增缺口提示', '导出缺口提示'],
-    apiDependencies: ['加水桶 CRUD 待补', '导出任务待补'],
+    coreActions: ['加水桶管理入口', '当前绑定水桶导出', '批量新增缺口提示'],
+    apiDependencies: ['煎煮任务查询', '加水桶 CRUD 待补'],
   },
   {
     key: 'decoctionCloudPrintRecords',
