@@ -230,6 +230,7 @@ const herbIndexOperationLogCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
 const orderInterceptRuleCount = ref(0);
 const decoctionCount = ref(0);
+const decoctionCloudPrintCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
@@ -307,6 +308,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   orderRecheckRecords: workflowCounts.value.rechecks,
   decoction: decoctionCount.value,
   decoctionPrescriptionBindings: decoctionCount.value,
+  decoctionCloudPrintRecords: decoctionCloudPrintCount.value,
   logisticsAddressCosts: addressCostCount.value,
   logisticsSpecialRules: logisSpecialRuleCount.value,
   logistics: logisticsCount.value,
@@ -1064,6 +1066,7 @@ function closeTab(view: ViewKey) {
       :activation-key="decoctionActivationKey"
       :route-key="activeView"
       @count-changed="decoctionCount = $event"
+      @cloud-print-count-changed="decoctionCloudPrintCount = $event"
       @notice="showNotice"
     />
 

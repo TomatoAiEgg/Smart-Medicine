@@ -55,6 +55,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
   countChanged: [count: number];
+  cloudPrintCountChanged: [count: number];
   'update:operationOperator': [value: string];
 }>();
 
@@ -280,11 +281,13 @@ async function refreshCloudPrintRecords() {
     cloudPrintRecords.value = nextRecords;
     cloudPrintLoaded.value = true;
     emit('countChanged', filteredCloudPrintRecords.value.length);
+    emit('cloudPrintCountChanged', filteredCloudPrintRecords.value.length);
     emit('notice', 'success', `已查询 ${nextRecords.length} 条煎煮作业/打印相关记录`);
   } catch (error) {
     cloudPrintRecords.value = [];
     cloudPrintLoaded.value = false;
     emit('countChanged', 0);
+    emit('cloudPrintCountChanged', 0);
     decoctionError.value = errorMessage(error);
   } finally {
     cloudPrintLoading.value = false;
@@ -585,6 +588,7 @@ watch(activeDecoctionCount, (count) => {
 watch(filteredCloudPrintRecords, (records) => {
   if (props.active && activeDecoctionDataset.value === 'cloudPrints') {
     emit('countChanged', records.length);
+    emit('cloudPrintCountChanged', records.length);
   }
 });
 
