@@ -1162,7 +1162,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
     coreActions: ['云打印记录入口', '云打印导出', '补打缺口提示'],
-    apiDependencies: ['打印记录待补', '重试接口待补', '重打记录待补'],
+    apiDependencies: ['煎煮绩效明细查询', '重试接口待补', '重打记录待补'],
   },
 ] as const satisfies readonly MenuItem[];
 
