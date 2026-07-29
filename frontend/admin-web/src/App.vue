@@ -307,6 +307,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   orderRechecksMulti: workflowCounts.value.rechecks,
   orderRecheckRecords: workflowCounts.value.rechecks,
   decoction: decoctionCount.value,
+  decoctionPdaPrinterRelations: decoctionCount.value,
   decoctionPrescriptionBindings: decoctionCount.value,
   decoctionCloudPrintRecords: decoctionCloudPrintCount.value,
   logisticsAddressCosts: addressCostCount.value,

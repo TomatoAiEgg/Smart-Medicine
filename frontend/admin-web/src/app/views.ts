@@ -1131,6 +1131,7 @@ export const menuItems = [
     implemented: true,
     subtitle: 'PDA 和打码机关系配置',
     componentKey: 'decoction',
+    showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
     coreActions: ['PDA/打码机配置入口', '当前绑定导出', '配置维护缺口提示'],
     apiDependencies: ['设备/任务查询', '关系 CRUD 待补', '操作审计待补'],
