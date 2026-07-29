@@ -1103,7 +1103,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['设备列表', '作业状态', '事件记录', '设备/作业导出'],
+    coreActions: ['设备列表', '当前结果筛选', '作业状态', '事件记录', '设备/作业导出'],
     apiDependencies: ['设备列表', '活动任务', '作业记录'],
   },
   {
@@ -1118,7 +1118,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['可操作处方', '绑定设备/水桶', '加水/开始/完成', '事件/作业导出'],
+    coreActions: ['可操作处方', '当前结果筛选', '绑定设备/水桶', '加水/开始/完成', '事件/作业导出'],
     apiDependencies: ['可操作处方', '设备列表', '绑定处方', 'MES 作业动作'],
   },
   {
@@ -1133,7 +1133,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['PDA/打码机配置入口', '当前绑定导出', '配置维护缺口提示'],
+    coreActions: ['PDA/打码机配置入口', '当前结果筛选', '当前绑定导出', '配置维护缺口提示'],
     apiDependencies: ['设备/任务查询', '关系 CRUD 待补', '操作审计待补'],
   },
   {
@@ -1147,7 +1147,7 @@ export const menuItems = [
     subtitle: '加水桶列表和批量新增',
     componentKey: 'decoction',
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['加水桶管理入口', '当前绑定水桶导出', '批量新增缺口提示'],
+    coreActions: ['加水桶管理入口', '当前结果筛选', '当前绑定水桶导出', '批量新增缺口提示'],
     apiDependencies: ['煎煮任务查询', '加水桶 CRUD 待补'],
   },
   {
@@ -1162,7 +1162,7 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['云打印记录入口', '云打印导出', '补打缺口提示'],
+    coreActions: ['云打印记录入口', '当前结果筛选', '云打印导出', '补打缺口提示'],
     apiDependencies: ['煎煮绩效明细查询', '重试接口待补', '重打记录待补'],
   },
 ] as const satisfies readonly MenuItem[];

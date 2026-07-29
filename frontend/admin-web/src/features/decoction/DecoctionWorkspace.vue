@@ -118,6 +118,43 @@ const filteredCloudPrintRecords = computed(() => {
   });
 });
 
+const filteredDecoctionDevices = computed(() => {
+  const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
+  const deviceCode = deviceCodeQuery.value.trim().toLowerCase();
+  const status = deviceStatus.value.trim();
+
+  return decoctionDevices.value.filter((device) => {
+    const matchesPrescription = !prescriptionNo
+      || rowValue(device.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
+      || rowValue(device.activeTaskNo).toLowerCase().includes(prescriptionNo);
+    const matchesDevice = !deviceCode
+      || rowValue(device.deviceCode).toLowerCase().includes(deviceCode)
+      || rowValue(device.deviceName).toLowerCase().includes(deviceCode)
+      || rowValue(device.activeTaskNo).toLowerCase().includes(deviceCode)
+      || rowValue(device.activePrescriptionNo).toLowerCase().includes(deviceCode);
+    const matchesStatus = !status || device.deviceStatus === status;
+    return matchesPrescription && matchesDevice && matchesStatus;
+  });
+});
+
+const filteredDecoctionTasks = computed(() => {
+  const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
+  const deviceCode = deviceCodeQuery.value.trim().toLowerCase();
+  const status = deviceStatus.value.trim();
+
+  return decoctionTasks.value.filter((task) => {
+    const matchesPrescription = !prescriptionNo
+      || rowValue(task.prescriptionNo).toLowerCase().includes(prescriptionNo)
+      || rowValue(task.orderNo).toLowerCase().includes(prescriptionNo)
+      || rowValue(task.taskNo).toLowerCase().includes(prescriptionNo);
+    const matchesDevice = !deviceCode
+      || rowValue(task.deviceCode).toLowerCase().includes(deviceCode)
+      || rowValue(task.pailNo).toLowerCase().includes(deviceCode);
+    const matchesStatus = !status || task.taskStatus === status;
+    return matchesPrescription && matchesDevice && matchesStatus;
+  });
+});
+
 const selectedEventTask = computed(() => (
   decoctionTasks.value.find((task) => task.taskNo === selectedEventTaskNo.value) ?? null
 ));
@@ -140,6 +177,30 @@ const waterPailRows = computed(() => {
   }));
 });
 
+const filteredWaterPailRows = computed(() => {
+  const visibleTaskIds = new Set(filteredDecoctionTasks.value.map((task) => task.taskId));
+  return waterPailRows.value.filter((row) => visibleTaskIds.has(row.task.taskId));
+});
+
+const filteredDecoctionWorkRecords = computed(() => {
+  const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
+  const deviceCode = deviceCodeQuery.value.trim().toLowerCase();
+  const actionResult = printStatus.value.trim();
+  const status = deviceStatus.value.trim();
+
+  return decoctionWorkRecords.value.filter((record) => {
+    const matchesPrescription = !prescriptionNo
+      || rowValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo)
+      || rowValue(record.taskNo).toLowerCase().includes(prescriptionNo);
+    const matchesDevice = !deviceCode
+      || rowValue(record.deviceCode).toLowerCase().includes(deviceCode)
+      || rowValue(record.pailNo).toLowerCase().includes(deviceCode);
+    const matchesResult = !actionResult || record.actionResult === actionResult;
+    const matchesStatus = !status || record.taskStatusBefore === status || record.taskStatusAfter === status;
+    return matchesPrescription && matchesDevice && matchesResult && matchesStatus;
+  });
+});
+
 const activeDecoctionTableColspan = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return 12;
   if (activeDecoctionDataset.value === 'printerConfig') return 8;
@@ -150,12 +211,12 @@ const activeDecoctionTableColspan = computed(() => {
 });
 
 const activePageTotal = computed(() => {
-  if (activeDecoctionDataset.value === 'devices') return decoctionDevices.value.length;
-  if (activeDecoctionDataset.value === 'binds') return decoctionTasks.value.length;
-  if (activeDecoctionDataset.value === 'printerConfig') return decoctionTasks.value.length;
-  if (activeDecoctionDataset.value === 'pails') return waterPailRows.value.length;
+  if (activeDecoctionDataset.value === 'devices') return filteredDecoctionDevices.value.length;
+  if (activeDecoctionDataset.value === 'binds') return filteredDecoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'printerConfig') return filteredDecoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'pails') return filteredWaterPailRows.value.length;
   if (activeDecoctionDataset.value === 'cloudPrints') return filteredCloudPrintRecords.value.length;
-  if (activeDecoctionDataset.value === 'workRecords') return decoctionWorkRecords.value.length;
+  if (activeDecoctionDataset.value === 'workRecords') return filteredDecoctionWorkRecords.value.length;
   return 0;
 });
 
@@ -237,7 +298,7 @@ function downloadDeviceCsv() {
   downloadCsv(
     `煎煮设备列表-${new Date().toISOString().slice(0, 10)}.csv`,
     ['设备编号', '设备名称', '设备状态', '使用状态', '活动任务', '活动处方'],
-    decoctionDevices.value.map((device) => [
+    filteredDecoctionDevices.value.map((device) => [
       device.deviceCode,
       device.deviceName,
       device.deviceStatus,
@@ -246,14 +307,14 @@ function downloadDeviceCsv() {
       device.activePrescriptionNo,
     ]),
   );
-  emit('notice', 'success', `已导出 ${decoctionDevices.value.length} 台煎煮设备`);
+  emit('notice', 'success', `已导出 ${filteredDecoctionDevices.value.length} 台煎煮设备`);
 }
 
 function downloadPrinterConfigCsv() {
   downloadCsv(
     `打码机打印配置-${new Date().toISOString().slice(0, 10)}.csv`,
     ['ID', 'PDA/操作人', '设备编号', '设备名称', '打印模板', '状态', '修改时间', '任务号', '处方号'],
-    decoctionTasks.value.map((task) => [
+    filteredDecoctionTasks.value.map((task) => [
       task.taskId,
       task.operator,
       task.deviceCode,
@@ -265,14 +326,14 @@ function downloadPrinterConfigCsv() {
       task.prescriptionNo,
     ]),
   );
-  emit('notice', 'success', `已导出 ${decoctionTasks.value.length} 条当前设备绑定配置`);
+  emit('notice', 'success', `已导出 ${filteredDecoctionTasks.value.length} 条当前设备绑定配置`);
 }
 
 function downloadWaterPailCsv() {
   downloadCsv(
     `加水桶当前绑定-${new Date().toISOString().slice(0, 10)}.csv`,
     ['加水桶号', '关联任务', '处方号', '设备编号', '状态', '操作人', '创建时间', '修改时间'],
-    waterPailRows.value.map((row) => [
+    filteredWaterPailRows.value.map((row) => [
       row.pailNo,
       row.task.taskNo,
       row.task.prescriptionNo,
@@ -283,7 +344,7 @@ function downloadWaterPailCsv() {
       formatDate(row.task.updatedAt),
     ]),
   );
-  emit('notice', 'success', `已导出 ${waterPailRows.value.length} 个当前绑定加水桶`);
+  emit('notice', 'success', `已导出 ${filteredWaterPailRows.value.length} 个当前绑定加水桶`);
 }
 
 function downloadEventCsv() {
@@ -307,7 +368,7 @@ function downloadWorkRecordCsv() {
   downloadCsv(
     `煎煮作业记录-${new Date().toISOString().slice(0, 10)}.csv`,
     ['任务编号', '处方号', '设备编号', '水桶号', '动作', '结果', '前状态', '后状态', '操作编号', '来源', '操作人', '作业时间', '作业内容'],
-    decoctionWorkRecords.value.map((record) => [
+    filteredDecoctionWorkRecords.value.map((record) => [
       record.taskNo,
       record.prescriptionNo,
       record.deviceCode,
@@ -323,7 +384,7 @@ function downloadWorkRecordCsv() {
       record.detailPayload,
     ]),
   );
-  emit('notice', 'success', `已导出 ${decoctionWorkRecords.value.length} 条作业记录`);
+  emit('notice', 'success', `已导出 ${filteredDecoctionWorkRecords.value.length} 条作业记录`);
 }
 
 function cloudPrintQueryParams() {
@@ -729,11 +790,11 @@ defineExpose({
       </li>
       <li>
         处方号：
-        <input v-model="prescriptionNoQuery" class="legacy-input input-large" placeholder="等待后端筛选契约" />
+        <input v-model="prescriptionNoQuery" class="legacy-input input-large" placeholder="处方/订单/任务号" />
       </li>
       <li>
         设备编号：
-        <input v-model="deviceCodeQuery" class="legacy-input" placeholder="待接口" />
+        <input v-model="deviceCodeQuery" class="legacy-input" placeholder="设备/水桶" />
       </li>
       <li>
         设备类型：
@@ -755,6 +816,11 @@ defineExpose({
           <option value="ONLINE">在线</option>
           <option value="OFFLINE">离线</option>
           <option value="BUSY">占用</option>
+          <option value="BOUND">已绑定</option>
+          <option value="DECOCTING">煎煮中</option>
+          <option value="DECOCTED">已完成</option>
+          <option value="CANCELLED">已取消</option>
+          <option value="TERMINATED">已终止</option>
         </select>
       </li>
       <li>
@@ -779,7 +845,7 @@ defineExpose({
           云打印记录当前复用煎煮作业明细接口，支持时间、处方号、设备/水桶和动作结果筛选。
         </template>
         <template v-else>
-          当前后端只支持无筛选列表；以上筛选项已保留，等待后端查询契约后接入。
+          当前基于已加载结果做前端筛选；煎煮中心、设备类型和设备组别仍等待后端字段后接入。
         </template>
       </li>
     </ul>
@@ -944,10 +1010,10 @@ defineExpose({
           </tr>
 
           <template v-else-if="activeDecoctionDataset === 'binds'">
-            <tr v-if="decoctionTasks.length === 0" class="legacy-main-info">
+            <tr v-if="filteredDecoctionTasks.length === 0" class="legacy-main-info">
               <td colspan="14" class="legacy-empty">暂无处方设备绑定记录</td>
             </tr>
-            <tr v-for="task in decoctionTasks" :key="task.taskId" class="legacy-main-info">
+            <tr v-for="task in filteredDecoctionTasks" :key="task.taskId" class="legacy-main-info">
               <td>{{ task.taskId }}</td>
               <td>{{ task.taskNo }}</td>
               <td>{{ bindType(task) }}</td>
@@ -982,10 +1048,10 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'devices'">
-            <tr v-if="decoctionDevices.length === 0" class="legacy-main-info">
+            <tr v-if="filteredDecoctionDevices.length === 0" class="legacy-main-info">
               <td colspan="12" class="legacy-empty">暂无设备</td>
             </tr>
-            <tr v-for="device in decoctionDevices" :key="device.deviceCode" class="legacy-main-info">
+            <tr v-for="device in filteredDecoctionDevices" :key="device.deviceCode" class="legacy-main-info">
               <td>{{ device.deviceCode }}</td>
               <td>{{ rowValue(device.deviceName) }}</td>
               <td>待接口</td>
@@ -1006,10 +1072,10 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'printerConfig'">
-            <tr v-if="decoctionTasks.length === 0" class="legacy-main-info">
+            <tr v-if="filteredDecoctionTasks.length === 0" class="legacy-main-info">
               <td colspan="8" class="legacy-empty">暂无当前设备绑定配置</td>
             </tr>
-            <tr v-for="task in decoctionTasks" :key="`printer-${task.taskId}`" class="legacy-main-info">
+            <tr v-for="task in filteredDecoctionTasks" :key="`printer-${task.taskId}`" class="legacy-main-info">
               <td>{{ task.taskId }}</td>
               <td>{{ rowValue(task.operator) }}</td>
               <td>{{ rowValue(task.deviceCode) }}</td>
@@ -1025,10 +1091,10 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'pails'">
-            <tr v-if="waterPailRows.length === 0" class="legacy-main-info">
+            <tr v-if="filteredWaterPailRows.length === 0" class="legacy-main-info">
               <td colspan="7" class="legacy-empty">暂无当前绑定加水桶</td>
             </tr>
-            <tr v-for="(row, index) in waterPailRows" :key="row.pailNo" class="legacy-main-info">
+            <tr v-for="(row, index) in filteredWaterPailRows" :key="row.pailNo" class="legacy-main-info">
               <td>{{ index + 1 }}</td>
               <td>{{ row.pailNo }}</td>
               <td>待接口</td>
@@ -1069,10 +1135,10 @@ defineExpose({
           </template>
 
           <template v-else>
-            <tr v-if="decoctionWorkRecords.length === 0" class="legacy-main-info">
+            <tr v-if="filteredDecoctionWorkRecords.length === 0" class="legacy-main-info">
               <td colspan="9" class="legacy-empty">请选择任务查看作业记录，或等待任务产生真实作业明细</td>
             </tr>
-            <tr v-for="record in decoctionWorkRecords" :key="record.recordId" class="legacy-main-info">
+            <tr v-for="record in filteredDecoctionWorkRecords" :key="record.recordId" class="legacy-main-info">
               <td>
                 <strong>{{ record.taskNo }}</strong>
                 <small>{{ record.operationId }}</small>
@@ -1102,13 +1168,13 @@ defineExpose({
     <div class="decoction-management-actions" v-if="activeDecoctionDataset !== 'binds' && activeDecoctionDataset !== 'workRecords'">
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增设备</button>
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">删除设备</button>
-      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionDevices.length === 0" @click="downloadDeviceCsv">导出设备</button>
+      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionDevices.length === 0" @click="downloadDeviceCsv">导出设备</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增PDA</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增打码机</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">编辑配置</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionTasks.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
+      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionTasks.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">批量新增</button>
-      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="waterPailRows.length === 0" @click="downloadWaterPailCsv">导出</button>
+      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredWaterPailRows.length === 0" @click="downloadWaterPailCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" :disabled="cloudPrintLoading" @click="refreshCloudPrintRecords">
         {{ cloudPrintLoading ? '查询中' : '查询云打印记录' }}
       </button>
@@ -1133,7 +1199,7 @@ defineExpose({
           {{ eventLoading ? '加载中' : '刷新记录' }}
         </button>
         <button class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionEvents.length === 0" @click="downloadEventCsv">导出事件</button>
-        <button class="legacy-btn legacy-btn-export" type="button" :disabled="decoctionWorkRecords.length === 0" @click="downloadWorkRecordCsv">导出作业</button>
+        <button class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionWorkRecords.length === 0" @click="downloadWorkRecordCsv">导出作业</button>
         <span class="decoction-selected-task">
           当前任务：{{ selectedEventTask ? `${selectedEventTask.taskNo} / ${selectedEventTask.prescriptionNo}` : '-' }}
         </span>
@@ -1180,10 +1246,10 @@ defineExpose({
             </tr>
           </thead>
           <tbody>
-            <tr v-if="decoctionWorkRecords.length === 0" class="legacy-main-info">
+            <tr v-if="filteredDecoctionWorkRecords.length === 0" class="legacy-main-info">
               <td colspan="7" class="legacy-empty">暂无作业记录</td>
             </tr>
-            <tr v-for="record in decoctionWorkRecords" :key="record.recordId" class="legacy-main-info">
+            <tr v-for="record in filteredDecoctionWorkRecords" :key="record.recordId" class="legacy-main-info">
               <td>
                 <strong>{{ record.taskNo }}</strong>
                 <small>{{ record.operationId }}</small>
