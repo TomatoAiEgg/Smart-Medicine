@@ -451,8 +451,8 @@ export const menuItems = [
     componentKey: 'reviews',
     showCount: true,
     plannedComponent: 'features/workflow/WorkflowTasks.vue',
-    coreActions: ['审核任务', '通过', '驳回', '锁定', '导出'],
-    apiDependencies: ['审核任务', '通过/驳回', '乐观锁'],
+    coreActions: ['审核任务', '通过', '驳回', '地址修改', '锁定', '导出'],
+    apiDependencies: ['审核任务', '通过/驳回', '订单地址修改', '乐观锁'],
   },
   {
     key: 'dispenses',

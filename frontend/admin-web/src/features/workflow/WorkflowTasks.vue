@@ -10,8 +10,9 @@ import {
   listReviewTasks,
   rejectReviewTask,
 } from '../../api/workflow';
-import { getAdminOrderDetail, getOrderProgress } from '../../api/order';
+import { getAdminOrderDetail, getOrderProgress, updateAdminOrderAddress } from '../../api/order';
 import type {
+  AdminOrderAddressUpdateCommand,
   AdminOrderDetail,
   AdminOrderDetailDrug,
   OrderProgressSnapshot,
@@ -28,6 +29,18 @@ type ReviewDetailDrugRow = {
   prescriptionNo: string;
   externalPrescriptionNo: string;
   detail: AdminOrderDetailDrug;
+};
+type ReviewAddressForm = {
+  receiverName: string;
+  receiverPhone: string;
+  receiverProvince: string;
+  receiverCity: string;
+  receiverZone: string;
+  receiverAddress: string;
+  addressType: string;
+  deliveryTime: string;
+  operator: string;
+  reason: string;
 };
 
 const props = defineProps<{
@@ -74,6 +87,20 @@ const reviewDetailLoading = ref(false);
 const reviewProgressError = ref('');
 const reviewOrderDetailError = ref('');
 const reviewDetailNotice = ref('');
+const reviewAddressModalOpen = ref(false);
+const reviewAddressSubmitting = ref(false);
+const reviewAddressForm = ref<ReviewAddressForm>({
+  receiverName: '',
+  receiverPhone: '',
+  receiverProvince: '',
+  receiverCity: '',
+  receiverZone: '',
+  receiverAddress: '',
+  addressType: '',
+  deliveryTime: '',
+  operator: 'admin',
+  reason: '',
+});
 
 const activeWorkflowTasks = computed(() => {
   if (props.activeView === 'reviews') return reviewTasks.value;
@@ -321,6 +348,7 @@ function backToReviewList() {
   reviewProgressError.value = '';
   reviewOrderDetailError.value = '';
   reviewDetailNotice.value = '';
+  reviewAddressModalOpen.value = false;
 }
 
 function currentCounts(): WorkflowCounts {
@@ -439,9 +467,88 @@ async function handleBatchApproval(task: WorkflowTaskSnapshot, batch: '早批次
   await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`);
 }
 
-function handlePendingReviewAction(actionName: '备注' | '拆单' | '修改地址') {
+function handlePendingReviewAction(actionName: '备注' | '拆单') {
   reviewDetailNotice.value = `${actionName}后端接口待补契约，当前未提交任何变更。`;
   emit('notice', 'info', reviewDetailNotice.value);
+}
+
+function fillReviewAddressForm() {
+  if (!reviewOrderDetail.value) return;
+  reviewAddressForm.value = {
+    receiverName: reviewOrderDetail.value.receiverName ?? '',
+    receiverPhone: reviewOrderDetail.value.receiverPhone ?? '',
+    receiverProvince: reviewOrderDetail.value.receiverProvince ?? '',
+    receiverCity: reviewOrderDetail.value.receiverCity ?? '',
+    receiverZone: reviewOrderDetail.value.receiverZone ?? '',
+    receiverAddress: reviewOrderDetail.value.receiverAddress ?? '',
+    addressType: reviewOrderDetail.value.addressType ?? '',
+    deliveryTime: reviewOrderDetail.value.deliveryTime ?? '',
+    operator: operator.value.trim() || 'admin',
+    reason: '',
+  };
+}
+
+function openReviewAddressModal() {
+  if (!selectedReviewTask.value) return;
+  if (!reviewOrderDetail.value) {
+    reviewDetailNotice.value = '订单详情尚未加载完成，暂不能修改地址。';
+    emit('notice', 'info', reviewDetailNotice.value);
+    return;
+  }
+  fillReviewAddressForm();
+  reviewDetailNotice.value = '';
+  reviewAddressModalOpen.value = true;
+}
+
+function closeReviewAddressModal() {
+  if (reviewAddressSubmitting.value) return;
+  reviewAddressModalOpen.value = false;
+}
+
+function trimmedOptional(value: string) {
+  const nextValue = value.trim();
+  return nextValue.length > 0 ? nextValue : undefined;
+}
+
+async function submitReviewAddressUpdate() {
+  const targetTask = selectedReviewTask.value;
+  if (!targetTask) return;
+
+  const receiverName = reviewAddressForm.value.receiverName.trim();
+  const receiverPhone = reviewAddressForm.value.receiverPhone.trim();
+  const receiverAddress = reviewAddressForm.value.receiverAddress.trim();
+  if (!receiverName || !receiverPhone || !receiverAddress) {
+    reviewDetailNotice.value = '收货人、联系电话和详细地址不能为空。';
+    return;
+  }
+
+  const command: AdminOrderAddressUpdateCommand = {
+    receiverName,
+    receiverPhone,
+    receiverProvince: trimmedOptional(reviewAddressForm.value.receiverProvince),
+    receiverCity: trimmedOptional(reviewAddressForm.value.receiverCity),
+    receiverZone: trimmedOptional(reviewAddressForm.value.receiverZone),
+    receiverAddress,
+    addressType: trimmedOptional(reviewAddressForm.value.addressType),
+    deliveryTime: trimmedOptional(reviewAddressForm.value.deliveryTime),
+    operator: reviewAddressForm.value.operator.trim() || operator.value.trim() || 'admin',
+    reason: trimmedOptional(reviewAddressForm.value.reason),
+  };
+
+  reviewAddressSubmitting.value = true;
+  reviewDetailNotice.value = '';
+  try {
+    const targetOrderNo = reviewOrderDetail.value?.orderNo ?? targetTask.orderNo;
+    await updateAdminOrderAddress(targetOrderNo, command);
+    reviewOrderDetail.value = await getAdminOrderDetail(targetOrderNo);
+    reviewAddressModalOpen.value = false;
+    reviewDetailNotice.value = '收货地址已更新。';
+    emit('notice', 'success', `${targetOrderNo} 收货地址已更新`);
+  } catch (error) {
+    reviewDetailNotice.value = errorMessage(error);
+  } finally {
+    reviewAddressSubmitting.value = false;
+  }
 }
 
 async function handleDispense(task: WorkflowTaskSnapshot) {
@@ -537,7 +644,14 @@ defineExpose({
           </button>
           <button class="legacy-btn" type="button" @click="handlePendingReviewAction('备注')">备注</button>
           <button class="legacy-btn" type="button" @click="handlePendingReviewAction('拆单')">拆单</button>
-          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('修改地址')">修改地址</button>
+          <button
+            class="legacy-btn"
+            type="button"
+            :disabled="reviewDetailLoading || reviewAddressSubmitting"
+            @click="openReviewAddressModal"
+          >
+            修改地址
+          </button>
         </div>
 
         <div class="review-detail-command">
@@ -554,6 +668,68 @@ defineExpose({
 
         <p v-if="workflowError" class="error-line">{{ workflowError }}</p>
         <p v-if="reviewDetailNotice" class="review-detail-notice">{{ reviewDetailNotice }}</p>
+
+        <div v-if="reviewAddressModalOpen" class="review-address-modal-mask">
+          <section class="review-address-modal" aria-label="修改收货地址">
+            <div class="review-address-modal-head">
+              <h3>修改收货地址</h3>
+              <button class="legacy-link-btn" type="button" :disabled="reviewAddressSubmitting" @click="closeReviewAddressModal">关闭</button>
+            </div>
+            <div class="review-address-form">
+              <label>
+                <span>收货人</span>
+                <input v-model="reviewAddressForm.receiverName" class="legacy-input" />
+              </label>
+              <label>
+                <span>联系电话</span>
+                <input v-model="reviewAddressForm.receiverPhone" class="legacy-input" />
+              </label>
+              <label>
+                <span>省</span>
+                <input v-model="reviewAddressForm.receiverProvince" class="legacy-input" />
+              </label>
+              <label>
+                <span>市</span>
+                <input v-model="reviewAddressForm.receiverCity" class="legacy-input" />
+              </label>
+              <label>
+                <span>区县</span>
+                <input v-model="reviewAddressForm.receiverZone" class="legacy-input" />
+              </label>
+              <label>
+                <span>送货方式</span>
+                <select v-model="reviewAddressForm.addressType" class="legacy-input">
+                  <option value="">未设置</option>
+                  <option value="HOSPITAL">送医院</option>
+                  <option value="PATIENT">送个人</option>
+                  <option value="PICKUP">自提</option>
+                </select>
+              </label>
+              <label class="review-address-form-wide">
+                <span>详细地址</span>
+                <input v-model="reviewAddressForm.receiverAddress" class="legacy-input" />
+              </label>
+              <label>
+                <span>送货时间</span>
+                <input v-model="reviewAddressForm.deliveryTime" class="legacy-input" placeholder="YYYY-MM-DD HH:mm:ss" />
+              </label>
+              <label>
+                <span>操作人</span>
+                <input v-model="reviewAddressForm.operator" class="legacy-input" />
+              </label>
+              <label class="review-address-form-wide">
+                <span>修改原因</span>
+                <input v-model="reviewAddressForm.reason" class="legacy-input" placeholder="可选" />
+              </label>
+            </div>
+            <div class="review-address-modal-actions">
+              <button class="legacy-btn" type="button" :disabled="reviewAddressSubmitting" @click="closeReviewAddressModal">取消</button>
+              <button class="legacy-btn legacy-btn-primary" type="button" :disabled="reviewAddressSubmitting" @click="submitReviewAddressUpdate">
+                {{ reviewAddressSubmitting ? '保存中' : '保存地址' }}
+              </button>
+            </div>
+          </section>
+        </div>
 
         <section class="review-detail-section">
           <h3>提示信息</h3>
@@ -1167,6 +1343,61 @@ defineExpose({
   min-width: 1180px;
 }
 
+.review-address-modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(15 23 42 / 38%);
+}
+
+.review-address-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #d8e0ea;
+  background: #fff;
+  box-shadow: 0 20px 40px rgb(15 23 42 / 20%);
+}
+
+.review-address-modal-head,
+.review-address-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.review-address-modal-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.review-address-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.review-address-form label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.review-address-form span {
+  color: #475467;
+  font-size: 12px;
+}
+
+.review-address-form-wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 720px) {
   .review-detail-toolbar,
   .review-detail-command {
@@ -1175,6 +1406,10 @@ defineExpose({
 
   .review-detail-command label {
     width: 100%;
+  }
+
+  .review-address-form {
+    grid-template-columns: 1fr;
   }
 }
 </style>
