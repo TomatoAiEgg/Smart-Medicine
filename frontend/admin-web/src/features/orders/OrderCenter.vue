@@ -1102,6 +1102,10 @@ async function goNextPage() {
   page.value += 1;
   await queryOrder();
 }
+
+defineExpose({
+  refreshOrders: queryOrder,
+});
 </script>
 
 <template>

@@ -91,6 +91,7 @@ const operationOperator = ref('admin');
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
 const dashboardHomeRef = ref<InstanceType<typeof DashboardHome> | null>(null);
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
+const orderCenterRef = ref<InstanceType<typeof OrderCenter> | null>(null);
 const dispensePrintRef = ref<InstanceType<typeof DispensePrintWorkspace> | null>(null);
 const recheckScanRef = ref<InstanceType<typeof RecheckScanWorkspace> | null>(null);
 const reportOverviewRef = ref<InstanceType<typeof ReportOverview> | null>(null);
@@ -450,6 +451,10 @@ async function refreshCurrentTasks() {
   }
   if (workflowRouteKey.value) {
     await workflowTasksRef.value?.refreshCurrentTasks();
+    return;
+  }
+  if (componentKey === 'orders') {
+    await orderCenterRef.value?.refreshOrders();
     return;
   }
   if (componentKey === 'dispensePrint') {
@@ -1091,7 +1096,7 @@ function closeTab(view: ViewKey) {
       @notice="showNotice"
     />
 
-    <OrderCenter v-else-if="currentComponentKey === 'orders'" @notice="showNotice" />
+    <OrderCenter v-else-if="currentComponentKey === 'orders'" ref="orderCenterRef" @notice="showNotice" />
 
     <AddressModify
       v-else-if="currentComponentKey === 'addressModify'"
