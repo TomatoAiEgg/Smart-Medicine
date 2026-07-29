@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import { createAddressSupplement, queryPortalOrder } from '../../api/portal';
 import type { AddressSupplementRecord, PortalOrderRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -33,6 +34,58 @@ function errorMessage(error: unknown) {
     return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
   }
   return error instanceof Error ? error.message : '请求失败';
+}
+
+function downloadPortalOrderCsv() {
+  const order = portalOrder.value;
+  if (!order) return;
+  downloadCsv(
+    `门户查单-${order.orderNo}.csv`,
+    ['类别', '主键', '状态', '名称/类型', '关联信息', '说明', '时间'],
+    [
+      [
+        '订单',
+        order.orderNo,
+        order.orderStatus,
+        order.institutionName,
+        order.externalOrderNo,
+        `${order.patientName || '-'} / ${order.patientPhone || '-'} / ${order.receiverName || '-'} / ${order.receiverPhone || '-'} / ${order.receiverAddress || '-'}`,
+        formatDate(order.createdAt),
+      ],
+      ...(order.shipment
+        ? [[
+            '物流',
+            order.shipment.logisticsNo,
+            order.shipment.logisticsStatus,
+            order.shipment.logisticsCompany,
+            order.orderNo,
+            '最新轨迹时间',
+            formatDate(order.shipment.latestTraceTime),
+          ]]
+        : []),
+      ...order.prescriptions.map((prescription) => [
+        '处方',
+        prescription.prescriptionNo,
+        prescription.prescriptionStatus,
+        prescription.prescriptionType,
+        prescription.doctorName,
+        prescription.diagnosis,
+        '',
+      ]),
+      ...(latestAddressSupplement.value
+        ? [[
+            '地址补录',
+            latestAddressSupplement.value.supplementId,
+            latestAddressSupplement.value.supplementStatus,
+            latestAddressSupplement.value.receiverName,
+            latestAddressSupplement.value.receiverPhone,
+            `${latestAddressSupplement.value.receiverProvince || ''}${latestAddressSupplement.value.receiverCity || ''}${latestAddressSupplement.value.receiverZone || ''}${latestAddressSupplement.value.receiverAddress}`,
+            formatDate(latestAddressSupplement.value.createdAt),
+          ]]
+        : []),
+    ],
+  );
+  emit('notice', 'success', `门户订单 ${order.orderNo} 查询结果已导出`);
 }
 
 async function handlePortalQuery() {
@@ -122,6 +175,9 @@ defineExpose({
       </label>
       <button class="primary" type="button" :disabled="portalLoading" @click="handlePortalQuery">
         {{ portalLoading ? '查询中' : '查单' }}
+      </button>
+      <button class="secondary" type="button" :disabled="portalLoading || !portalOrder" @click="downloadPortalOrderCsv">
+        导出当前结果
       </button>
     </div>
 

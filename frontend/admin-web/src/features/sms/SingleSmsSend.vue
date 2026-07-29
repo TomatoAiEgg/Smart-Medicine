@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { listSmsTemplates, sendSingleSms } from '../../api/sms';
 import type { SmsSendResult, SmsTemplateRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -77,6 +78,33 @@ function sendStatusText(value: string) {
   if (value === 'SUCCESS') return '发送成功';
   if (value === 'FAILED') return '发送失败';
   return value;
+}
+
+function downloadSendResultCsv() {
+  const result = sendResult.value;
+  if (!result) return;
+  downloadCsv(
+    `单发短信登记-${result.id}.csv`,
+    ['模板编码', '模板名称', '接收手机号', '接收人', '关联订单', '签名', '短信内容', '状态', '服务商流水', '失败原因', '重试次数', '操作人', '登记时间', '发送时间', '更新时间'],
+    [[
+      result.templateCode,
+      result.templateName,
+      result.receiverPhone,
+      result.receiverName,
+      result.relatedOrderNo,
+      result.signature,
+      result.content,
+      sendStatusText(result.sendStatus),
+      result.providerMessageId,
+      result.failureReason,
+      result.retryCount,
+      result.operator,
+      formatDate(result.createdAt),
+      formatDate(result.sentAt),
+      formatDate(result.updatedAt),
+    ]],
+  );
+  emit('notice', 'success', `${result.receiverPhone} 短信登记结果已导出`);
 }
 
 function resetForm() {
@@ -220,6 +248,9 @@ defineExpose({
           </button>
           <button class="legacy-btn" type="button" :disabled="loading || sending" @click="refreshSingleSmsSend">
             刷新模板
+          </button>
+          <button class="legacy-btn" type="button" :disabled="sending || !sendResult" @click="downloadSendResultCsv">
+            导出登记结果
           </button>
         </div>
       </section>
