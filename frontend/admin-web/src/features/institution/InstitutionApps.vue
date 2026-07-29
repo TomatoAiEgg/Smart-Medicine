@@ -68,6 +68,11 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
+const saveButtonLabel = computed(() => {
+  if (saving.value) return '保存中';
+  if (!editing.value) return '新增应用';
+  return form.value.appSecret.trim() ? '保存并重置密钥' : '保存修改';
+});
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -373,7 +378,7 @@ defineExpose({
         </label>
         <div class="app-actions">
           <button class="legacy-btn legacy-btn-primary" type="button" :disabled="saving" @click="saveApp">
-            {{ saving ? '保存中' : editing ? '保存修改' : '新增应用' }}
+            {{ saveButtonLabel }}
           </button>
           <button class="legacy-btn" type="button" :disabled="saving" @click="resetForm">清空</button>
         </div>
