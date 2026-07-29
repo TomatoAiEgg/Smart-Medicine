@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { createAdminHerb, listAdminHerbs, updateAdminHerb } from '../../api/order';
 import type { AdminHerbPage, AdminHerbRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -65,6 +66,26 @@ function rowValue(value: string | number | null | undefined) {
 
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
+}
+
+function downloadHerbCsv() {
+  downloadCsv(
+    `药品目录-第${page.value}页.csv`,
+    ['药品编码', '药品名称', '规格', '产地', '单位', '零售价', '状态', '备注', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.herbCode,
+      row.herbName,
+      row.drugSpecs,
+      row.drugOrigin,
+      row.unit,
+      row.retailPrice,
+      enabledText(row.enabled),
+      row.remark,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个药品`);
 }
 
 function formatPrice(value: number | string | null | undefined) {
@@ -234,6 +255,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           查询
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadHerbCsv">
+          导出当前页
         </button>
       </li>
     </ul>

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { createAdminHerbArea, listAdminHerbAreas, updateAdminHerbArea } from '../../api/order';
 import type { AdminHerbAreaPage, AdminHerbAreaRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -61,6 +62,22 @@ function rowValue(value: string | null | undefined) {
 
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
+}
+
+function downloadAreaCsv() {
+  downloadCsv(
+    `药材区域-第${page.value}页.csv`,
+    ['区域编码', '区域名称', '状态', '备注', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.areaCode,
+      row.areaName,
+      enabledText(row.enabled),
+      row.remark,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个药材区域`);
 }
 
 function normalizePageSize() {
@@ -206,6 +223,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           查询
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadAreaCsv">
+          导出当前页
         </button>
       </li>
     </ul>
