@@ -13,7 +13,8 @@ import type {
   AdminPrescriptionReprintQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -112,6 +113,49 @@ function batchText(value: string | null | undefined) {
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
   return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
+}
+
+function downloadLabelPrintCsv() {
+  downloadCsv(
+    `处方标签打印-第${page.value}页.csv`,
+    [
+      '平台处方号',
+      '外部处方号',
+      '平台订单号',
+      '外部订单号',
+      '处方状态',
+      '订单状态',
+      '病人信息',
+      '机构名称',
+      '送货地址',
+      '送货时间',
+      '处方类型',
+      '服用方法',
+      '剂数',
+      '批次',
+      '接单时间',
+      '调剂工号',
+    ],
+    rows.value.map((row) => [
+      row.prescriptionNo,
+      row.externalPrescriptionNo,
+      row.orderNo,
+      row.externalOrderNo,
+      row.prescriptionStatus,
+      row.orderStatus,
+      patientInfo(row),
+      row.institutionName,
+      fullAddress(row),
+      formatDate(row.deliveryTime),
+      prescriptionTypeText(row.prescriptionType),
+      medicationMethodText(row.isWithin),
+      row.doseCount,
+      batchText(row.batchNo),
+      formatDate(row.createdAt),
+      row.dispenser,
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条处方标签`);
 }
 
 function normalizePageSize() {
@@ -281,6 +325,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadLabelPrintCsv">
+          导出当前页
         </button>
       </li>
     </ul>

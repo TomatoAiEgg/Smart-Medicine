@@ -11,7 +11,8 @@ import type {
   AdminInstitutionRecord,
   AdminLabelTemplateRecord,
 } from '../../api/types';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -101,6 +102,39 @@ function scopeText(value: string) {
 
 function prescriptionTypeText(value: string | null | undefined) {
   return prescriptionTypes.find((option) => option.value === (value ?? ''))?.label ?? rowValue(value);
+}
+
+function downloadTemplateCsv() {
+  downloadCsv(
+    `标签模板-第${page.value}页.csv`,
+    [
+      '模板编码',
+      '模板名称',
+      '范围',
+      '机构',
+      '处方类型',
+      '宽度mm',
+      '高度mm',
+      '模板内容',
+      '状态',
+      '创建时间',
+      '更新时间',
+    ],
+    records.value.map((record) => [
+      record.templateCode,
+      record.templateName,
+      scopeText(record.scopeType),
+      record.institutionName,
+      prescriptionTypeText(record.prescriptionType),
+      record.labelWidthMm,
+      record.labelHeightMm,
+      record.contentTemplate,
+      enabledText(record.enabled),
+      formatDate(record.createdAt),
+      formatDate(record.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(records.value.length)} 个标签模板`);
 }
 
 function normalizePageSize() {
@@ -308,6 +342,9 @@ defineExpose({
         </button>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">
           重置
+        </button>
+        <button class="legacy-btn" type="button" :disabled="loading || records.length === 0" @click="downloadTemplateCsv">
+          导出当前页
         </button>
       </li>
     </ul>

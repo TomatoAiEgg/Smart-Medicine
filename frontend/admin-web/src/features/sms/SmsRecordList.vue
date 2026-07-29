@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { listSmsRecords } from '../../api/sms';
 import type { SmsSendResult } from '../../api/types';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -52,6 +53,47 @@ function rowValue(value: string | number | null | undefined) {
 
 function sendStatusText(value: string) {
   return statusOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+function downloadRecordCsv() {
+  downloadCsv(
+    `短信发送记录-第${page.value}页.csv`,
+    [
+      '模板编码',
+      '模板名称',
+      '接收手机号',
+      '接收人',
+      '关联订单',
+      '签名',
+      '短信内容',
+      '状态',
+      '服务商流水',
+      '失败原因',
+      '重试次数',
+      '操作人',
+      '登记时间',
+      '发送时间',
+      '更新时间',
+    ],
+    records.value.map((record) => [
+      record.templateCode,
+      record.templateName,
+      record.receiverPhone,
+      record.receiverName,
+      record.relatedOrderNo,
+      record.signature,
+      record.content,
+      sendStatusText(record.sendStatus),
+      record.providerMessageId,
+      record.failureReason,
+      record.retryCount,
+      record.operator,
+      formatDate(record.createdAt),
+      formatDate(record.sentAt),
+      formatDate(record.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(records.value.length)} 条短信发送记录`);
 }
 
 function normalizePageSize() {
@@ -148,6 +190,9 @@ defineExpose({
         </button>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">
           重置
+        </button>
+        <button class="legacy-btn" type="button" :disabled="loading || records.length === 0" @click="downloadRecordCsv">
+          导出当前页
         </button>
       </li>
     </ul>
