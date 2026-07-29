@@ -3,9 +3,11 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import {
   getAdminPrescriptionPrintPayload,
+  listAdminLabelTemplates,
   listAdminPrescriptionReprints,
 } from '../../api/order';
 import type {
+  AdminLabelTemplateRecord,
   AdminOrderDetailDrug,
   AdminPrescriptionPrintPayload,
   AdminPrescriptionReprintItem,
@@ -35,14 +37,22 @@ const prescriptionNo = ref('');
 const page = ref(1);
 const pageSize = ref(20);
 const labelPage = ref<AdminPrescriptionReprintPage | null>(null);
+const labelTemplates = ref<AdminLabelTemplateRecord[]>([]);
+const selectedTemplateId = ref('');
 const loading = ref(false);
+const templateLoading = ref(false);
 const printingNo = ref('');
 const errorLine = ref('');
+const templateError = ref('');
 
 const rows = computed(() => labelPage.value?.records ?? []);
 const total = computed(() => labelPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
+const selectedTemplate = computed(() => (
+  labelTemplates.value.find((template) => template.id === selectedTemplateId.value)
+  ?? null
+));
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -109,6 +119,10 @@ function batchText(value: string | null | undefined) {
     3: '晚批次',
   };
   return value ? labels[value] ?? value : '-';
+}
+
+function templateOptionText(template: AdminLabelTemplateRecord) {
+  return `${template.templateName} / ${rowValue(template.prescriptionType || '通用')} / ${template.labelWidthMm}x${template.labelHeightMm}mm`;
 }
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
@@ -183,6 +197,28 @@ async function refreshLabelPrints() {
   }
 }
 
+async function refreshLabelTemplates() {
+  templateLoading.value = true;
+  templateError.value = '';
+  try {
+    const nextPage = await listAdminLabelTemplates({
+      enabled: true,
+      page: 1,
+      pageSize: 100,
+    });
+    labelTemplates.value = nextPage.records;
+    if (!labelTemplates.value.some((template) => template.id === selectedTemplateId.value)) {
+      selectedTemplateId.value = labelTemplates.value[0]?.id ?? '';
+    }
+  } catch (error) {
+    labelTemplates.value = [];
+    selectedTemplateId.value = '';
+    templateError.value = errorMessage(error);
+  } finally {
+    templateLoading.value = false;
+  }
+}
+
 async function searchFirstPage() {
   page.value = 1;
   await refreshLabelPrints();
@@ -223,20 +259,23 @@ function renderDrugSummary(details: AdminOrderDetailDrug[]) {
   `).join('');
 }
 
-function renderLabelHtml(payload: AdminPrescriptionPrintPayload) {
+function renderLabelHtml(payload: AdminPrescriptionPrintPayload, template: AdminLabelTemplateRecord | null) {
   const drugs = renderDrugSummary(payload.details);
+  const labelWidthMm = template?.labelWidthMm ?? 90;
+  const labelHeightMm = template?.labelHeightMm ?? 60;
+  const templateName = template?.templateName ?? '默认浏览器标签';
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>处方标签-${escapeHtml(payload.prescriptionNo)}</title>
   <style>
-    @page { size: 90mm 60mm; margin: 3mm; }
+    @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 3mm; }
     * { box-sizing: border-box; }
     body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 10px; }
     .toolbar { position: fixed; right: 12px; top: 12px; display: flex; gap: 8px; }
     .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
-    .label { width: 90mm; min-height: 60mm; padding: 4mm; border: 1px solid #111827; display: grid; grid-template-columns: 1fr 22mm; gap: 3mm; }
+    .label { width: ${labelWidthMm}mm; min-height: ${labelHeightMm}mm; padding: 4mm; border: 1px solid #111827; display: grid; grid-template-columns: 1fr 22mm; gap: 3mm; }
     .title { margin: 0 0 2mm; font-size: 15px; letter-spacing: 0; }
     .muted { color: #475569; }
     .line { margin: 1mm 0; }
@@ -252,6 +291,7 @@ function renderLabelHtml(payload: AdminPrescriptionPrintPayload) {
   <section class="label">
     <main>
       <h1 class="title">${escapeHtml(payload.institutionName)} 处方标签</h1>
+      <div class="line muted">模板：${escapeHtml(templateName)}</div>
       <div class="line"><strong>处方：</strong>${escapeHtml(payload.prescriptionNo)}</div>
       <div class="line"><strong>患者：</strong>${escapeHtml(payload.patientName)}　${escapeHtml(payload.patientPhone)}</div>
       <div class="line"><strong>类型：</strong>${escapeHtml(prescriptionTypeText(payload.prescriptionType))} / ${escapeHtml(medicationMethodText(payload.isWithin))} / ${escapeHtml(batchText(payload.batchNo))}</div>
@@ -280,7 +320,7 @@ async function openLabelPrint(row: AdminPrescriptionReprintItem) {
       return;
     }
     printWindow.document.open();
-    printWindow.document.write(renderLabelHtml(payload));
+    printWindow.document.write(renderLabelHtml(payload, selectedTemplate.value));
     printWindow.document.close();
     emit('notice', 'success', `处方 ${row.prescriptionNo} 标签打印窗口已打开`);
   } catch (error) {
@@ -293,7 +333,9 @@ async function openLabelPrint(row: AdminPrescriptionReprintItem) {
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
-    if (active) void refreshLabelPrints();
+    if (!active) return;
+    void refreshLabelPrints();
+    void refreshLabelTemplates();
   },
   { immediate: true },
 );
@@ -319,6 +361,15 @@ defineExpose({
         <input v-model="prescriptionNo" class="legacy-input input-large" @keyup.enter="searchFirstPage" />
       </li>
       <li>
+        标签模板：
+        <select v-model="selectedTemplateId" class="legacy-input input-large" :disabled="templateLoading">
+          <option value="">{{ templateLoading ? '加载中' : '默认浏览器标签' }}</option>
+          <option v-for="template in labelTemplates" :key="template.id" :value="template.id">
+            {{ templateOptionText(template) }}
+          </option>
+        </select>
+      </li>
+      <li>
         条数：
         <input v-model.number="pageSize" class="legacy-input input-small" type="number" min="5" max="100" step="5" />
       </li>
@@ -335,9 +386,13 @@ defineExpose({
     </ul>
 
     <p class="label-print-hint">
-      当前页面使用真实处方打印数据生成浏览器标签；标签模板配置、打印记录和失败重试仍等待后端契约。
+      当前页面使用真实处方打印数据生成浏览器标签；可读取启用标签模板并应用模板尺寸，打印记录和失败重试仍等待后端契约。
+    </p>
+    <p v-if="selectedTemplate" class="label-template-hint">
+      当前模板：{{ selectedTemplate.templateName }} / {{ selectedTemplate.labelWidthMm }} x {{ selectedTemplate.labelHeightMm }} mm
     </p>
     <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
+    <p v-if="templateError" class="error-line">标签模板加载失败：{{ templateError }}</p>
 
     <div class="legacy-panel">
       <table class="legacy-main-table label-print-table">
@@ -418,6 +473,12 @@ defineExpose({
 .label-print-hint {
   margin: 0 0 10px;
   color: #6f7d91;
+  font-size: 13px;
+}
+
+.label-template-hint {
+  margin: -4px 0 10px;
+  color: #475467;
   font-size: 13px;
 }
 

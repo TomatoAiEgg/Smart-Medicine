@@ -714,8 +714,8 @@ export const menuItems = [
     componentKey: 'labelPrints',
     showCount: true,
     plannedComponent: 'features/label/LabelPrint.vue',
-    coreActions: ['处方查询', '标签预览', '浏览器打印', '导出'],
-    apiDependencies: ['处方重打列表', '处方打印数据'],
+    coreActions: ['处方查询', '模板尺寸选择', '标签预览', '浏览器打印', '导出'],
+    apiDependencies: ['处方重打列表', '处方打印数据', '标签模板查询'],
   },
   {
     key: 'smsTemplates',
