@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
+import { listDecoctionPerformanceDetails } from '../../api/report';
 import {
   bindPrescription,
   cancelMesTask,
@@ -22,6 +23,7 @@ import {
   terminatePdaDecoction,
 } from '../../api/decoction';
 import type {
+  DecoctionPerformanceDetailRecord,
   DecoctionEventCommand,
   DecoctionTaskEventRecord,
   DecoctionTaskRecord,
@@ -32,7 +34,7 @@ import type {
   SimulatorOperationCommand,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -67,12 +69,15 @@ const decoctionTasks = ref<DecoctionTaskRecord[]>([]);
 const pendingMesTasks = ref<DecoctionTaskRecord[]>([]);
 const decoctionEvents = ref<DecoctionTaskEventRecord[]>([]);
 const decoctionWorkRecords = ref<DeviceWorkRecord[]>([]);
+const cloudPrintRecords = ref<DecoctionPerformanceDetailRecord[]>([]);
 const decoctionLoading = ref(false);
+const cloudPrintLoading = ref(false);
+const cloudPrintLoaded = ref(false);
 const eventLoading = ref(false);
 const decoctionError = ref('');
 const activeDecoctionDataset = ref<DecoctionDataset>('binds');
-const startTime = ref('');
-const endTime = ref('');
+const startTime = ref(defaultDate(-13));
+const endTime = ref(defaultDate(0));
 const decoctionCenter = ref('');
 const prescriptionNoQuery = ref('');
 const deviceCodeQuery = ref('');
@@ -92,6 +97,25 @@ const handlingDecoctionTaskNo = ref('');
 
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
 const pendingMesTaskCount = computed(() => pendingMesTasks.value.length);
+const mainLoading = computed(() => (
+  activeDecoctionDataset.value === 'cloudPrints' ? cloudPrintLoading.value : decoctionLoading.value
+));
+
+const filteredCloudPrintRecords = computed(() => {
+  const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
+  const deviceCode = deviceCodeQuery.value.trim().toLowerCase();
+  const actionResult = printStatus.value.trim();
+
+  return cloudPrintRecords.value.filter((record) => {
+    const matchesPrescription = !prescriptionNo
+      || rowValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo);
+    const matchesDevice = !deviceCode
+      || rowValue(record.deviceCode).toLowerCase().includes(deviceCode)
+      || rowValue(record.pailNo).toLowerCase().includes(deviceCode);
+    const matchesResult = !actionResult || record.actionResult === actionResult;
+    return matchesPrescription && matchesDevice && matchesResult;
+  });
+});
 
 const selectedEventTask = computed(() => (
   decoctionTasks.value.find((task) => task.taskNo === selectedEventTaskNo.value) ?? null
@@ -109,6 +133,7 @@ const activeDecoctionTableColspan = computed(() => {
 const activePageTotal = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return decoctionDevices.value.length;
   if (activeDecoctionDataset.value === 'binds') return decoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'cloudPrints') return filteredCloudPrintRecords.value.length;
   if (activeDecoctionDataset.value === 'workRecords') return decoctionWorkRecords.value.length;
   return 0;
 });
@@ -166,6 +191,9 @@ function pageSummary(total: number) {
 
 function switchDecoctionDataset(dataset: DecoctionDataset) {
   activeDecoctionDataset.value = dataset;
+  if (dataset === 'cloudPrints' && props.active && !cloudPrintLoaded.value) {
+    void refreshCloudPrintRecords();
+  }
 }
 
 function taskDataStatus(task: DecoctionTaskRecord) {
@@ -234,6 +262,62 @@ function downloadWorkRecordCsv() {
     ]),
   );
   emit('notice', 'success', `已导出 ${decoctionWorkRecords.value.length} 条作业记录`);
+}
+
+function cloudPrintQueryParams() {
+  return {
+    from: dateInputToIso(startTime.value),
+    to: dateInputToIso(endTime.value, true),
+  };
+}
+
+async function refreshCloudPrintRecords() {
+  if (cloudPrintLoading.value) return;
+  cloudPrintLoading.value = true;
+  decoctionError.value = '';
+  try {
+    const nextRecords = await listDecoctionPerformanceDetails(cloudPrintQueryParams());
+    cloudPrintRecords.value = nextRecords;
+    cloudPrintLoaded.value = true;
+    emit('countChanged', filteredCloudPrintRecords.value.length);
+    emit('notice', 'success', `已查询 ${nextRecords.length} 条煎煮作业/打印相关记录`);
+  } catch (error) {
+    cloudPrintRecords.value = [];
+    cloudPrintLoaded.value = false;
+    emit('countChanged', 0);
+    decoctionError.value = errorMessage(error);
+  } finally {
+    cloudPrintLoading.value = false;
+  }
+}
+
+function downloadCloudPrintCsv() {
+  downloadCsv(
+    `煎煮作业打印相关记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['任务号', '订单号', '处方号', '设备编码', '水桶号', '动作', '结果', '操作人', '来源', '剂数', '作业时间'],
+    filteredCloudPrintRecords.value.map((record) => [
+      record.taskNo,
+      record.orderNo,
+      record.prescriptionNo,
+      record.deviceCode,
+      record.pailNo,
+      record.actionType,
+      record.actionResult,
+      record.operator,
+      record.source,
+      record.doseCount,
+      formatDate(record.actionTime),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${filteredCloudPrintRecords.value.length} 条煎煮作业/打印相关记录`);
+}
+
+function handleMainQuery() {
+  if (activeDecoctionDataset.value === 'cloudPrints') {
+    void refreshCloudPrintRecords();
+    return;
+  }
+  void refreshDecoctionSimulator();
 }
 
 function makeMesCommand(prefix: string): MesTaskOperationCommand {
@@ -492,12 +576,27 @@ async function handleTaskEvent(task: DecoctionTaskRecord, action: TaskEventActio
   }
 }
 
-watch(activeDecoctionCount, (count) => emit('countChanged', count), { immediate: true });
+watch(activeDecoctionCount, (count) => {
+  if (activeDecoctionDataset.value !== 'cloudPrints') {
+    emit('countChanged', count);
+  }
+}, { immediate: true });
+
+watch(filteredCloudPrintRecords, (records) => {
+  if (props.active && activeDecoctionDataset.value === 'cloudPrints') {
+    emit('countChanged', records.length);
+  }
+});
 
 watch(
   () => [props.active, props.activationKey] as const,
   ([active]) => {
-    if (active && decoctionTasks.value.length === 0) {
+    if (!active) return;
+    if (activeDecoctionDataset.value === 'cloudPrints') {
+      void refreshCloudPrintRecords();
+      return;
+    }
+    if (decoctionTasks.value.length === 0) {
       void refreshDecoctionSimulator();
     }
   },
@@ -507,7 +606,11 @@ watch(
 watch(
   () => props.routeKey,
   (routeKey) => {
-    activeDecoctionDataset.value = datasetFromRouteKey(routeKey);
+    const dataset = datasetFromRouteKey(routeKey);
+    activeDecoctionDataset.value = dataset;
+    if (props.active && dataset === 'cloudPrints' && !cloudPrintLoaded.value) {
+      void refreshCloudPrintRecords();
+    }
   },
   { immediate: true },
 );
@@ -545,11 +648,11 @@ defineExpose({
     <ul class="legacy-search decoction-search">
       <li>
         开始时间：
-        <input v-model="startTime" class="legacy-input input-large" placeholder="等待后端筛选契约" />
+        <input v-model="startTime" class="legacy-input input-large" type="date" />
       </li>
       <li>
         结束时间：
-        <input v-model="endTime" class="legacy-input input-large" placeholder="等待后端筛选契约" />
+        <input v-model="endTime" class="legacy-input input-large" type="date" />
       </li>
       <li>
         煎煮中心：
@@ -593,8 +696,8 @@ defineExpose({
         打印状态：
         <select v-model="printStatus" class="legacy-input">
           <option value="">请选择</option>
-          <option value="SUCCESS">成功</option>
-          <option value="FAILED">失败</option>
+          <option value="ACCEPTED">成功</option>
+          <option value="REJECTED">失败</option>
         </select>
       </li>
       <li>
@@ -602,12 +705,17 @@ defineExpose({
         <input v-model="operatorModel" class="legacy-input" placeholder="admin" />
       </li>
       <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="decoctionLoading" @click="refreshDecoctionSimulator">
-          {{ decoctionLoading ? '查询中' : '查询' }}
+        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="mainLoading" @click="handleMainQuery">
+          {{ mainLoading ? '查询中' : '查询' }}
         </button>
       </li>
       <li class="decoction-filter-tip">
-        当前后端只支持无筛选列表；以上筛选项已保留，等待后端查询契约后接入。
+        <template v-if="activeDecoctionDataset === 'cloudPrints'">
+          云打印记录当前复用煎煮作业明细接口，支持时间、处方号、设备/水桶和动作结果筛选。
+        </template>
+        <template v-else>
+          当前后端只支持无筛选列表；以上筛选项已保留，等待后端查询契约后接入。
+        </template>
       </li>
     </ul>
 
@@ -744,14 +852,14 @@ defineExpose({
             <th>操作</th>
           </tr>
           <tr v-else-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-main-head">
-            <th>ID</th>
+            <th>任务号</th>
             <th>处方号</th>
-            <th>打印张数</th>
-            <th>打码机编号</th>
-            <th>打码机名称</th>
-            <th>打印状态</th>
-            <th>备注</th>
-            <th>创建时间</th>
+            <th>关联剂数</th>
+            <th>设备编码</th>
+            <th>水桶/来源</th>
+            <th>动作结果</th>
+            <th>操作人</th>
+            <th>作业时间</th>
           </tr>
           <tr v-else class="legacy-main-head">
             <th>作业任务</th>
@@ -766,7 +874,7 @@ defineExpose({
           </tr>
         </thead>
         <tbody>
-          <tr v-if="decoctionLoading" class="legacy-main-info">
+          <tr v-if="mainLoading" class="legacy-main-info">
             <td :colspan="activeDecoctionTableColspan" class="legacy-empty">正在查询煎煮数据</td>
           </tr>
 
@@ -845,8 +953,28 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'cloudPrints'">
-            <tr class="legacy-main-info">
-              <td colspan="8" class="legacy-empty">等待后端云打印记录契约，当前不使用作业任务冒充打印记录</td>
+            <tr v-if="filteredCloudPrintRecords.length === 0" class="legacy-main-info">
+              <td colspan="8" class="legacy-empty">暂无煎煮作业/打印相关记录</td>
+            </tr>
+            <tr
+              v-for="record in filteredCloudPrintRecords"
+              :key="`${record.taskNo}-${record.actionType}-${record.actionTime}`"
+              class="legacy-main-info"
+            >
+              <td>{{ record.taskNo }}</td>
+              <td>{{ rowValue(record.prescriptionNo) }}</td>
+              <td>{{ record.doseCount }}</td>
+              <td>{{ rowValue(record.deviceCode) }}</td>
+              <td>
+                <strong>{{ rowValue(record.pailNo) }}</strong>
+                <small>{{ rowValue(record.source) }}</small>
+              </td>
+              <td>
+                <strong>{{ record.actionType }}</strong>
+                <small>{{ record.actionResult }}</small>
+              </td>
+              <td>{{ rowValue(record.operator) }}</td>
+              <td>{{ formatDate(record.actionTime) }}</td>
             </tr>
           </template>
 
@@ -892,9 +1020,13 @@ defineExpose({
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">停用配置</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">批量新增</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">导出</button>
-      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">查询云打印记录</button>
-      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">补打</button>
-      <span>等待后端管理契约，当前仅展示已有煎煮作业 API 返回的数据。</span>
+      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" :disabled="cloudPrintLoading" @click="refreshCloudPrintRecords">
+        {{ cloudPrintLoading ? '查询中' : '查询云打印记录' }}
+      </button>
+      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredCloudPrintRecords.length === 0" @click="downloadCloudPrintCsv">导出</button>
+      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端补打契约">补打</button>
+      <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录，不新增独立云打印流水或补打接口。</span>
+      <span v-else>等待后端管理契约，当前仅展示已有煎煮作业 API 返回的数据。</span>
     </div>
 
     <p class="legacy-page-summary">{{ pageSummary(activePageTotal) }}</p>
