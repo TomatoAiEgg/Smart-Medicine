@@ -10,14 +10,25 @@ import {
   listReviewTasks,
   rejectReviewTask,
 } from '../../api/workflow';
-import { getOrderProgress } from '../../api/order';
-import type { OrderProgressSnapshot, WorkflowTaskSnapshot } from '../../api/types';
+import { getAdminOrderDetail, getOrderProgress } from '../../api/order';
+import type {
+  AdminOrderDetail,
+  AdminOrderDetailDrug,
+  OrderProgressSnapshot,
+  WorkflowTaskSnapshot,
+} from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
 type CsvExportValue = string | number | null | undefined;
+type NumericValue = string | number | null | undefined;
+type ReviewDetailDrugRow = {
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  detail: AdminOrderDetailDrug;
+};
 
 const props = defineProps<{
   activeView: Extract<ViewKey, 'reviews' | 'dispenses' | 'rechecks'>;
@@ -57,8 +68,11 @@ const dispenseUserId = ref('');
 const recheckUserId = ref('');
 const selectedReviewTask = ref<WorkflowTaskSnapshot | null>(null);
 const reviewOrderProgress = ref<OrderProgressSnapshot | null>(null);
+const reviewOrderDetail = ref<AdminOrderDetail | null>(null);
 const reviewProgressLoading = ref(false);
+const reviewDetailLoading = ref(false);
 const reviewProgressError = ref('');
+const reviewOrderDetailError = ref('');
 const reviewDetailNotice = ref('');
 
 const activeWorkflowTasks = computed(() => {
@@ -96,6 +110,30 @@ const activeWorkflowLabel = computed(() => {
   return '复核';
 });
 
+const reviewDetailPrescriptions = computed(() => reviewOrderDetail.value?.prescriptions ?? []);
+const reviewDetailDrugRows = computed<ReviewDetailDrugRow[]>(() => (
+  reviewDetailPrescriptions.value.flatMap((prescription) => (
+    prescription.details.map((detail) => ({
+      prescriptionNo: prescription.prescriptionNo,
+      externalPrescriptionNo: prescription.externalPrescriptionNo,
+      detail,
+    }))
+  ))
+));
+const reviewDetailAmountSummary = computed(() => {
+  const prescriptionAmount = sumNumbers(reviewDetailPrescriptions.value.map((item) => item.totalAmount));
+  const drugAmount = sumNumbers(reviewDetailDrugRows.value.map((row) => row.detail.totalPrice));
+  const decoctionAmount = sumNumbers(reviewDetailPrescriptions.value.map((item) => item.decoctionTotalPrice));
+  const settlementDetailAmount = sumNumbers(reviewDetailDrugRows.value.map((row) => row.detail.settlementTotalPrice));
+  return {
+    prescriptionAmount,
+    drugAmount,
+    decoctionAmount,
+    settlementDetailAmount,
+    payableAmount: drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null,
+  };
+});
+
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
@@ -106,6 +144,36 @@ function errorMessage(error: unknown) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function numericValue(value: NumericValue) {
+  if (value === null || value === undefined || value === '') return null;
+  const nextValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(nextValue) ? nextValue : null;
+}
+
+function sumNumbers(values: NumericValue[]) {
+  let total = 0;
+  let hasValue = false;
+  for (const value of values) {
+    const nextValue = numericValue(value);
+    if (nextValue !== null) {
+      total += nextValue;
+      hasValue = true;
+    }
+  }
+  return hasValue ? total : null;
+}
+
+function moneyValue(value: NumericValue) {
+  const nextValue = numericValue(value);
+  return nextValue === null ? '-' : nextValue.toFixed(2);
+}
+
+function amountValue(value: NumericValue) {
+  const nextValue = numericValue(value);
+  if (nextValue === null) return '-';
+  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
 function escapeCsvCell(value: CsvExportValue) {
@@ -225,17 +293,33 @@ async function loadReviewOrderProgress(task: WorkflowTaskSnapshot) {
   }
 }
 
+async function loadReviewOrderDetail(task: WorkflowTaskSnapshot) {
+  reviewDetailLoading.value = true;
+  reviewOrderDetailError.value = '';
+  reviewOrderDetail.value = null;
+  try {
+    reviewOrderDetail.value = await getAdminOrderDetail(task.orderNo);
+  } catch (error) {
+    reviewOrderDetailError.value = errorMessage(error);
+  } finally {
+    reviewDetailLoading.value = false;
+  }
+}
+
 function selectReviewTask(task: WorkflowTaskSnapshot) {
   selectedReviewTask.value = task;
   reviewDetailNotice.value = '';
   workflowError.value = '';
   void loadReviewOrderProgress(task);
+  void loadReviewOrderDetail(task);
 }
 
 function backToReviewList() {
   selectedReviewTask.value = null;
   reviewOrderProgress.value = null;
+  reviewOrderDetail.value = null;
   reviewProgressError.value = '';
+  reviewOrderDetailError.value = '';
   reviewDetailNotice.value = '';
 }
 
@@ -579,14 +663,81 @@ defineExpose({
           <p v-else class="legacy-empty">选择审核任务后加载订单进度</p>
         </section>
 
-        <section class="review-detail-section review-placeholder-section">
+        <section class="review-detail-section">
           <h3>药品信息</h3>
-          <p>等待后端详情接口</p>
+          <p v-if="reviewDetailLoading" class="legacy-empty">正在加载订单详情</p>
+          <p v-else-if="reviewOrderDetailError" class="error-line">订单详情加载失败：{{ reviewOrderDetailError }}</p>
+          <div v-else class="review-detail-table-wrap">
+            <table class="legacy-main-table review-detail-table review-drug-table">
+              <thead>
+                <tr class="legacy-main-head">
+                  <th>平台处方号</th>
+                  <th>机构处方号</th>
+                  <th>机构药品编码</th>
+                  <th>机构药品名称</th>
+                  <th>平台药品名称</th>
+                  <th>规格</th>
+                  <th>产地</th>
+                  <th>剂量</th>
+                  <th>数量</th>
+                  <th>单价</th>
+                  <th>金额</th>
+                  <th>结算金额</th>
+                  <th>批号</th>
+                  <th>审方提示</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="reviewDetailDrugRows.length === 0" class="legacy-main-info">
+                  <td colspan="14" class="legacy-empty">暂无药品明细</td>
+                </tr>
+                <tr v-for="row in reviewDetailDrugRows" :key="row.detail.detailId" class="legacy-main-info">
+                  <td>{{ rowValue(row.prescriptionNo) }}</td>
+                  <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
+                  <td>{{ rowValue(row.detail.drugCode) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.drugName) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.platformDrugName) }}</td>
+                  <td>{{ rowValue(row.detail.drugSpecs) }}</td>
+                  <td>{{ rowValue(row.detail.drugOrigin) }}</td>
+                  <td>{{ rowValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ amountValue(row.detail.quantity) }}</td>
+                  <td>{{ moneyValue(row.detail.unitPrice) }}</td>
+                  <td>{{ moneyValue(row.detail.totalPrice) }}</td>
+                  <td>{{ moneyValue(row.detail.settlementTotalPrice) }}</td>
+                  <td>{{ rowValue(row.detail.batchNo) }}</td>
+                  <td class="legacy-left">{{ rowValue(row.detail.validationTips) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
-        <section class="review-detail-section review-placeholder-section">
+        <section class="review-detail-section">
           <h3>费用汇总</h3>
-          <p>等待后端详情接口</p>
+          <p v-if="reviewDetailLoading" class="legacy-empty">正在加载订单详情</p>
+          <p v-else-if="reviewOrderDetailError" class="error-line">订单详情加载失败：{{ reviewOrderDetailError }}</p>
+          <div v-else class="review-detail-grid">
+            <div>
+              <span>处方金额</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.prescriptionAmount) }}</strong>
+            </div>
+            <div>
+              <span>药品金额</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.drugAmount) }}</strong>
+            </div>
+            <div>
+              <span>煎煮费</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.decoctionAmount) }}</strong>
+            </div>
+            <div>
+              <span>结算药品金额</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.settlementDetailAmount) }}</strong>
+            </div>
+            <div>
+              <span>药品+煎煮合计</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.payableAmount) }}</strong>
+            </div>
+          </div>
         </section>
       </div>
     </template>
@@ -1008,9 +1159,12 @@ defineExpose({
   margin-bottom: 8px;
 }
 
-.review-placeholder-section p {
-  margin: 0;
-  color: #667085;
+.review-detail-table-wrap {
+  overflow: auto;
+}
+
+.review-drug-table {
+  min-width: 1180px;
 }
 
 @media (max-width: 720px) {
