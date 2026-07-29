@@ -7,6 +7,7 @@ import type {
   AdminInstitutionApiPage,
   AdminInstitutionApiRecord,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -90,6 +91,23 @@ function commandFromForm(): AdminInstitutionApiCommand {
     description: form.value.description.trim(),
     enabled: form.value.enabled,
   };
+}
+
+function downloadApiCsv() {
+  downloadCsv(
+    `机构接口列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['接口编码', '接口名称', '方法', '路径', '描述', '状态', '更新时间'],
+    rows.value.map((row) => [
+      row.apiCode,
+      row.apiName,
+      row.requestMethod,
+      row.requestPath,
+      row.description,
+      enabledLabel(row.enabled),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个接口`);
 }
 
 async function refreshInstitutionApis() {
@@ -242,6 +260,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadApiCsv">导出当前页</button>
       </li>
     </ul>
 

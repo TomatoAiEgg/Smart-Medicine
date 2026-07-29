@@ -13,6 +13,7 @@ import type {
   AdminInstitutionIpWhitelistRecord,
   AdminInstitutionRecord,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -99,6 +100,21 @@ function commandFromForm(): AdminInstitutionIpWhitelistCommand {
     ipRange: form.value.ipRange.trim(),
     enabled: form.value.enabled,
   };
+}
+
+function downloadWhitelistCsv() {
+  downloadCsv(
+    `机构IP白名单-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['机构', '机构类型', 'IP段', '状态', '创建时间'],
+    rows.value.map((row) => [
+      institutionText(row),
+      row.institutionType,
+      row.ipRange,
+      enabledLabel(row.enabled),
+      formatDate(row.createdAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条白名单`);
 }
 
 async function loadInstitutionOptions() {
@@ -271,6 +287,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadWhitelistCsv">导出当前页</button>
       </li>
     </ul>
 

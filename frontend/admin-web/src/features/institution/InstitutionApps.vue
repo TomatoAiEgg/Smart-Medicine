@@ -13,6 +13,7 @@ import type {
   AdminInstitutionAppRecord,
   AdminInstitutionRecord,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -111,6 +112,23 @@ function commandFromForm(): AdminInstitutionAppCommand {
     callbackUrl: form.value.callbackUrl.trim(),
     enabled: form.value.enabled,
   };
+}
+
+function downloadAppCsv() {
+  downloadCsv(
+    `机构应用列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['机构', 'AppKey', '签名类型', '密钥状态', '回调地址', '状态', '更新时间'],
+    rows.value.map((row) => [
+      institutionText(row),
+      row.appKey,
+      row.signType,
+      secretLabel(row),
+      row.callbackUrl,
+      enabledLabel(row.enabled),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个应用`);
 }
 
 async function loadInstitutionOptions() {
@@ -289,6 +307,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadAppCsv">导出当前页</button>
       </li>
     </ul>
 

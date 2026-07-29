@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -86,6 +87,23 @@ function commandFromForm(): AdminInstitutionCommand {
     status: form.value.status,
     storageType: form.value.storageType.trim(),
   };
+}
+
+function downloadInstitutionCsv() {
+  downloadCsv(
+    `机构列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['机构编码', '机构名称', '类型', '状态', '煎煮中心', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.institutionCode,
+      row.institutionName,
+      typeLabel(row.institutionType),
+      statusLabel(row.status),
+      row.storageType,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个机构`);
 }
 
 async function refreshInstitutions() {
@@ -240,6 +258,9 @@ defineExpose({
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
         </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadInstitutionCsv">导出当前页</button>
       </li>
     </ul>
 
