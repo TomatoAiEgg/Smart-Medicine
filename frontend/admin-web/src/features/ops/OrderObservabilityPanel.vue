@@ -9,6 +9,7 @@ import type {
   OpsCallbackRecord,
   OrderObservabilityBundle,
 } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -135,6 +136,128 @@ async function queryObservability() {
   }
 }
 
+function downloadObservabilityCsv() {
+  const current = bundle.value;
+  if (!current) return;
+  downloadCsv(
+    `订单链路-${current.order.orderNo}.csv`,
+    ['类别', '主键', '子类型', '状态/结果', '业务对象', '说明', '时间1', '时间2'],
+    [
+      [
+        '订单基本信息',
+        current.order.orderNo,
+        text(current.order.externalOrderNo),
+        text(current.order.status),
+        text(current.order.institutionId),
+        `链路记录 ${totalEvidenceCount.value} 条，开放风险 ${riskCount.value} 项`,
+        time(current.order.createdAt),
+        time(current.order.updatedAt),
+      ],
+      ...current.statusLogs.map((log) => [
+        '状态轨迹',
+        log.id,
+        text(log.operatorType),
+        `${text(log.fromStatus)} -> ${text(log.toStatus)}`,
+        text(log.source),
+        `${text(log.operatorId)}：${text(log.reason)}`,
+        time(log.createdAt),
+        '',
+      ]),
+      ...current.workflowTasks.map((task) => [
+        '流程任务',
+        task.id,
+        text(task.taskType),
+        text(task.taskStatus),
+        text(task.sourceEventId),
+        `${text(task.assignedTo)}：${text(task.reviewComment)}`,
+        time(task.createdAt),
+        time(task.completedAt || task.updatedAt),
+      ]),
+      ...current.outboxEvents.map((event) => [
+        'Outbox',
+        event.eventId,
+        text(event.eventType),
+        text(event.status),
+        `${text(event.aggregateType)}：${text(event.aggregateId)}`,
+        `${text(event.topic)} / ${text(event.tag)} / ${text(event.lastError)}`,
+        time(event.createdAt),
+        time(event.publishedAt || event.updatedAt),
+      ]),
+      ...current.messageConsumeLogs.map((consume) => [
+        '消费日志',
+        consume.id,
+        text(consume.consumerGroup),
+        text(consume.status),
+        text(consume.eventId),
+        `${text(consume.topic)} / ${text(consume.tag)} / ${text(consume.lastError)}`,
+        time(consume.consumeStartedAt || consume.createdAt),
+        time(consume.consumeFinishedAt || consume.updatedAt),
+      ]),
+      ...current.callbackRecords.map((record) => [
+        '回调记录',
+        record.id,
+        text(record.callbackType),
+        text(record.status),
+        text(record.businessId),
+        `${text(record.requestUrl)} / ${text(record.responseBody)}`,
+        time(record.createdAt),
+        time(record.updatedAt),
+      ]),
+      ...current.deadLetters.map((record) => [
+        '死信记录',
+        record.id,
+        text(record.consumerGroup),
+        text(record.status),
+        text(record.eventId),
+        `${text(record.topic)} / ${text(record.tag)} / ${text(record.errorMessage || record.remark)}`,
+        time(record.createdAt),
+        time(record.updatedAt),
+      ]),
+      ...current.validationRecords.map((record) => [
+        '订单校验',
+        record.id,
+        text(record.eventId),
+        text(record.validationStatus),
+        text(record.orderId),
+        text(record.validationMessage),
+        time(record.createdAt),
+        '',
+      ]),
+      ...current.integrationRetries.map((record) => [
+        '集成重试',
+        record.taskId,
+        text(record.taskType),
+        text(record.taskStatus),
+        `${text(record.sourceSystem)} -> ${text(record.targetSystem)}`,
+        `${text(record.businessKey)} / ${text(record.failureReason || record.responseBody || record.requestUrl)}`,
+        time(record.taskCreatedAt),
+        time(record.taskUpdatedAt),
+      ]),
+      ...current.operationLogs.map((record) => [
+        '操作日志',
+        record.id,
+        text(record.action),
+        text(record.result),
+        text(record.eventId || record.orderId),
+        `${text(record.operator)}：${text(record.reason)}`,
+        time(record.createdAt),
+        '',
+      ]),
+      ...current.recentAccessLogs.map((record) => [
+        '访问日志',
+        record.id,
+        text(record.appKey),
+        text(record.resultCode),
+        text(record.requestIp),
+        text(record.requestPath),
+        time(record.createdAt),
+        '',
+      ]),
+    ],
+  );
+  emit('notice', 'success', `订单 ${current.order.orderNo} 链路证据已导出`);
+}
+
 function refreshOrderObservability() {
   return queryObservability();
 }
@@ -194,6 +317,11 @@ defineExpose({
         <li>
           <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="queryObservability">
             {{ loading ? '查询中' : '查询' }}
+          </button>
+        </li>
+        <li>
+          <button class="legacy-btn" type="button" :disabled="loading || !bundle" @click="downloadObservabilityCsv">
+            导出链路证据
           </button>
         </li>
       </ul>
