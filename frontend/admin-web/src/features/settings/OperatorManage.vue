@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { createAdminOperator, listAdminOperators, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -61,6 +62,26 @@ function errorMessage(error: unknown) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function enabledText(value: boolean) {
+  return value ? '启用' : '停用';
+}
+
+function downloadOperatorCsv() {
+  downloadCsv(
+    `后台工号-第${page.value}页.csv`,
+    ['工号', '姓名', '角色', '状态', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.username,
+      row.displayName,
+      row.roleCode,
+      enabledText(row.enabled),
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个工号`);
 }
 
 function queryEnabled() {
@@ -217,6 +238,11 @@ defineExpose({
           {{ loading ? '查询中' : '查询' }}
         </button>
       </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadOperatorCsv">
+          导出当前页
+        </button>
+      </li>
     </ul>
 
     <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
@@ -287,7 +313,7 @@ defineExpose({
             <td><strong>{{ rowValue(row.username) }}</strong></td>
             <td>{{ rowValue(row.displayName) }}</td>
             <td>{{ rowValue(row.roleCode) }}</td>
-            <td>{{ row.enabled ? '启用' : '停用' }}</td>
+            <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>

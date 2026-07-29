@@ -10,6 +10,7 @@ import {
   updateAdminDictType,
 } from '../../api/order';
 import type { AdminDictItemRecord, AdminDictTypeRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -90,6 +91,41 @@ function rowValue(value: string | number | null | undefined) {
 
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
+}
+
+function downloadTypeCsv() {
+  downloadCsv(
+    `字典类型-第${typePageNo.value}页.csv`,
+    ['类型编码', '类型名称', '状态', '创建时间', '更新时间'],
+    typeRows.value.map((row) => [
+      row.typeCode,
+      row.typeName,
+      enabledText(row.enabled),
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(typeRows.value.length)} 个字典类型`);
+}
+
+function downloadItemCsv() {
+  downloadCsv(
+    `字典项-第${itemPageNo.value}页.csv`,
+    ['类型编码', '类型名称', '项编码', '项名称', '项值', '排序', '状态', '备注', '创建时间', '更新时间'],
+    itemRows.value.map((row) => [
+      row.typeCode,
+      row.typeName,
+      row.itemCode,
+      row.itemName,
+      row.itemValue,
+      row.sortNo,
+      enabledText(row.enabled),
+      row.remark,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(itemRows.value.length)} 个字典项`);
 }
 
 function normalizePageSize(value: number) {
@@ -368,6 +404,11 @@ defineExpose({
               查询
             </button>
           </li>
+          <li>
+            <button class="legacy-btn" type="button" :disabled="loadingTypes || typeRows.length === 0" @click="downloadTypeCsv">
+              导出当前页
+            </button>
+          </li>
         </ul>
 
         <div class="dict-form-grid">
@@ -445,6 +486,11 @@ defineExpose({
           <li>
             <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loadingItems" @click="searchItemsFirstPage">
               查询
+            </button>
+          </li>
+          <li>
+            <button class="legacy-btn" type="button" :disabled="loadingItems || itemRows.length === 0" @click="downloadItemCsv">
+              导出当前页
             </button>
           </li>
         </ul>
