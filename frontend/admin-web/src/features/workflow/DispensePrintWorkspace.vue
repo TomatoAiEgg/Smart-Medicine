@@ -1,13 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ApiError } from '../../api/client';
-import { getOrderProgress } from '../../api/order';
+import { getAdminOrderDetail, getOrderProgress } from '../../api/order';
 import { completeDispenseTask, listDispenseTasks } from '../../api/workflow';
-import type { OrderProgressSnapshot, WorkflowTaskSnapshot } from '../../api/types';
+import type {
+  AdminOrderDetail,
+  AdminOrderDetailDrug,
+  OrderProgressSnapshot,
+  WorkflowTaskSnapshot,
+} from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
+type NumericValue = string | number | null | undefined;
+type PrintDrugRow = {
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  detail: AdminOrderDetailDrug;
+};
 
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
@@ -17,11 +28,14 @@ const emit = defineEmits<{
 const tasks = ref<WorkflowTaskSnapshot[]>([]);
 const selectedTask = ref<WorkflowTaskSnapshot | null>(null);
 const orderProgress = ref<OrderProgressSnapshot | null>(null);
+const orderDetail = ref<AdminOrderDetail | null>(null);
 const loading = ref(false);
 const progressLoading = ref(false);
+const detailLoading = ref(false);
 const completingTaskId = ref('');
 const errorText = ref('');
 const progressError = ref('');
+const detailError = ref('');
 
 const startTime = ref('');
 const endTime = ref('');
@@ -52,10 +66,31 @@ const visibleTasks = computed(() => {
 const selectedPrescriptions = computed(() => orderProgress.value?.prescriptions ?? []);
 const selectedWorkflowTasks = computed(() => orderProgress.value?.workflowTasks ?? []);
 const selectedDispenseRecords = computed(() => orderProgress.value?.dispenseRecords ?? []);
+const selectedDetailPrescriptions = computed(() => orderDetail.value?.prescriptions ?? []);
+const printDrugRows = computed<PrintDrugRow[]>(() => (
+  selectedDetailPrescriptions.value.flatMap((prescription) => (
+    prescription.details.map((detail) => ({
+      prescriptionNo: prescription.prescriptionNo,
+      externalPrescriptionNo: prescription.externalPrescriptionNo,
+      detail,
+    }))
+  ))
+));
 const primaryPrescription = computed(() => selectedPrescriptions.value[0] ?? null);
 const latestDispenseRecord = computed(() => {
   const records = selectedDispenseRecords.value;
   return records.length > 0 ? records[records.length - 1] : null;
+});
+const detailAmountSummary = computed(() => {
+  const prescriptionAmount = sumNumbers(selectedDetailPrescriptions.value.map((item) => item.totalAmount));
+  const drugAmount = sumNumbers(printDrugRows.value.map((row) => row.detail.totalPrice));
+  const decoctionAmount = sumNumbers(selectedDetailPrescriptions.value.map((item) => item.decoctionTotalPrice));
+  return {
+    prescriptionAmount,
+    drugAmount,
+    decoctionAmount,
+    payableAmount: drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null,
+  };
 });
 
 const pageSummary = computed(() => {
@@ -77,7 +112,22 @@ const previewExternalPrescriptionNo = computed(() => {
   return prescriptionNos.length > 0 ? prescriptionNos.join('、') : '等待后端调剂详情接口';
 });
 
-const previewBatchNo = computed(() => batchNo.value || '等待后端调剂详情接口');
+const previewBatchNo = computed(() => orderDetail.value?.batchNo || batchNo.value || '等待后端调剂详情接口');
+const previewPatient = computed(() => {
+  const pieces = [orderDetail.value?.patientName, orderDetail.value?.patientPhone].filter(Boolean);
+  return pieces.length > 0 ? pieces.join(' / ') : patientName.value || waitingDetail();
+});
+const previewReceiver = computed(() => {
+  const address = [
+    orderDetail.value?.receiverProvince,
+    orderDetail.value?.receiverCity,
+    orderDetail.value?.receiverZone,
+    orderDetail.value?.receiverAddress,
+  ].filter(Boolean).join('');
+  const pieces = [orderDetail.value?.receiverName, orderDetail.value?.receiverPhone, address].filter(Boolean);
+  return pieces.length > 0 ? pieces.join(' / ') : waitingDetail();
+});
+const previewDeliveryTime = computed(() => formatDate(orderDetail.value?.deliveryTime));
 const previewPrintStatus = computed(() => {
   if (latestDispenseRecord.value) return printStatusText(latestDispenseRecord.value.printStatus);
   if (selectedTask.value?.taskStatus === 'COMPLETED') return '已完成';
@@ -94,6 +144,36 @@ function errorMessage(error: unknown) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function numericValue(value: NumericValue) {
+  if (value === null || value === undefined || value === '') return null;
+  const nextValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(nextValue) ? nextValue : null;
+}
+
+function sumNumbers(values: NumericValue[]) {
+  let total = 0;
+  let hasValue = false;
+  for (const value of values) {
+    const nextValue = numericValue(value);
+    if (nextValue !== null) {
+      total += nextValue;
+      hasValue = true;
+    }
+  }
+  return hasValue ? total : null;
+}
+
+function moneyValue(value: NumericValue) {
+  const nextValue = numericValue(value);
+  return nextValue === null ? '-' : nextValue.toFixed(2);
+}
+
+function amountValue(value: NumericValue) {
+  const nextValue = numericValue(value);
+  if (nextValue === null) return '-';
+  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
 function waitingDetail() {
@@ -179,10 +259,24 @@ async function loadOrderProgress(task: WorkflowTaskSnapshot) {
   }
 }
 
+async function loadOrderDetail(task: WorkflowTaskSnapshot) {
+  detailLoading.value = true;
+  detailError.value = '';
+  orderDetail.value = null;
+  try {
+    orderDetail.value = await getAdminOrderDetail(task.orderNo);
+  } catch (error) {
+    detailError.value = errorMessage(error);
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
 function selectTask(task: WorkflowTaskSnapshot) {
   selectedTask.value = task;
   errorText.value = '';
   void loadOrderProgress(task);
+  void loadOrderDetail(task);
 }
 
 async function refreshDispenseTasks() {
@@ -200,16 +294,21 @@ async function refreshDispenseTasks() {
 
     if (nextSelectedTask) {
       selectedTask.value = nextSelectedTask;
-      await loadOrderProgress(nextSelectedTask);
+      await Promise.all([loadOrderProgress(nextSelectedTask), loadOrderDetail(nextSelectedTask)]);
     } else {
       selectedTask.value = null;
       orderProgress.value = null;
+      orderDetail.value = null;
       progressError.value = '';
+      detailError.value = '';
     }
   } catch (error) {
     tasks.value = [];
     selectedTask.value = null;
     orderProgress.value = null;
+    orderDetail.value = null;
+    progressError.value = '';
+    detailError.value = '';
     errorText.value = errorMessage(error);
     emit('countChanged', 0);
   } finally {
@@ -356,7 +455,7 @@ defineExpose({
     </ul>
 
     <p class="dispense-api-note">
-      当前列表接口仅返回工作流待办和订单编号；机构、病人、地址、剂数、费用和药品明细等待后端调剂详情接口。
+      当前列表接口仅返回工作流待办和订单编号；选中任务后加载订单详情，展示病人、地址、药品明细和费用。
     </p>
     <p v-if="errorText" class="error-line">{{ errorText }}</p>
 
@@ -491,6 +590,8 @@ defineExpose({
 
             <p v-if="progressLoading" class="legacy-empty">正在加载处方与流程信息</p>
             <p v-else-if="progressError" class="error-line">订单进度加载失败：{{ progressError }}</p>
+            <p v-if="detailLoading" class="legacy-empty">正在加载订单详情</p>
+            <p v-else-if="detailError" class="error-line">订单详情加载失败：{{ detailError }}</p>
           </template>
         </section>
 
@@ -514,6 +615,14 @@ defineExpose({
               <strong>{{ rowValue(orderProgress?.orderNo ?? selectedTask?.orderNo) }}</strong>
             </div>
             <div>
+              <span>病人信息</span>
+              <strong>{{ previewPatient }}</strong>
+            </div>
+            <div>
+              <span>收货信息</span>
+              <strong>{{ previewReceiver }}</strong>
+            </div>
+            <div>
               <span>调剂工号</span>
               <strong>{{ dispenserNo || '-' }}</strong>
             </div>
@@ -524,6 +633,10 @@ defineExpose({
             <div>
               <span>接单时间</span>
               <strong>{{ formatDate(selectedTask?.createdAt) }}</strong>
+            </div>
+            <div>
+              <span>送货时间</span>
+              <strong>{{ previewDeliveryTime }}</strong>
             </div>
           </div>
 
@@ -577,14 +690,62 @@ defineExpose({
             </table>
           </div>
 
-          <div class="print-section print-placeholder">
+          <div class="print-section">
             <h4>药品明细</h4>
-            <p>等待后端调剂详情接口</p>
+            <p v-if="detailLoading" class="legacy-empty">正在加载订单详情</p>
+            <p v-else-if="detailError" class="error-line">订单详情加载失败：{{ detailError }}</p>
+            <table v-else class="print-table">
+              <thead>
+                <tr>
+                  <th>药品</th>
+                  <th>规格/产地</th>
+                  <th>剂量</th>
+                  <th>数量</th>
+                  <th>金额</th>
+                  <th>用法/提示</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="printDrugRows.length === 0">
+                  <td colspan="6">暂无药品明细</td>
+                </tr>
+                <tr v-for="row in printDrugRows" :key="row.detail.detailId">
+                  <td>
+                    <strong>{{ rowValue(row.detail.drugName || row.detail.platformDrugName) }}</strong>
+                    <small>{{ rowValue(row.detail.drugCode || row.detail.platformDrugCode) }}</small>
+                  </td>
+                  <td>{{ rowValue([row.detail.drugSpecs, row.detail.drugOrigin].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ rowValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ amountValue(row.detail.quantity) }}</td>
+                  <td>{{ moneyValue(row.detail.totalPrice) }}</td>
+                  <td>{{ rowValue([row.detail.specialUsage, row.detail.validationTips].filter(Boolean).join(' / ')) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div class="print-section print-placeholder">
+          <div class="print-section">
             <h4>费用区</h4>
-            <p>等待后端调剂详情接口</p>
+            <p v-if="detailLoading" class="legacy-empty">正在加载订单详情</p>
+            <p v-else-if="detailError" class="error-line">订单详情加载失败：{{ detailError }}</p>
+            <div v-else class="print-amount-grid">
+              <div>
+                <span>处方金额</span>
+                <strong>{{ moneyValue(detailAmountSummary.prescriptionAmount) }}</strong>
+              </div>
+              <div>
+                <span>药品金额</span>
+                <strong>{{ moneyValue(detailAmountSummary.drugAmount) }}</strong>
+              </div>
+              <div>
+                <span>煎煮费</span>
+                <strong>{{ moneyValue(detailAmountSummary.decoctionAmount) }}</strong>
+              </div>
+              <div>
+                <span>药品+煎煮合计</span>
+                <strong>{{ moneyValue(detailAmountSummary.payableAmount) }}</strong>
+              </div>
+            </div>
           </div>
         </section>
       </aside>
@@ -765,6 +926,42 @@ defineExpose({
 .print-table th {
   background: #f2f4f7;
   font-weight: 700;
+}
+
+.print-table strong,
+.print-table small {
+  display: block;
+}
+
+.print-table small {
+  margin-top: 2px;
+  color: #667085;
+}
+
+.print-amount-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.print-amount-grid div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #d0d5dd;
+  background: #fcfcfd;
+}
+
+.print-amount-grid span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.print-amount-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 13px;
 }
 
 .print-placeholder {
