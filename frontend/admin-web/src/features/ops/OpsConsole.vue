@@ -24,6 +24,7 @@ import type {
   OrderValidationRecord,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -118,6 +119,186 @@ function normalizedOpsLimit() {
 function normalizedOpsHealthHours() {
   if (!Number.isFinite(opsHealthHours.value) || opsHealthHours.value <= 0) return 24;
   return Math.min(Math.trunc(opsHealthHours.value), 168);
+}
+
+function downloadOpsRecordsCsv() {
+  if (activeOpsDataset.value === 'outbox') {
+    downloadCsv(
+      `运维总控-Outbox-${opsLimit.value}条.csv`,
+      ['事件ID', '事件类型', 'Topic', 'Tag', '来源', '聚合类型', '聚合ID', '状态', '重试次数', '最大重试', '下次重试', '失败原因', '创建时间', '更新时间', '发布时间'],
+      outboxRecords.value.map((record) => [
+        record.eventId,
+        record.eventType,
+        record.topic,
+        record.tag,
+        record.source,
+        record.aggregateType,
+        record.aggregateId,
+        record.status,
+        record.retryCount,
+        record.maxRetryCount,
+        formatDate(record.nextRetryAt),
+        record.lastError,
+        formatDate(record.createdAt),
+        formatDate(record.updatedAt),
+        formatDate(record.publishedAt),
+      ]),
+    );
+  } else if (activeOpsDataset.value === 'consume') {
+    downloadCsv(
+      `运维总控-消费日志-${opsLimit.value}条.csv`,
+      ['消费组', '消息ID', '事件ID', 'Topic', 'Tag', '聚合ID', '状态', '重试次数', '失败原因', '追踪端点', '开始时间', '完成时间', '创建时间', '更新时间'],
+      messageConsumeRecords.value.map((record) => [
+        record.consumerGroup,
+        record.messageId,
+        record.eventId,
+        record.topic,
+        record.tag,
+        record.aggregateId,
+        record.status,
+        record.retryCount,
+        record.lastError,
+        record.traceEndpoint,
+        formatDate(record.consumeStartedAt),
+        formatDate(record.consumeFinishedAt),
+        formatDate(record.createdAt),
+        formatDate(record.updatedAt),
+      ]),
+    );
+  } else if (activeOpsDataset.value === 'deadLetters') {
+    downloadCsv(
+      `运维总控-死信-${opsLimit.value}条.csv`,
+      ['事件ID', 'Topic', 'Tag', '消费组', '聚合ID', '状态', '重试次数', '错误信息', '操作人', '备注', '创建时间', '更新时间'],
+      deadLetterRecords.value.map((record) => [
+        record.eventId,
+        record.topic,
+        record.tag,
+        record.consumerGroup,
+        record.aggregateId,
+        record.status,
+        record.retryCount,
+        record.errorMessage,
+        record.operator,
+        record.remark,
+        formatDate(record.createdAt),
+        formatDate(record.updatedAt),
+      ]),
+    );
+  } else if (activeOpsDataset.value === 'validation') {
+    downloadCsv(
+      `运维总控-订单校验-${opsLimit.value}条.csv`,
+      ['订单ID', '事件ID', '校验状态', '校验消息', '创建时间'],
+      orderValidationRecords.value.map((record) => [
+        record.orderId,
+        record.eventId,
+        record.validationStatus,
+        record.validationMessage,
+        formatDate(record.createdAt),
+      ]),
+    );
+  } else if (activeOpsDataset.value === 'access') {
+    downloadCsv(
+      `运维总控-访问日志-${opsLimit.value}条.csv`,
+      ['机构ID', 'AppKey', '请求路径', '请求IP', '结果码', '创建时间'],
+      apiAccessLogRecords.value.map((record) => [
+        record.institutionId,
+        record.appKey,
+        record.requestPath,
+        record.requestIp,
+        record.resultCode,
+        formatDate(record.createdAt),
+      ]),
+    );
+  } else if (activeOpsDataset.value === 'callbackIssues') {
+    downloadCsv(
+      `运维总控-回调失败-${opsLimit.value}条.csv`,
+      [
+        '回调ID',
+        '回调类型',
+        '订单号',
+        '业务ID',
+        '物流公司',
+        '物流单号',
+        '回调状态',
+        '物流状态',
+        '重试次数',
+        '下次重试',
+        '请求地址',
+        '响应内容',
+        '最新轨迹状态',
+        '最新轨迹内容',
+        '最新轨迹时间',
+        '创建时间',
+        '更新时间',
+      ],
+      logisticsCallbackIssueRecords.value.map((record) => [
+        record.callbackId,
+        record.callbackType,
+        record.orderNo,
+        record.businessId,
+        record.logisticsCompany,
+        record.logisticsNo,
+        record.callbackStatus,
+        record.logisticsStatus,
+        record.retryCount,
+        formatDate(record.nextRetryAt),
+        record.requestUrl,
+        record.responseBody,
+        record.latestTraceStatus,
+        record.latestTraceContent,
+        formatDate(record.latestTraceTime),
+        formatDate(record.callbackCreatedAt),
+        formatDate(record.callbackUpdatedAt),
+      ]),
+    );
+  } else {
+    downloadCsv(
+      `运维总控-集成失败-${opsLimit.value}条.csv`,
+      [
+        '任务ID',
+        '消息ID',
+        '任务类型',
+        '来源系统',
+        '目标系统',
+        '来源类型',
+        '业务键',
+        '请求地址',
+        '响应内容',
+        '失败原因',
+        '任务状态',
+        '重试次数',
+        '下次重试',
+        '消息类型',
+        '处理状态',
+        '外部消息ID',
+        '处理时间',
+        '创建时间',
+        '更新时间',
+      ],
+      integrationRetryIssueRecords.value.map((record) => [
+        record.taskId,
+        record.messageId,
+        record.taskType,
+        record.sourceSystem,
+        record.targetSystem,
+        record.sourceType,
+        record.businessKey,
+        record.requestUrl,
+        record.responseBody,
+        record.failureReason,
+        record.taskStatus,
+        record.retryCount,
+        formatDate(record.nextRetryAt),
+        record.messageType,
+        record.processStatus,
+        record.externalMessageId,
+        formatDate(record.processedAt),
+        formatDate(record.taskCreatedAt),
+        formatDate(record.taskUpdatedAt),
+      ]),
+    );
+  }
+  emit('notice', 'success', `已导出${opsDatasetNames[activeOpsDataset.value]} ${formatNumber(activeOpsCount.value)} 条`);
 }
 
 async function refreshOpsHealth() {
@@ -327,6 +508,9 @@ defineExpose({
           </label>
           <button class="primary" type="button" :disabled="opsLoading" @click="refreshOpsRecords">
             {{ opsLoading ? '刷新中' : '刷新' }}
+          </button>
+          <button class="secondary" type="button" :disabled="opsLoading || activeOpsCount === 0" @click="downloadOpsRecordsCsv">
+            导出当前结果
           </button>
         </div>
 
