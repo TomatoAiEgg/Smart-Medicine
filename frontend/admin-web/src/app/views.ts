@@ -685,7 +685,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/ops/ProblemRegistration.vue',
     coreActions: ['新增', '编辑', '处理', '关闭', '导出'],
-    apiDependencies: ['问题件 CRUD', '处理记录', '操作审计'],
+    apiDependencies: ['问题件维护', '处理记录', '操作审计'],
   },
   {
     key: 'labelTemplates',
@@ -774,7 +774,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/drug/HerbList.vue',
     coreActions: ['列表', '新增', '编辑', '启停', '导出'],
-    apiDependencies: ['药品 CRUD', '导出任务', '操作日志'],
+    apiDependencies: ['药品维护', '导出任务', '操作日志'],
   },
   {
     key: 'drugIndexOperationLogs',
