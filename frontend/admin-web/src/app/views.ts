@@ -105,7 +105,7 @@ export const standaloneRouteItems = [
     subtitle: '查看核心待处理事项和系统健康概览',
     componentKey: 'dashboard',
     plannedComponent: 'features/dashboard/DashboardHome.vue',
-    coreActions: ['待办概览', '系统健康概览'],
+    coreActions: ['待办概览', '系统健康概览', '健康导出'],
     apiDependencies: ['订单概览', '工作流待办', '服务健康状态'],
   },
   {
@@ -119,7 +119,7 @@ export const standaloneRouteItems = [
     subtitle: '医院查单和地址补录申请',
     componentKey: 'portal',
     plannedComponent: 'features/portal/PortalLookup.vue',
-    coreActions: ['医院查单', '处方详情查询', '地址补录申请'],
+    coreActions: ['医院查单', '处方详情查询', '地址补录申请', '查询结果导出'],
     apiDependencies: ['门户订单查询', '地址补录申请'],
   },
   {
@@ -134,7 +134,7 @@ export const standaloneRouteItems = [
     componentKey: 'integration',
     showCount: true,
     plannedComponent: 'features/integration/IntegrationConsole.vue',
-    coreActions: ['消息查询', '地址回推', '失败重试'],
+    coreActions: ['消息查询', '地址回推', '失败重试', '导出'],
     apiDependencies: ['外部消息', '地址回调', '重试任务'],
   },
 ] as const satisfies readonly AppRouteItem[];
@@ -152,8 +152,8 @@ export const menuItems = [
     componentKey: 'operatorManage',
     showCount: true,
     plannedComponent: 'features/settings/OperatorManage.vue',
-    coreActions: ['列表', '筛选', '新增', '编辑', '启停'],
-    apiDependencies: ['操作员工号 CRUD'],
+    coreActions: ['列表', '筛选', '新增', '编辑', '启停', '导出'],
+    apiDependencies: ['操作员工号维护'],
   },
   {
     key: 'systemRoles',
@@ -167,7 +167,7 @@ export const menuItems = [
     componentKey: 'roleManage',
     showCount: true,
     plannedComponent: 'features/system/RoleManage.vue',
-    coreActions: ['列表', '筛选', '角色标识重命名', '人员数量统计'],
+    coreActions: ['列表', '筛选', '角色标识重命名', '人员数量统计', '角色/成员导出'],
     apiDependencies: ['操作员角色标识汇总', '角色标识批量更新'],
   },
   {
@@ -182,7 +182,7 @@ export const menuItems = [
     componentKey: 'menuRegistry',
     showCount: true,
     plannedComponent: 'features/system/MenuRegistry.vue',
-    coreActions: ['菜单树', '筛选', '路径核对', '接入状态核对'],
+    coreActions: ['菜单树', '筛选', '路径核对', '接入状态核对', '导出'],
     apiDependencies: ['前端菜单注册表'],
   },
   {
@@ -212,7 +212,7 @@ export const menuItems = [
     componentKey: 'settingSystemConfigs',
     showCount: true,
     plannedComponent: 'features/settings/SystemConfig.vue',
-    coreActions: ['参数列表', '编辑', '启停', '刷新缓存'],
+    coreActions: ['参数列表', '编辑', '启停', '刷新缓存', '导出'],
     apiDependencies: ['参数查询', '参数保存', '缓存刷新', '操作审计'],
   },
   {
@@ -242,8 +242,8 @@ export const menuItems = [
     componentKey: 'operatorManage',
     showCount: true,
     plannedComponent: 'features/settings/OperatorManage.vue',
-    coreActions: ['工号列表', '新增', '编辑', '启停'],
-    apiDependencies: ['操作员工号 CRUD', '作业类型'],
+    coreActions: ['工号列表', '新增', '编辑', '启停', '导出'],
+    apiDependencies: ['操作员工号维护', '作业类型'],
   },
   {
     key: 'institutionList',
@@ -317,7 +317,7 @@ export const menuItems = [
     componentKey: 'institutionApiPermissions',
     showCount: true,
     plannedComponent: 'features/institution/ApiPermissionList.vue',
-    coreActions: ['按机构授权接口', '刷新缓存'],
+    coreActions: ['按机构授权接口', '刷新缓存', '授权导出'],
     apiDependencies: ['机构列表', 'API 列表', '授权保存', '网关缓存刷新'],
   },
   {
