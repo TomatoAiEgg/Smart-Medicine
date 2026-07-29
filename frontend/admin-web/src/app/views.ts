@@ -818,7 +818,7 @@ export const menuItems = [
     componentKey: 'drugHerbImports',
     showCount: true,
     plannedComponent: 'features/drug/HerbImport.vue',
-    coreActions: ['模板下载', 'CSV 解析', '逐行导入', '错误明细'],
+    coreActions: ['模板下载', 'CSV 解析', '逐行导入', '失败/结果下载'],
     apiDependencies: ['药品目录新增接口'],
   },
   {
@@ -833,7 +833,7 @@ export const menuItems = [
     componentKey: 'drugHerbIndexImports',
     showCount: true,
     plannedComponent: 'features/drug/HerbIndexImport.vue',
-    coreActions: ['模板下载', '基础数据匹配', '逐行导入', '错误明细'],
+    coreActions: ['模板下载', '基础数据匹配', '逐行导入', '失败/结果下载'],
     apiDependencies: ['机构列表', '药品目录列表', '药品索引新增接口'],
   },
   {
