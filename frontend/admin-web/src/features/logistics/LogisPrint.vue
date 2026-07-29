@@ -4,7 +4,8 @@ import { ApiError } from '../../api/client';
 import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -106,6 +107,55 @@ function deliveryTypeText(value: string | null | undefined) {
 
 function pageSummary(total: number) {
   return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
+}
+
+function downloadLogisPrintCsv() {
+  downloadCsv(
+    `物流发货清单-${limit.value}条.csv`,
+    [
+      '平台订单号',
+      '外部订单号',
+      '机构',
+      '患者',
+      '收货人',
+      '收货电话',
+      '收货地址',
+      '配送方式',
+      '物流公司',
+      '物流单号',
+      '物流状态',
+      '包裹数',
+      '重量',
+      '配送时间',
+      '打包时间',
+      '出库时间',
+      '签收时间',
+      '创建时间',
+      '更新时间',
+    ],
+    records.value.map((record) => [
+      record.orderNo,
+      record.externalOrderNo,
+      record.institutionName,
+      record.patientName,
+      record.receiverName,
+      record.receiverPhone,
+      record.receiverAddress,
+      deliveryTypeText(record.addressType),
+      record.logisticsCompany,
+      record.logisticsNo,
+      statusText(record.logisticsStatus),
+      record.pkgNum,
+      record.pkgWeight,
+      formatDate(record.deliveryTime),
+      formatDate(record.packageTime),
+      formatDate(record.outboundTime),
+      formatDate(record.signTime),
+      formatDate(record.createdAt),
+      formatDate(record.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(records.value.length)} 条物流发货清单`);
 }
 
 async function refreshLogisPrints() {
@@ -309,6 +359,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">重置</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || records.length === 0" @click="downloadLogisPrintCsv">
+          导出当前结果
+        </button>
       </li>
       <li>
         <button class="legacy-btn legacy-btn-export" type="button" :disabled="printing || records.length === 0" @click="printCurrentList">

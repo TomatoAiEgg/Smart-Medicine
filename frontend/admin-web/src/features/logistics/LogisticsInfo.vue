@@ -4,7 +4,8 @@ import { ApiError } from '../../api/client';
 import { listLogisticsInfos } from '../../api/logistics';
 import type { LogisticsInfoRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -49,6 +50,26 @@ function normalizedLimit() {
 
 function pageSummary(total: number) {
   return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
+}
+
+function downloadLogisticsInfoCsv() {
+  downloadCsv(
+    `物流信息查询-${limit.value}条.csv`,
+    ['轨迹ID', '平台订单号', '外部订单号', '物流单号', '物流公司', '手机号码', '轨迹状态', '物流信息', '操作时间', '创建时间'],
+    records.value.map((record) => [
+      record.traceId,
+      record.orderNo,
+      record.externalOrderNo,
+      record.logisticsNo,
+      record.logisticsCompany,
+      record.receiverPhone,
+      record.traceStatus,
+      record.operationInfo,
+      formatDate(record.traceTime),
+      formatDate(record.createdAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(records.value.length)} 条物流信息`);
 }
 
 async function refreshLogisticsInfos() {
@@ -143,6 +164,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">重置</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || records.length === 0" @click="downloadLogisticsInfoCsv">
+          导出当前结果
+        </button>
       </li>
     </ul>
 

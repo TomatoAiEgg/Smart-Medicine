@@ -4,7 +4,8 @@ import { ApiError } from '../../api/client';
 import { listShipmentTraces, listShipments, receiveShipmentTrace, signShipment } from '../../api/logistics';
 import type { ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -84,6 +85,51 @@ function fullAddress(record: ShipmentRecord) {
 
 function defaultFollowupContent(record: ShipmentRecord) {
   return `未签收跟进：${record.receiverName || '收货人'} ${record.receiverPhone || ''}`.trim();
+}
+
+function downloadUnreceivedCsv() {
+  downloadCsv(
+    `未签收跟进-${limit.value}条.csv`,
+    [
+      '订单号',
+      '外部订单号',
+      '机构',
+      '病人',
+      '收货人',
+      '收货电话',
+      '收货地址',
+      '物流单号',
+      '物流公司',
+      '物流状态',
+      '包裹数',
+      '重量',
+      '打包时间',
+      '发货时间',
+      '签收时间',
+      '创建时间',
+      '更新时间',
+    ],
+    rows.value.map((record) => [
+      record.orderNo,
+      record.externalOrderNo,
+      record.institutionName,
+      record.patientName,
+      record.receiverName,
+      record.receiverPhone,
+      fullAddress(record),
+      record.logisticsNo,
+      record.logisticsCompany,
+      record.logisticsStatus,
+      record.pkgNum,
+      record.pkgWeight,
+      formatDate(record.packageTime),
+      formatDate(record.outboundTime),
+      formatDate(record.signTime),
+      formatDate(record.createdAt),
+      formatDate(record.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(rows.value.length)} 条未签收跟进记录`);
 }
 
 async function refreshUnreceivedFollowups() {
@@ -284,6 +330,11 @@ defineExpose({
       </li>
       <li>
         <button class="legacy-btn" type="button" :disabled="loading" @click="resetFilters">重置</button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadUnreceivedCsv">
+          导出当前结果
+        </button>
       </li>
     </ul>
 

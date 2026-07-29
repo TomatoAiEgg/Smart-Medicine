@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { cancelAdminOrderMerge, createAdminOrderMerge, listAdminOrderMerges } from '../../api/order';
 import type { AdminOrderMergeCommand, AdminOrderMergePage, AdminOrderMergeRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -92,6 +93,26 @@ function commandFromForm(): AdminOrderMergeCommand {
     logisticsNo: form.value.logisticsNo.trim(),
     remark: form.value.remark.trim(),
   };
+}
+
+function downloadMergeCsv() {
+  downloadCsv(
+    `合单记录-第${page.value}页.csv`,
+    ['合单号', '订单数量', '订单号', '机构', '物流公司', '运单号', '状态', '备注', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.mergeNo,
+      row.orderCount,
+      row.orderNos,
+      row.institutionNames,
+      row.logisticsCompany,
+      row.logisticsNo,
+      statusLabel(row.status),
+      row.remark,
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条合单记录`);
 }
 
 async function refreshOrderMerges() {
@@ -219,6 +240,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
           {{ loading ? '查询中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadMergeCsv">
+          导出当前页
         </button>
       </li>
     </ul>
