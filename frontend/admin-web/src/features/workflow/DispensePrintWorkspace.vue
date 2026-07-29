@@ -4,7 +4,8 @@ import { ApiError } from '../../api/client';
 import { getOrderProgress } from '../../api/order';
 import { completeDispenseTask, listDispenseTasks } from '../../api/workflow';
 import type { OrderProgressSnapshot, WorkflowTaskSnapshot } from '../../api/types';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -139,6 +140,30 @@ function printStatusText(status: string) {
     FAILED: '打印失败',
   };
   return labels[status] || status;
+}
+
+function downloadVisibleTasksCsv() {
+  downloadCsv(
+    `调剂打印任务-${visibleTasks.value.length}条.csv`,
+    ['平台订单号', '外部订单号', '订单ID', '任务ID', '任务类型', '任务状态', '订单状态', '校验状态', '校验提示', '处理人', '处理意见', '接单时间', '更新时间', '完成时间'],
+    visibleTasks.value.map((task) => [
+      task.orderNo,
+      task.externalOrderNo,
+      task.orderId,
+      task.taskId,
+      taskTypeText(task.taskType),
+      taskStatusText(task.taskStatus),
+      task.orderStatus,
+      task.validationStatus,
+      task.validationMessage,
+      task.reviewer,
+      task.reviewComment,
+      formatDate(task.createdAt),
+      formatDate(task.updatedAt),
+      formatDate(task.completedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(visibleTasks.value.length)} 条调剂打印任务`);
 }
 
 async function loadOrderProgress(task: WorkflowTaskSnapshot) {
@@ -321,6 +346,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="refreshDispenseTasks">
           {{ loading ? '刷新中' : '查询' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || visibleTasks.length === 0" @click="downloadVisibleTasksCsv">
+          导出当前结果
         </button>
       </li>
     </ul>

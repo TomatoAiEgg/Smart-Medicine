@@ -3,7 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { completeRecheckTask, listRecheckTasks } from '../../api/workflow';
 import type { WorkflowTaskSnapshot } from '../../api/types';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type RecheckMode = 'single' | 'multi';
@@ -94,6 +95,30 @@ function errorMessage(error: unknown) {
 
 function emitCountChanged() {
   emit('countChanged', tasks.value.length);
+}
+
+function downloadFilteredTasksCsv() {
+  downloadCsv(
+    `${modeLabel.value}任务-${filteredTasks.value.length}条.csv`,
+    ['平台订单号', '外部订单号', '订单ID', '任务ID', '任务类型', '任务状态', '订单状态', '校验状态', '校验提示', '复核员', '复核意见', '接单时间', '更新时间', '完成时间'],
+    filteredTasks.value.map((task) => [
+      task.orderNo,
+      task.externalOrderNo,
+      task.orderId,
+      task.taskId,
+      task.taskType,
+      task.taskStatus,
+      task.orderStatus,
+      task.validationStatus,
+      task.validationMessage,
+      task.reviewer,
+      task.reviewComment,
+      formatDate(task.createdAt),
+      formatDate(task.updatedAt),
+      formatDate(task.completedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(filteredTasks.value.length)} 条${modeLabel.value}任务`);
 }
 
 async function refreshRecheckScanTasks() {
@@ -232,6 +257,11 @@ defineExpose({
       <li>
         <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="refreshRecheckScanTasks">
           {{ loading ? '刷新中' : '查处方' }}
+        </button>
+      </li>
+      <li>
+        <button class="legacy-btn" type="button" :disabled="loading || filteredTasks.length === 0" @click="downloadFilteredTasksCsv">
+          导出当前结果
         </button>
       </li>
       <li>

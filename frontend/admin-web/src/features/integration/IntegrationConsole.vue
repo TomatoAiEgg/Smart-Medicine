@@ -12,7 +12,8 @@ import {
 } from '../../api/integration';
 import type { HospitalOrderRecord, IntegrationMessageRecord, IntegrationRetryTaskRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
-import { formatDate } from '../../domain/formatters';
+import { downloadCsv } from '../../domain/csv';
+import { formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -70,6 +71,52 @@ function errorMessage(error: unknown) {
 function normalizedIntegrationLimit() {
   if (!Number.isFinite(integrationLimit.value) || integrationLimit.value <= 0) return 50;
   return Math.min(Math.trunc(integrationLimit.value), 200);
+}
+
+function downloadIntegrationCsv() {
+  downloadCsv(
+    `集成适配消息-${integrationLimit.value}条.csv`,
+    ['来源类型', '来源系统', '外部消息ID', '消息类型', '业务键', '处理状态', '标准载荷', '原始载荷', '失败原因', '创建时间', '更新时间', '处理时间'],
+    integrationMessages.value.map((message) => [
+      message.sourceType,
+      message.sourceSystem,
+      message.externalMessageId,
+      message.messageType,
+      message.businessKey,
+      message.processStatus,
+      message.normalizedPayload,
+      message.rawPayload,
+      message.failureReason,
+      formatDate(message.createdAt),
+      formatDate(message.updatedAt),
+      formatDate(message.processedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(integrationMessages.value.length)} 条集成适配消息`);
+}
+
+function downloadIntegrationRetryCsv() {
+  downloadCsv(
+    `集成重试任务-${integrationLimit.value}条.csv`,
+    ['任务ID', '消息ID', '任务类型', '目标系统', '业务键', '请求地址', '请求内容', '响应内容', '任务状态', '重试次数', '下次重试', '创建时间', '更新时间', '处理时间'],
+    integrationRetryTasks.value.map((task) => [
+      task.taskId,
+      task.messageId,
+      task.taskType,
+      task.targetSystem,
+      task.businessKey,
+      task.requestUrl,
+      task.requestBody,
+      task.responseBody,
+      task.taskStatus,
+      task.retryCount,
+      formatDate(task.nextRetryAt),
+      formatDate(task.createdAt),
+      formatDate(task.updatedAt),
+      formatDate(task.processedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出 ${formatNumber(integrationRetryTasks.value.length)} 条集成重试任务`);
 }
 
 async function refreshIntegrationMessages() {
@@ -268,6 +315,12 @@ defineExpose({
       </button>
       <button class="secondary" type="button" :disabled="integrationLoading" @click="handleDispatchIntegrationRetryTasks">
         派发到期
+      </button>
+      <button class="secondary" type="button" :disabled="integrationLoading || integrationMessages.length === 0" @click="downloadIntegrationCsv">
+        导出消息
+      </button>
+      <button class="secondary" type="button" :disabled="integrationLoading || integrationRetryTasks.length === 0" @click="downloadIntegrationRetryCsv">
+        导出重试
       </button>
     </div>
 
