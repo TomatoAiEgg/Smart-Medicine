@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, splitCommaValues } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -53,11 +53,6 @@ const rows = computed(() => warehousePage.value?.records ?? []);
 const total = computed(() => warehousePage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function splitValues(value: string | null | undefined) {
-  if (!value) return [];
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
-}
 
 function fullAddress(row: AdminOrderWarehouseItem) {
   return joinDisplayParts([
@@ -102,7 +97,7 @@ function hospitalTypeText(value: string | null | undefined) {
     2: '住院',
     3: '其他',
   };
-  const items = splitValues(value);
+  const items = splitCommaValues(value);
   return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
@@ -121,7 +116,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  const items = splitValues(value);
+  const items = splitCommaValues(value);
   return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 

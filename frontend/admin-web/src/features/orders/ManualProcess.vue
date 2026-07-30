@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, splitCommaValues } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -69,11 +69,6 @@ const total = computed(() => manualProcessPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 
-function splitValues(value: string | null | undefined) {
-  if (!value) return [];
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
-}
-
 function fullAddress(row: AdminManualProcessItem) {
   return joinDisplayParts([
     row.receiverProvince,
@@ -98,7 +93,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  const items = splitValues(value);
+  const items = splitCommaValues(value);
   return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
@@ -109,7 +104,7 @@ function hospitalTypeText(value: string | null | undefined) {
     1: '门诊',
     2: '住院',
   };
-  const items = splitValues(value);
+  const items = splitCommaValues(value);
   return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
@@ -128,7 +123,7 @@ function canProcess(row: AdminManualProcessItem) {
 }
 
 function isDecoctionRow(row: AdminManualProcessItem) {
-  return splitValues(row.prescriptionTypes).some((item) => item === '2' || item === 'DECOCTION');
+  return splitCommaValues(row.prescriptionTypes).some((item) => item === '2' || item === 'DECOCTION');
 }
 
 function queryParams(): AdminManualProcessQueryParams {

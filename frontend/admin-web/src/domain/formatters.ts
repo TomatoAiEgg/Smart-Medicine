@@ -73,6 +73,11 @@ export function joinDisplayParts(
   return values.length > 0 ? values.map(String).join(separator) : fallback;
 }
 
+export function splitCommaValues(value: string | null | undefined) {
+  if (!value) return [];
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
 export function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }
