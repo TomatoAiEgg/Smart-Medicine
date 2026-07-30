@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   createAdminInstitutionApp,
   listAdminInstitutionApps,
@@ -73,13 +73,6 @@ const saveButtonLabel = computed(() => {
   if (!editing.value) return '新增应用';
   return form.value.appSecret.trim() ? '保存并重置密钥' : '保存修改';
 });
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
