@@ -10,7 +10,7 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, labelFromMap, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type PrintDrugRow = {
@@ -157,7 +157,7 @@ function taskStatusText(status: string) {
     REJECTED: '已拒绝',
     CANCELLED: '已取消',
   };
-  return labels[status] || status;
+  return labelFromMap(status, labels, status);
 }
 
 function taskTypeText(type: string) {
@@ -169,7 +169,7 @@ function taskTypeText(type: string) {
     PRESCRIPTION_DISPENSE: '处方调剂',
     PRESCRIPTION_RECHECK: '处方复核',
   };
-  return labels[type] || type;
+  return labelFromMap(type, labels, type);
 }
 
 function printStatusText(status: string) {
@@ -180,7 +180,7 @@ function printStatusText(status: string) {
     REPRINTED: '已重打',
     FAILED: '打印失败',
   };
-  return labels[status] || status;
+  return labelFromMap(status, labels, status);
 }
 
 function downloadVisibleTasksCsv() {

@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, labelFromMap, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -234,7 +234,7 @@ function taskTypeText(type: string) {
     PRESCRIPTION_DISPENSE: '处方调剂',
     PRESCRIPTION_RECHECK: '处方复核',
   };
-  return labels[type] || type;
+  return labelFromMap(type, labels, type);
 }
 
 function taskStatusText(status: string) {
@@ -245,7 +245,7 @@ function taskStatusText(status: string) {
     REJECTED: '已拒绝',
     CANCELLED: '已取消',
   };
-  return labels[status] || status;
+  return labelFromMap(status, labels, status);
 }
 
 function exportActiveWorkflowTasks() {
