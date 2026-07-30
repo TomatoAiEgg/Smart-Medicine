@@ -93,7 +93,7 @@ export async function downloadDispensePerformanceDetailsCsv(params: ReportTimeRa
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/dispense-performance-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
-    throw new Error(`瀵煎嚭澶辫触锛欻TTP ${response.status}`);
+    throw new Error(`导出失败：HTTP ${response.status}`);
   }
   return response.blob();
 }
@@ -125,7 +125,7 @@ export async function downloadRecheckPerformanceDetailsCsv(params: ReportTimeRan
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/recheck-performance-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
-    throw new Error(`瀵煎嚭澶辫触锛欻TTP ${response.status}`);
+    throw new Error(`导出失败：HTTP ${response.status}`);
   }
   return response.blob();
 }
@@ -221,7 +221,7 @@ export async function downloadDecoctionPerformanceDetailsCsv(params: ReportTimeR
   const query = buildQuery(params);
   const response = await fetch(`/report-api/api/admin/reports/decoction-performance-details.csv${query ? `?${query}` : ''}`);
   if (!response.ok) {
-    throw new Error(`瀵煎嚭澶辫触锛欻TTP ${response.status}`);
+    throw new Error(`导出失败：HTTP ${response.status}`);
   }
   return response.blob();
 }
