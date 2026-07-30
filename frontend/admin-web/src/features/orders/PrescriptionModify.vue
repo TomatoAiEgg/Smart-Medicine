@@ -16,7 +16,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { amountValue, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -103,18 +103,6 @@ function formNumber(value: FormNumberValue) {
 
 function isNonNegativeInteger(value: number | null) {
   return value !== null && Number.isInteger(value) && value >= 0;
-}
-
-function numericValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function amountValue(value: string | number | null | undefined) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return '-';
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
 function prescriptionTypeText(value: string | null | undefined) {

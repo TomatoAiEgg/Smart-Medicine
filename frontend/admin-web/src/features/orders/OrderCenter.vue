@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
+import { EMPTY_VALUE, amountValue, displayValue, currentIsoDate, formatDate, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -96,7 +96,6 @@ interface SignForm {
   operator: string;
   remark: string;
 }
-type NumericValue = string | number | null | undefined;
 type FormNumberValue = number | '' | null;
 const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
 const EDITABLE_PRESCRIPTION_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED']);
@@ -289,38 +288,8 @@ const pageSummary = computed(() => {
   return `显示第 ${start} 至 ${end} 项记录，共 ${total} 项`;
 });
 
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
 function formNumber(value: FormNumberValue) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let total = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      total += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? total : null;
-}
-
-function moneyValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  return nextValue === null ? EMPTY_VALUE : nextValue.toFixed(2);
-}
-
-function amountValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return EMPTY_VALUE;
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
 function hospitalTypeText(type: string | null | undefined) {

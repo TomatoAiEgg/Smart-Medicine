@@ -5,11 +5,10 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { amountValue, boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber, labelFromMap, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type NumericValue = number | string | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -39,31 +38,6 @@ const requestId = ref(0);
 
 const totalWeight = computed(() => sumNumbers(records.value.map((record) => record.pkgWeight)));
 const totalPackages = computed(() => sumNumbers(records.value.map((record) => record.pkgNum)));
-
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let totalValue = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      totalValue += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? totalValue : null;
-}
-
-function amountValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return '-';
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
-}
 
 function normalizedLimit() {
   return boundedPositiveInteger(limit.value, 50, 200);

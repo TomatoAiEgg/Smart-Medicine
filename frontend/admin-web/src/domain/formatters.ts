@@ -34,6 +34,36 @@ export function labelFromMap(
   return labels[key] ?? key;
 }
 
+export function numericValue(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '') return null;
+  const nextValue = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(nextValue) ? nextValue : null;
+}
+
+export function sumNumbers(values: Array<string | number | null | undefined>) {
+  let totalValue = 0;
+  let hasValue = false;
+  for (const value of values) {
+    const nextValue = numericValue(value);
+    if (nextValue !== null) {
+      totalValue += nextValue;
+      hasValue = true;
+    }
+  }
+  return hasValue ? totalValue : null;
+}
+
+export function moneyValue(value: string | number | null | undefined, fallback = EMPTY_VALUE) {
+  const nextValue = numericValue(value);
+  return nextValue === null ? fallback : nextValue.toFixed(2);
+}
+
+export function amountValue(value: string | number | null | undefined, fallback = EMPTY_VALUE) {
+  const nextValue = numericValue(value);
+  if (nextValue === null) return fallback;
+  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
+}
+
 export function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }

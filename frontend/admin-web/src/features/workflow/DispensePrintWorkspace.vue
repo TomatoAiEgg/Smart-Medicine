@@ -10,10 +10,9 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, pageSummaryText, formatDate, formatNumber } from '../../domain/formatters';
+import { amountValue, displayValue, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type NumericValue = string | number | null | undefined;
 type PrintDrugRow = {
   prescriptionNo: string;
   externalPrescriptionNo: string;
@@ -133,36 +132,6 @@ const previewPrintStatus = computed(() => {
   if (selectedTask.value?.taskStatus === 'COMPLETED') return '已完成';
   return printStatus.value;
 });
-
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let total = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      total += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? total : null;
-}
-
-function moneyValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  return nextValue === null ? '-' : nextValue.toFixed(2);
-}
-
-function amountValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return '-';
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
-}
 
 function emptyDetailText() {
   return selectedTask.value ? '暂无订单详情' : '选择后查看订单详情';

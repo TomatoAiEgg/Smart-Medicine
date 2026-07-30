@@ -9,11 +9,10 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { boundedPositiveInteger, displayValue, EMPTY_VALUE, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
+import { amountValue, boundedPositiveInteger, displayValue, EMPTY_VALUE, currentIsoDate, formatDate, labelFromMap, moneyValue, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type NumericValue = number | string | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -48,36 +47,6 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const pageAmount = computed(() => sumNumbers(rows.value.map((row) => row.totalAmount)));
 const pagePrescriptionCount = computed(() => rows.value.reduce((totalCount, row) => totalCount + row.prescriptionCount, 0));
 const pageDoseCount = computed(() => sumNumbers(rows.value.map((row) => row.doseCount)));
-
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let totalValue = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      totalValue += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? totalValue : null;
-}
-
-function moneyValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  return nextValue === null ? EMPTY_VALUE : nextValue.toFixed(2);
-}
-
-function amountValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return EMPTY_VALUE;
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
-}
 
 function statusText(status: string | null | undefined) {
   if (!status) return EMPTY_VALUE;

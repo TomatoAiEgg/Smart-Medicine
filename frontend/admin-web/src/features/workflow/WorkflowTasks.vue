@@ -21,11 +21,10 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, pageSummaryText, currentIsoDate, formatDate } from '../../domain/formatters';
+import { amountValue, displayValue, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
-type NumericValue = string | number | null | undefined;
 type ReviewDetailDrugRow = {
   prescriptionNo: string;
   externalPrescriptionNo: string;
@@ -190,36 +189,6 @@ function escapeHtml(value: string | number | null | undefined) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-}
-
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let total = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      total += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? total : null;
-}
-
-function moneyValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  return nextValue === null ? '-' : nextValue.toFixed(2);
-}
-
-function amountValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  if (nextValue === null) return '-';
-  return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
 function selectedValue(value: string) {
