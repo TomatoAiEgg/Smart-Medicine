@@ -294,6 +294,31 @@ class DecoctionSimulatorServiceTest {
     }
 
     @Test
+    void shouldListConfiguredDeviceFields() {
+        when(repository.findActiveTasks()).thenReturn(List.of());
+        when(repository.findDeviceConfigs(any())).thenReturn(List.of(deviceConfig(true)));
+
+        List<DecoctionRecords.DeviceRecord> result = service.listDevices();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().deviceName()).isEqualTo("煎煮一号机");
+        assertThat(result.getFirst().deviceGroup()).isEqualTo("A组");
+        assertThat(result.getFirst().deviceStatus()).isEqualTo("IDLE");
+    }
+
+    @Test
+    void shouldRejectDisabledDeviceWhenBinding() {
+        when(repository.findByBindOperationId("op-bind-1")).thenReturn(Optional.empty());
+        when(repository.findDeviceConfigByCode(any(), eq("DECOCT-001")))
+                .thenReturn(Optional.of(deviceConfig(false)));
+
+        assertThatThrownBy(() -> service.bindPrescription(command("op-bind-1", "DECOCT-001", "RX1")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Device is disabled");
+        verify(repository, never()).findPrescription(any());
+    }
+
+    @Test
     void shouldListActiveMesTasks() {
         when(repository.findActiveTasks()).thenReturn(List.of(
                 task(UUID.randomUUID(), "DCT-1", DecoctionTaskStatus.BOUND.name()),
@@ -516,6 +541,25 @@ class DecoctionSimulatorServiceTest {
                 operationId,
                 "operator-1",
                 "{}",
+                Instant.now(clock),
+                Instant.now(clock)
+        );
+    }
+
+    private DecoctionTaskRepository.DeviceConfigSnapshot deviceConfig(boolean enabled) {
+        return new DecoctionTaskRepository.DeviceConfigSnapshot(
+                UUID.randomUUID(),
+                tenantId,
+                "DECOCT-001",
+                "煎煮一号机",
+                "煎药机",
+                "A组",
+                "良益堂煎煮中心",
+                "PDA-001",
+                "PRINTER-001",
+                "TPL-001",
+                enabled,
+                "测试设备",
                 Instant.now(clock),
                 Instant.now(clock)
         );

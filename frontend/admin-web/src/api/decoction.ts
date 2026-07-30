@@ -1,5 +1,6 @@
 import { request } from './client';
 import type {
+  DecoctionDeviceCommand,
   DecoctionEventCommand,
   DecoctionTaskEventRecord,
   DecoctionTaskRecord,
@@ -16,6 +17,24 @@ export function listCanOperatePrescriptions(limit = 50) {
 
 export function listDecoctionDevices() {
   return request<DeviceRecord[]>('/decoction-api/simulator/pda/decoction/devices');
+}
+
+export function listAdminDecoctionDevices() {
+  return request<DeviceRecord[]>('/decoction-api/admin/decoction/devices');
+}
+
+export function createAdminDecoctionDevice(command: DecoctionDeviceCommand) {
+  return request<DeviceRecord>('/decoction-api/admin/decoction/devices', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminDecoctionDevice(deviceCode: string, command: DecoctionDeviceCommand) {
+  return request<DeviceRecord>(`/decoction-api/admin/decoction/devices/${encodeURIComponent(deviceCode)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
 }
 
 export function bindPrescription(command: SimulatorOperationCommand) {

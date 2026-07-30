@@ -6,11 +6,12 @@ import {
   bindPrescription,
   cancelMesTask,
   cancelPdaDecoction,
+  createAdminDecoctionDevice,
   finishMesTask,
   finishPdaDecoction,
+  listAdminDecoctionDevices,
   listActiveMesTasks,
   listCanOperatePrescriptions,
-  listDecoctionDevices,
   listDeviceWorkRecords,
   listPendingMesTasks,
   listTaskEvents,
@@ -21,8 +22,10 @@ import {
   startPdaDecoction,
   terminateMesTask,
   terminatePdaDecoction,
+  updateAdminDecoctionDevice,
 } from '../../api/decoction';
 import type {
+  DecoctionDeviceCommand,
   DecoctionPerformanceDetailRecord,
   DecoctionEventCommand,
   DecoctionTaskEventRecord,
@@ -44,6 +47,18 @@ type PdaAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type TaskEventAction = 'water' | 'temperature' | 'error';
 type EventCommandExtra = Partial<Omit<DecoctionEventCommand, 'operationId' | 'operator' | 'timestamp' | 'sign'>>;
 type CsvExportValue = string | number | null | undefined;
+type DeviceFormState = {
+  deviceCode: string;
+  deviceName: string;
+  deviceType: string;
+  deviceGroup: string;
+  decoctionCenter: string;
+  pdaCode: string;
+  printerCode: string;
+  printTemplateCode: string;
+  enabled: boolean;
+  remark: string;
+};
 
 const props = defineProps<{
   active: boolean;
@@ -95,6 +110,10 @@ const durationSeconds = ref(600);
 const eventRemark = ref('');
 const selectedEventTaskNo = ref('');
 const handlingDecoctionTaskNo = ref('');
+const deviceFormOpen = ref(false);
+const deviceSaving = ref(false);
+const editingDeviceCode = ref('');
+const deviceForm = ref<DeviceFormState>(emptyDeviceForm());
 
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
 const pendingMesTaskCount = computed(() => pendingMesTasks.value.length);
@@ -121,6 +140,9 @@ const filteredCloudPrintRecords = computed(() => {
 const filteredDecoctionDevices = computed(() => {
   const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
   const deviceCode = deviceCodeQuery.value.trim().toLowerCase();
+  const type = deviceType.value.trim();
+  const group = deviceGroup.value.trim().toLowerCase();
+  const center = decoctionCenter.value.trim();
   const status = deviceStatus.value.trim();
 
   return decoctionDevices.value.filter((device) => {
@@ -132,8 +154,15 @@ const filteredDecoctionDevices = computed(() => {
       || rowValue(device.deviceName).toLowerCase().includes(deviceCode)
       || rowValue(device.activeTaskNo).toLowerCase().includes(deviceCode)
       || rowValue(device.activePrescriptionNo).toLowerCase().includes(deviceCode);
-    const matchesStatus = !status || device.deviceStatus === status;
-    return matchesPrescription && matchesDevice && matchesStatus;
+    const matchesType = !type || device.deviceType === type;
+    const matchesGroup = !group || rowValue(device.deviceGroup).toLowerCase().includes(group);
+    const matchesCenter = !center || device.decoctionCenter === center;
+    const matchesStatus = !status
+      || device.deviceStatus === status
+      || (status === 'ONLINE' && device.enabled)
+      || (status === 'OFFLINE' && !device.enabled)
+      || (status === 'BUSY' && Boolean(device.activeTaskNo));
+    return matchesPrescription && matchesDevice && matchesType && matchesGroup && matchesCenter && matchesStatus;
   });
 });
 
@@ -203,7 +232,7 @@ const filteredDecoctionWorkRecords = computed(() => {
 
 const activeDecoctionTableColspan = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return 12;
-  if (activeDecoctionDataset.value === 'printerConfig') return 8;
+  if (activeDecoctionDataset.value === 'printerConfig') return 9;
   if (activeDecoctionDataset.value === 'pails') return 7;
   if (activeDecoctionDataset.value === 'cloudPrints') return 8;
   if (activeDecoctionDataset.value === 'workRecords') return 9;
@@ -213,7 +242,7 @@ const activeDecoctionTableColspan = computed(() => {
 const activePageTotal = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return filteredDecoctionDevices.value.length;
   if (activeDecoctionDataset.value === 'binds') return filteredDecoctionTasks.value.length;
-  if (activeDecoctionDataset.value === 'printerConfig') return filteredDecoctionTasks.value.length;
+  if (activeDecoctionDataset.value === 'printerConfig') return filteredDecoctionDevices.value.length;
   if (activeDecoctionDataset.value === 'pails') return filteredWaterPailRows.value.length;
   if (activeDecoctionDataset.value === 'cloudPrints') return filteredCloudPrintRecords.value.length;
   if (activeDecoctionDataset.value === 'workRecords') return filteredDecoctionWorkRecords.value.length;
@@ -243,6 +272,21 @@ function newOperationId(prefix: string) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function emptyDeviceForm(): DeviceFormState {
+  return {
+    deviceCode: '',
+    deviceName: '',
+    deviceType: '煎药机',
+    deviceGroup: '',
+    decoctionCenter: '良益堂煎煮中心',
+    pdaCode: '',
+    printerCode: '',
+    printTemplateCode: '',
+    enabled: true,
+    remark: '',
+  };
 }
 
 function escapeCsvCell(value: CsvExportValue) {
@@ -287,7 +331,108 @@ function bindType(task: DecoctionTaskRecord) {
 }
 
 function deviceUseStatus(device: DeviceRecord) {
+  if (!device.enabled) return '停用';
   return device.activeTaskNo ? '使用中' : '空闲';
+}
+
+function deviceCommandFromForm(): DecoctionDeviceCommand {
+  return {
+    deviceCode: deviceForm.value.deviceCode.trim(),
+    deviceName: deviceForm.value.deviceName.trim(),
+    deviceType: deviceForm.value.deviceType.trim(),
+    deviceGroup: deviceForm.value.deviceGroup.trim() || null,
+    decoctionCenter: deviceForm.value.decoctionCenter.trim() || null,
+    pdaCode: deviceForm.value.pdaCode.trim() || null,
+    printerCode: deviceForm.value.printerCode.trim() || null,
+    printTemplateCode: deviceForm.value.printTemplateCode.trim() || null,
+    enabled: deviceForm.value.enabled,
+    remark: deviceForm.value.remark.trim() || null,
+  };
+}
+
+function deviceCommandFromRecord(device: DeviceRecord, enabled = device.enabled): DecoctionDeviceCommand {
+  return {
+    deviceName: device.deviceName,
+    deviceType: device.deviceType,
+    deviceGroup: device.deviceGroup,
+    decoctionCenter: device.decoctionCenter,
+    pdaCode: device.pdaCode,
+    printerCode: device.printerCode,
+    printTemplateCode: device.printTemplateCode,
+    enabled,
+    remark: device.remark,
+  };
+}
+
+function openCreateDeviceForm(initialDeviceType = '煎药机') {
+  editingDeviceCode.value = '';
+  deviceForm.value = emptyDeviceForm();
+  deviceForm.value.deviceType = initialDeviceType;
+  deviceFormOpen.value = true;
+}
+
+function openEditDeviceForm(device: DeviceRecord) {
+  editingDeviceCode.value = device.deviceCode;
+  deviceForm.value = {
+    deviceCode: device.deviceCode,
+    deviceName: device.deviceName,
+    deviceType: device.deviceType,
+    deviceGroup: device.deviceGroup ?? '',
+    decoctionCenter: device.decoctionCenter ?? '',
+    pdaCode: device.pdaCode ?? '',
+    printerCode: device.printerCode ?? '',
+    printTemplateCode: device.printTemplateCode ?? '',
+    enabled: device.enabled,
+    remark: device.remark ?? '',
+  };
+  deviceFormOpen.value = true;
+}
+
+function closeDeviceForm() {
+  if (deviceSaving.value) return;
+  deviceFormOpen.value = false;
+  editingDeviceCode.value = '';
+  deviceForm.value = emptyDeviceForm();
+}
+
+async function saveDeviceForm() {
+  if (!deviceForm.value.deviceCode.trim() || !deviceForm.value.deviceName.trim()) {
+    decoctionError.value = '设备编号和设备名称不能为空';
+    return;
+  }
+  deviceSaving.value = true;
+  decoctionError.value = '';
+  try {
+    if (editingDeviceCode.value) {
+      await updateAdminDecoctionDevice(editingDeviceCode.value, deviceCommandFromForm());
+      emit('notice', 'success', `设备 ${editingDeviceCode.value} 已更新`);
+    } else {
+      const created = await createAdminDecoctionDevice(deviceCommandFromForm());
+      emit('notice', 'success', `设备 ${created.deviceCode} 已新增`);
+    }
+    deviceFormOpen.value = false;
+    editingDeviceCode.value = '';
+    deviceForm.value = emptyDeviceForm();
+    await refreshDecoctionSimulator();
+  } catch (error) {
+    decoctionError.value = errorMessage(error);
+  } finally {
+    deviceSaving.value = false;
+  }
+}
+
+async function toggleDeviceEnabled(device: DeviceRecord, enabled: boolean) {
+  deviceSaving.value = true;
+  decoctionError.value = '';
+  try {
+    const updated = await updateAdminDecoctionDevice(device.deviceCode, deviceCommandFromRecord(device, enabled));
+    emit('notice', 'success', `设备 ${updated.deviceCode} 已${enabled ? '启用' : '停用'}`);
+    await refreshDecoctionSimulator();
+  } catch (error) {
+    decoctionError.value = errorMessage(error);
+  } finally {
+    deviceSaving.value = false;
+  }
 }
 
 function deviceName(deviceCode: string) {
@@ -298,10 +443,17 @@ function deviceName(deviceCode: string) {
 function downloadDeviceCsv() {
   downloadCsv(
     `煎煮设备列表-${new Date().toISOString().slice(0, 10)}.csv`,
-    ['设备编号', '设备名称', '设备状态', '使用状态', '活动任务', '活动处方'],
+    ['设备编号', '设备名称', '设备类型', '设备组别', '煎煮中心', 'PDA', '打码机', '模板', '启用', '设备状态', '使用状态', '活动任务', '活动处方'],
     filteredDecoctionDevices.value.map((device) => [
       device.deviceCode,
       device.deviceName,
+      device.deviceType,
+      device.deviceGroup,
+      device.decoctionCenter,
+      device.pdaCode,
+      device.printerCode,
+      device.printTemplateCode,
+      device.enabled ? '启用' : '停用',
       device.deviceStatus,
       deviceUseStatus(device),
       device.activeTaskNo,
@@ -314,20 +466,20 @@ function downloadDeviceCsv() {
 function downloadPrinterConfigCsv() {
   downloadCsv(
     `打码机打印配置-${new Date().toISOString().slice(0, 10)}.csv`,
-    ['ID', 'PDA/操作人', '设备编号', '设备名称', '打印模板', '状态', '修改时间', '任务号', '处方号'],
-    filteredDecoctionTasks.value.map((task) => [
-      task.taskId,
-      task.operator,
-      task.deviceCode,
-      deviceName(task.deviceCode),
-      '待后端模板契约',
-      task.taskStatus,
-      formatDate(task.updatedAt),
-      task.taskNo,
-      task.prescriptionNo,
+    ['ID', 'PDA 编号', '设备编号', '设备名称', '打码机编号', '打印模板', '状态', '修改时间', '备注'],
+    filteredDecoctionDevices.value.map((device) => [
+      device.deviceId,
+      device.pdaCode,
+      device.deviceCode,
+      device.deviceName,
+      device.printerCode,
+      device.printTemplateCode,
+      device.enabled ? '启用' : '停用',
+      formatDate(device.updatedAt),
+      device.remark,
     ]),
   );
-  emit('notice', 'success', `已导出 ${filteredDecoctionTasks.value.length} 条当前设备绑定配置`);
+  emit('notice', 'success', `已导出 ${filteredDecoctionDevices.value.length} 条设备打印配置`);
 }
 
 function downloadWaterPailCsv() {
@@ -524,7 +676,7 @@ async function refreshDecoctionSimulator() {
   try {
     const [nextPrescriptions, nextDevices, nextPendingTasks, nextTasks] = await Promise.all([
       listCanOperatePrescriptions(),
-      listDecoctionDevices(),
+      listAdminDecoctionDevices(),
       listPendingMesTasks(),
       listActiveMesTasks(),
     ]);
@@ -536,8 +688,9 @@ async function refreshDecoctionSimulator() {
     if (!prescriptions.value.some((prescription) => prescription.prescriptionNo === selectedPrescriptionNo.value)) {
       selectedPrescriptionNo.value = prescriptions.value[0]?.prescriptionNo ?? '';
     }
-    if (!decoctionDevices.value.some((device) => device.deviceCode === selectedDeviceCode.value)) {
-      selectedDeviceCode.value = decoctionDevices.value[0]?.deviceCode ?? '';
+    const availableDevices = decoctionDevices.value.filter((device) => device.enabled && !device.activeTaskNo);
+    if (!availableDevices.some((device) => device.deviceCode === selectedDeviceCode.value)) {
+      selectedDeviceCode.value = availableDevices[0]?.deviceCode ?? '';
     }
     if (!decoctionTasks.value.some((task) => task.taskNo === selectedEventTaskNo.value)) {
       selectedEventTaskNo.value = decoctionTasks.value[0]?.taskNo ?? '';
@@ -808,7 +961,7 @@ defineExpose({
       </li>
       <li>
         设备组别：
-        <input v-model="deviceGroup" class="legacy-input" placeholder="待接口" />
+        <input v-model="deviceGroup" class="legacy-input" placeholder="设备组别" />
       </li>
       <li>
         状态：
@@ -846,7 +999,7 @@ defineExpose({
           云打印记录当前复用煎煮作业明细接口，支持时间、处方号、设备/水桶和动作结果筛选。
         </template>
         <template v-else>
-          当前基于已加载结果做前端筛选；煎煮中心、设备类型和设备组别仍等待后端字段后接入。
+          当前基于已加载结果做前端筛选；设备管理已接入煎煮中心、设备类型和设备组别字段。
         </template>
       </li>
     </ul>
@@ -869,7 +1022,12 @@ defineExpose({
         煎煮设备：
         <select v-model="selectedDeviceCode" class="legacy-input input-large">
           <option value="">选择设备</option>
-          <option v-for="device in decoctionDevices" :key="device.deviceCode" :value="device.deviceCode">
+          <option
+            v-for="device in decoctionDevices"
+            :key="device.deviceCode"
+            :value="device.deviceCode"
+            :disabled="!device.enabled || Boolean(device.activeTaskNo)"
+          >
             {{ device.deviceCode }} / {{ device.deviceName }} / {{ device.deviceStatus }}
           </option>
         </select>
@@ -902,6 +1060,68 @@ defineExpose({
     </ul>
 
     <p v-if="decoctionError" class="error-line">{{ decoctionError }}</p>
+
+    <section
+      v-if="(activeDecoctionDataset === 'devices' || activeDecoctionDataset === 'printerConfig') && deviceFormOpen"
+      class="legacy-panel decoction-device-form"
+    >
+      <div class="decoction-device-form-head">
+        <strong>{{ editingDeviceCode ? `编辑设备 ${editingDeviceCode}` : '新增煎煮设备' }}</strong>
+        <button class="legacy-link-btn" type="button" :disabled="deviceSaving" @click="closeDeviceForm">关闭</button>
+      </div>
+      <div class="decoction-device-form-grid">
+        <label>
+          设备编号
+          <input v-model="deviceForm.deviceCode" class="legacy-input" :disabled="Boolean(editingDeviceCode) || deviceSaving" />
+        </label>
+        <label>
+          设备名称
+          <input v-model="deviceForm.deviceName" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          设备类型
+          <select v-model="deviceForm.deviceType" class="legacy-input" :disabled="deviceSaving">
+            <option value="煎药机">煎药机</option>
+            <option value="包装机">包装机</option>
+            <option value="打码机">打码机</option>
+          </select>
+        </label>
+        <label>
+          设备组别
+          <input v-model="deviceForm.deviceGroup" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          煎煮中心
+          <input v-model="deviceForm.decoctionCenter" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          PDA 编号
+          <input v-model="deviceForm.pdaCode" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          打码机编号
+          <input v-model="deviceForm.printerCode" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          打印模板
+          <input v-model="deviceForm.printTemplateCode" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label>
+          备注
+          <input v-model="deviceForm.remark" class="legacy-input" :disabled="deviceSaving" />
+        </label>
+        <label class="decoction-device-enabled">
+          <input v-model="deviceForm.enabled" type="checkbox" :disabled="deviceSaving" />
+          启用
+        </label>
+      </div>
+      <div class="decoction-device-form-actions">
+        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="deviceSaving" @click="saveDeviceForm">
+          {{ deviceSaving ? '保存中' : '保存设备' }}
+        </button>
+        <button class="legacy-btn" type="button" :disabled="deviceSaving" @click="closeDeviceForm">取消</button>
+      </div>
+    </section>
 
     <ul class="legacy-stats decoction-stats">
       <li>
@@ -954,8 +1174,8 @@ defineExpose({
             <th>设备编号</th>
             <th>设备名称</th>
             <th>设备类型</th>
-            <th>设备序列号</th>
-            <th>设备IP</th>
+            <th>PDA 编号</th>
+            <th>打码机编号</th>
             <th>设备组别</th>
             <th>设备状态</th>
             <th>使用状态</th>
@@ -966,9 +1186,10 @@ defineExpose({
           </tr>
           <tr v-else-if="activeDecoctionDataset === 'printerConfig'" class="legacy-main-head">
             <th>ID</th>
-            <th>PDA/操作人</th>
+            <th>PDA 编号</th>
             <th>设备编号</th>
             <th>设备名称</th>
+            <th>打码机编号</th>
             <th>打印模板</th>
             <th>状态</th>
             <th>修改时间</th>
@@ -1055,38 +1276,53 @@ defineExpose({
             <tr v-for="device in filteredDecoctionDevices" :key="device.deviceCode" class="legacy-main-info">
               <td>{{ device.deviceCode }}</td>
               <td>{{ rowValue(device.deviceName) }}</td>
-              <td>待接口</td>
-              <td>-</td>
-              <td>-</td>
-              <td>待接口</td>
+              <td>{{ rowValue(device.deviceType) }}</td>
+              <td>{{ rowValue(device.pdaCode) }}</td>
+              <td>{{ rowValue(device.printerCode) }}</td>
+              <td>{{ rowValue(device.deviceGroup) }}</td>
               <td><StatusPill :value="device.deviceStatus" :tone="statusTone(device.deviceStatus)" /></td>
               <td>{{ deviceUseStatus(device) }}</td>
               <td>{{ rowValue(device.activeTaskNo || device.activePrescriptionNo) }}</td>
-              <td>待接口</td>
-              <td>待接口</td>
+              <td>{{ rowValue(device.decoctionCenter) }}</td>
+              <td>{{ rowValue(device.remark) }}</td>
               <td class="decoction-action-cell">
-                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">编辑</button>
-                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">启用</button>
-                <button class="legacy-link-btn workflow-reject-btn" type="button" disabled title="等待后端管理契约">停用</button>
+                <button class="legacy-link-btn" type="button" :disabled="deviceSaving" @click="openEditDeviceForm(device)">编辑</button>
+                <button class="legacy-link-btn" type="button" :disabled="deviceSaving || device.enabled" @click="toggleDeviceEnabled(device, true)">启用</button>
+                <button
+                  class="legacy-link-btn workflow-reject-btn"
+                  type="button"
+                  :disabled="deviceSaving || !device.enabled || Boolean(device.activeTaskNo)"
+                  @click="toggleDeviceEnabled(device, false)"
+                >
+                  停用
+                </button>
               </td>
             </tr>
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'printerConfig'">
-            <tr v-if="filteredDecoctionTasks.length === 0" class="legacy-main-info">
-              <td colspan="8" class="legacy-empty">暂无当前设备绑定配置</td>
+            <tr v-if="filteredDecoctionDevices.length === 0" class="legacy-main-info">
+              <td colspan="9" class="legacy-empty">暂无设备打印配置</td>
             </tr>
-            <tr v-for="task in filteredDecoctionTasks" :key="`printer-${task.taskId}`" class="legacy-main-info">
-              <td>{{ task.taskId }}</td>
-              <td>{{ rowValue(task.operator) }}</td>
-              <td>{{ rowValue(task.deviceCode) }}</td>
-              <td>{{ deviceName(task.deviceCode) }}</td>
-              <td>待后端模板契约</td>
-              <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
-              <td>{{ formatDate(task.updatedAt) }}</td>
+            <tr v-for="device in filteredDecoctionDevices" :key="`printer-${device.deviceCode}`" class="legacy-main-info">
+              <td>{{ rowValue(device.deviceId) }}</td>
+              <td>{{ rowValue(device.pdaCode) }}</td>
+              <td>{{ rowValue(device.deviceCode) }}</td>
+              <td>{{ rowValue(device.deviceName) }}</td>
+              <td>{{ rowValue(device.printerCode) }}</td>
+              <td>{{ rowValue(device.printTemplateCode) }}</td>
+              <td><StatusPill :value="device.enabled ? '启用' : '停用'" :tone="statusTone(device.deviceStatus)" /></td>
+              <td>{{ formatDate(device.updatedAt) }}</td>
               <td class="decoction-action-cell">
-                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">编辑</button>
-                <button class="legacy-link-btn workflow-reject-btn" type="button" disabled title="等待后端管理契约">停用</button>
+                <button class="legacy-link-btn" type="button" :disabled="deviceSaving" @click="openEditDeviceForm(device)">编辑</button>
+                <button
+                  class="legacy-link-btn workflow-reject-btn"
+                  type="button"
+                  :disabled="deviceSaving || !device.enabled || Boolean(device.activeTaskNo)"
+                  @click="toggleDeviceEnabled(device, false)"
+                >
+                  停用
+                </button>
               </td>
             </tr>
           </template>
@@ -1167,13 +1403,10 @@ defineExpose({
     </div>
 
     <div class="decoction-management-actions" v-if="activeDecoctionDataset !== 'binds' && activeDecoctionDataset !== 'workRecords'">
-      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增设备</button>
-      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">删除设备</button>
+      <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-primary" type="button" :disabled="deviceSaving" @click="openCreateDeviceForm()">新增设备</button>
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionDevices.length === 0" @click="downloadDeviceCsv">导出设备</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增PDA</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">新增打码机</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端管理契约">编辑配置</button>
-      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionTasks.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
+      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" :disabled="deviceSaving" @click="openCreateDeviceForm('煎药机')">新增配置</button>
+      <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionDevices.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">批量新增</button>
       <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredWaterPailRows.length === 0" @click="downloadWaterPailCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" :disabled="cloudPrintLoading" @click="refreshCloudPrintRecords">
@@ -1182,6 +1415,8 @@ defineExpose({
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredCloudPrintRecords.length === 0" @click="downloadCloudPrintCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端补打契约">补打</button>
       <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录，不新增独立云打印流水或补打接口。</span>
+      <span v-else-if="activeDecoctionDataset === 'devices'">设备管理已接入主数据接口；停用设备不可继续绑定新煎煮任务。</span>
+      <span v-else-if="activeDecoctionDataset === 'printerConfig'">PDA、打码机和打印模板配置复用设备主数据接口维护。</span>
       <span v-else>等待后端管理契约，当前仅展示已有煎煮作业 API 返回的数据。</span>
     </div>
 
@@ -1292,6 +1527,44 @@ defineExpose({
   margin-bottom: 10px;
 }
 
+.decoction-device-form {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.decoction-device-form-head,
+.decoction-device-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.decoction-device-form-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.decoction-device-form-grid label {
+  display: grid;
+  gap: 5px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.decoction-device-enabled {
+  align-content: end;
+  grid-template-columns: auto 1fr;
+}
+
+.decoction-device-form-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .decoction-main-table {
   min-width: 1720px;
 }
@@ -1372,6 +1645,10 @@ defineExpose({
 }
 
 @media (max-width: 1200px) {
+  .decoction-device-form-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
   .decoction-record-grid {
     grid-template-columns: minmax(900px, 1fr);
   }

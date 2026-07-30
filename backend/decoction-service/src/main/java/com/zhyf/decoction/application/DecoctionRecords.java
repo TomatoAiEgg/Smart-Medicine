@@ -28,11 +28,22 @@ public final class DecoctionRecords {
     }
 
     public record DeviceRecord(
+            UUID deviceId,
             String deviceCode,
             String deviceName,
+            String deviceType,
+            String deviceGroup,
+            String decoctionCenter,
+            String pdaCode,
+            String printerCode,
+            String printTemplateCode,
             String deviceStatus,
+            boolean enabled,
+            String remark,
             String activeTaskNo,
-            String activePrescriptionNo
+            String activePrescriptionNo,
+            Instant createdAt,
+            Instant updatedAt
     ) {
     }
 

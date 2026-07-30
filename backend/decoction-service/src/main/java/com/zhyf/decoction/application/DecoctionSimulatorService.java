@@ -8,6 +8,7 @@ import com.zhyf.decoction.domain.DecoctionTaskStatus;
 import com.zhyf.decoction.domain.PrescriptionForDecoction;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DecoctionTaskEventSnapshot;
+import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DeviceConfigSnapshot;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DeviceWorkRecordSnapshot;
 import com.zhyf.decoction.infrastructure.OrderStatusClient;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,7 @@ public class DecoctionSimulatorService {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
+    private static final UUID DEFAULT_ADMIN_TENANT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     private final DecoctionTaskRepository taskRepository;
     private final OrderStatusClient orderStatusClient;
@@ -83,9 +85,70 @@ public class DecoctionSimulatorService {
         Map<String, DecoctionTaskSnapshot> activeTasks = taskRepository.findActiveTasks()
                 .stream()
                 .collect(Collectors.toMap(DecoctionTaskSnapshot::deviceCode, Function.identity(), (left, right) -> left));
+        List<DeviceConfigSnapshot> configuredDevices = taskRepository.findDeviceConfigs(DEFAULT_ADMIN_TENANT_ID);
+        if (configuredDevices != null && !configuredDevices.isEmpty()) {
+            return configuredDevices.stream()
+                    .map(device -> toDeviceRecord(device, activeTasks.get(device.deviceCode())))
+                    .toList();
+        }
         return properties.getDeviceCodes().stream()
-                .map(deviceCode -> toDeviceRecord(deviceCode, activeTasks.get(deviceCode)))
+                .map(deviceCode -> toFallbackDeviceRecord(deviceCode, activeTasks.get(deviceCode)))
                 .toList();
+    }
+
+    @Transactional
+    public DecoctionRecords.DeviceRecord createDevice(DecoctionDeviceCommand command) {
+        String deviceCode = requireText(command.deviceCode(), "DEVICE_CODE_REQUIRED", "Device code is required");
+        String deviceName = requireText(command.deviceName(), "DEVICE_NAME_REQUIRED", "Device name is required");
+        taskRepository.findDeviceConfigByCode(DEFAULT_ADMIN_TENANT_ID, deviceCode)
+                .ifPresent(device -> {
+                    throw new BusinessException("DEVICE_CODE_DUPLICATED", "Device code already exists");
+                });
+        UUID deviceId = UUID.randomUUID();
+        taskRepository.createDeviceConfig(
+                deviceId,
+                DEFAULT_ADMIN_TENANT_ID,
+                deviceCode,
+                deviceName,
+                defaultText(command.deviceType(), "煎药机"),
+                cleanText(command.deviceGroup()),
+                cleanText(command.decoctionCenter()),
+                cleanText(command.pdaCode()),
+                cleanText(command.printerCode()),
+                cleanText(command.printTemplateCode()),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+        DeviceConfigSnapshot device = taskRepository.findDeviceConfigByCode(DEFAULT_ADMIN_TENANT_ID, deviceCode)
+                .orElseThrow(() -> new BusinessException("DEVICE_CREATE_FAILED", "Device create failed"));
+        DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByDeviceCode(device.deviceCode()).orElse(null);
+        return toDeviceRecord(device, activeTask);
+    }
+
+    @Transactional
+    public DecoctionRecords.DeviceRecord updateDevice(String deviceCode, DecoctionDeviceCommand command) {
+        String normalizedDeviceCode = requireText(deviceCode, "DEVICE_CODE_REQUIRED", "Device code is required");
+        DeviceConfigSnapshot existing = taskRepository.findDeviceConfigByCode(DEFAULT_ADMIN_TENANT_ID, normalizedDeviceCode)
+                .orElseThrow(() -> new BusinessException("DEVICE_NOT_FOUND", "Device not found"));
+        String deviceName = StringUtils.hasText(command.deviceName()) ? command.deviceName().trim() : existing.deviceName();
+        String deviceType = StringUtils.hasText(command.deviceType()) ? command.deviceType().trim() : existing.deviceType();
+        boolean enabled = command.enabled() == null ? existing.enabled() : command.enabled();
+        taskRepository.updateDeviceConfig(
+                existing.id(),
+                deviceName,
+                defaultText(deviceType, "煎药机"),
+                cleanOrExisting(command.deviceGroup(), existing.deviceGroup()),
+                cleanOrExisting(command.decoctionCenter(), existing.decoctionCenter()),
+                cleanOrExisting(command.pdaCode(), existing.pdaCode()),
+                cleanOrExisting(command.printerCode(), existing.printerCode()),
+                cleanOrExisting(command.printTemplateCode(), existing.printTemplateCode()),
+                enabled,
+                cleanOrExisting(command.remark(), existing.remark())
+        );
+        DeviceConfigSnapshot updated = taskRepository.findDeviceConfigByCode(DEFAULT_ADMIN_TENANT_ID, normalizedDeviceCode)
+                .orElseThrow(() -> new BusinessException("DEVICE_NOT_FOUND", "Device not found"));
+        DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByDeviceCode(updated.deviceCode()).orElse(null);
+        return toDeviceRecord(updated, activeTask);
     }
 
     public List<DecoctionRecords.DecoctionTaskRecord> listPendingMesTasks() {
@@ -254,6 +317,11 @@ public class DecoctionSimulatorService {
     }
 
     private DecoctionRecords.DecoctionTaskRecord createBinding(SimulatorOperationCommand command) {
+        taskRepository.findDeviceConfigByCode(DEFAULT_ADMIN_TENANT_ID, command.deviceCode())
+                .filter(device -> !device.enabled())
+                .ifPresent(device -> {
+                    throw new BusinessException("DEVICE_DISABLED", "Device is disabled");
+                });
         PrescriptionForDecoction prescription = taskRepository.findPrescription(command.prescriptionNo())
                 .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "Prescription not found"));
         if (!OrderStatus.RECHECKED.name().equals(prescription.orderStatus())) {
@@ -664,10 +732,23 @@ public class DecoctionSimulatorService {
         requireText(command.operator(), "OPERATOR_REQUIRED", "Operator is required");
     }
 
-    private void requireText(String value, String code, String message) {
+    private String requireText(String value, String code, String message) {
         if (!StringUtils.hasText(value)) {
             throw new BusinessException(code, message);
         }
+        return value.trim();
+    }
+
+    private String cleanText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String defaultText(String value, String fallback) {
+        return StringUtils.hasText(value) ? value.trim() : fallback;
+    }
+
+    private String cleanOrExisting(String value, String existing) {
+        return value == null ? existing : cleanText(value);
     }
 
     private int normalizeLimit(int limit) {
@@ -818,17 +899,74 @@ public class DecoctionSimulatorService {
         );
     }
 
-    private DecoctionRecords.DeviceRecord toDeviceRecord(String deviceCode, DecoctionTaskSnapshot task) {
+    private DecoctionRecords.DeviceRecord toFallbackDeviceRecord(String deviceCode, DecoctionTaskSnapshot task) {
         if (task == null) {
-            return new DecoctionRecords.DeviceRecord(deviceCode, "Mock decoction device " + deviceCode, "IDLE", null, null);
+            return new DecoctionRecords.DeviceRecord(
+                    null,
+                    deviceCode,
+                    "Mock decoction device " + deviceCode,
+                    "煎药机",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "IDLE",
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
         }
         String status = DecoctionTaskStatus.DECOCTING.name().equals(task.taskStatus()) ? "WORKING" : "OCCUPIED";
         return new DecoctionRecords.DeviceRecord(
+                null,
                 deviceCode,
                 "Mock decoction device " + deviceCode,
+                "煎药机",
+                null,
+                null,
+                null,
+                null,
+                null,
                 status,
+                true,
+                null,
                 task.taskNo(),
-                task.prescriptionNo()
+                task.prescriptionNo(),
+                null,
+                null
+        );
+    }
+
+    private DecoctionRecords.DeviceRecord toDeviceRecord(DeviceConfigSnapshot device, DecoctionTaskSnapshot task) {
+        String status = device.enabled() ? "IDLE" : "OFFLINE";
+        String activeTaskNo = null;
+        String activePrescriptionNo = null;
+        if (task != null) {
+            status = DecoctionTaskStatus.DECOCTING.name().equals(task.taskStatus()) ? "WORKING" : "OCCUPIED";
+            activeTaskNo = task.taskNo();
+            activePrescriptionNo = task.prescriptionNo();
+        }
+        return new DecoctionRecords.DeviceRecord(
+                device.id(),
+                device.deviceCode(),
+                device.deviceName(),
+                device.deviceType(),
+                device.deviceGroup(),
+                device.decoctionCenter(),
+                device.pdaCode(),
+                device.printerCode(),
+                device.printTemplateCode(),
+                status,
+                device.enabled(),
+                device.remark(),
+                activeTaskNo,
+                activePrescriptionNo,
+                device.createdAt(),
+                device.updatedAt()
         );
     }
 

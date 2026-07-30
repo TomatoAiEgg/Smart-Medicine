@@ -1526,11 +1526,35 @@ export interface PrescriptionRecord {
 }
 
 export interface DeviceRecord {
+  deviceId: string | null;
   deviceCode: string;
   deviceName: string;
+  deviceType: string;
+  deviceGroup: string | null;
+  decoctionCenter: string | null;
+  pdaCode: string | null;
+  printerCode: string | null;
+  printTemplateCode: string | null;
   deviceStatus: string;
+  enabled: boolean;
+  remark: string | null;
   activeTaskNo: string | null;
   activePrescriptionNo: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface DecoctionDeviceCommand {
+  deviceCode?: string;
+  deviceName?: string;
+  deviceType?: string;
+  deviceGroup?: string | null;
+  decoctionCenter?: string | null;
+  pdaCode?: string | null;
+  printerCode?: string | null;
+  printTemplateCode?: string | null;
+  enabled?: boolean;
+  remark?: string | null;
 }
 
 export interface DecoctionTaskRecord {

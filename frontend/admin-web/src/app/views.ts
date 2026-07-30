@@ -1133,8 +1133,8 @@ export const menuItems = [
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['PDA/打码机配置入口', '当前结果筛选', '当前绑定导出', '配置维护缺口提示'],
-    apiDependencies: ['设备/任务查询', '关系 CRUD 待补', '操作审计待补'],
+    coreActions: ['PDA/打码机配置入口', '当前结果筛选', '新增/编辑配置', '启用/停用配置', '当前配置导出'],
+    apiDependencies: ['设备主数据查询', '设备主数据创建/更新', '设备启停校验'],
   },
   {
     key: 'decoctionWaterPails',

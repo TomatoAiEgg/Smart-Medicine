@@ -362,6 +362,101 @@ public class DecoctionTaskRepository {
         return jdbcTemplate.query(sql, this::mapTaskSnapshot, deviceCode).stream().findFirst();
     }
 
+    public List<DeviceConfigSnapshot> findDeviceConfigs(UUID tenantId) {
+        String sql = baseDeviceConfigQuery() + """
+                where d.tenant_id = ?
+                order by d.device_code asc
+                """;
+        return jdbcTemplate.query(sql, this::mapDeviceConfigSnapshot, tenantId);
+    }
+
+    public Optional<DeviceConfigSnapshot> findDeviceConfigByCode(UUID tenantId, String deviceCode) {
+        String sql = baseDeviceConfigQuery() + """
+                where d.tenant_id = ?
+                  and d.device_code = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapDeviceConfigSnapshot, tenantId, deviceCode).stream().findFirst();
+    }
+
+    public int createDeviceConfig(
+            UUID id,
+            UUID tenantId,
+            String deviceCode,
+            String deviceName,
+            String deviceType,
+            String deviceGroup,
+            String decoctionCenter,
+            String pdaCode,
+            String printerCode,
+            String printTemplateCode,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into decoction_device_config (
+                    id, tenant_id, device_code, device_name, device_type, device_group,
+                    decoction_center, pda_code, printer_code, print_template_code,
+                    enabled, remark
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        return jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                deviceCode,
+                deviceName,
+                deviceType,
+                deviceGroup,
+                decoctionCenter,
+                pdaCode,
+                printerCode,
+                printTemplateCode,
+                enabled,
+                remark
+        );
+    }
+
+    public int updateDeviceConfig(
+            UUID id,
+            String deviceName,
+            String deviceType,
+            String deviceGroup,
+            String decoctionCenter,
+            String pdaCode,
+            String printerCode,
+            String printTemplateCode,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update decoction_device_config
+                set device_name = ?,
+                    device_type = ?,
+                    device_group = ?,
+                    decoction_center = ?,
+                    pda_code = ?,
+                    printer_code = ?,
+                    print_template_code = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(
+                sql,
+                deviceName,
+                deviceType,
+                deviceGroup,
+                decoctionCenter,
+                pdaCode,
+                printerCode,
+                printTemplateCode,
+                enabled,
+                remark,
+                id
+        );
+    }
+
     private String baseTaskQuery() {
         return """
                 select
@@ -426,6 +521,27 @@ public class DecoctionTaskRepository {
                     e.created_at
                 from decoction_task_event e
                 join decoction_task t on t.id = e.task_id
+                """;
+    }
+
+    private String baseDeviceConfigQuery() {
+        return """
+                select
+                    d.id,
+                    d.tenant_id,
+                    d.device_code,
+                    d.device_name,
+                    d.device_type,
+                    d.device_group,
+                    d.decoction_center,
+                    d.pda_code,
+                    d.printer_code,
+                    d.print_template_code,
+                    d.enabled,
+                    d.remark,
+                    d.created_at,
+                    d.updated_at
+                from decoction_device_config d
                 """;
     }
 
@@ -500,6 +616,25 @@ public class DecoctionTaskRepository {
         );
     }
 
+    private DeviceConfigSnapshot mapDeviceConfigSnapshot(ResultSet rs, int rowNum) throws SQLException {
+        return new DeviceConfigSnapshot(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("device_code"),
+                rs.getString("device_name"),
+                rs.getString("device_type"),
+                rs.getString("device_group"),
+                rs.getString("decoction_center"),
+                rs.getString("pda_code"),
+                rs.getString("printer_code"),
+                rs.getString("print_template_code"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
@@ -543,6 +678,24 @@ public class DecoctionTaskRepository {
             String detailPayload,
             Instant actionTime,
             Instant createdAt
+    ) {
+    }
+
+    public record DeviceConfigSnapshot(
+            UUID id,
+            UUID tenantId,
+            String deviceCode,
+            String deviceName,
+            String deviceType,
+            String deviceGroup,
+            String decoctionCenter,
+            String pdaCode,
+            String printerCode,
+            String printTemplateCode,
+            boolean enabled,
+            String remark,
+            Instant createdAt,
+            Instant updatedAt
     ) {
     }
 }
