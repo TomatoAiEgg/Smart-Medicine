@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -78,7 +78,7 @@ function deliveryTypeText(value: string | null | undefined) {
     1: '送医院',
     2: '送个人',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function batchText(value: string | null | undefined) {
@@ -90,7 +90,7 @@ function batchText(value: string | null | undefined) {
     2: '午批次',
     3: '晚批次',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function hospitalTypeText(value: string | null | undefined) {
@@ -103,7 +103,7 @@ function hospitalTypeText(value: string | null | undefined) {
     3: '其他',
   };
   const items = splitValues(value);
-  return items.length ? items.map((item) => labels[item] ?? item).join('、') : '-';
+  return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
 function prescriptionTypeText(value: string | null | undefined) {
@@ -122,7 +122,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     5: '散剂',
   };
   const items = splitValues(value);
-  return items.length ? items.map((item) => labels[item] ?? item).join('、') : '-';
+  return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
 function queryParams(includePaging = true): AdminOrderWarehouseQueryParams {

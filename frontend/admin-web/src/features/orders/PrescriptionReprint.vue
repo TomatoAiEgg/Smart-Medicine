@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -71,7 +71,7 @@ function hospitalTypeText(value: string | null | undefined) {
     2: '住院',
     3: '其他',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function prescriptionTypeText(value: string | null | undefined) {
@@ -89,7 +89,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function medicationMethodText(value: number | null | undefined) {
@@ -108,7 +108,7 @@ function addressTypeText(value: string | null | undefined) {
     1: '送医院',
     2: '送个人',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function batchText(value: string | null | undefined) {
@@ -120,7 +120,7 @@ function batchText(value: string | null | undefined) {
     2: '午批次',
     3: '晚批次',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function patientInfo(row: AdminPrescriptionReprintItem) {

@@ -19,7 +19,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -99,7 +99,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function medicationMethodText(value: number | null | undefined) {
@@ -117,7 +117,7 @@ function batchText(value: string | null | undefined) {
     2: '午批次',
     3: '晚批次',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function printStatusText(value: string | null | undefined) {
@@ -125,7 +125,7 @@ function printStatusText(value: string | null | undefined) {
     PRINTED: '已打开',
     FAILED: '失败',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function templateOptionText(template: AdminLabelTemplateRecord) {

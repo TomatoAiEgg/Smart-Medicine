@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { EMPTY_VALUE, displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -335,7 +335,7 @@ function hospitalTypeText(type: string | null | undefined) {
     住院: '住院',
     其他: '其他',
   };
-  return type ? labels[type] ?? type : EMPTY_VALUE;
+  return labelFromMap(type, labels);
 }
 
 function isWithinText(type: number | null | undefined) {
@@ -356,7 +356,7 @@ function batchText(batchNo: string | null | undefined) {
     午批次: '午批次',
     晚批次: '晚批次',
   };
-  return batchNo ? labels[batchNo] ?? batchNo : EMPTY_VALUE;
+  return labelFromMap(batchNo, labels);
 }
 
 function legacyDateTimeInput(value: string | null | undefined) {
@@ -419,7 +419,7 @@ function deliveryTypeText(type: string | null | undefined) {
     '送个人': '送个人',
     '自提': '自提',
   };
-  return type ? labels[type] ?? type : EMPTY_VALUE;
+  return labelFromMap(type, labels);
 }
 
 function statusText(status: string | null | undefined) {
@@ -451,7 +451,7 @@ function statusText(status: string | null | undefined) {
     SENT: '已发送',
     OK: '正常',
   };
-  return labels[status] ?? status;
+  return labelFromMap(status, labels);
 }
 
 function taskTypeText(type: string) {
@@ -463,7 +463,7 @@ function taskTypeText(type: string) {
     PRESCRIPTION_DISPENSE: '处方调剂',
     PRESCRIPTION_RECHECK: '处方复核',
   };
-  return labels[type] ?? type;
+  return labelFromMap(type, labels, type);
 }
 
 function callbackTypeText(type: string) {
@@ -474,7 +474,7 @@ function callbackTypeText(type: string) {
     ORDER_SIGNED: '订单签收',
     PRESCRIPTION_STATUS: '处方状态',
   };
-  return labels[type] ?? type;
+  return labelFromMap(type, labels, type);
 }
 
 function scrollToOrderDetail() {

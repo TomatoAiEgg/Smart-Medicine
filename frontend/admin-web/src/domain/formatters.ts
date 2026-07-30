@@ -24,6 +24,16 @@ export function displayValue(value: string | number | boolean | null | undefined
   return String(value);
 }
 
+export function labelFromMap(
+  value: string | number | null | undefined,
+  labels: Record<string, string>,
+  fallback = EMPTY_VALUE,
+) {
+  if (value === null || value === undefined || value === '') return fallback;
+  const key = String(value);
+  return labels[key] ?? key;
+}
+
 export function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }
