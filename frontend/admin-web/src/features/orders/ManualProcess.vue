@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -158,7 +158,7 @@ function queryParams(): AdminManualProcessQueryParams {
 
 function downloadManualProcessCsv() {
   downloadCsv(
-    `订单走流程列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `订单走流程列表-${currentIsoDate()}.csv`,
     ['平台订单号', '机构', '收货地址', '送货时间', '接单时间', '送医院', '机构处方号', '门诊住院', '病人信息', '处方类型', '剂数', '处方列表', '处方数', '备注', '订单状态', '更新时间'],
     rows.value.map((row) => [
       row.orderNo,

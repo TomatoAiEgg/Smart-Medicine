@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -114,7 +114,7 @@ function commandFromForm(): AdminInstitutionAppCommand {
 
 function downloadAppCsv() {
   downloadCsv(
-    `机构应用列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `机构应用列表-${currentIsoDate()}.csv`,
     ['机构', 'AppKey', '签名类型', '密钥状态', '回调地址', '状态', '更新时间'],
     rows.value.map((row) => [
       institutionText(row),

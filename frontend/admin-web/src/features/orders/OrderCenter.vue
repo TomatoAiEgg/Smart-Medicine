@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -1040,7 +1040,7 @@ async function exportOrders() {
   orderError.value = '';
   try {
     const blob = await downloadAdminOrdersCsv(currentOrderQueryParams({ includePaging: false }));
-    saveBlob(`订单信息汇总-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`订单信息汇总-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '订单信息汇总已导出');
   } catch (error) {
     orderError.value = errorMessage(error);

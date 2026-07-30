@@ -7,7 +7,7 @@ import {
 } from '../../api/report';
 import type { InstitutionPrescriptionCountRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type NumericValue = number | string | null | undefined;
@@ -98,7 +98,7 @@ async function exportInstitutionPrescriptionCounts() {
       from: dateInputToIso(countFrom.value),
       to: dateInputToIso(countTo.value, true),
     });
-    saveBlob(`机构处方数量统计-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`机构处方数量统计-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '机构处方数量统计 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

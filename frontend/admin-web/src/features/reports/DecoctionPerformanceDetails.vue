@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadDecoctionPerformanceDetailsCsv, listDecoctionPerformanceDetails } from '../../api/report';
 import type { DecoctionPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -83,7 +83,7 @@ async function exportDecoctionPerformanceDetails() {
       from: dateInputToIso(detailFrom.value),
       to: dateInputToIso(detailTo.value, true),
     });
-    saveBlob(`煎煮员绩效明细-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`煎煮员绩效明细-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '煎煮员绩效明细 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

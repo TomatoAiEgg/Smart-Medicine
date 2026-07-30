@@ -43,7 +43,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -586,7 +586,7 @@ function deviceName(deviceCode: string) {
 
 function downloadDeviceCsv() {
   downloadCsv(
-    `煎煮设备列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `煎煮设备列表-${currentIsoDate()}.csv`,
     ['设备编号', '设备名称', '设备类型', '设备组别', '煎煮中心', 'PDA', '打码机', '模板', '启用', '设备状态', '使用状态', '活动任务', '活动处方'],
     filteredDecoctionDevices.value.map((device) => [
       device.deviceCode,
@@ -609,7 +609,7 @@ function downloadDeviceCsv() {
 
 function downloadPrinterConfigCsv() {
   downloadCsv(
-    `打码机打印配置-${new Date().toISOString().slice(0, 10)}.csv`,
+    `打码机打印配置-${currentIsoDate()}.csv`,
     ['ID', 'PDA 编号', '设备编号', '设备名称', '打码机编号', '打印模板', '状态', '修改时间', '备注'],
     filteredDecoctionDevices.value.map((device) => [
       device.deviceId,
@@ -628,7 +628,7 @@ function downloadPrinterConfigCsv() {
 
 function downloadWaterPailCsv() {
   downloadCsv(
-    `加水桶列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `加水桶列表-${currentIsoDate()}.csv`,
     ['加水桶号', '名称', '煎煮中心', '组别', '容量ml', '启用', '状态', '使用状态', '活动任务', '活动处方', '创建时间', '修改时间', '备注'],
     filteredWaterPails.value.map((pail) => [
       pail.pailNo,
@@ -651,7 +651,7 @@ function downloadWaterPailCsv() {
 
 function downloadEventCsv() {
   downloadCsv(
-    `煎煮事件记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `煎煮事件记录-${currentIsoDate()}.csv`,
     ['任务编号', '事件类型', '操作编号', '操作人', '事件时间', '事件内容', '创建时间'],
     decoctionEvents.value.map((event) => [
       event.taskNo,
@@ -668,7 +668,7 @@ function downloadEventCsv() {
 
 function downloadWorkRecordCsv() {
   downloadCsv(
-    `煎煮作业记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `煎煮作业记录-${currentIsoDate()}.csv`,
     ['任务编号', '处方号', '设备编号', '水桶号', '动作', '结果', '前状态', '后状态', '操作编号', '来源', '操作人', '作业时间', '作业内容'],
     filteredDecoctionWorkRecords.value.map((record) => [
       record.taskNo,
@@ -720,7 +720,7 @@ async function refreshCloudPrintRecords() {
 
 function downloadCloudPrintCsv() {
   downloadCsv(
-    `煎煮作业打印相关记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `煎煮作业打印相关记录-${currentIsoDate()}.csv`,
     ['任务号', '订单号', '处方号', '设备编码', '水桶号', '动作', '结果', '操作人', '来源', '剂数', '作业时间'],
     filteredCloudPrintRecords.value.map((record) => [
       record.taskNo,

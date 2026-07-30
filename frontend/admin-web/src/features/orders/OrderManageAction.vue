@@ -13,7 +13,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -120,7 +120,7 @@ function canCancel(row: AdminOrderListItem) {
 
 function downloadManageActionCsv() {
   downloadCsv(
-    `订单管理动作列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `订单管理动作列表-${currentIsoDate()}.csv`,
     ['平台处方号', '平台订单号', '机构', '机构处方号', '病人信息', '收货地址', '处方类型', '剂数', '服用方式', '金额', '物流公司', '物流单号', '物流状态', '订单状态', '处方状态', '订单时间', '更新时间'],
     rows.value.map((row) => [
       row.prescriptionNos,

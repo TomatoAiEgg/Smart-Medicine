@@ -14,7 +14,7 @@ import type {
   AdminLogisticsAddressCostRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -128,7 +128,7 @@ function commandFromForm(): AdminLogisticsAddressCostCommand {
 
 function downloadAddressCostCsv() {
   downloadCsv(
-    `物流地址费用-${new Date().toISOString().slice(0, 10)}.csv`,
+    `物流地址费用-${currentIsoDate()}.csv`,
     ['机构', '物流公司', '省份', '城市', '区县', '地址', '费用', '状态', '备注', '更新时间'],
     rows.value.map((row) => [
       institutionText(row),

@@ -14,7 +14,7 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -123,7 +123,7 @@ function commandFromForm(): AdminLogisticsSpecialRuleCommand {
 
 function downloadSpecialRuleCsv() {
   downloadCsv(
-    `物流特殊规则-${new Date().toISOString().slice(0, 10)}.csv`,
+    `物流特殊规则-${currentIsoDate()}.csv`,
     ['机构', '规则名称', '物流公司', '基础费用', '附加费用', '免邮阈值', '状态', '备注', '更新时间'],
     rows.value.map((row) => [
       institutionText(row),

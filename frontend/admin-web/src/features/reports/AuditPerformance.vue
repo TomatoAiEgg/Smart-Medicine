@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadAuditPerformanceCsv, listAuditPerformance } from '../../api/report';
 import type { AuditPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -72,7 +72,7 @@ async function exportAuditPerformance() {
       from: dateInputToIso(performanceFrom.value),
       to: dateInputToIso(performanceTo.value, true),
     });
-    saveBlob(`审核员绩效统计-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`审核员绩效统计-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '审核员绩效统计 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

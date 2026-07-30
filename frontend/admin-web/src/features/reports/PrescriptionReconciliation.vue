@@ -9,7 +9,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -199,7 +199,7 @@ async function exportPrescriptionReconciliation() {
   errorLine.value = '';
   try {
     const blob = await downloadAdminOrdersCsv(queryParams({ includePaging: false }));
-    saveBlob(`处方对账明细-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`处方对账明细-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '处方对账明细已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

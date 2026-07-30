@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -115,7 +115,7 @@ function splitOrderNos(value: string) {
 
 function downloadReceiptCsv() {
   downloadCsv(
-    `待签收订单-${new Date().toISOString().slice(0, 10)}.csv`,
+    `待签收订单-${currentIsoDate()}.csv`,
     ['订单号', '外部订单号', '机构名称', '收货人', '收货电话', '收货地址', '患者', '处方类型', '物流公司', '物流单号', '订单状态', '物流状态', '创建时间', '更新时间'],
     rows.value.map((row) => [
       row.orderNo,

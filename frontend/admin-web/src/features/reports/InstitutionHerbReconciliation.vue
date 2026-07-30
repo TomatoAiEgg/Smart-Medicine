@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadInstitutionHerbReconciliationCsv, listInstitutionHerbReconciliation } from '../../api/report';
 import type { InstitutionHerbReconciliationRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -90,7 +90,7 @@ async function exportInstitutionHerbReconciliation() {
       from: dateInputToIso(reconciliationFrom.value),
       to: dateInputToIso(reconciliationTo.value, true),
     });
-    saveBlob(`机构药材统计-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`机构药材统计-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '机构药材统计 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

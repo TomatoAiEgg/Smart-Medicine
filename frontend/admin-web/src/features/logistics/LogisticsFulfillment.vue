@@ -20,7 +20,7 @@ import {
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -418,7 +418,7 @@ function shipmentCsvRows(records: readonly ShipmentRecord[]) {
 function exportLogisticsRecords() {
   if (activeLogisticsDataset.value === 'ready') {
     downloadCsv(
-      `待打包订单-${new Date().toISOString().slice(0, 10)}.csv`,
+      `待打包订单-${currentIsoDate()}.csv`,
       ['订单号', '外部订单号', '订单状态', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间'],
       deliveryOrderCsvRows(readyDeliveryOrders.value),
     );
@@ -427,7 +427,7 @@ function exportLogisticsRecords() {
   }
 
   downloadCsv(
-    `物流发货记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `物流发货记录-${currentIsoDate()}.csv`,
     ['订单号', '外部订单号', '运单号', '物流公司', '物流状态', '收款方式', '重量', '件数', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间', '打包时间', '出库时间', '签收时间'],
     shipmentCsvRows(shipments.value),
   );
@@ -437,7 +437,7 @@ function exportLogisticsRecords() {
 function exportPickupRecords() {
   if (activeLogisticsDataset.value === 'ready') {
     downloadCsv(
-      `自提待打包订单-${new Date().toISOString().slice(0, 10)}.csv`,
+      `自提待打包订单-${currentIsoDate()}.csv`,
       ['订单号', '外部订单号', '订单状态', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间'],
       deliveryOrderCsvRows(pickupDeliveryOrders.value),
     );
@@ -446,7 +446,7 @@ function exportPickupRecords() {
   }
 
   downloadCsv(
-    `自提物流发货记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `自提物流发货记录-${currentIsoDate()}.csv`,
     ['订单号', '外部订单号', '运单号', '物流公司', '物流状态', '收款方式', '重量', '件数', '机构', '患者', '收货人', '收货电话', '收货地址', '送货方式', '门诊住院', '送货时间', '下单时间', '打包时间', '出库时间', '签收时间'],
     shipmentCsvRows(pickupShipments.value),
   );
@@ -455,7 +455,7 @@ function exportPickupRecords() {
 
 function exportCallbackRecords() {
   downloadCsv(
-    `物流回调记录-${new Date().toISOString().slice(0, 10)}.csv`,
+    `物流回调记录-${currentIsoDate()}.csv`,
     ['订单号', '业务ID', '回调类型', '状态', '重试次数', '下次重试', '创建时间', '更新时间', '请求地址', '请求内容', '响应内容'],
     callbackRecords.value.map((record) => [
       record.orderNo,

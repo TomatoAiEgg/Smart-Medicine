@@ -12,7 +12,7 @@ import type {
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -121,7 +121,7 @@ function commandFromForm(): AdminOrderInterceptRuleCommand {
 
 function downloadRuleCsv() {
   downloadCsv(
-    `订单拦截规则-${new Date().toISOString().slice(0, 10)}.csv`,
+    `订单拦截规则-${currentIsoDate()}.csv`,
     ['规则编码', '规则名称', '场景', '匹配字段', '匹配类型', '匹配值', '优先级', '状态', '原因', '创建时间', '更新时间'],
     rows.value.map((row) => [
       row.ruleCode,

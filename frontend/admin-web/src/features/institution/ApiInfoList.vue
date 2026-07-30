@@ -8,7 +8,7 @@ import type {
   AdminInstitutionApiRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -88,7 +88,7 @@ function commandFromForm(): AdminInstitutionApiCommand {
 
 function downloadApiCsv() {
   downloadCsv(
-    `机构接口列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `机构接口列表-${currentIsoDate()}.csv`,
     ['接口编码', '接口名称', '方法', '路径', '描述', '状态', '更新时间'],
     rows.value.map((row) => [
       row.apiCode,

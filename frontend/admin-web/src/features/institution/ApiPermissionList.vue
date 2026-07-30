@@ -16,7 +16,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -103,7 +103,7 @@ function commandFromForm(): AdminInstitutionApiPermissionCommand {
 
 function downloadPermissionCsv() {
   downloadCsv(
-    `机构接口授权-${new Date().toISOString().slice(0, 10)}.csv`,
+    `机构接口授权-${currentIsoDate()}.csv`,
     ['机构', '接口', '方法', '路径', '状态', '备注', '更新时间'],
     rows.value.map((row) => [
       institutionText(row),

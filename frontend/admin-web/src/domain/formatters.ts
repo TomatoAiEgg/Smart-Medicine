@@ -22,6 +22,10 @@ export function defaultDate(offsetDays: number) {
   return date.toISOString().slice(0, 10);
 }
 
+export function currentIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function dateInputToIso(value: string, endExclusive = false) {
   if (!value.trim()) return undefined;
   const date = new Date(`${value.trim()}T00:00:00.000Z`);

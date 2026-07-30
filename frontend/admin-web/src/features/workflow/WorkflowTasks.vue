@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate } from '../../domain/formatters';
+import { currentIsoDate, formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -287,7 +287,7 @@ function taskStatusText(status: string) {
 function exportActiveWorkflowTasks() {
   const label = activeWorkflowLabel.value;
   downloadCsv(
-    `${label}待办任务-${new Date().toISOString().slice(0, 10)}.csv`,
+    `${label}待办任务-${currentIsoDate()}.csv`,
     ['任务ID', '任务类型', '任务状态', '平台订单号', '外部订单号', '订单状态', '来源事件', '处理人', '处理意见', '校验状态', '校验提示', '创建时间', '更新时间', '完成时间'],
     activeWorkflowTasks.value.map((task) => [
       task.taskId,

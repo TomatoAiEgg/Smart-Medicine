@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -84,7 +84,7 @@ function commandFromForm(): AdminInstitutionCommand {
 
 function downloadInstitutionCsv() {
   downloadCsv(
-    `机构列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    `机构列表-${currentIsoDate()}.csv`,
     ['机构编码', '机构名称', '类型', '状态', '煎煮中心', '创建时间', '更新时间'],
     rows.value.map((row) => [
       row.institutionCode,

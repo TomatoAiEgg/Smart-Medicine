@@ -5,7 +5,7 @@ import { downloadReportOverviewCsv, getReportOverview } from '../../api/report';
 import type { ReportOverview } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -67,7 +67,7 @@ async function exportReports() {
       to: dateInputToIso(reportTo.value, true),
       trendDays,
     });
-    saveBlob(`report-overview-${new Date().toISOString().slice(0, 10)}.csv`, blob);
+    saveBlob(`report-overview-${currentIsoDate()}.csv`, blob);
     emit('notice', 'success', '报表 CSV 已导出');
   } catch (error) {
     reportError.value = errorMessage(error);

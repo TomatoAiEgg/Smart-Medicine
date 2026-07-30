@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -97,7 +97,7 @@ function commandFromForm(): AdminInstitutionIpWhitelistCommand {
 
 function downloadWhitelistCsv() {
   downloadCsv(
-    `机构IP白名单-${new Date().toISOString().slice(0, 10)}.csv`,
+    `机构IP白名单-${currentIsoDate()}.csv`,
     ['机构', '机构类型', 'IP段', '状态', '创建时间'],
     rows.value.map((row) => [
       institutionText(row),
