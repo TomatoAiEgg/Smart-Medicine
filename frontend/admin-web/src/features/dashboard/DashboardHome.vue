@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { getOpsHealthOverview } from '../../api/ops';
 import type { OpsHealthOverview } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
@@ -15,13 +15,6 @@ const emit = defineEmits<{
 const healthLoading = ref(false);
 const healthError = ref('');
 const health = ref<OpsHealthOverview | null>(null);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 async function refreshDashboard() {
   if (healthLoading.value) return;

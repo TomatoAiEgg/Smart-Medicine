@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { createAddressSupplement, queryPortalOrder } from '../../api/portal';
 import type { AddressSupplementRecord, PortalOrderRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
@@ -28,13 +28,6 @@ const supplementReceiverCity = ref('');
 const supplementReceiverZone = ref('');
 const supplementReceiverAddress = ref('');
 const supplementRemark = ref('');
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function downloadPortalOrderCsv() {
   const order = portalOrder.value;

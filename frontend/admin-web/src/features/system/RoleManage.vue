@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listAdminOperatorRoles, listAdminOperators, renameAdminOperatorRole } from '../../api/order';
 import type { AdminOperatorRecord, AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
@@ -48,13 +48,6 @@ const disabledTotal = computed(() => rows.value.reduce((sum, row) => sum + row.d
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const canRename = computed(() => renameForm.value.oldRoleCode.trim() && renameForm.value.newRoleCode.trim());
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function enabledLabel(enabled: boolean) {
   return enabled ? '启用' : '停用';

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   createCommunityStatusPush,
   dispatchDueIntegrationRetryTasks,
@@ -60,13 +60,6 @@ const hospitalQueryPhone = ref('');
 const hospitalOrder = ref<HospitalOrderRecord | null>(null);
 
 const integrationCount = computed(() => integrationMessages.value.length + integrationRetryTasks.value.length);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function normalizedIntegrationLimit() {
   if (!Number.isFinite(integrationLimit.value) || integrationLimit.value <= 0) return 50;
