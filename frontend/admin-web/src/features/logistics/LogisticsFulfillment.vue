@@ -20,7 +20,7 @@ import {
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, pageSummaryText, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { boundedPositiveInteger, pageSummaryText, displayValue, currentIsoDate, currentIsoTimestamp, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -213,7 +213,7 @@ function renderReadyOrderPrintHtml(record: DeliveryOrderRecord) {
     <div class="label">订单状态</div><div>${escapeHtml(record.orderStatus)}</div>
     <div class="label">配送时间</div><div>${escapeHtml(formatDate(record.deliveryTime))}</div>
     <div class="label">接单时间</div><div>${escapeHtml(formatDate(record.orderCreatedAt))}</div>
-    <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+    <div class="label">打印时间</div><div>${escapeHtml(formatDate(currentIsoTimestamp()))}</div>
   </section>
 </body>
 </html>`;
@@ -252,7 +252,7 @@ function renderShipmentPrintHtml(record: ShipmentRecord) {
     <div class="label">配送时间</div><div>${escapeHtml(formatDate(record.deliveryTime))}</div>
     <div class="label">打包/出库</div><div>${escapeHtml(formatDate(record.packageTime))} / ${escapeHtml(formatDate(record.outboundTime))}</div>
     <div class="label">签收时间</div><div>${escapeHtml(formatDate(record.signTime))}</div>
-    <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+    <div class="label">打印时间</div><div>${escapeHtml(formatDate(currentIsoTimestamp()))}</div>
   </section>
 </body>
 </html>`;
@@ -324,7 +324,7 @@ function renderShipmentWaybillHtml(record: ShipmentRecord, reprint: boolean) {
       <div class="label">付款方式</div><div>${escapeHtml(paymentLabel(record.payMethod))}</div>
       <div class="label">物流状态</div><div>${escapeHtml(record.logisticsStatus)}</div>
       <div class="label">打包时间</div><div>${escapeHtml(formatDate(record.packageTime))}</div>
-      <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+      <div class="label">打印时间</div><div>${escapeHtml(formatDate(currentIsoTimestamp()))}</div>
     </section>
     <div class="foot">浏览器面单基于系统已有物流单生成，不代表承运商电子面单下发结果。</div>
   </section>
@@ -566,7 +566,7 @@ async function handleReceiveTrace() {
       opCode: traceOpCode.value.trim(),
       traceContent: traceContent.value.trim() || undefined,
       rawPayload: JSON.stringify({ source: 'admin-web', opCode: traceOpCode.value.trim() }),
-      traceTime: new Date().toISOString(),
+      traceTime: currentIsoTimestamp(),
       operator: operatorModel.value.trim() || 'admin',
     });
     selectedTraceShipmentNo.value = shipment.logisticsNo;

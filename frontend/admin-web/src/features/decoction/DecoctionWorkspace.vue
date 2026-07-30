@@ -43,7 +43,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { pageSummaryText, displayValue, enabledText, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
+import { pageSummaryText, displayValue, enabledText, currentIsoDate, currentIsoTimestamp, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -774,7 +774,7 @@ function renderCloudPrintRecordHtml(records: readonly DecoctionPerformanceDetail
   <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
   <h1>${escapeHtml(title)}</h1>
   <div class="meta">
-    <span>打印时间：${escapeHtml(formatDate(new Date().toISOString()))}</span>
+    <span>打印时间：${escapeHtml(formatDate(currentIsoTimestamp()))}</span>
     <span>记录数：${records.length}</span>
   </div>
   <table>
@@ -827,7 +827,7 @@ function makeMesCommand(prefix: string): MesTaskOperationCommand {
   return {
     operationId: newOperationId(prefix),
     operator: operatorModel.value.trim(),
-    timestamp: new Date().toISOString(),
+    timestamp: currentIsoTimestamp(),
     sign: 'dev-sign',
   };
 }
@@ -839,7 +839,7 @@ function makePdaCommand(task: DecoctionTaskRecord, prefix: string): SimulatorOpe
     prescriptionNo: task.prescriptionNo,
     pailNo: task.pailNo ?? undefined,
     operator: operatorModel.value.trim(),
-    timestamp: new Date().toISOString(),
+    timestamp: currentIsoTimestamp(),
     sign: 'dev-sign',
   };
 }
@@ -848,7 +848,7 @@ function eventCommand(prefix: string, extra: EventCommandExtra = {}): DecoctionE
   return {
     operationId: newOperationId(prefix),
     operator: operatorModel.value.trim(),
-    timestamp: new Date().toISOString(),
+    timestamp: currentIsoTimestamp(),
     sign: 'dev-sign',
     remark: eventRemark.value.trim() || undefined,
     ...extra,
@@ -963,7 +963,7 @@ async function handleBindPrescription() {
       prescriptionNo: selectedPrescriptionNo.value,
       pailNo: pailNo.value.trim(),
       operator: operatorModel.value.trim(),
-      timestamp: new Date().toISOString(),
+      timestamp: currentIsoTimestamp(),
       sign: 'dev-sign',
     });
     selectedEventTaskNo.value = result.taskNo;

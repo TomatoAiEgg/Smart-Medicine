@@ -5,7 +5,7 @@ import { listShipmentTraces, listShipments, receiveShipmentTrace, signShipment }
 import type { ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDisplayParts } from '../../domain/formatters';
+import { boundedPositiveInteger, currentIsoTimestamp, displayValue, formatDate, formatNumber, joinDisplayParts } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -215,7 +215,7 @@ async function submitFollowupTrace() {
       provider: selectedShipment.value.logisticsCompany || 'MANUAL',
       opCode: followupStatus.value,
       traceContent: followupContent.value.trim(),
-      traceTime: new Date().toISOString(),
+      traceTime: currentIsoTimestamp(),
       operator: operator.value.trim() || 'admin',
     });
     selectedShipment.value = updated;

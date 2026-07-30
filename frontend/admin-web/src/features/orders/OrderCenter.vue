@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, amountValue, boundedPositiveInteger, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
+import { EMPTY_VALUE, amountValue, boundedPositiveInteger, displayValue, currentIsoDate, currentIsoTimestamp, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -485,7 +485,7 @@ function mesCommand(action: string): MesTaskOperationCommand {
   return {
     operationId: flowOperationId(action),
     operator: 'admin',
-    timestamp: new Date().toISOString(),
+    timestamp: currentIsoTimestamp(),
     sign: 'order-center-flow',
   };
 }
@@ -519,7 +519,7 @@ async function bindNextDecoctionTask(targetOrderNo: string) {
     prescriptionNo,
     pailNo: `FLOW-${Date.now()}`,
     operator: 'admin',
-    timestamp: new Date().toISOString(),
+    timestamp: currentIsoTimestamp(),
     sign: 'order-center-flow',
   };
   await bindPrescription(command);

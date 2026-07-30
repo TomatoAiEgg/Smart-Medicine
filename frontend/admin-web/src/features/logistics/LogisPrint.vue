@@ -5,7 +5,7 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber, labelFromMap, sumNumbers } from '../../domain/formatters';
+import { amountValue, boundedPositiveInteger, pageSummaryText, displayValue, currentIsoTimestamp, formatDate, formatNumber, labelFromMap, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -218,7 +218,7 @@ function renderPrintHtml() {
   <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
   <h1>物流发货清单</h1>
   <div class="meta">
-    <span>打印时间：${escapeHtml(formatDate(new Date().toISOString()))}</span>
+    <span>打印时间：${escapeHtml(formatDate(currentIsoTimestamp()))}</span>
     <span>记录数：${records.value.length}</span>
     <span>总件数：${escapeHtml(amountValue(totalPackages.value))}</span>
     <span>总重量：${escapeHtml(amountValue(totalWeight.value))}</span>
@@ -304,7 +304,7 @@ function renderWaybillHtml(record: ShipmentRecord, reprint: boolean) {
       <div class="label">件数/重量</div><div>${escapeHtml(amountValue(record.pkgNum))} 件 / ${escapeHtml(amountValue(record.pkgWeight))} kg</div>
       <div class="label">物流状态</div><div>${escapeHtml(statusText(record.logisticsStatus))}</div>
       <div class="label">打包时间</div><div>${escapeHtml(formatDate(record.packageTime))}</div>
-      <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+      <div class="label">打印时间</div><div>${escapeHtml(formatDate(currentIsoTimestamp()))}</div>
     </section>
     <div class="foot">浏览器面单基于系统已有物流单生成，不代表承运商电子面单下发结果。</div>
   </section>

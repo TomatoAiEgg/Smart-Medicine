@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, joinTruthyParts, labelFromMap, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, joinTruthyParts, labelFromMap, moneyValue, numericValue, pageSummaryText, currentIsoDate, currentIsoTimestamp, formatDate, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -518,7 +518,7 @@ function renderSplitPreviewHtml(detail: AdminOrderDetail) {
     <span>外部订单号：${escapeHtml(detail.externalOrderNo)}</span>
     <span>机构：${escapeHtml(detail.institutionName)}</span>
     <span>患者：${escapeHtml(detail.patientName)}</span>
-    <span>打印时间：${escapeHtml(formatDate(new Date().toISOString()))}</span>
+    <span>打印时间：${escapeHtml(formatDate(currentIsoTimestamp()))}</span>
   </div>
   ${renderSplitPreviewSections(detail)}
   <div class="foot">本预览只基于当前订单处方明细生成，不提交拆单、不改变订单或处方状态。</div>
