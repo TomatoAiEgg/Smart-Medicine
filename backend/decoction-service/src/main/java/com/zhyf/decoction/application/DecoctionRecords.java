@@ -47,6 +47,23 @@ public final class DecoctionRecords {
     ) {
     }
 
+    public record WaterPailRecord(
+            UUID pailId,
+            String pailNo,
+            String pailName,
+            String decoctionCenter,
+            String pailGroup,
+            Integer capacityMl,
+            String pailStatus,
+            boolean enabled,
+            String remark,
+            String activeTaskNo,
+            String activePrescriptionNo,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
     public record DecoctionTaskRecord(
             UUID taskId,
             String taskNo,

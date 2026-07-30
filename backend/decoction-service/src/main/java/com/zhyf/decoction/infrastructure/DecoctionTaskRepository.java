@@ -457,6 +457,85 @@ public class DecoctionTaskRepository {
         );
     }
 
+    public List<WaterPailConfigSnapshot> findWaterPailConfigs(UUID tenantId) {
+        String sql = baseWaterPailConfigQuery() + """
+                where p.tenant_id = ?
+                order by p.pail_no asc
+                """;
+        return jdbcTemplate.query(sql, this::mapWaterPailConfigSnapshot, tenantId);
+    }
+
+    public Optional<WaterPailConfigSnapshot> findWaterPailConfigByNo(UUID tenantId, String pailNo) {
+        String sql = baseWaterPailConfigQuery() + """
+                where p.tenant_id = ?
+                  and p.pail_no = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapWaterPailConfigSnapshot, tenantId, pailNo).stream().findFirst();
+    }
+
+    public int createWaterPailConfig(
+            UUID id,
+            UUID tenantId,
+            String pailNo,
+            String pailName,
+            String decoctionCenter,
+            String pailGroup,
+            Integer capacityMl,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                insert into decoction_water_pail_config (
+                    id, tenant_id, pail_no, pail_name, decoction_center, pail_group,
+                    capacity_ml, enabled, remark
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        return jdbcTemplate.update(
+                sql,
+                id,
+                tenantId,
+                pailNo,
+                pailName,
+                decoctionCenter,
+                pailGroup,
+                capacityMl,
+                enabled,
+                remark
+        );
+    }
+
+    public int updateWaterPailConfig(
+            UUID id,
+            String pailName,
+            String decoctionCenter,
+            String pailGroup,
+            Integer capacityMl,
+            boolean enabled,
+            String remark
+    ) {
+        String sql = """
+                update decoction_water_pail_config
+                set pail_name = ?,
+                    decoction_center = ?,
+                    pail_group = ?,
+                    capacity_ml = ?,
+                    enabled = ?,
+                    remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(
+                sql,
+                pailName,
+                decoctionCenter,
+                pailGroup,
+                capacityMl,
+                enabled,
+                remark,
+                id
+        );
+    }
+
     private String baseTaskQuery() {
         return """
                 select
@@ -542,6 +621,24 @@ public class DecoctionTaskRepository {
                     d.created_at,
                     d.updated_at
                 from decoction_device_config d
+                """;
+    }
+
+    private String baseWaterPailConfigQuery() {
+        return """
+                select
+                    p.id,
+                    p.tenant_id,
+                    p.pail_no,
+                    p.pail_name,
+                    p.decoction_center,
+                    p.pail_group,
+                    p.capacity_ml,
+                    p.enabled,
+                    p.remark,
+                    p.created_at,
+                    p.updated_at
+                from decoction_water_pail_config p
                 """;
     }
 
@@ -635,6 +732,27 @@ public class DecoctionTaskRepository {
         );
     }
 
+    private WaterPailConfigSnapshot mapWaterPailConfigSnapshot(ResultSet rs, int rowNum) throws SQLException {
+        return new WaterPailConfigSnapshot(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("pail_no"),
+                rs.getString("pail_name"),
+                rs.getString("decoction_center"),
+                rs.getString("pail_group"),
+                integer(rs, "capacity_ml"),
+                rs.getBoolean("enabled"),
+                rs.getString("remark"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private Integer integer(ResultSet rs, String column) throws SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
+    }
+
     private Instant instant(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.toInstant();
@@ -692,6 +810,21 @@ public class DecoctionTaskRepository {
             String pdaCode,
             String printerCode,
             String printTemplateCode,
+            boolean enabled,
+            String remark,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record WaterPailConfigSnapshot(
+            UUID id,
+            UUID tenantId,
+            String pailNo,
+            String pailName,
+            String decoctionCenter,
+            String pailGroup,
+            Integer capacityMl,
             boolean enabled,
             String remark,
             Instant createdAt,

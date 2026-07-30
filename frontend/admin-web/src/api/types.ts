@@ -1557,6 +1557,32 @@ export interface DecoctionDeviceCommand {
   remark?: string | null;
 }
 
+export interface WaterPailRecord {
+  pailId: string | null;
+  pailNo: string;
+  pailName: string;
+  decoctionCenter: string | null;
+  pailGroup: string | null;
+  capacityMl: number | null;
+  pailStatus: string;
+  enabled: boolean;
+  remark: string | null;
+  activeTaskNo: string | null;
+  activePrescriptionNo: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface WaterPailCommand {
+  pailNo?: string;
+  pailName?: string;
+  decoctionCenter?: string | null;
+  pailGroup?: string | null;
+  capacityMl?: number | null;
+  enabled?: boolean;
+  remark?: string | null;
+}
+
 export interface DecoctionTaskRecord {
   taskId: string;
   taskNo: string;

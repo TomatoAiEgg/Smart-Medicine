@@ -9,6 +9,8 @@ import type {
   MesTaskOperationCommand,
   PrescriptionRecord,
   SimulatorOperationCommand,
+  WaterPailCommand,
+  WaterPailRecord,
 } from './types';
 
 export function listCanOperatePrescriptions(limit = 50) {
@@ -32,6 +34,24 @@ export function createAdminDecoctionDevice(command: DecoctionDeviceCommand) {
 
 export function updateAdminDecoctionDevice(deviceCode: string, command: DecoctionDeviceCommand) {
   return request<DeviceRecord>(`/decoction-api/admin/decoction/devices/${encodeURIComponent(deviceCode)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(command),
+  });
+}
+
+export function listAdminWaterPails() {
+  return request<WaterPailRecord[]>('/decoction-api/admin/decoction/water-pails');
+}
+
+export function createAdminWaterPail(command: WaterPailCommand) {
+  return request<WaterPailRecord>('/decoction-api/admin/decoction/water-pails', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminWaterPail(pailNo: string, command: WaterPailCommand) {
+  return request<WaterPailRecord>(`/decoction-api/admin/decoction/water-pails/${encodeURIComponent(pailNo)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
   });

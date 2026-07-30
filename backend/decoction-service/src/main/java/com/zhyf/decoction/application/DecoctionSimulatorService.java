@@ -10,6 +10,7 @@ import com.zhyf.decoction.infrastructure.DecoctionTaskRepository;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DecoctionTaskEventSnapshot;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DeviceConfigSnapshot;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DeviceWorkRecordSnapshot;
+import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.WaterPailConfigSnapshot;
 import com.zhyf.decoction.infrastructure.OrderStatusClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -149,6 +150,67 @@ public class DecoctionSimulatorService {
                 .orElseThrow(() -> new BusinessException("DEVICE_NOT_FOUND", "Device not found"));
         DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByDeviceCode(updated.deviceCode()).orElse(null);
         return toDeviceRecord(updated, activeTask);
+    }
+
+    public List<DecoctionRecords.WaterPailRecord> listWaterPails() {
+        Map<String, DecoctionTaskSnapshot> activeTasks = taskRepository.findActiveTasks()
+                .stream()
+                .filter(task -> StringUtils.hasText(task.pailNo()))
+                .collect(Collectors.toMap(DecoctionTaskSnapshot::pailNo, Function.identity(), (left, right) -> left));
+        List<WaterPailConfigSnapshot> configuredPails = taskRepository.findWaterPailConfigs(DEFAULT_ADMIN_TENANT_ID);
+        Map<String, DecoctionRecords.WaterPailRecord> records = new LinkedHashMap<>();
+        if (configuredPails != null) {
+            configuredPails.forEach(pail -> records.put(pail.pailNo(), toWaterPailRecord(pail, activeTasks.get(pail.pailNo()))));
+        }
+        activeTasks.forEach((pailNo, task) -> records.putIfAbsent(pailNo, toFallbackWaterPailRecord(pailNo, task)));
+        return List.copyOf(records.values());
+    }
+
+    @Transactional
+    public DecoctionRecords.WaterPailRecord createWaterPail(WaterPailCommand command) {
+        String pailNo = requireText(command.pailNo(), "PAIL_NO_REQUIRED", "Pail no is required");
+        taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, pailNo)
+                .ifPresent(pail -> {
+                    throw new BusinessException("PAIL_NO_DUPLICATED", "Pail no already exists");
+                });
+        UUID pailId = UUID.randomUUID();
+        taskRepository.createWaterPailConfig(
+                pailId,
+                DEFAULT_ADMIN_TENANT_ID,
+                pailNo,
+                defaultText(command.pailName(), "加水桶 " + pailNo),
+                cleanText(command.decoctionCenter()),
+                cleanText(command.pailGroup()),
+                normalizeCapacity(command.capacityMl()),
+                command.enabled() == null || command.enabled(),
+                cleanText(command.remark())
+        );
+        WaterPailConfigSnapshot pail = taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, pailNo)
+                .orElseThrow(() -> new BusinessException("PAIL_CREATE_FAILED", "Pail create failed"));
+        DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByPailNo(pail.pailNo()).orElse(null);
+        return toWaterPailRecord(pail, activeTask);
+    }
+
+    @Transactional
+    public DecoctionRecords.WaterPailRecord updateWaterPail(String pailNo, WaterPailCommand command) {
+        String normalizedPailNo = requireText(pailNo, "PAIL_NO_REQUIRED", "Pail no is required");
+        WaterPailConfigSnapshot existing = taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, normalizedPailNo)
+                .orElseThrow(() -> new BusinessException("PAIL_NOT_FOUND", "Pail not found"));
+        String pailName = StringUtils.hasText(command.pailName()) ? command.pailName().trim() : existing.pailName();
+        boolean enabled = command.enabled() == null ? existing.enabled() : command.enabled();
+        taskRepository.updateWaterPailConfig(
+                existing.id(),
+                pailName,
+                cleanOrExisting(command.decoctionCenter(), existing.decoctionCenter()),
+                cleanOrExisting(command.pailGroup(), existing.pailGroup()),
+                command.capacityMl() == null ? existing.capacityMl() : normalizeCapacity(command.capacityMl()),
+                enabled,
+                cleanOrExisting(command.remark(), existing.remark())
+        );
+        WaterPailConfigSnapshot updated = taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, normalizedPailNo)
+                .orElseThrow(() -> new BusinessException("PAIL_NOT_FOUND", "Pail not found"));
+        DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByPailNo(updated.pailNo()).orElse(null);
+        return toWaterPailRecord(updated, activeTask);
     }
 
     public List<DecoctionRecords.DecoctionTaskRecord> listPendingMesTasks() {
@@ -322,6 +384,13 @@ public class DecoctionSimulatorService {
                 .ifPresent(device -> {
                     throw new BusinessException("DEVICE_DISABLED", "Device is disabled");
                 });
+        if (StringUtils.hasText(command.pailNo())) {
+            taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, command.pailNo())
+                    .filter(pail -> !pail.enabled())
+                    .ifPresent(pail -> {
+                        throw new BusinessException("PAIL_DISABLED", "Pail is disabled");
+                    });
+        }
         PrescriptionForDecoction prescription = taskRepository.findPrescription(command.prescriptionNo())
                 .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "Prescription not found"));
         if (!OrderStatus.RECHECKED.name().equals(prescription.orderStatus())) {
@@ -751,6 +820,16 @@ public class DecoctionSimulatorService {
         return value == null ? existing : cleanText(value);
     }
 
+    private Integer normalizeCapacity(Integer capacityMl) {
+        if (capacityMl == null) {
+            return null;
+        }
+        if (capacityMl < 0) {
+            throw new BusinessException("PAIL_CAPACITY_INVALID", "Pail capacity cannot be negative");
+        }
+        return capacityMl;
+    }
+
     private int normalizeLimit(int limit) {
         if (limit <= 0) {
             return DEFAULT_LIMIT;
@@ -967,6 +1046,50 @@ public class DecoctionSimulatorService {
                 activePrescriptionNo,
                 device.createdAt(),
                 device.updatedAt()
+        );
+    }
+
+    private DecoctionRecords.WaterPailRecord toFallbackWaterPailRecord(String pailNo, DecoctionTaskSnapshot task) {
+        return new DecoctionRecords.WaterPailRecord(
+                null,
+                pailNo,
+                "未登记加水桶：" + pailNo,
+                null,
+                null,
+                null,
+                task == null ? "IDLE" : "OCCUPIED",
+                true,
+                null,
+                task == null ? null : task.taskNo(),
+                task == null ? null : task.prescriptionNo(),
+                null,
+                null
+        );
+    }
+
+    private DecoctionRecords.WaterPailRecord toWaterPailRecord(WaterPailConfigSnapshot pail, DecoctionTaskSnapshot task) {
+        String status = pail.enabled() ? "IDLE" : "OFFLINE";
+        String activeTaskNo = null;
+        String activePrescriptionNo = null;
+        if (task != null) {
+            status = "OCCUPIED";
+            activeTaskNo = task.taskNo();
+            activePrescriptionNo = task.prescriptionNo();
+        }
+        return new DecoctionRecords.WaterPailRecord(
+                pail.id(),
+                pail.pailNo(),
+                pail.pailName(),
+                pail.decoctionCenter(),
+                pail.pailGroup(),
+                pail.capacityMl(),
+                status,
+                pail.enabled(),
+                pail.remark(),
+                activeTaskNo,
+                activePrescriptionNo,
+                pail.createdAt(),
+                pail.updatedAt()
         );
     }
 

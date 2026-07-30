@@ -4,6 +4,7 @@ import com.zhyf.common.api.ApiResponse;
 import com.zhyf.decoction.application.DecoctionDeviceCommand;
 import com.zhyf.decoction.application.DecoctionRecords;
 import com.zhyf.decoction.application.DecoctionSimulatorService;
+import com.zhyf.decoction.application.WaterPailCommand;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -39,5 +40,23 @@ public class AdminDecoctionController {
             @RequestBody DecoctionDeviceCommand command
     ) {
         return ApiResponse.ok(simulatorService.updateDevice(deviceCode, command));
+    }
+
+    @GetMapping("/water-pails")
+    public ApiResponse<List<DecoctionRecords.WaterPailRecord>> listWaterPails() {
+        return ApiResponse.ok(simulatorService.listWaterPails());
+    }
+
+    @PostMapping("/water-pails")
+    public ApiResponse<DecoctionRecords.WaterPailRecord> createWaterPail(@RequestBody WaterPailCommand command) {
+        return ApiResponse.ok(simulatorService.createWaterPail(command));
+    }
+
+    @PatchMapping("/water-pails/{pailNo}")
+    public ApiResponse<DecoctionRecords.WaterPailRecord> updateWaterPail(
+            @PathVariable String pailNo,
+            @RequestBody WaterPailCommand command
+    ) {
+        return ApiResponse.ok(simulatorService.updateWaterPail(pailNo, command));
     }
 }

@@ -319,6 +319,31 @@ class DecoctionSimulatorServiceTest {
     }
 
     @Test
+    void shouldListConfiguredWaterPails() {
+        when(repository.findActiveTasks()).thenReturn(List.of());
+        when(repository.findWaterPailConfigs(any())).thenReturn(List.of(waterPailConfig(true)));
+
+        List<DecoctionRecords.WaterPailRecord> result = service.listWaterPails();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().pailName()).isEqualTo("加水桶一号");
+        assertThat(result.getFirst().pailStatus()).isEqualTo("IDLE");
+    }
+
+    @Test
+    void shouldRejectDisabledWaterPailWhenBinding() {
+        when(repository.findByBindOperationId("op-bind-1")).thenReturn(Optional.empty());
+        when(repository.findDeviceConfigByCode(any(), eq("DECOCT-001"))).thenReturn(Optional.empty());
+        when(repository.findWaterPailConfigByNo(any(), eq("PAIL-1")))
+                .thenReturn(Optional.of(waterPailConfig(false)));
+
+        assertThatThrownBy(() -> service.bindPrescription(command("op-bind-1", "DECOCT-001", "RX1")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Pail is disabled");
+        verify(repository, never()).findPrescription(any());
+    }
+
+    @Test
     void shouldListActiveMesTasks() {
         when(repository.findActiveTasks()).thenReturn(List.of(
                 task(UUID.randomUUID(), "DCT-1", DecoctionTaskStatus.BOUND.name()),
@@ -560,6 +585,22 @@ class DecoctionSimulatorServiceTest {
                 "TPL-001",
                 enabled,
                 "测试设备",
+                Instant.now(clock),
+                Instant.now(clock)
+        );
+    }
+
+    private DecoctionTaskRepository.WaterPailConfigSnapshot waterPailConfig(boolean enabled) {
+        return new DecoctionTaskRepository.WaterPailConfigSnapshot(
+                UUID.randomUUID(),
+                tenantId,
+                "PAIL-1",
+                "加水桶一号",
+                "良益堂煎煮中心",
+                "A组",
+                1200,
+                enabled,
+                "测试水桶",
                 Instant.now(clock),
                 Instant.now(clock)
         );

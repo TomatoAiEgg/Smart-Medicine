@@ -1147,8 +1147,8 @@ export const menuItems = [
     subtitle: '加水桶列表和批量新增',
     componentKey: 'decoction',
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['加水桶管理入口', '当前结果筛选', '当前绑定水桶导出', '批量新增缺口提示'],
-    apiDependencies: ['煎煮任务查询', '加水桶 CRUD 待补'],
+    coreActions: ['加水桶管理入口', '当前结果筛选', '批量新增', '编辑/启停', '加水桶导出'],
+    apiDependencies: ['加水桶主数据查询', '加水桶主数据创建/更新', '水桶启停校验'],
   },
   {
     key: 'decoctionCloudPrintRecords',

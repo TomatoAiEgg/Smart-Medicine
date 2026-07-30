@@ -7,9 +7,11 @@ import {
   cancelMesTask,
   cancelPdaDecoction,
   createAdminDecoctionDevice,
+  createAdminWaterPail,
   finishMesTask,
   finishPdaDecoction,
   listAdminDecoctionDevices,
+  listAdminWaterPails,
   listActiveMesTasks,
   listCanOperatePrescriptions,
   listDeviceWorkRecords,
@@ -23,6 +25,7 @@ import {
   terminateMesTask,
   terminatePdaDecoction,
   updateAdminDecoctionDevice,
+  updateAdminWaterPail,
 } from '../../api/decoction';
 import type {
   DecoctionDeviceCommand,
@@ -35,6 +38,8 @@ import type {
   MesTaskOperationCommand,
   PrescriptionRecord,
   SimulatorOperationCommand,
+  WaterPailCommand,
+  WaterPailRecord,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
@@ -56,6 +61,15 @@ type DeviceFormState = {
   pdaCode: string;
   printerCode: string;
   printTemplateCode: string;
+  enabled: boolean;
+  remark: string;
+};
+type WaterPailFormState = {
+  pailNos: string;
+  pailName: string;
+  decoctionCenter: string;
+  pailGroup: string;
+  capacityMl: number | null;
   enabled: boolean;
   remark: string;
 };
@@ -85,6 +99,7 @@ const decoctionTasks = ref<DecoctionTaskRecord[]>([]);
 const pendingMesTasks = ref<DecoctionTaskRecord[]>([]);
 const decoctionEvents = ref<DecoctionTaskEventRecord[]>([]);
 const decoctionWorkRecords = ref<DeviceWorkRecord[]>([]);
+const waterPails = ref<WaterPailRecord[]>([]);
 const cloudPrintRecords = ref<DecoctionPerformanceDetailRecord[]>([]);
 const decoctionLoading = ref(false);
 const cloudPrintLoading = ref(false);
@@ -114,6 +129,10 @@ const deviceFormOpen = ref(false);
 const deviceSaving = ref(false);
 const editingDeviceCode = ref('');
 const deviceForm = ref<DeviceFormState>(emptyDeviceForm());
+const waterPailFormOpen = ref(false);
+const waterPailSaving = ref(false);
+const editingPailNo = ref('');
+const waterPailForm = ref<WaterPailFormState>(emptyWaterPailForm());
 
 const activeDecoctionCount = computed(() => decoctionTasks.value.length);
 const pendingMesTaskCount = computed(() => pendingMesTasks.value.length);
@@ -192,23 +211,31 @@ const decoctionDeviceByCode = computed(() => (
   new Map(decoctionDevices.value.map((device) => [device.deviceCode, device]))
 ));
 
-const waterPailRows = computed(() => {
-  const rows = new Map<string, DecoctionTaskRecord>();
-  decoctionTasks.value.forEach((task) => {
-    const nextPailNo = task.pailNo?.trim();
-    if (nextPailNo && !rows.has(nextPailNo)) {
-      rows.set(nextPailNo, task);
-    }
-  });
-  return Array.from(rows.entries()).map(([nextPailNo, task]) => ({
-    pailNo: nextPailNo,
-    task,
-  }));
-});
+const filteredWaterPails = computed(() => {
+  const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
+  const pailKeyword = deviceCodeQuery.value.trim().toLowerCase();
+  const group = deviceGroup.value.trim().toLowerCase();
+  const center = decoctionCenter.value.trim();
+  const status = deviceStatus.value.trim();
 
-const filteredWaterPailRows = computed(() => {
-  const visibleTaskIds = new Set(filteredDecoctionTasks.value.map((task) => task.taskId));
-  return waterPailRows.value.filter((row) => visibleTaskIds.has(row.task.taskId));
+  return waterPails.value.filter((pail) => {
+    const matchesPrescription = !prescriptionNo
+      || rowValue(pail.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
+      || rowValue(pail.activeTaskNo).toLowerCase().includes(prescriptionNo);
+    const matchesPail = !pailKeyword
+      || rowValue(pail.pailNo).toLowerCase().includes(pailKeyword)
+      || rowValue(pail.pailName).toLowerCase().includes(pailKeyword)
+      || rowValue(pail.activeTaskNo).toLowerCase().includes(pailKeyword)
+      || rowValue(pail.activePrescriptionNo).toLowerCase().includes(pailKeyword);
+    const matchesGroup = !group || rowValue(pail.pailGroup).toLowerCase().includes(group);
+    const matchesCenter = !center || pail.decoctionCenter === center;
+    const matchesStatus = !status
+      || pail.pailStatus === status
+      || (status === 'ONLINE' && pail.enabled)
+      || (status === 'OFFLINE' && !pail.enabled)
+      || (status === 'BUSY' && Boolean(pail.activeTaskNo));
+    return matchesPrescription && matchesPail && matchesGroup && matchesCenter && matchesStatus;
+  });
 });
 
 const filteredDecoctionWorkRecords = computed(() => {
@@ -233,7 +260,7 @@ const filteredDecoctionWorkRecords = computed(() => {
 const activeDecoctionTableColspan = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return 12;
   if (activeDecoctionDataset.value === 'printerConfig') return 9;
-  if (activeDecoctionDataset.value === 'pails') return 7;
+  if (activeDecoctionDataset.value === 'pails') return 10;
   if (activeDecoctionDataset.value === 'cloudPrints') return 8;
   if (activeDecoctionDataset.value === 'workRecords') return 9;
   return 14;
@@ -243,7 +270,7 @@ const activePageTotal = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return filteredDecoctionDevices.value.length;
   if (activeDecoctionDataset.value === 'binds') return filteredDecoctionTasks.value.length;
   if (activeDecoctionDataset.value === 'printerConfig') return filteredDecoctionDevices.value.length;
-  if (activeDecoctionDataset.value === 'pails') return filteredWaterPailRows.value.length;
+  if (activeDecoctionDataset.value === 'pails') return filteredWaterPails.value.length;
   if (activeDecoctionDataset.value === 'cloudPrints') return filteredCloudPrintRecords.value.length;
   if (activeDecoctionDataset.value === 'workRecords') return filteredDecoctionWorkRecords.value.length;
   return 0;
@@ -284,6 +311,18 @@ function emptyDeviceForm(): DeviceFormState {
     pdaCode: '',
     printerCode: '',
     printTemplateCode: '',
+    enabled: true,
+    remark: '',
+  };
+}
+
+function emptyWaterPailForm(): WaterPailFormState {
+  return {
+    pailNos: '',
+    pailName: '',
+    decoctionCenter: '良益堂煎煮中心',
+    pailGroup: '默认组',
+    capacityMl: 1200,
     enabled: true,
     remark: '',
   };
@@ -435,6 +474,117 @@ async function toggleDeviceEnabled(device: DeviceRecord, enabled: boolean) {
   }
 }
 
+function waterPailUseStatus(pail: WaterPailRecord) {
+  if (!pail.enabled) return '停用';
+  return pail.activeTaskNo ? '使用中' : '空闲';
+}
+
+function splitPailNos(value: string) {
+  return Array.from(new Set(value.split(/[\s,，;；]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)));
+}
+
+function waterPailCommandFromForm(pailNo: string): WaterPailCommand {
+  const name = waterPailForm.value.pailName.trim();
+  return {
+    pailNo,
+    pailName: name || `加水桶 ${pailNo}`,
+    decoctionCenter: waterPailForm.value.decoctionCenter.trim() || null,
+    pailGroup: waterPailForm.value.pailGroup.trim() || null,
+    capacityMl: waterPailForm.value.capacityMl,
+    enabled: waterPailForm.value.enabled,
+    remark: waterPailForm.value.remark.trim() || null,
+  };
+}
+
+function waterPailCommandFromRecord(pail: WaterPailRecord, enabled = pail.enabled): WaterPailCommand {
+  return {
+    pailName: pail.pailName,
+    decoctionCenter: pail.decoctionCenter,
+    pailGroup: pail.pailGroup,
+    capacityMl: pail.capacityMl,
+    enabled,
+    remark: pail.remark,
+  };
+}
+
+function openCreateWaterPailForm() {
+  editingPailNo.value = '';
+  waterPailForm.value = emptyWaterPailForm();
+  waterPailFormOpen.value = true;
+}
+
+function openEditWaterPailForm(pail: WaterPailRecord) {
+  editingPailNo.value = pail.pailNo;
+  waterPailForm.value = {
+    pailNos: pail.pailNo,
+    pailName: pail.pailName,
+    decoctionCenter: pail.decoctionCenter ?? '',
+    pailGroup: pail.pailGroup ?? '',
+    capacityMl: pail.capacityMl,
+    enabled: pail.enabled,
+    remark: pail.remark ?? '',
+  };
+  waterPailFormOpen.value = true;
+}
+
+function closeWaterPailForm() {
+  if (waterPailSaving.value) return;
+  waterPailFormOpen.value = false;
+  editingPailNo.value = '';
+  waterPailForm.value = emptyWaterPailForm();
+}
+
+async function saveWaterPailForm() {
+  const pailNos = splitPailNos(waterPailForm.value.pailNos);
+  if (pailNos.length === 0) {
+    decoctionError.value = '加水桶号不能为空';
+    return;
+  }
+  if (waterPailForm.value.capacityMl !== null && waterPailForm.value.capacityMl < 0) {
+    decoctionError.value = '容量不能为负数';
+    return;
+  }
+  waterPailSaving.value = true;
+  decoctionError.value = '';
+  try {
+    if (editingPailNo.value) {
+      const updated = await updateAdminWaterPail(editingPailNo.value, waterPailCommandFromForm(editingPailNo.value));
+      emit('notice', 'success', `加水桶 ${updated.pailNo} 已更新`);
+    } else {
+      let createdCount = 0;
+      for (const nextPailNo of pailNos) {
+        await createAdminWaterPail(waterPailCommandFromForm(nextPailNo));
+        createdCount += 1;
+      }
+      emit('notice', 'success', `已新增 ${createdCount} 个加水桶`);
+    }
+    waterPailFormOpen.value = false;
+    editingPailNo.value = '';
+    waterPailForm.value = emptyWaterPailForm();
+    await refreshDecoctionSimulator();
+  } catch (error) {
+    decoctionError.value = errorMessage(error);
+  } finally {
+    waterPailSaving.value = false;
+  }
+}
+
+async function toggleWaterPailEnabled(pail: WaterPailRecord, enabled: boolean) {
+  waterPailSaving.value = true;
+  decoctionError.value = '';
+  try {
+    const updated = await updateAdminWaterPail(pail.pailNo, waterPailCommandFromRecord(pail, enabled));
+    emit('notice', 'success', `加水桶 ${updated.pailNo} 已${enabled ? '启用' : '停用'}`);
+    await refreshDecoctionSimulator();
+  } catch (error) {
+    decoctionError.value = errorMessage(error);
+  } finally {
+    waterPailSaving.value = false;
+  }
+}
+
 function deviceName(deviceCode: string) {
   const registeredDeviceName = decoctionDeviceByCode.value.get(deviceCode)?.deviceName;
   return registeredDeviceName ?? `未登记设备：${deviceCode}`;
@@ -484,20 +634,25 @@ function downloadPrinterConfigCsv() {
 
 function downloadWaterPailCsv() {
   downloadCsv(
-    `加水桶当前绑定-${new Date().toISOString().slice(0, 10)}.csv`,
-    ['加水桶号', '关联任务', '处方号', '设备编号', '状态', '操作人', '创建时间', '修改时间'],
-    filteredWaterPailRows.value.map((row) => [
-      row.pailNo,
-      row.task.taskNo,
-      row.task.prescriptionNo,
-      row.task.deviceCode,
-      row.task.taskStatus,
-      row.task.operator,
-      formatDate(row.task.createdAt),
-      formatDate(row.task.updatedAt),
+    `加水桶列表-${new Date().toISOString().slice(0, 10)}.csv`,
+    ['加水桶号', '名称', '煎煮中心', '组别', '容量ml', '启用', '状态', '使用状态', '活动任务', '活动处方', '创建时间', '修改时间', '备注'],
+    filteredWaterPails.value.map((pail) => [
+      pail.pailNo,
+      pail.pailName,
+      pail.decoctionCenter,
+      pail.pailGroup,
+      pail.capacityMl,
+      pail.enabled ? '启用' : '停用',
+      pail.pailStatus,
+      waterPailUseStatus(pail),
+      pail.activeTaskNo,
+      pail.activePrescriptionNo,
+      formatDate(pail.createdAt),
+      formatDate(pail.updatedAt),
+      pail.remark,
     ]),
   );
-  emit('notice', 'success', `已导出 ${filteredWaterPailRows.value.length} 个当前绑定加水桶`);
+  emit('notice', 'success', `已导出 ${filteredWaterPails.value.length} 个加水桶`);
 }
 
 function downloadEventCsv() {
@@ -674,14 +829,16 @@ async function refreshDecoctionSimulator() {
   decoctionLoading.value = true;
   decoctionError.value = '';
   try {
-    const [nextPrescriptions, nextDevices, nextPendingTasks, nextTasks] = await Promise.all([
+    const [nextPrescriptions, nextDevices, nextWaterPails, nextPendingTasks, nextTasks] = await Promise.all([
       listCanOperatePrescriptions(),
       listAdminDecoctionDevices(),
+      listAdminWaterPails(),
       listPendingMesTasks(),
       listActiveMesTasks(),
     ]);
     prescriptions.value = nextPrescriptions;
     decoctionDevices.value = nextDevices;
+    waterPails.value = nextWaterPails;
     pendingMesTasks.value = nextPendingTasks;
     decoctionTasks.value = nextTasks;
 
@@ -705,6 +862,7 @@ async function refreshDecoctionSimulator() {
   } catch (error) {
     prescriptions.value = [];
     decoctionDevices.value = [];
+    waterPails.value = [];
     pendingMesTasks.value = [];
     decoctionTasks.value = [];
     decoctionEvents.value = [];
@@ -1123,6 +1281,55 @@ defineExpose({
       </div>
     </section>
 
+    <section v-if="activeDecoctionDataset === 'pails' && waterPailFormOpen" class="legacy-panel decoction-device-form">
+      <div class="decoction-device-form-head">
+        <strong>{{ editingPailNo ? `编辑加水桶 ${editingPailNo}` : '批量新增加水桶' }}</strong>
+        <button class="legacy-link-btn" type="button" :disabled="waterPailSaving" @click="closeWaterPailForm">关闭</button>
+      </div>
+      <div class="decoction-device-form-grid">
+        <label class="decoction-device-wide">
+          加水桶号
+          <textarea
+            v-model="waterPailForm.pailNos"
+            class="legacy-input"
+            rows="3"
+            placeholder="可粘贴多个桶号，支持换行、逗号或空格分隔"
+            :disabled="Boolean(editingPailNo) || waterPailSaving"
+          ></textarea>
+        </label>
+        <label>
+          名称
+          <input v-model="waterPailForm.pailName" class="legacy-input" :disabled="waterPailSaving" />
+        </label>
+        <label>
+          煎煮中心
+          <input v-model="waterPailForm.decoctionCenter" class="legacy-input" :disabled="waterPailSaving" />
+        </label>
+        <label>
+          组别
+          <input v-model="waterPailForm.pailGroup" class="legacy-input" :disabled="waterPailSaving" />
+        </label>
+        <label>
+          容量 ml
+          <input v-model.number="waterPailForm.capacityMl" class="legacy-input" type="number" min="0" step="50" :disabled="waterPailSaving" />
+        </label>
+        <label>
+          备注
+          <input v-model="waterPailForm.remark" class="legacy-input" :disabled="waterPailSaving" />
+        </label>
+        <label class="decoction-device-enabled">
+          <input v-model="waterPailForm.enabled" type="checkbox" :disabled="waterPailSaving" />
+          启用
+        </label>
+      </div>
+      <div class="decoction-device-form-actions">
+        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="waterPailSaving" @click="saveWaterPailForm">
+          {{ waterPailSaving ? '保存中' : editingPailNo ? '保存加水桶' : '批量新增' }}
+        </button>
+        <button class="legacy-btn" type="button" :disabled="waterPailSaving" @click="closeWaterPailForm">取消</button>
+      </div>
+    </section>
+
     <ul class="legacy-stats decoction-stats">
       <li>
         <strong>{{ prescriptions.length }}</strong>
@@ -1198,8 +1405,11 @@ defineExpose({
           <tr v-else-if="activeDecoctionDataset === 'pails'" class="legacy-main-head">
             <th>ID</th>
             <th>加水桶号</th>
+            <th>名称</th>
             <th>煎煮中心</th>
+            <th>组别/容量</th>
             <th>状态</th>
+            <th>活动任务</th>
             <th>创建时间</th>
             <th>修改时间</th>
             <th>操作</th>
@@ -1328,19 +1538,39 @@ defineExpose({
           </template>
 
           <template v-else-if="activeDecoctionDataset === 'pails'">
-            <tr v-if="filteredWaterPailRows.length === 0" class="legacy-main-info">
-              <td colspan="7" class="legacy-empty">暂无当前绑定加水桶</td>
+            <tr v-if="filteredWaterPails.length === 0" class="legacy-main-info">
+              <td colspan="10" class="legacy-empty">暂无加水桶</td>
             </tr>
-            <tr v-for="(row, index) in filteredWaterPailRows" :key="row.pailNo" class="legacy-main-info">
-              <td>{{ index + 1 }}</td>
-              <td>{{ row.pailNo }}</td>
-              <td>待接口</td>
-              <td><StatusPill :value="row.task.taskStatus" :tone="statusTone(row.task.taskStatus)" /></td>
-              <td>{{ formatDate(row.task.createdAt) }}</td>
-              <td>{{ formatDate(row.task.updatedAt) }}</td>
+            <tr v-for="pail in filteredWaterPails" :key="pail.pailNo" class="legacy-main-info">
+              <td>{{ rowValue(pail.pailId) }}</td>
+              <td>{{ pail.pailNo }}</td>
+              <td>{{ rowValue(pail.pailName) }}</td>
+              <td>{{ rowValue(pail.decoctionCenter) }}</td>
+              <td>
+                <strong>{{ rowValue(pail.pailGroup) }}</strong>
+                <small>{{ pail.capacityMl === null ? '-' : `${pail.capacityMl} ml` }}</small>
+              </td>
+              <td>
+                <StatusPill :value="pail.pailStatus" :tone="statusTone(pail.pailStatus)" />
+                <small>{{ waterPailUseStatus(pail) }}</small>
+              </td>
+              <td>
+                <strong>{{ rowValue(pail.activeTaskNo) }}</strong>
+                <small>{{ rowValue(pail.activePrescriptionNo) }}</small>
+              </td>
+              <td>{{ formatDate(pail.createdAt) }}</td>
+              <td>{{ formatDate(pail.updatedAt) }}</td>
               <td class="decoction-action-cell">
-                <button class="legacy-link-btn" type="button" disabled title="等待后端管理契约">编辑</button>
-                <button class="legacy-link-btn workflow-reject-btn" type="button" disabled title="等待后端管理契约">停用</button>
+                <button class="legacy-link-btn" type="button" :disabled="waterPailSaving" @click="openEditWaterPailForm(pail)">编辑</button>
+                <button class="legacy-link-btn" type="button" :disabled="waterPailSaving || pail.enabled" @click="toggleWaterPailEnabled(pail, true)">启用</button>
+                <button
+                  class="legacy-link-btn workflow-reject-btn"
+                  type="button"
+                  :disabled="waterPailSaving || !pail.enabled || Boolean(pail.activeTaskNo)"
+                  @click="toggleWaterPailEnabled(pail, false)"
+                >
+                  停用
+                </button>
               </td>
             </tr>
           </template>
@@ -1407,8 +1637,8 @@ defineExpose({
       <button v-if="activeDecoctionDataset === 'devices'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionDevices.length === 0" @click="downloadDeviceCsv">导出设备</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-primary" type="button" :disabled="deviceSaving" @click="openCreateDeviceForm('煎药机')">新增配置</button>
       <button v-if="activeDecoctionDataset === 'printerConfig'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredDecoctionDevices.length === 0" @click="downloadPrinterConfigCsv">导出当前配置</button>
-      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" disabled title="等待后端管理契约">批量新增</button>
-      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredWaterPailRows.length === 0" @click="downloadWaterPailCsv">导出</button>
+      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-primary" type="button" :disabled="waterPailSaving" @click="openCreateWaterPailForm">批量新增</button>
+      <button v-if="activeDecoctionDataset === 'pails'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredWaterPails.length === 0" @click="downloadWaterPailCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-primary" type="button" :disabled="cloudPrintLoading" @click="refreshCloudPrintRecords">
         {{ cloudPrintLoading ? '查询中' : '查询云打印记录' }}
       </button>
@@ -1417,6 +1647,7 @@ defineExpose({
       <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录，不新增独立云打印流水或补打接口。</span>
       <span v-else-if="activeDecoctionDataset === 'devices'">设备管理已接入主数据接口；停用设备不可继续绑定新煎煮任务。</span>
       <span v-else-if="activeDecoctionDataset === 'printerConfig'">PDA、打码机和打印模板配置复用设备主数据接口维护。</span>
+      <span v-else-if="activeDecoctionDataset === 'pails'">加水桶管理已接入主数据接口；停用水桶不可继续绑定新煎煮任务。</span>
       <span v-else>等待后端管理契约，当前仅展示已有煎煮作业 API 返回的数据。</span>
     </div>
 
@@ -1560,6 +1791,10 @@ defineExpose({
   grid-template-columns: auto 1fr;
 }
 
+.decoction-device-wide {
+  grid-column: span 2;
+}
+
 .decoction-device-form-actions {
   justify-content: flex-end;
   margin-top: 12px;
@@ -1574,9 +1809,12 @@ defineExpose({
 }
 
 .decoction-printer-table,
-.decoction-pail-table,
 .decoction-print-table {
   min-width: 1120px;
+}
+
+.decoction-pail-table {
+  min-width: 1320px;
 }
 
 .decoction-work-table {
@@ -1647,6 +1885,10 @@ defineExpose({
 @media (max-width: 1200px) {
   .decoction-device-form-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .decoction-device-wide {
+    grid-column: span 2;
   }
 
   .decoction-record-grid {
