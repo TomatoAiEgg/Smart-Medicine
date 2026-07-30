@@ -1730,6 +1730,44 @@ public class OrderService {
     }
 
     @Transactional
+    public AdminOrderRemarkUpdateResult updateAdminOrderRemark(
+            String orderNo,
+            AdminOrderRemarkUpdateCommand command
+    ) {
+        if (command == null) {
+            throw new BusinessException("ORDER_REMARK_COMMAND_REQUIRED", "订单备注修改参数不能为空");
+        }
+        if (!StringUtils.hasText(orderNo)) {
+            throw new BusinessException("ORDER_NO_REQUIRED", "订单号不能为空");
+        }
+        String remark = requireText(command.remark(), "ORDER_REMARK_REQUIRED", "订单备注不能为空");
+        String normalizedOrderNo = orderNo.trim();
+        AdminOrderDetail current = getAdminOrderDetail(normalizedOrderNo);
+        int updated = orderRepository.updateOrderRemark(current.orderId(), remark);
+        if (updated == 0) {
+            throw new BusinessException("ORDER_REMARK_UPDATE_FAILED", "订单备注更新失败");
+        }
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                current.orderId(),
+                null,
+                defaultText(command.operator(), "admin"),
+                "ORDER_REMARK_UPDATE",
+                "SUCCESS",
+                cleanText(command.reason()),
+                writeJson(command)
+        );
+        AdminOrderDetail next = getAdminOrderDetail(normalizedOrderNo);
+        return new AdminOrderRemarkUpdateResult(
+                next.orderId(),
+                next.orderNo(),
+                next.orderRemark(),
+                next.updatedAt()
+        );
+    }
+
+    @Transactional
     public AdminOrderDetail.Prescription updateAdminPrescription(
             String orderNo,
             UUID prescriptionId,

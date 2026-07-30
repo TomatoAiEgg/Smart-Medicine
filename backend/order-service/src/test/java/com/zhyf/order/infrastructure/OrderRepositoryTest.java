@@ -142,6 +142,22 @@ class OrderRepositoryTest {
     }
 
     @Test
+    void shouldUpdateOrderRemark() {
+        UUID orderId = UUID.randomUUID();
+        when(jdbcTemplate.update(anyString(), eq("审核备注"), eq(orderId))).thenReturn(1);
+
+        int updated = repository.updateOrderRemark(orderId, "审核备注");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), eq("审核备注"), eq(orderId));
+        assertThat(updated).isEqualTo(1);
+        assertThat(sqlCaptor.getValue())
+                .contains("update order_main")
+                .contains("order_remark = ?")
+                .contains("updated_at = now()");
+    }
+
+    @Test
     void shouldBuildOperatorQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());

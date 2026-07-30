@@ -1230,6 +1230,19 @@ export interface AdminOrderAddressUpdateResult {
   updatedAt: string;
 }
 
+export interface AdminOrderRemarkUpdateCommand {
+  remark: string;
+  operator?: string;
+  reason?: string;
+}
+
+export interface AdminOrderRemarkUpdateResult {
+  orderId: string;
+  orderNo: string;
+  orderRemark: string;
+  updatedAt: string;
+}
+
 export interface AdminOrderCancelCommand {
   operator?: string;
   reason: string;

@@ -3985,6 +3985,16 @@ public class OrderRepository {
                 receiverAddress, addressType, offsetDateTime(deliveryTime), orderId);
     }
 
+    public int updateOrderRemark(UUID orderId, String orderRemark) {
+        String sql = """
+                update order_main
+                set order_remark = ?,
+                    updated_at = now()
+                where id = ?
+                """;
+        return jdbcTemplate.update(sql, orderRemark, orderId);
+    }
+
     public int updatePrescription(
             UUID orderId,
             UUID prescriptionId,

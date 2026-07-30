@@ -64,6 +64,8 @@ import type {
   AdminLogisticsSpecialRuleRecord,
   AdminOrderAddressUpdateCommand,
   AdminOrderAddressUpdateResult,
+  AdminOrderRemarkUpdateCommand,
+  AdminOrderRemarkUpdateResult,
   AdminBatchOrderReceiptCommand,
   AdminBatchOrderReceiptResult,
   AdminManualProcessCommand,
@@ -608,6 +610,16 @@ export function getAdminOrderDetail(orderNo: string) {
 export function updateAdminOrderAddress(orderNo: string, command: AdminOrderAddressUpdateCommand) {
   return request<AdminOrderAddressUpdateResult>(
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/address`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function updateAdminOrderRemark(orderNo: string, command: AdminOrderRemarkUpdateCommand) {
+  return request<AdminOrderRemarkUpdateResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/remark`,
     {
       method: 'PATCH',
       body: JSON.stringify(command),

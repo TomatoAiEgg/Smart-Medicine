@@ -85,6 +85,8 @@ import com.zhyf.order.application.AdminOrderReceiptCommand;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderReceiptResult;
+import com.zhyf.order.application.AdminOrderRemarkUpdateCommand;
+import com.zhyf.order.application.AdminOrderRemarkUpdateResult;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderSearchQuery;
@@ -1048,6 +1050,14 @@ public class InstitutionOrderController {
             @RequestBody AdminOrderAddressUpdateCommand command
     ) {
         return ApiResponse.ok(orderService.updateAdminOrderAddress(orderNo, command));
+    }
+
+    @PatchMapping("/admin/orders/{orderNo}/remark")
+    public ApiResponse<AdminOrderRemarkUpdateResult> updateOrderRemark(
+            @PathVariable String orderNo,
+            @RequestBody AdminOrderRemarkUpdateCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminOrderRemark(orderNo, command));
     }
 
     @PatchMapping("/admin/orders/{orderNo}/prescriptions/{prescriptionId}")

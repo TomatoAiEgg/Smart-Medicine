@@ -10,11 +10,12 @@ import {
   listReviewTasks,
   rejectReviewTask,
 } from '../../api/workflow';
-import { getAdminOrderDetail, getOrderProgress, updateAdminOrderAddress } from '../../api/order';
+import { getAdminOrderDetail, getOrderProgress, updateAdminOrderAddress, updateAdminOrderRemark } from '../../api/order';
 import type {
   AdminOrderAddressUpdateCommand,
   AdminOrderDetail,
   AdminOrderDetailDrug,
+  AdminOrderRemarkUpdateCommand,
   OrderProgressSnapshot,
   WorkflowTaskSnapshot,
 } from '../../api/types';
@@ -39,6 +40,11 @@ type ReviewAddressForm = {
   receiverAddress: string;
   addressType: string;
   deliveryTime: string;
+  operator: string;
+  reason: string;
+};
+type ReviewRemarkForm = {
+  remark: string;
   operator: string;
   reason: string;
 };
@@ -89,6 +95,8 @@ const reviewOrderDetailError = ref('');
 const reviewDetailNotice = ref('');
 const reviewAddressModalOpen = ref(false);
 const reviewAddressSubmitting = ref(false);
+const reviewRemarkModalOpen = ref(false);
+const reviewRemarkSubmitting = ref(false);
 const reviewAddressForm = ref<ReviewAddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -98,6 +106,11 @@ const reviewAddressForm = ref<ReviewAddressForm>({
   receiverAddress: '',
   addressType: '',
   deliveryTime: '',
+  operator: 'admin',
+  reason: '',
+});
+const reviewRemarkForm = ref<ReviewRemarkForm>({
+  remark: '',
   operator: 'admin',
   reason: '',
 });
@@ -349,6 +362,7 @@ function backToReviewList() {
   reviewOrderDetailError.value = '';
   reviewDetailNotice.value = '';
   reviewAddressModalOpen.value = false;
+  reviewRemarkModalOpen.value = false;
 }
 
 function currentCounts(): WorkflowCounts {
@@ -473,9 +487,66 @@ async function handleBatchApproval(task: WorkflowTaskSnapshot, batch: '早批次
   await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`, String(batchNo));
 }
 
-function handlePendingReviewAction(actionName: '备注' | '拆单') {
+function handlePendingReviewAction(actionName: '拆单') {
   reviewDetailNotice.value = `${actionName}后端接口待补契约，当前未提交任何变更。`;
   emit('notice', 'info', reviewDetailNotice.value);
+}
+
+function fillReviewRemarkForm() {
+  reviewRemarkForm.value = {
+    remark: reviewOrderDetail.value?.orderRemark ?? '',
+    operator: operator.value.trim() || 'admin',
+    reason: '',
+  };
+}
+
+function openReviewRemarkModal() {
+  if (!selectedReviewTask.value) return;
+  if (!reviewOrderDetail.value) {
+    reviewDetailNotice.value = '订单详情尚未加载完成，暂不能修改备注。';
+    emit('notice', 'info', reviewDetailNotice.value);
+    return;
+  }
+  fillReviewRemarkForm();
+  reviewDetailNotice.value = '';
+  reviewRemarkModalOpen.value = true;
+}
+
+function closeReviewRemarkModal() {
+  if (reviewRemarkSubmitting.value) return;
+  reviewRemarkModalOpen.value = false;
+}
+
+async function submitReviewRemarkUpdate() {
+  const targetTask = selectedReviewTask.value;
+  if (!targetTask) return;
+
+  const remark = reviewRemarkForm.value.remark.trim();
+  if (!remark) {
+    reviewDetailNotice.value = '订单备注不能为空。';
+    return;
+  }
+
+  const command: AdminOrderRemarkUpdateCommand = {
+    remark,
+    operator: reviewRemarkForm.value.operator.trim() || operator.value.trim() || 'admin',
+    reason: trimmedOptional(reviewRemarkForm.value.reason),
+  };
+
+  reviewRemarkSubmitting.value = true;
+  reviewDetailNotice.value = '';
+  try {
+    const targetOrderNo = reviewOrderDetail.value?.orderNo ?? targetTask.orderNo;
+    await updateAdminOrderRemark(targetOrderNo, command);
+    reviewOrderDetail.value = await getAdminOrderDetail(targetOrderNo);
+    reviewRemarkModalOpen.value = false;
+    reviewDetailNotice.value = '订单备注已更新。';
+    emit('notice', 'success', `${targetOrderNo} 订单备注已更新`);
+  } catch (error) {
+    reviewDetailNotice.value = errorMessage(error);
+  } finally {
+    reviewRemarkSubmitting.value = false;
+  }
 }
 
 function fillReviewAddressForm() {
@@ -648,7 +719,14 @@ defineExpose({
           >
             晚批次通过
           </button>
-          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('备注')">备注</button>
+          <button
+            class="legacy-btn"
+            type="button"
+            :disabled="reviewDetailLoading || reviewRemarkSubmitting"
+            @click="openReviewRemarkModal"
+          >
+            备注
+          </button>
           <button class="legacy-btn" type="button" @click="handlePendingReviewAction('拆单')">拆单</button>
           <button
             class="legacy-btn"
@@ -674,6 +752,35 @@ defineExpose({
 
         <p v-if="workflowError" class="error-line">{{ workflowError }}</p>
         <p v-if="reviewDetailNotice" class="review-detail-notice">{{ reviewDetailNotice }}</p>
+
+        <div v-if="reviewRemarkModalOpen" class="review-address-modal-mask">
+          <section class="review-address-modal" aria-label="修改订单备注">
+            <div class="review-address-modal-head">
+              <h3>修改订单备注</h3>
+              <button class="legacy-link-btn" type="button" :disabled="reviewRemarkSubmitting" @click="closeReviewRemarkModal">关闭</button>
+            </div>
+            <div class="review-address-form">
+              <label class="review-address-form-wide">
+                <span>订单备注</span>
+                <textarea v-model="reviewRemarkForm.remark" class="legacy-input review-remark-textarea" rows="4" />
+              </label>
+              <label>
+                <span>操作人</span>
+                <input v-model="reviewRemarkForm.operator" class="legacy-input" />
+              </label>
+              <label>
+                <span>修改原因</span>
+                <input v-model="reviewRemarkForm.reason" class="legacy-input" placeholder="可选" />
+              </label>
+            </div>
+            <div class="review-address-modal-actions">
+              <button class="legacy-btn" type="button" :disabled="reviewRemarkSubmitting" @click="closeReviewRemarkModal">取消</button>
+              <button class="legacy-btn legacy-btn-primary" type="button" :disabled="reviewRemarkSubmitting" @click="submitReviewRemarkUpdate">
+                {{ reviewRemarkSubmitting ? '保存中' : '保存备注' }}
+              </button>
+            </div>
+          </section>
+        </div>
 
         <div v-if="reviewAddressModalOpen" class="review-address-modal-mask">
           <section class="review-address-modal" aria-label="修改收货地址">
@@ -1402,6 +1509,11 @@ defineExpose({
 
 .review-address-form-wide {
   grid-column: 1 / -1;
+}
+
+.review-remark-textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 @media (max-width: 720px) {
