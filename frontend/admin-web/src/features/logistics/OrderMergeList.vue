@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { cancelAdminOrderMerge, createAdminOrderMerge, listAdminOrderMerges } from '../../api/order';
 import type { AdminOrderMergeCommand, AdminOrderMergePage, AdminOrderMergeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -47,11 +47,6 @@ const activeCount = computed(() => rows.value.filter((row) => row.status === 'AC
 const cancelledCount = computed(() => rows.value.filter((row) => row.status === 'CANCELLED').length);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function statusLabel(value: string) {
   const labels: Record<string, string> = {
@@ -321,17 +316,17 @@ defineExpose({
                 {{ orderNo }}
               </span>
             </td>
-            <td>{{ rowValue(row.institutionNames) }}</td>
+            <td>{{ displayValue(row.institutionNames) }}</td>
             <td>
-              <strong>{{ rowValue(row.logisticsCompany) }}</strong>
-              <small>{{ rowValue(row.logisticsNo) }}</small>
+              <strong>{{ displayValue(row.logisticsCompany) }}</strong>
+              <small>{{ displayValue(row.logisticsNo) }}</small>
             </td>
             <td>
               <span class="legacy-status" :class="row.status === 'ACTIVE' ? 'status-success' : 'status-muted'">
                 {{ statusLabel(row.status) }}
               </span>
             </td>
-            <td>{{ rowValue(row.remark) }}</td>
+            <td>{{ displayValue(row.remark) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>
               <button

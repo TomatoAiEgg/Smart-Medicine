@@ -5,7 +5,7 @@ import { listLogisticsInfos } from '../../api/logistics';
 import type { LogisticsInfoRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -30,11 +30,6 @@ const loading = ref(false);
 const error = ref('');
 const records = ref<LogisticsInfoRecord[]>([]);
 const requestId = ref(0);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function normalizedLimit() {
   if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
@@ -191,12 +186,12 @@ defineExpose({
         <template v-else>
           <tr v-for="record in records" :key="record.traceId" class="legacy-main-info">
             <td class="mono-cell">{{ record.traceId.slice(0, 8) }}</td>
-            <td class="legacy-left logistics-info-content">{{ rowValue(record.operationInfo) }}</td>
+            <td class="legacy-left logistics-info-content">{{ displayValue(record.operationInfo) }}</td>
             <td>{{ formatDate(record.traceTime) }}</td>
             <td>{{ record.orderNo }}</td>
             <td>{{ record.logisticsNo }}</td>
             <td>{{ record.logisticsCompany }}</td>
-            <td>{{ rowValue(record.receiverPhone) }}</td>
+            <td>{{ displayValue(record.receiverPhone) }}</td>
             <td><StatusPill :value="record.traceStatus" :tone="statusTone(record.traceStatus)" /></td>
             <td>{{ formatDate(record.createdAt) }}</td>
           </tr>

@@ -20,7 +20,7 @@ import {
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -146,13 +146,8 @@ function normalizedPkgNum() {
   return Math.trunc(pkgNum.value);
 }
 
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
-
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -886,14 +881,14 @@ defineExpose({
               <td>-</td>
               <td>-</td>
               <td>-</td>
-              <td>{{ rowValue(item.patientName) }}</td>
+              <td>{{ displayValue(item.patientName) }}</td>
               <td>-</td>
-              <td>{{ rowValue(item.addressType) }}</td>
+              <td>{{ displayValue(item.addressType) }}</td>
               <td>{{ item.receiverName }}</td>
               <td>{{ item.receiverPhone }}</td>
               <td>{{ formatDate(item.deliveryTime) }}</td>
               <td class="legacy-left">{{ item.receiverAddress }}</td>
-              <td>{{ rowValue(item.externalOrderNo) }}</td>
+              <td>{{ displayValue(item.externalOrderNo) }}</td>
               <td><StatusPill :value="item.orderStatus" :tone="statusTone(item.orderStatus)" /></td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn workflow-pass-btn" type="button" :disabled="handlingShipmentId === item.orderId" @click="handlePackShipment(item)">
@@ -912,21 +907,21 @@ defineExpose({
             <tr v-for="shipment in shipments" :key="shipment.shipmentId" class="legacy-main-info">
               <td>{{ shipment.orderNo }}</td>
               <td>{{ formatDate(shipment.orderCreatedAt) }}</td>
-              <td>{{ rowValue(shipment.pkgNum) }}</td>
+              <td>{{ displayValue(shipment.pkgNum) }}</td>
               <td>{{ shipment.logisticsCompany }}</td>
               <td>{{ shipment.logisticsNo }}</td>
               <td>{{ formatDate(shipment.packageTime) }}</td>
               <td>{{ formatDate(shipment.outboundTime) }}</td>
               <td>{{ formatDate(shipment.signTime) }}</td>
-              <td>{{ rowValue(shipment.pkgWeight) }}</td>
-              <td>{{ rowValue(shipment.patientName) }}</td>
+              <td>{{ displayValue(shipment.pkgWeight) }}</td>
+              <td>{{ displayValue(shipment.patientName) }}</td>
               <td>{{ paymentLabel(shipment.payMethod) }}</td>
-              <td>{{ rowValue(shipment.addressType) }}</td>
-              <td>{{ rowValue(shipment.receiverName) }}</td>
-              <td>{{ rowValue(shipment.receiverPhone) }}</td>
+              <td>{{ displayValue(shipment.addressType) }}</td>
+              <td>{{ displayValue(shipment.receiverName) }}</td>
+              <td>{{ displayValue(shipment.receiverPhone) }}</td>
               <td>{{ formatDate(shipment.deliveryTime) }}</td>
-              <td class="legacy-left">{{ rowValue(shipment.receiverAddress) }}</td>
-              <td>{{ rowValue(shipment.externalOrderNo) }}</td>
+              <td class="legacy-left">{{ displayValue(shipment.receiverAddress) }}</td>
+              <td>{{ displayValue(shipment.externalOrderNo) }}</td>
               <td><StatusPill :value="shipment.logisticsStatus" :tone="statusTone(shipment.logisticsStatus)" /></td>
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn" type="button" @click="refreshShipmentTraces(shipment)">轨迹</button>

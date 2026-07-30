@@ -5,7 +5,7 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -39,11 +39,6 @@ const requestId = ref(0);
 
 const totalWeight = computed(() => sumNumbers(records.value.map((record) => record.pkgWeight)));
 const totalPackages = computed(() => sumNumbers(records.value.map((record) => record.pkgNum)));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
@@ -201,7 +196,7 @@ function resetFilters() {
 }
 
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -507,16 +502,16 @@ defineExpose({
           <td>{{ record.orderNo }}</td>
           <td>{{ record.externalOrderNo }}</td>
           <td>
-            <strong>{{ rowValue(record.institutionName) }}</strong>
-            <small>{{ rowValue(record.patientName) }}</small>
+            <strong>{{ displayValue(record.institutionName) }}</strong>
+            <small>{{ displayValue(record.patientName) }}</small>
           </td>
           <td class="legacy-left">
-            <strong>{{ rowValue(record.receiverName) }} / {{ rowValue(record.receiverPhone) }}</strong>
-            <small>{{ rowValue(record.receiverAddress) }}</small>
+            <strong>{{ displayValue(record.receiverName) }} / {{ displayValue(record.receiverPhone) }}</strong>
+            <small>{{ displayValue(record.receiverAddress) }}</small>
           </td>
           <td>{{ deliveryTypeText(record.addressType) }}</td>
-          <td>{{ rowValue(record.logisticsCompany) }}</td>
-          <td>{{ rowValue(record.logisticsNo) }}</td>
+          <td>{{ displayValue(record.logisticsCompany) }}</td>
+          <td>{{ displayValue(record.logisticsNo) }}</td>
           <td><StatusPill :value="statusText(record.logisticsStatus)" :tone="statusTone(record.logisticsStatus)" /></td>
           <td>
             <strong>{{ amountValue(record.pkgNum) }} 件</strong>

@@ -14,7 +14,7 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -73,11 +73,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function enabledLabel(value: boolean) {
   return value ? '启用' : '停用';
@@ -432,7 +427,7 @@ defineExpose({
                 {{ enabledLabel(row.enabled) }}
               </span>
             </td>
-            <td>{{ rowValue(row.remark) }}</td>
+            <td>{{ displayValue(row.remark) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>
               <button class="legacy-link" type="button" :disabled="saving" @click="editRule(row)">编辑</button>

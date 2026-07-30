@@ -5,7 +5,7 @@ import { listShipmentTraces, listShipments, receiveShipmentTrace, signShipment }
 import type { ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -55,11 +55,6 @@ const operator = computed({
   get: () => props.operationOperator,
   set: (value: string) => emit('update:operationOperator', value),
 });
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function normalizedLimit() {
   if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
@@ -362,10 +357,10 @@ defineExpose({
         </tr>
         <tr v-for="record in rows" :key="record.shipmentId" class="legacy-main-info">
           <td>{{ record.orderNo }}</td>
-          <td>{{ rowValue(record.institutionName) }}</td>
-          <td>{{ rowValue(record.patientName) }}</td>
-          <td>{{ rowValue(record.receiverName) }}</td>
-          <td>{{ rowValue(record.receiverPhone) }}</td>
+          <td>{{ displayValue(record.institutionName) }}</td>
+          <td>{{ displayValue(record.patientName) }}</td>
+          <td>{{ displayValue(record.receiverName) }}</td>
+          <td>{{ displayValue(record.receiverPhone) }}</td>
           <td class="legacy-left">{{ fullAddress(record) }}</td>
           <td>{{ record.logisticsNo }}</td>
           <td>{{ record.logisticsCompany }}</td>
@@ -396,7 +391,7 @@ defineExpose({
           <span>物流单号</span>
           <strong>{{ selectedShipment.logisticsNo }}</strong>
           <span>收货人</span>
-          <strong>{{ rowValue(selectedShipment.receiverName) }} / {{ rowValue(selectedShipment.receiverPhone) }}</strong>
+          <strong>{{ displayValue(selectedShipment.receiverName) }} / {{ displayValue(selectedShipment.receiverPhone) }}</strong>
           <span>当前状态</span>
           <strong><StatusPill :value="selectedShipment.logisticsStatus" :tone="statusTone(selectedShipment.logisticsStatus)" /></strong>
         </div>
@@ -461,7 +456,7 @@ defineExpose({
               </tr>
               <tr v-for="trace in shipmentTraces" :key="trace.traceId" class="legacy-main-info">
                 <td><StatusPill :value="trace.traceStatus" :tone="statusTone(trace.traceStatus)" /></td>
-                <td class="legacy-left">{{ rowValue(trace.traceContent) }}</td>
+                <td class="legacy-left">{{ displayValue(trace.traceContent) }}</td>
                 <td>{{ formatDate(trace.traceTime) }}</td>
                 <td>{{ formatDate(trace.createdAt) }}</td>
               </tr>
