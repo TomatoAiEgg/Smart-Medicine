@@ -10,7 +10,7 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, labelFromMap, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, joinDisplayParts, labelFromMap, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type PrintDrugRow = {
@@ -117,14 +117,13 @@ const previewPatient = computed(() => {
   return pieces.length > 0 ? pieces.join(' / ') : patientName.value || waitingDetail();
 });
 const previewReceiver = computed(() => {
-  const address = [
+  const address = joinDisplayParts([
     orderDetail.value?.receiverProvince,
     orderDetail.value?.receiverCity,
     orderDetail.value?.receiverZone,
     orderDetail.value?.receiverAddress,
-  ].filter(Boolean).join('');
-  const pieces = [orderDetail.value?.receiverName, orderDetail.value?.receiverPhone, address].filter(Boolean);
-  return pieces.length > 0 ? pieces.join(' / ') : waitingDetail();
+  ], '', '');
+  return joinDisplayParts([orderDetail.value?.receiverName, orderDetail.value?.receiverPhone, address], ' / ', waitingDetail());
 });
 const previewDeliveryTime = computed(() => formatDate(orderDetail.value?.deliveryTime));
 const previewPrintStatus = computed(() => {
@@ -675,11 +674,11 @@ defineExpose({
                     <strong>{{ displayValue(row.detail.drugName || row.detail.platformDrugName) }}</strong>
                     <small>{{ displayValue(row.detail.drugCode || row.detail.platformDrugCode) }}</small>
                   </td>
-                  <td>{{ displayValue([row.detail.drugSpecs, row.detail.drugOrigin].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ joinDisplayParts([row.detail.drugSpecs, row.detail.drugOrigin], ' / ') }}</td>
                   <td>{{ displayValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
-                  <td>{{ displayValue([row.detail.specialUsage, row.detail.validationTips].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ joinDisplayParts([row.detail.specialUsage, row.detail.validationTips], ' / ') }}</td>
                 </tr>
               </tbody>
             </table>

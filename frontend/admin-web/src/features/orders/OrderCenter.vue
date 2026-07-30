@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, amountValue, displayValue, currentIsoDate, formatDate, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
+import { EMPTY_VALUE, amountValue, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -1683,8 +1683,8 @@ defineExpose({
                   <td>{{ displayValue(item.perPackDose) }}</td>
                   <td>{{ displayValue(item.doctorName) }}</td>
                   <td class="legacy-left">{{ displayValue(item.diagnosis) }}</td>
-                  <td class="legacy-left">{{ displayValue([item.departmentName, item.wardName, item.bedNo].filter(Boolean).join(' / ')) }}</td>
-                  <td class="legacy-left">{{ displayValue([item.medicationMethod, item.medicationInstruction].filter(Boolean).join(' / ')) }}</td>
+                  <td class="legacy-left">{{ joinDisplayParts([item.departmentName, item.wardName, item.bedNo], ' / ') }}</td>
+                  <td class="legacy-left">{{ joinDisplayParts([item.medicationMethod, item.medicationInstruction], ' / ') }}</td>
                   <td class="legacy-left">{{ displayValue(item.prescriptionRemark) }}</td>
                   <td>{{ displayValue(item.detailCount) }}</td>
                   <td>{{ formatDate(item.createdAt) }}</td>

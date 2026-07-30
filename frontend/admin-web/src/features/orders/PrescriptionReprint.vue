@@ -284,13 +284,13 @@ function renderPrintHtml(payload: AdminPrescriptionPrintPayload) {
       <div><span class="label">送货方式：</span>${escapeHtml(addressTypeText(payload.addressType))}</div>
       <div><span class="label">医师：</span>${escapeHtml(payload.doctorName)}</div>
       <div><span class="label">科室：</span>${escapeHtml(payload.departmentName)}</div>
-      <div><span class="label">病区/床号：</span>${escapeHtml([payload.wardName, payload.bedNo].filter(Boolean).join(' / '))}</div>
+      <div><span class="label">病区/床号：</span>${escapeHtml(joinDisplayParts([payload.wardName, payload.bedNo], ' / ', ''))}</div>
       <div><span class="label">配送时间：</span>${escapeHtml(formatDate(payload.deliveryTime))}</div>
     </div>
     <div class="meta" style="grid-template-columns: 1fr;">
       <div><span class="label">收货地址：</span>${escapeHtml(fullAddress(payload))}</div>
       <div><span class="label">用药说明：</span>${escapeHtml(payload.medicationInstruction || payload.medicationMethod)}</div>
-      <div><span class="label">诊断/备注：</span>${escapeHtml([payload.diagnosis, payload.prescriptionRemark].filter(Boolean).join('；'))}</div>
+      <div><span class="label">诊断/备注：</span>${escapeHtml(joinDisplayParts([payload.diagnosis, payload.prescriptionRemark], '；', ''))}</div>
     </div>
     <table>
       <thead>
