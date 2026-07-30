@@ -42,6 +42,7 @@ import type {
   WaterPailRecord,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -51,7 +52,6 @@ type MesAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type PdaAction = 'start' | 'finish' | 'cancel' | 'terminate';
 type TaskEventAction = 'water' | 'temperature' | 'error';
 type EventCommandExtra = Partial<Omit<DecoctionEventCommand, 'operationId' | 'operator' | 'timestamp' | 'sign'>>;
-type CsvExportValue = string | number | null | undefined;
 type DeviceFormState = {
   deviceCode: string;
   deviceName: string;
@@ -339,28 +339,6 @@ function emptyWaterPailForm(): WaterPailFormState {
     enabled: true,
     remark: '',
   };
-}
-
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
-  const lines = [
-    headers.map(escapeCsvCell).join(','),
-    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
-  ];
-  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function pageSummary(total: number) {

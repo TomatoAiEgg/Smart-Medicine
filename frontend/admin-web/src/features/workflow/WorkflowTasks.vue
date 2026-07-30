@@ -20,11 +20,11 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
-type CsvExportValue = string | number | null | undefined;
 type NumericValue = string | number | null | undefined;
 type ReviewDetailDrugRow = {
   prescriptionNo: string;
@@ -232,28 +232,6 @@ function amountValue(value: NumericValue) {
   const nextValue = numericValue(value);
   if (nextValue === null) return '-';
   return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
-}
-
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
-  const lines = [
-    headers.map(escapeCsvCell).join(','),
-    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
-  ];
-  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function selectedValue(value: string) {

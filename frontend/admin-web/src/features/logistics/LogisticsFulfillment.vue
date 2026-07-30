@@ -19,12 +19,12 @@ import {
 } from '../../api/logistics';
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type LogisticsDataset = 'shipments' | 'ready' | 'callbacks';
-type CsvExportValue = string | number | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -165,28 +165,6 @@ function escapeHtml(value: string | number | null | undefined) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-}
-
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function downloadCsv(filename: string, headers: readonly string[], rows: readonly CsvExportValue[][]) {
-  const lines = [
-    headers.map(escapeCsvCell).join(','),
-    ...rows.map((row) => row.map(escapeCsvCell).join(',')),
-  ];
-  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 function isPickupType(value: string | null | undefined) {
