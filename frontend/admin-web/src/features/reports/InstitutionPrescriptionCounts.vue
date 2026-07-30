@@ -7,10 +7,9 @@ import {
 } from '../../api/report';
 import type { InstitutionPrescriptionCountRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { displayValue, EMPTY_VALUE, currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatNumber, moneyValue, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type NumericValue = number | string | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -35,30 +34,6 @@ const totalOrders = computed(() => records.value.reduce((total, row) => total + 
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
 const totalAmount = computed(() => sumNumbers(records.value.map((row) => row.totalAmount)));
-
-function numericValue(value: NumericValue) {
-  if (value === null || value === undefined || value === '') return null;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : null;
-}
-
-function sumNumbers(values: NumericValue[]) {
-  let totalValue = 0;
-  let hasValue = false;
-  for (const value of values) {
-    const nextValue = numericValue(value);
-    if (nextValue !== null) {
-      totalValue += nextValue;
-      hasValue = true;
-    }
-  }
-  return hasValue ? totalValue : null;
-}
-
-function moneyValue(value: NumericValue) {
-  const nextValue = numericValue(value);
-  return nextValue === null ? EMPTY_VALUE : nextValue.toFixed(2);
-}
 
 async function refreshInstitutionPrescriptionCounts() {
   if (loading.value) return;
