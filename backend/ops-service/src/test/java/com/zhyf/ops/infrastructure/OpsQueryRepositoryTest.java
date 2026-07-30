@@ -21,7 +21,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryOrderIdentityByOrderKeys() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findOrderIdentity("ZHYF1", "HIS-1");
 
@@ -35,7 +35,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryOrderMessageEvidenceByAggregateId() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findMessageConsumeLogsByAggregateId("order-id-1", 20);
 
@@ -48,7 +48,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryRecentAccessLogsByInstitutionAndAppKey() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
         UUID institutionId = UUID.randomUUID();
 
         repository.findRecentApiAccessLogsByInstitution(institutionId, 10);
@@ -62,7 +62,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryIntegrationRetriesByBusinessKeys() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findIntegrationRetriesByBusinessKeys(List.of("ZHYF1", "HIS-1"), 30);
 
@@ -75,7 +75,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldJoinCallbackBusinessIdByShipmentIdOrLogisticsNo() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findLogisticsCallbackIssues(null, null, "E2E-LC-1", null, 50);
 
@@ -89,7 +89,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryIntegrationRetryIssuesWithDefaultFailedStatuses() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findIntegrationRetryIssues(null, "ADDRESS_PUSH", "ZHYF1", "HOSP-E2E", 50);
 
@@ -106,7 +106,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryProblemRegistrationsWithFilters() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findProblemRegistrations("OPEN", "ZHYF1", "破损", 50);
 
@@ -139,7 +139,7 @@ class OpsQueryRepositoryTest {
 
     @Test
     void shouldQueryOpenDeadLettersByDefault() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findDeadLetters(null, "zhyf-order-event", "event-1", 50);
 
@@ -173,13 +173,17 @@ class OpsQueryRepositoryTest {
 
     private String capturedSql() {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).query(captor.capture(), any(RowMapper.class), any(Object[].class));
+        verify(jdbcTemplate).query(captor.capture(), anyRowMapper(), any(Object[].class));
         return captor.getValue();
     }
 
     private Object[] capturedArgs() {
         ArgumentCaptor<Object[]> captor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), captor.capture());
+        verify(jdbcTemplate).query(anyString(), anyRowMapper(), captor.capture());
         return captor.getValue();
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }

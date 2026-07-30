@@ -28,7 +28,7 @@ class ReportQueryRepositoryTest {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadOverview(from, to, 14);
 
@@ -43,13 +43,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildInstitutionPrescriptionCountQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadInstitutionPrescriptionCounts(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from prescription p")
                 .contains("join institution i on i.id = p.institution_id")
@@ -64,13 +64,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildDispensePerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadDispensePerformance(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from dispense_record d")
                 .contains("join lateral")
@@ -85,13 +85,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildDispensePerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadDispensePerformanceDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from dispense_record d")
                 .contains("join order_main o on o.id = d.order_id")
@@ -109,13 +109,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildRecheckPerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadRecheckPerformance(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from workflow_task t")
                 .contains("t.task_type = 'PRESCRIPTION_RECHECK'")
@@ -130,13 +130,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildRecheckPerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadRecheckPerformanceDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from workflow_task t")
                 .contains("t.task_type = 'PRESCRIPTION_RECHECK'")
@@ -154,13 +154,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildAuditPerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadAuditPerformance(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from workflow_task t")
                 .contains("t.task_type = 'ORDER_REVIEW'")
@@ -176,13 +176,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildDecoctionPerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadDecoctionPerformance(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from decoction_device_work_record r")
                 .contains("r.action_type = 'FINISH'")
@@ -199,13 +199,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildLogisticsPerformanceQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadLogisticsPerformance(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from shipment s")
                 .contains("join lateral")
@@ -222,13 +222,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildLogisticsPerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadLogisticsPerformanceDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from shipment s")
                 .contains("join order_main o on o.id = s.order_id")
@@ -246,13 +246,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildDecoctionPerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadDecoctionPerformanceDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from decoction_device_work_record r")
                 .contains("join order_main o on o.id = r.order_id")
@@ -271,13 +271,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildHerbDosageQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadHerbDosage(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from prescription_detail d")
                 .contains("join prescription p on p.id = d.prescription_id")
@@ -294,13 +294,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildInstitutionHerbReconciliationQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadInstitutionHerbReconciliation(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from prescription_detail d")
                 .contains("join prescription p on p.id = d.prescription_id")
@@ -317,13 +317,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildPrescriptionHerbDetailsQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadPrescriptionHerbDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from prescription_detail d")
                 .contains("join prescription p on p.id = d.prescription_id")
@@ -340,13 +340,13 @@ class ReportQueryRepositoryTest {
     void shouldBuildAuditPerformanceDetailQueryWithRange() {
         Instant from = Instant.parse("2026-07-01T00:00:00Z");
         Instant to = Instant.parse("2026-07-10T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.loadAuditPerformanceDetails(from, to);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> argsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), any(RowMapper.class), argsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(sqlCaptor.capture(), anyRowMapper(), argsCaptor.capture());
         assertThat(sqlCaptor.getValue())
                 .contains("from workflow_task t")
                 .contains("t.task_type = 'ORDER_REVIEW'")
@@ -363,5 +363,9 @@ class ReportQueryRepositoryTest {
         ArgumentCaptor<Object[]> captor = ArgumentCaptor.forClass(Object[].class);
         verify(jdbcTemplate, atLeastOnce()).queryForObject(anyString(), eq(Long.class), captor.capture());
         return captor.getAllValues().getFirst();
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }

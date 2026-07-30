@@ -24,7 +24,7 @@ class IntegrationRepositoryTest {
 
     @Test
     void shouldPersistIntegrationMessageWithOffsetDateTime() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.createMessage(
                 UUID.randomUUID(),
@@ -44,7 +44,7 @@ class IntegrationRepositoryTest {
 
     @Test
     void shouldFilterHospitalQueryByPrescriptionNoAndPhone() {
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findHospitalOrderByPrescription("RX1", "13800000000");
 
@@ -58,7 +58,7 @@ class IntegrationRepositoryTest {
     @Test
     void shouldConvertRetryTaskTimesToOffsetDateTime() {
         Instant nextRetryAt = Instant.parse("2026-07-09T08:05:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
         when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
 
         repository.createRetryTask(
@@ -81,7 +81,7 @@ class IntegrationRepositoryTest {
     @Test
     void shouldConvertDueRetryTaskQueryTimeToOffsetDateTime() {
         Instant now = Instant.parse("2026-07-09T08:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.findDueRetryTasks(now, 10);
 
@@ -108,13 +108,17 @@ class IntegrationRepositoryTest {
 
     private String capturedQuerySql() {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).query(captor.capture(), any(RowMapper.class), any(Object[].class));
+        verify(jdbcTemplate).query(captor.capture(), anyRowMapper(), any(Object[].class));
         return captor.getValue();
     }
 
     private Object[] capturedQueryArgs() {
         ArgumentCaptor<Object[]> captor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), captor.capture());
+        verify(jdbcTemplate).query(anyString(), anyRowMapper(), captor.capture());
         return captor.getValue();
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }

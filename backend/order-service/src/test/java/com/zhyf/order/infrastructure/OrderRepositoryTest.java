@@ -68,7 +68,7 @@ class OrderRepositoryTest {
         when(rs.getObject("created_at", OffsetDateTime.class)).thenReturn(createdAt);
         when(rs.getObject("updated_at", OffsetDateTime.class)).thenReturn(createdAt.plusSeconds(1));
         when(rs.getObject("completed_at", OffsetDateTime.class)).thenReturn(null);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class))).thenAnswer(invocation -> {
+        when(jdbcTemplate.query(anyString(), anyRowMapper())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
             return List.of(mapper.mapRow(rs, 0));
@@ -113,12 +113,12 @@ class OrderRepositoryTest {
         when(dispenseRs.getString("print_status")).thenReturn("PRINTED");
         when(dispenseRs.getObject("dispensed_at", OffsetDateTime.class)).thenReturn(createdAt.plusSeconds(20));
 
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("ZHYF1"))).thenAnswer(invocation -> {
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), eq("ZHYF1"))).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
             return List.of(mapper.mapRow(orderRs, 0));
         });
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(orderId))).thenAnswer(invocation -> {
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), eq(orderId))).thenAnswer(invocation -> {
             String sql = invocation.getArgument(0);
             @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
@@ -160,7 +160,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildOperatorQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminOperators(new AdminOperatorQuery("disp", null, true, 2, 10));
 
@@ -179,7 +179,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
@@ -189,7 +189,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildOperatorQueryWithExactRoleCode() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminOperators(new AdminOperatorQuery(null, "AUDITOR", null, 1, 20));
 
@@ -207,7 +207,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
@@ -217,7 +217,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildOperatorRoleQueryWithKeywordAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminOperatorRoles(new AdminOperatorRoleQuery("AUD", 2, 10));
 
@@ -237,7 +237,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("count(*) filter (where u.enabled) as enabled_count")
                 .contains("group by u.role_code order by u.role_code asc limit ? offset ?");
@@ -247,7 +247,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildDictTypeQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminDictTypes(new AdminDictTypeQuery("type", true, 2, 10));
 
@@ -266,7 +266,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from dict_type t")
                 .contains("order by enabled desc, type_code asc limit ? offset ?");
@@ -277,7 +277,7 @@ class OrderRepositoryTest {
     void shouldBuildDictItemQueryWithKeywordTypeStatusAndPagination() {
         UUID typeId = UUID.fromString("11111111-2222-3333-4444-000000000701");
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminDictItems(new AdminDictItemQuery("decoction", typeId, false, 3, 15));
 
@@ -306,7 +306,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from dict_item i")
                 .contains("order by t.type_code asc, i.sort_no asc, i.item_code asc limit ? offset ?");
@@ -326,7 +326,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildSystemConfigQueryWithKeywordTypeStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminSystemConfigs(new AdminSystemConfigQuery("sms", "BOOLEAN", true, 2, 25));
 
@@ -353,7 +353,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from system_config c")
                 .contains("order by enabled desc, config_key asc limit ? offset ?");
@@ -372,7 +372,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildDecoctCenterQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminDecoctCenters(new AdminDecoctCenterQuery("center", false, 3, 10));
 
@@ -399,7 +399,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from decoct_center c")
                 .contains("order by enabled desc, center_code asc limit ? offset ?");
@@ -419,7 +419,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildHerbQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminHerbs(new AdminHerbQuery("gan", true, 4, 15));
 
@@ -446,7 +446,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from herb_catalog h")
                 .contains("order by enabled desc, herb_code asc limit ? offset ?");
@@ -466,7 +466,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildHerbAreaQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminHerbAreas(new AdminHerbAreaQuery("area", false, 3, 12));
 
@@ -490,7 +490,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from herb_area a")
                 .contains("order by enabled desc, area_code asc limit ? offset ?");
@@ -508,7 +508,7 @@ class OrderRepositoryTest {
     void shouldBuildHerbIndexQueryWithKeywordInstitutionStatusAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminHerbIndexes(new AdminHerbIndexQuery("clinic", institutionId, false, 2, 20));
 
@@ -540,7 +540,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from herb_index x")
                 .contains("order by x.enabled desc, i.institution_name asc, x.external_herb_code asc limit ? offset ?");
@@ -563,7 +563,7 @@ class OrderRepositoryTest {
     void shouldBuildHerbIndexOperationLogQueryWithKeywordInstitutionActionAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminHerbIndexOperationLogs(
                 new AdminHerbIndexOperationLogQuery("clinic", institutionId, "UPDATED", 2, 30)
@@ -595,7 +595,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from herb_index_operation_log l")
                 .contains("order by created_at desc, id desc limit ? offset ?");
@@ -617,7 +617,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildInstitutionQueryWithKeywordStatusTypeAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminInstitutions(new AdminInstitutionQuery("demo", "ENABLED", "HOSPITAL", 3, 15));
 
@@ -643,7 +643,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from institution i")
                 .contains("order by status asc, institution_name asc, institution_code asc limit ? offset ?");
@@ -662,7 +662,7 @@ class OrderRepositoryTest {
     void shouldBuildInstitutionAppQueryWithFiltersAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminInstitutionApps(new AdminInstitutionAppQuery("app", institutionId, true, 4, 12));
 
@@ -691,7 +691,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from institution_app a")
                 .contains("app_secret_configured")
@@ -711,7 +711,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildInstitutionApiQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminInstitutionApis(new AdminInstitutionApiQuery("order", true, 2, 30));
 
@@ -737,7 +737,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from institution_api_definition a")
                 .contains("order by enabled desc, api_code asc limit ? offset ?");
@@ -757,7 +757,7 @@ class OrderRepositoryTest {
         UUID institutionId = UUID.randomUUID();
         UUID apiId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminInstitutionApiPermissions(
                 new AdminInstitutionApiPermissionQuery("order", institutionId, apiId, true, 3, 20)
@@ -793,7 +793,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from institution_api_permission p")
                 .contains("order by p.enabled desc, i.institution_name asc, a.api_code asc limit ? offset ?");
@@ -816,7 +816,7 @@ class OrderRepositoryTest {
     void shouldBuildInstitutionIpWhitelistQueryWithFiltersAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminInstitutionIpWhitelists(
                 new AdminInstitutionIpWhitelistQuery("hospital", institutionId, "10.0", true, 2, 25)
@@ -847,7 +847,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from institution_ip_whitelist w")
                 .contains("order by w.enabled desc, i.institution_name asc, w.ip_range asc limit ? offset ?");
@@ -867,7 +867,7 @@ class OrderRepositoryTest {
     void shouldBuildLogisticsSpecialRuleQueryWithFiltersAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminLogisticsSpecialRules(
                 new AdminLogisticsSpecialRuleQuery("sf", institutionId, true, 3, 15)
@@ -899,7 +899,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from logistics_special_rule r")
                 .contains("order by r.enabled desc, i.institution_name asc, r.rule_name asc limit ? offset ?");
@@ -920,7 +920,7 @@ class OrderRepositoryTest {
     void shouldBuildLogisticsAddressCostQueryWithFiltersAndPagination() {
         UUID institutionId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminLogisticsAddressCosts(
                 new AdminLogisticsAddressCostQuery("sz", institutionId, "SF", true, 2, 10)
@@ -956,7 +956,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from logistics_address_cost c")
                 .contains("order by c.enabled desc, i.institution_name asc, c.province asc, c.city asc limit ? offset ?");
@@ -979,7 +979,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildOrderMergeQueryWithKeywordStatusAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminOrderMerges(new AdminOrderMergeQuery("MG", "ACTIVE", 2, 20));
 
@@ -1007,7 +1007,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from order_merge m")
                 .contains("left join lateral")
@@ -1028,7 +1028,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildOrderInterceptRuleQueryWithFiltersAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchAdminOrderInterceptRules(
                 new AdminOrderInterceptRuleQuery("phone", "CREATE_ORDER", true, 3, 10)
@@ -1058,7 +1058,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from order_intercept_rule r")
                 .contains("order by enabled desc, priority asc, rule_code asc limit ? offset ?");
@@ -1078,7 +1078,7 @@ class OrderRepositoryTest {
     @Test
     void shouldBuildLabelTemplateQueryWithFiltersAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
         UUID institutionId = UUID.randomUUID();
 
         repository.searchAdminLabelTemplates(
@@ -1111,7 +1111,7 @@ class OrderRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from label_template t")
                 .contains("order by t.enabled desc, t.updated_at desc, t.template_code asc limit ? offset ?");
@@ -1126,5 +1126,9 @@ class OrderRepositoryTest {
                 15,
                 15
         );
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }

@@ -24,7 +24,7 @@ class CallbackRepositoryTest {
     @Test
     void shouldConvertDueQueryTimeToOffsetDateTime() {
         Instant now = Instant.parse("2026-07-08T00:00:00Z");
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(java.util.List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(java.util.List.of());
 
         repository.findDueRecords(now, 10);
 
@@ -62,7 +62,11 @@ class CallbackRepositoryTest {
 
     private Object[] capturedQueryArgs() {
         ArgumentCaptor<Object[]> captor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), captor.capture());
+        verify(jdbcTemplate).query(anyString(), anyRowMapper(), captor.capture());
         return captor.getValue();
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }

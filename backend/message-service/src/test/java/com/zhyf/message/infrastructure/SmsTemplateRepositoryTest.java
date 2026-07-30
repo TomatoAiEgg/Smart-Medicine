@@ -22,10 +22,9 @@ class SmsTemplateRepositoryTest {
     private final SmsTemplateRepository repository = new SmsTemplateRepository(jdbcTemplate);
 
     @Test
-    @SuppressWarnings("unchecked")
     void shouldBuildSmsTemplateQueryWithFiltersAndPagination() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
-        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
         repository.searchSmsTemplates(new SmsTemplateRecords.SmsTemplateQuery("order", "ORDER", true, 2, 15));
 
@@ -52,7 +51,7 @@ class SmsTemplateRepositoryTest {
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), any(RowMapper.class), listArgsCaptor.capture());
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
         assertThat(listSqlCaptor.getValue())
                 .contains("from sms_template t")
                 .contains("order by enabled desc, updated_at desc, template_code asc limit ? offset ?");
@@ -66,5 +65,9 @@ class SmsTemplateRepositoryTest {
                 15,
                 15
         );
+    }
+
+    private static <T> RowMapper<T> anyRowMapper() {
+        return any();
     }
 }
