@@ -20,7 +20,7 @@ import {
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { pageSummaryText, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -164,10 +164,6 @@ function paymentLabel(value: string | null) {
   if (value === 'MONTHLY') return '寄付';
   if (value === 'COLLECT') return '到付';
   return value;
-}
-
-function pageSummary(total: number) {
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
 }
 
 function activeLogisticsTableColspan() {
@@ -993,7 +989,7 @@ defineExpose({
     </div>
 
     <p class="legacy-page-summary">
-      {{ pageSummary(activeLogisticsCount) }}
+      {{ pageSummaryText(activeLogisticsCount) }}
     </p>
 
     <section v-if="activeLogisticsDataset === 'shipments'" class="legacy-panel logistics-trace-panel">

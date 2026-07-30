@@ -10,7 +10,7 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, pageSummaryText, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type NumericValue = string | number | null | undefined;
@@ -95,7 +95,7 @@ const detailAmountSummary = computed(() => {
 
 const pageSummary = computed(() => {
   const total = visibleTasks.value.length;
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
+  return pageSummaryText(total);
 });
 
 const previewPrescriptionNo = computed(() => {

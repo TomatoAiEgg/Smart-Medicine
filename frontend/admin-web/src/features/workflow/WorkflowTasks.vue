@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, pageSummaryText, currentIsoDate, formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -141,7 +141,7 @@ const activeTableColspan = computed(() => {
 
 const activePageSummary = computed(() => {
   const total = activeWorkflowTasks.value.length;
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
+  return pageSummaryText(total);
 });
 
 const activeWorkflowLabel = computed(() => {

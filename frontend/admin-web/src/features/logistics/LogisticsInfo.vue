@@ -5,7 +5,7 @@ import { listLogisticsInfos } from '../../api/logistics';
 import type { LogisticsInfoRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -34,10 +34,6 @@ const requestId = ref(0);
 function normalizedLimit() {
   if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
   return Math.min(Math.trunc(limit.value), 200);
-}
-
-function pageSummary(total: number) {
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
 }
 
 function downloadLogisticsInfoCsv() {
@@ -200,7 +196,7 @@ defineExpose({
     </table>
 
     <div class="page_and_btn">
-      <div class="dataTables_info">{{ pageSummary(records.length) }}</div>
+      <div class="dataTables_info">{{ pageSummaryText(records.length) }}</div>
     </div>
   </section>
 </template>

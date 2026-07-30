@@ -43,7 +43,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, enabledText, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
+import { pageSummaryText, displayValue, enabledText, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -327,10 +327,6 @@ function emptyWaterPailForm(): WaterPailFormState {
     enabled: true,
     remark: '',
   };
-}
-
-function pageSummary(total: number) {
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${total} 项`;
 }
 
 function switchDecoctionDataset(dataset: DecoctionDataset) {
@@ -1729,7 +1725,7 @@ defineExpose({
       <span v-else>等待后端管理契约，当前仅展示已有煎煮作业 API 返回的数据。</span>
     </div>
 
-    <p class="legacy-page-summary">{{ pageSummary(activePageTotal) }}</p>
+    <p class="legacy-page-summary">{{ pageSummaryText(activePageTotal) }}</p>
 
     <div class="legacy-panel decoction-event-panel">
       <div class="decoction-record-toolbar">

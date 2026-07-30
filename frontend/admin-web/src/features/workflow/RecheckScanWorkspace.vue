@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { completeRecheckTask, listRecheckTasks } from '../../api/workflow';
 import type { WorkflowTaskSnapshot } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { pageSummaryText, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type RecheckMode = 'single' | 'multi';
@@ -60,7 +60,7 @@ const filteredTasks = computed(() => {
 });
 const pageSummary = computed(() => {
   const total = filteredTasks.value.length;
-  return `显示第 ${total > 0 ? 1 : 0} 至 ${total} 项记录，共 ${tasks.value.length} 项待复核`;
+  return pageSummaryText(total, '项待复核', tasks.value.length);
 });
 const canComplete = computed(() => Boolean(selectedTask.value && form.value.recheckUser.trim()));
 const activeTaskDetail = computed(() => {

@@ -28,6 +28,10 @@ export function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }
 
+export function pageSummaryText(count: number, totalLabel = '项', totalCount = count) {
+  return `显示第 ${count > 0 ? 1 : 0} 至 ${count} 项记录，共 ${totalCount} ${totalLabel}`;
+}
+
 export function defaultDate(offsetDays: number) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
