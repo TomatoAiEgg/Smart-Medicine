@@ -19,7 +19,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -64,11 +64,6 @@ const selectedTemplate = computed(() => (
   ?? null
 ));
 const failedPrintRecords = computed(() => printRecords.value.filter((record) => record.printStatus === 'FAILED'));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function fullAddress(row: AdminPrescriptionReprintItem | AdminPrescriptionPrintPayload) {
   return [
@@ -134,7 +129,7 @@ function printStatusText(value: string | null | undefined) {
 }
 
 function templateOptionText(template: AdminLabelTemplateRecord) {
-  return `${template.templateName} / ${rowValue(template.prescriptionType || '通用')} / ${template.labelWidthMm}x${template.labelHeightMm}mm`;
+  return `${template.templateName} / ${displayValue(template.prescriptionType || '通用')} / ${template.labelWidthMm}x${template.labelHeightMm}mm`;
 }
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
@@ -300,7 +295,7 @@ async function goNextPage() {
 }
 
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -563,12 +558,12 @@ defineExpose({
           <tr v-for="record in printRecords" :key="record.id" class="legacy-main-info">
             <td>
               <strong>{{ record.prescriptionNo }}</strong>
-              <small>{{ rowValue(record.orderNo) }}</small>
+              <small>{{ displayValue(record.orderNo) }}</small>
             </td>
             <td><StatusPill :value="printStatusText(record.printStatus)" :tone="statusTone(record.printStatus)" /></td>
-            <td>{{ rowValue(record.templateName) }}</td>
-            <td class="legacy-left">{{ rowValue(record.failureReason) }}</td>
-            <td>{{ rowValue(record.operator) }}</td>
+            <td>{{ displayValue(record.templateName) }}</td>
+            <td class="legacy-left">{{ displayValue(record.failureReason) }}</td>
+            <td>{{ displayValue(record.operator) }}</td>
             <td>{{ formatDate(record.createdAt) }}</td>
             <td>
               <button
@@ -632,22 +627,22 @@ defineExpose({
             </td>
             <td>
               <strong>{{ row.prescriptionNo }}</strong>
-              <small>{{ rowValue(row.externalPrescriptionNo) }}</small>
+              <small>{{ displayValue(row.externalPrescriptionNo) }}</small>
             </td>
             <td>
               <StatusPill :value="row.prescriptionStatus" :tone="statusTone(row.prescriptionStatus)" />
               <small>{{ row.orderStatus }}</small>
             </td>
             <td>{{ patientInfo(row) }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
             <td class="legacy-left">{{ fullAddress(row) }}</td>
             <td>{{ formatDate(row.deliveryTime) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionType) }}</td>
             <td>{{ medicationMethodText(row.isWithin) }}</td>
-            <td>{{ rowValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.doseCount) }}</td>
             <td>{{ batchText(row.batchNo) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
-            <td>{{ rowValue(row.dispenser) }}</td>
+            <td>{{ displayValue(row.dispenser) }}</td>
             <td>
               <button
                 class="legacy-link-btn workflow-pass-btn"

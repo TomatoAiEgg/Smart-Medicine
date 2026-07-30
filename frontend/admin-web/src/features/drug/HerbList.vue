@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminHerb, listAdminHerbs, updateAdminHerb } from '../../api/order';
 import type { AdminHerbPage, AdminHerbRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -50,11 +50,6 @@ const editing = computed(() => form.value.id !== '');
 
 function queryEnabled() {
   return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
 }
 
 function enabledText(value: boolean) {
@@ -340,9 +335,9 @@ defineExpose({
           <tr v-for="row in rows" :key="row.id">
             <td>{{ row.herbCode }}</td>
             <td class="name-cell">{{ row.herbName }}</td>
-            <td>{{ rowValue(row.drugSpecs) }}</td>
-            <td>{{ rowValue(row.drugOrigin) }}</td>
-            <td>{{ rowValue(row.unit) }}</td>
+            <td>{{ displayValue(row.drugSpecs) }}</td>
+            <td>{{ displayValue(row.drugOrigin) }}</td>
+            <td>{{ displayValue(row.unit) }}</td>
             <td>{{ formatPrice(row.retailPrice) }}</td>
             <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>

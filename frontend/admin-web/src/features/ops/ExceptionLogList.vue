@@ -15,7 +15,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -75,11 +75,6 @@ const currentCount = computed(() => {
   if (activeDataset.value === 'callbackIssues') return callbackIssues.value.length;
   return integrationIssues.value.length;
 });
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function downloadExceptionCsv() {
   if (activeDataset.value === 'deadLetters') {
@@ -442,15 +437,15 @@ defineExpose({
         <tr v-for="record in deadLetters" :key="record.id" class="legacy-main-info">
           <td>
             <strong>{{ record.eventId }}</strong>
-            <small>{{ rowValue(record.aggregateId) }}</small>
+            <small>{{ displayValue(record.aggregateId) }}</small>
           </td>
           <td>
-            <strong>{{ rowValue(record.topic) }}</strong>
-            <small>{{ rowValue(record.tag) }}</small>
+            <strong>{{ displayValue(record.topic) }}</strong>
+            <small>{{ displayValue(record.tag) }}</small>
           </td>
-          <td>{{ rowValue(record.consumerGroup) }}</td>
+          <td>{{ displayValue(record.consumerGroup) }}</td>
           <td><StatusPill :value="record.status" :tone="statusTone(record.status)" /></td>
-          <td class="legacy-left exception-message">{{ rowValue(record.errorMessage) }}</td>
+          <td class="legacy-left exception-message">{{ displayValue(record.errorMessage) }}</td>
           <td>{{ record.retryCount }}</td>
           <td>{{ formatDate(record.updatedAt) }}</td>
           <td class="exception-actions">
@@ -490,21 +485,21 @@ defineExpose({
             <small>{{ record.callbackId }}</small>
           </td>
           <td>
-            <strong>{{ rowValue(record.orderNo) }}</strong>
+            <strong>{{ displayValue(record.orderNo) }}</strong>
             <small>{{ record.logisticsNo || record.businessId }}</small>
           </td>
           <td>
             <StatusPill :value="record.callbackStatus" :tone="statusTone(record.callbackStatus)" />
-            <small>{{ rowValue(record.logisticsStatus) }}</small>
+            <small>{{ displayValue(record.logisticsStatus) }}</small>
           </td>
           <td>
             <strong>{{ record.retryCount }}</strong>
             <small>{{ formatDate(record.nextRetryAt) }}</small>
           </td>
-          <td class="legacy-left exception-message">{{ rowValue(record.responseBody || record.requestUrl) }}</td>
+          <td class="legacy-left exception-message">{{ displayValue(record.responseBody || record.requestUrl) }}</td>
           <td>
-            <strong>{{ rowValue(record.latestTraceStatus) }}</strong>
-            <small>{{ rowValue(record.latestTraceContent) }}</small>
+            <strong>{{ displayValue(record.latestTraceStatus) }}</strong>
+            <small>{{ displayValue(record.latestTraceContent) }}</small>
           </td>
           <td>{{ formatDate(record.callbackUpdatedAt) }}</td>
         </tr>
@@ -540,13 +535,13 @@ defineExpose({
             <strong>{{ record.sourceSystem }} -> {{ record.targetSystem }}</strong>
             <small>{{ record.sourceType }}</small>
           </td>
-          <td>{{ rowValue(record.businessKey) }}</td>
+          <td>{{ displayValue(record.businessKey) }}</td>
           <td><StatusPill :value="record.taskStatus" :tone="statusTone(record.taskStatus)" /></td>
           <td>
             <strong>{{ record.retryCount }}</strong>
             <small>{{ formatDate(record.nextRetryAt) }}</small>
           </td>
-          <td class="legacy-left exception-message">{{ rowValue(record.responseBody || record.failureReason || record.requestUrl) }}</td>
+          <td class="legacy-left exception-message">{{ displayValue(record.responseBody || record.failureReason || record.requestUrl) }}</td>
           <td>
             <StatusPill :value="record.processStatus" :tone="statusTone(record.processStatus)" />
             <small>{{ record.messageType }}</small>

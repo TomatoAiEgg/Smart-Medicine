@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -91,11 +91,6 @@ const handleForm = ref({
 const activeCount = computed(() => records.value.filter((record) => record.status !== 'CLOSED').length);
 const closedCount = computed(() => records.value.filter((record) => record.status === 'CLOSED').length);
 const isEditing = computed(() => form.value.id !== '');
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function formatAmount(value: number | null | undefined) {
   const amount = value ?? 0;
@@ -464,9 +459,9 @@ defineExpose({
           <tr v-for="record in records" :key="record.id" :class="{ selected: selectedRecord?.id === record.id }">
             <td>
               <strong>{{ record.orderNo }}</strong>
-              <div class="muted-text">{{ rowValue(record.externalOrderNo) }}</div>
+              <div class="muted-text">{{ displayValue(record.externalOrderNo) }}</div>
             </td>
-            <td>{{ rowValue(record.institutionName) }}</td>
+            <td>{{ displayValue(record.institutionName) }}</td>
             <td>{{ problemTypeLabel(record.problemType) }}</td>
             <td>
               <StatusPill :value="statusLabel(record.status)" :tone="statusTone(record.status)" />
@@ -474,7 +469,7 @@ defineExpose({
             <td class="text-cell">{{ record.problemReason }}</td>
             <td class="text-cell">{{ record.handlingPlan }}</td>
             <td>{{ formatAmount(record.amount) }}</td>
-            <td>{{ rowValue(record.operator) }}</td>
+            <td>{{ displayValue(record.operator) }}</td>
             <td>{{ formatDate(record.updatedAt) }}</td>
             <td class="action-cell">
               <button class="legacy-link-btn" type="button" @click="editRecord(record)">编辑</button>
@@ -494,9 +489,9 @@ defineExpose({
         <li v-for="action in actions" :key="action.id">
           <span class="action-time">{{ formatDate(action.createdAt) }}</span>
           <strong>{{ action.action }}</strong>
-          <span>{{ rowValue(action.fromStatus) }} → {{ rowValue(action.toStatus) }}</span>
+          <span>{{ displayValue(action.fromStatus) }} → {{ displayValue(action.toStatus) }}</span>
           <span>{{ action.operator }}</span>
-          <span class="action-remark">{{ rowValue(action.remark) }}</span>
+          <span class="action-remark">{{ displayValue(action.remark) }}</span>
         </li>
       </ul>
     </section>

@@ -7,7 +7,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -49,11 +49,6 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 
 function actionText(value: string) {
   return actionTypes.find((option) => option.value === value)?.label ?? value;
-}
-
-function rowValue(value: string | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return value;
 }
 
 function downloadLogCsv() {
@@ -244,7 +239,7 @@ defineExpose({
               <small>{{ row.herbCode }}</small>
             </td>
             <td>{{ row.operator }}</td>
-            <td class="remark-cell">{{ rowValue(row.remark) }}</td>
+            <td class="remark-cell">{{ displayValue(row.remark) }}</td>
           </tr>
         </tbody>
       </table>

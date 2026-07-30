@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminHerbArea, listAdminHerbAreas, updateAdminHerbArea } from '../../api/order';
 import type { AdminHerbAreaPage, AdminHerbAreaRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -46,11 +46,6 @@ const editing = computed(() => form.value.id !== '');
 
 function queryEnabled() {
   return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
-
-function rowValue(value: string | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return value;
 }
 
 function enabledText(value: boolean) {
@@ -290,7 +285,7 @@ defineExpose({
             <td>{{ row.areaCode }}</td>
             <td>{{ row.areaName }}</td>
             <td>{{ enabledText(row.enabled) }}</td>
-            <td class="remark-cell">{{ rowValue(row.remark) }}</td>
+            <td class="remark-cell">{{ displayValue(row.remark) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td class="action-cell">
               <button class="legacy-link-btn" type="button" @click="editArea(row)">编辑</button>

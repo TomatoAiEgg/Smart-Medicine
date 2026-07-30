@@ -12,7 +12,7 @@ import type {
   AdminLabelTemplateRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -80,11 +80,6 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const isEditing = computed(() => form.value.id !== '');
 const previewText = computed(() => renderPreview(form.value.contentTemplate));
 
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
-
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }
@@ -94,7 +89,7 @@ function scopeText(value: string) {
 }
 
 function prescriptionTypeText(value: string | null | undefined) {
-  return prescriptionTypes.find((option) => option.value === (value ?? ''))?.label ?? rowValue(value);
+  return prescriptionTypes.find((option) => option.value === (value ?? ''))?.label ?? displayValue(value);
 }
 
 function downloadTemplateCsv() {
@@ -448,7 +443,7 @@ defineExpose({
             <td>{{ record.templateCode }}</td>
             <td>{{ record.templateName }}</td>
             <td>{{ scopeText(record.scopeType) }}</td>
-            <td>{{ rowValue(record.institutionName) }}</td>
+            <td>{{ displayValue(record.institutionName) }}</td>
             <td>{{ prescriptionTypeText(record.prescriptionType) }}</td>
             <td>{{ record.labelWidthMm }} x {{ record.labelHeightMm }}</td>
             <td>{{ enabledText(record.enabled) }}</td>
