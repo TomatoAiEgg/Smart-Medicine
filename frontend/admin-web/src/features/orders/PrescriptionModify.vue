@@ -16,7 +16,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -132,7 +132,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function hospitalTypeText(value: string | null | undefined) {
@@ -144,7 +144,7 @@ function hospitalTypeText(value: string | null | undefined) {
     2: '住院',
     3: '其他',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function isWithinText(value: number | null | undefined) {

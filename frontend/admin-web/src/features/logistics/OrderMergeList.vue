@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { cancelAdminOrderMerge, createAdminOrderMerge, listAdminOrderMerges } from '../../api/order';
 import type { AdminOrderMergeCommand, AdminOrderMergePage, AdminOrderMergeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -53,7 +53,7 @@ function statusLabel(value: string) {
     ACTIVE: '有效',
     CANCELLED: '已取消',
   };
-  return labels[value] ?? value;
+  return labelFromMap(value, labels, value);
 }
 
 function orderNoList(value: string) {

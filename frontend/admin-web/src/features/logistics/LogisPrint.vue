@@ -5,7 +5,7 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -79,7 +79,7 @@ function statusText(value: string | null | undefined) {
     FAILED: '失败',
     CANCELLED: '已取消',
   };
-  return labels[value] ?? value;
+  return labelFromMap(value, labels);
 }
 
 function deliveryTypeText(value: string | null | undefined) {
@@ -89,7 +89,7 @@ function deliveryTypeText(value: string | null | undefined) {
     PATIENT: '送个人',
     PICKUP: '自提',
   };
-  return labels[value] ?? value;
+  return labelFromMap(value, labels);
 }
 
 function downloadLogisPrintCsv() {

@@ -9,7 +9,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { boundedPositiveInteger, displayValue, EMPTY_VALUE, currentIsoDate, formatDate } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, EMPTY_VALUE, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -97,7 +97,7 @@ function statusText(status: string | null | undefined) {
     AUDIT_PASSED: '审核通过',
     AUDIT_FAILED: '审核失败',
   };
-  return labels[status] ?? status;
+  return labelFromMap(status, labels);
 }
 
 function hospitalTypeText(type: string | null | undefined) {
@@ -109,7 +109,7 @@ function hospitalTypeText(type: string | null | undefined) {
     INPATIENT: '住院',
     OTHER: '其他',
   };
-  return type ? labels[type] ?? type : EMPTY_VALUE;
+  return labelFromMap(type, labels);
 }
 
 function deliveryTypeText(type: string | null | undefined) {
@@ -118,7 +118,7 @@ function deliveryTypeText(type: string | null | undefined) {
     PATIENT: '送个人',
     PICKUP: '自提',
   };
-  return type ? labels[type] ?? type : EMPTY_VALUE;
+  return labelFromMap(type, labels);
 }
 
 function receiverSummary(row: AdminOrderListItem) {

@@ -12,7 +12,7 @@ import type {
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledBooleanParam, enabledText, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledBooleanParam, enabledText, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -77,7 +77,7 @@ function stageLabel(value: string) {
     STATUS_FLOW: '状态流转',
     LOGISTICS: '物流处理',
   };
-  return labels[value] ?? value;
+  return labelFromMap(value, labels, value);
 }
 
 function matchTypeLabel(value: string) {
@@ -87,7 +87,7 @@ function matchTypeLabel(value: string) {
     STARTS_WITH: '开头匹配',
     REGEX: '正则',
   };
-  return labels[value] ?? value;
+  return labelFromMap(value, labels, value);
 }
 
 function normalizedPriority() {

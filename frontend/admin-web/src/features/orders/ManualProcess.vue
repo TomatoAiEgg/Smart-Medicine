@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -99,7 +99,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     5: '散剂',
   };
   const items = splitValues(value);
-  return items.length ? items.map((item) => labels[item] ?? item).join('、') : '-';
+  return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
 function hospitalTypeText(value: string | null | undefined) {
@@ -110,7 +110,7 @@ function hospitalTypeText(value: string | null | undefined) {
     2: '住院',
   };
   const items = splitValues(value);
-  return items.length ? items.map((item) => labels[item] ?? item).join('、') : '-';
+  return items.length ? items.map((item) => labelFromMap(item, labels)).join('、') : '-';
 }
 
 function deliveryTypeText(value: string | null | undefined) {
@@ -120,7 +120,7 @@ function deliveryTypeText(value: string | null | undefined) {
     1: '送医院',
     2: '送患者',
   };
-  return value ? labels[value] ?? value : '-';
+  return labelFromMap(value, labels);
 }
 
 function canProcess(row: AdminManualProcessItem) {

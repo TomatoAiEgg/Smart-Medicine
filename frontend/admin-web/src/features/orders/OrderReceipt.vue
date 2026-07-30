@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -88,7 +88,7 @@ function prescriptionTypeText(value: string | null | undefined) {
     4: '丸剂',
     5: '散剂',
   };
-  return value.split(',').map((item) => labels[item] ?? item).join('，');
+  return value.split(',').map((item) => labelFromMap(item, labels, item)).join('，');
 }
 
 function queryParams(): AdminOrderReceiptQueryParams {
