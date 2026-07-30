@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { getOrderObservability } from '../../api/ops';
 import type {
   DeadLetterRecord,
@@ -36,13 +36,6 @@ const failedConsumeStatuses = new Set(['FAILED', 'FAILED_RETRYABLE', 'FAILED_FAT
 const failedCallbackStatuses = new Set(['FAILED', 'DEAD']);
 const failedOutboxStatuses = new Set(['FAILED', 'PUBLISH_FAILED', 'DEAD']);
 const openDeadLetterStatuses = new Set(['OPEN']);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function normalizedLimit() {
   if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;

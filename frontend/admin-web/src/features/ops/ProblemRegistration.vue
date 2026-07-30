@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   createProblemRegistration,
   handleProblemRegistration,
@@ -91,13 +91,6 @@ const handleForm = ref({
 const activeCount = computed(() => records.value.filter((record) => record.status !== 'CLOSED').length);
 const closedCount = computed(() => records.value.filter((record) => record.status === 'CLOSED').length);
 const isEditing = computed(() => form.value.id !== '');
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
