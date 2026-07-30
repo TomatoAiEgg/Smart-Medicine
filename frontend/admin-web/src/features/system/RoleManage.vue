@@ -3,10 +3,10 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { listAdminOperatorRoles, listAdminOperators, renameAdminOperatorRole } from '../../api/order';
 import type { AdminOperatorRecord, AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
+import { downloadCsv } from '../../domain/csv';
 import { formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-type CsvExportValue = string | number | null | undefined;
 
 interface RenameForm {
   oldRoleCode: string;
@@ -56,14 +56,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '请求失败';
 }
 
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
 function enabledLabel(enabled: boolean) {
   return enabled ? '启用' : '停用';
 }
@@ -90,24 +82,18 @@ async function downloadRoleCsv() {
   try {
     const records = await listExportRoles();
     const headers = ['角色标识', '操作员数', '启用数', '停用数', '首次创建', '最近更新'];
-    const lines = [
-      headers.map(escapeCsvCell).join(','),
-      ...records.map((row) => [
+    downloadCsv(
+      'operator-roles.csv',
+      headers,
+      records.map((row) => [
         row.roleCode,
         row.operatorCount,
         row.enabledCount,
         row.disabledCount,
         formatDate(row.createdAt),
         formatDate(row.updatedAt),
-      ].map(escapeCsvCell).join(',')),
-    ];
-    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'operator-roles.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+      ]),
+    );
     emit('notice', 'success', `已导出 ${formatNumber(records.length)} 个角色标识`);
   } catch (error) {
     errorLine.value = errorMessage(error);
@@ -138,24 +124,18 @@ async function downloadRoleMemberCsv(row: AdminOperatorRoleRecord) {
   try {
     const records = await listRoleMembers(row.roleCode);
     const headers = ['角色标识', '登录账号', '姓名', '状态', '创建时间', '更新时间'];
-    const lines = [
-      headers.map(escapeCsvCell).join(','),
-      ...records.map((operator) => [
+    downloadCsv(
+      `operator-role-${row.roleCode}-members.csv`,
+      headers,
+      records.map((operator) => [
         row.roleCode,
         operator.username,
         operator.displayName,
         enabledLabel(operator.enabled),
         formatDate(operator.createdAt),
         formatDate(operator.updatedAt),
-      ].map(escapeCsvCell).join(',')),
-    ];
-    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `operator-role-${row.roleCode}-members.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+      ]),
+    );
     emit('notice', 'success', `已导出 ${row.roleCode} 的 ${formatNumber(records.length)} 名成员`);
   } catch (error) {
     errorLine.value = errorMessage(error);

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { menuItems, standaloneRouteItems, type AppRouteItem } from '../../app/views';
+import { downloadCsv } from '../../domain/csv';
 import { formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type StatusFilter = 'all' | 'implemented' | 'pending';
-type CsvExportValue = string | number | boolean | null | undefined;
 
 const props = defineProps<{
   active: boolean;
@@ -65,19 +65,12 @@ function rowValue(value: string | null | undefined) {
   return value;
 }
 
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
 function downloadMenuCsv() {
   const headers = ['菜单', '分组', '路径', '旧系统路由', '优先级', '状态', '组件', '核心动作', '接口依赖'];
-  const lines = [
-    headers.map(escapeCsvCell).join(','),
-    ...exportRows.value.map((row) => [
+  downloadCsv(
+    'menu-registry.csv',
+    headers,
+    exportRows.value.map((row) => [
       row.label,
       row.group,
       row.path,
@@ -87,15 +80,8 @@ function downloadMenuCsv() {
       row.plannedComponent,
       row.coreActions.join('、'),
       row.apiDependencies.join('、'),
-    ].map(escapeCsvCell).join(',')),
-  ];
-  const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'menu-registry.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+    ]),
+  );
   emit('notice', 'success', `已导出 ${formatNumber(exportRows.value.length)} 个菜单入口`);
 }
 
