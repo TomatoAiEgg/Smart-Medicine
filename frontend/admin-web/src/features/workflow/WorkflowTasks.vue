@@ -195,6 +195,15 @@ function rowValue(value: string | number | null | undefined) {
   return String(value);
 }
 
+function escapeHtml(value: string | number | null | undefined) {
+  return rowValue(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
   const nextValue = typeof value === 'number' ? value : Number(value);
@@ -496,9 +505,108 @@ async function handleBatchApproval(task: WorkflowTaskSnapshot, batch: '早批次
   await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`, String(batchNo));
 }
 
-function handlePendingReviewAction(actionName: '拆单') {
-  reviewDetailNotice.value = `${actionName}后端接口待补契约，当前未提交任何变更。`;
-  emit('notice', 'info', reviewDetailNotice.value);
+function renderSplitPreviewDrugRows(details: readonly AdminOrderDetailDrug[]) {
+  if (details.length === 0) return '<tr><td colspan="8">暂无药品明细</td></tr>';
+  return details.map((detail, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(detail.drugCode)}</td>
+      <td>${escapeHtml(detail.drugName)}</td>
+      <td>${escapeHtml(detail.platformDrugName)}</td>
+      <td>${escapeHtml(detail.drugSpecs)}</td>
+      <td>${escapeHtml([detail.dose, detail.unit].filter(Boolean).join(' / '))}</td>
+      <td>${escapeHtml(amountValue(detail.quantity))}</td>
+      <td>${escapeHtml(moneyValue(detail.totalPrice))}</td>
+    </tr>
+  `).join('');
+}
+
+function renderSplitPreviewSections(detail: AdminOrderDetail) {
+  if (detail.prescriptions.length === 0) return '<section class="split-section"><p>暂无可预览处方</p></section>';
+  return detail.prescriptions.map((prescription, index) => `
+    <section class="split-section">
+      <h2>拆单建议 ${index + 1}：${escapeHtml(prescription.prescriptionNo)}</h2>
+      <div class="grid">
+        <div><span>机构处方号</span><strong>${escapeHtml(prescription.externalPrescriptionNo)}</strong></div>
+        <div><span>处方类型</span><strong>${escapeHtml(prescription.prescriptionType)}</strong></div>
+        <div><span>处方状态</span><strong>${escapeHtml(prescription.prescriptionStatus)}</strong></div>
+        <div><span>剂数</span><strong>${escapeHtml(prescription.doseCount)}</strong></div>
+        <div><span>煎煮次数</span><strong>${escapeHtml(prescription.decoctionCount)}</strong></div>
+        <div><span>处方金额</span><strong>${escapeHtml(moneyValue(prescription.totalAmount))}</strong></div>
+        <div><span>医生</span><strong>${escapeHtml(prescription.doctorName)}</strong></div>
+        <div><span>科室/病区</span><strong>${escapeHtml(prescription.departmentName)} / ${escapeHtml(prescription.wardName)}</strong></div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>序号</th><th>机构药品编码</th><th>机构药品名称</th><th>平台药品名称</th><th>规格</th><th>剂量</th><th>数量</th><th>金额</th>
+          </tr>
+        </thead>
+        <tbody>${renderSplitPreviewDrugRows(prescription.details)}</tbody>
+      </table>
+    </section>
+  `).join('');
+}
+
+function renderSplitPreviewHtml(detail: AdminOrderDetail) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>拆单预览-${escapeHtml(detail.orderNo)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 12px; }
+    .toolbar { position: fixed; right: 14px; top: 14px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    h1 { margin: 0 0 10px; font-size: 22px; letter-spacing: 0; }
+    h2 { margin: 16px 0 8px; font-size: 16px; letter-spacing: 0; }
+    .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; color: #475569; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+    .grid div { border: 1px solid #cbd5e1; padding: 6px; }
+    .grid span { display: block; color: #64748b; margin-bottom: 3px; }
+    .grid strong { word-break: break-word; }
+    table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+    th, td { border: 1px solid #cbd5e1; padding: 5px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    .split-section { page-break-inside: avoid; margin-top: 10px; }
+    .foot { margin-top: 12px; color: #64748b; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  <h1>订单拆单预览</h1>
+  <div class="meta">
+    <span>平台订单号：${escapeHtml(detail.orderNo)}</span>
+    <span>外部订单号：${escapeHtml(detail.externalOrderNo)}</span>
+    <span>机构：${escapeHtml(detail.institutionName)}</span>
+    <span>患者：${escapeHtml(detail.patientName)}</span>
+    <span>打印时间：${escapeHtml(formatDate(new Date().toISOString()))}</span>
+  </div>
+  ${renderSplitPreviewSections(detail)}
+  <div class="foot">本预览只基于当前订单处方明细生成，不提交拆单、不改变订单或处方状态。</div>
+</body>
+</html>`;
+}
+
+function printReviewSplitPreview() {
+  if (!reviewOrderDetail.value) {
+    reviewDetailNotice.value = '订单详情尚未加载完成，暂不能生成拆单预览。';
+    emit('notice', 'info', reviewDetailNotice.value);
+    return;
+  }
+  reviewDetailNotice.value = '';
+  const printWindow = window.open('', '_blank', 'width=1200,height=820');
+  if (!printWindow) {
+    reviewDetailNotice.value = '浏览器阻止了拆单预览窗口';
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(renderSplitPreviewHtml(reviewOrderDetail.value));
+  printWindow.document.close();
+  emit('notice', 'success', `${reviewOrderDetail.value.orderNo} 拆单预览窗口已打开`);
 }
 
 function fillReviewRemarkForm() {
@@ -736,7 +844,14 @@ defineExpose({
           >
             备注
           </button>
-          <button class="legacy-btn" type="button" @click="handlePendingReviewAction('拆单')">拆单</button>
+          <button
+            class="legacy-btn"
+            type="button"
+            :disabled="reviewDetailLoading || !reviewOrderDetail"
+            @click="printReviewSplitPreview"
+          >
+            拆单预览
+          </button>
           <button
             class="legacy-btn"
             type="button"
