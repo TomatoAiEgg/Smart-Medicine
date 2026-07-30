@@ -1,4 +1,4 @@
-import { request } from './client';
+import { downloadBlob, request } from './client';
 import type {
   AdminInstitutionApiCommand,
   AdminInstitutionApiPage,
@@ -561,11 +561,7 @@ export function listAdminOrderWarehouses(params: AdminOrderWarehouseQueryParams 
 
 export async function downloadAdminOrderWarehousesCsv(params: AdminOrderWarehouseQueryParams = {}) {
   const query = buildOrderQuery(params);
-  const response = await fetch(`/order-api/api/admin/order-warehouses/export.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/order-api/api/admin/order-warehouses/export.csv${query ? `?${query}` : ''}`);
 }
 
 export function getAdminPrescriptionPrintPayload(prescriptionNo: string) {
@@ -612,11 +608,7 @@ export function updateAdminLabelTemplate(templateId: string, command: AdminLabel
 
 export async function downloadAdminOrdersCsv(params: AdminOrderQueryParams = {}) {
   const query = buildOrderQuery(params);
-  const response = await fetch(`/order-api/api/admin/orders/export.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/order-api/api/admin/orders/export.csv${query ? `?${query}` : ''}`);
 }
 
 export function getOrder(orderNo: string) {

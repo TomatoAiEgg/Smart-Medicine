@@ -46,3 +46,22 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
   return payload.data;
 }
+
+export async function downloadBlob(url: string, init?: RequestInit): Promise<Blob> {
+  let response: Response;
+
+  try {
+    response = await fetch(url, init);
+  } catch (error) {
+    throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
+  }
+
+  if (response.ok) return response.blob();
+
+  const contentType = response.headers.get('content-type') || '';
+  const payload = contentType.includes('application/json')
+    ? ((await response.json()) as ApiResponse<unknown>)
+    : null;
+
+  throw new ApiError(payload?.message || `导出失败：HTTP ${response.status}`, payload?.code, response.status);
+}

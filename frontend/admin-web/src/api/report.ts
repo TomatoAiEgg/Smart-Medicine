@@ -1,4 +1,4 @@
-import { request } from './client';
+import { downloadBlob, request } from './client';
 import type {
   AuditPerformanceDetailRecord,
   AuditPerformanceRecord,
@@ -43,11 +43,7 @@ export function getReportOverview(params: ReportOverviewQuery = {}) {
 
 export async function downloadReportOverviewCsv(params: ReportOverviewQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/overview.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/overview.csv${query ? `?${query}` : ''}`);
 }
 
 export function listInstitutionPrescriptionCounts(params: ReportTimeRangeQuery = {}) {
@@ -59,11 +55,7 @@ export function listInstitutionPrescriptionCounts(params: ReportTimeRangeQuery =
 
 export async function downloadInstitutionPrescriptionCountsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/institution-prescription-counts.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/institution-prescription-counts.csv${query ? `?${query}` : ''}`);
 }
 
 export function listDispensePerformance(params: ReportTimeRangeQuery = {}) {
@@ -75,11 +67,7 @@ export function listDispensePerformance(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadDispensePerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/dispense-performance.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/dispense-performance.csv${query ? `?${query}` : ''}`);
 }
 
 export function listDispensePerformanceDetails(params: ReportTimeRangeQuery = {}) {
@@ -91,11 +79,7 @@ export function listDispensePerformanceDetails(params: ReportTimeRangeQuery = {}
 
 export async function downloadDispensePerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/dispense-performance-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/dispense-performance-details.csv${query ? `?${query}` : ''}`);
 }
 
 export function listRecheckPerformance(params: ReportTimeRangeQuery = {}) {
@@ -107,11 +91,7 @@ export function listRecheckPerformance(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadRecheckPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/recheck-performance.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/recheck-performance.csv${query ? `?${query}` : ''}`);
 }
 
 export function listRecheckPerformanceDetails(params: ReportTimeRangeQuery = {}) {
@@ -123,11 +103,7 @@ export function listRecheckPerformanceDetails(params: ReportTimeRangeQuery = {})
 
 export async function downloadRecheckPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/recheck-performance-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/recheck-performance-details.csv${query ? `?${query}` : ''}`);
 }
 
 export function listAuditPerformance(params: ReportTimeRangeQuery = {}) {
@@ -139,11 +115,7 @@ export function listAuditPerformance(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadAuditPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/audit-performance.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/audit-performance.csv${query ? `?${query}` : ''}`);
 }
 
 export function listAuditPerformanceDetails(params: ReportTimeRangeQuery = {}) {
@@ -155,11 +127,7 @@ export function listAuditPerformanceDetails(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadAuditPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/audit-performance-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/audit-performance-details.csv${query ? `?${query}` : ''}`);
 }
 
 export function listDecoctionPerformance(params: ReportTimeRangeQuery = {}) {
@@ -171,11 +139,7 @@ export function listDecoctionPerformance(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadDecoctionPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/decoction-performance.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/decoction-performance.csv${query ? `?${query}` : ''}`);
 }
 
 export function listLogisticsPerformance(params: ReportTimeRangeQuery = {}) {
@@ -187,11 +151,7 @@ export function listLogisticsPerformance(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadLogisticsPerformanceCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/logistics-performance.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/logistics-performance.csv${query ? `?${query}` : ''}`);
 }
 
 export function listLogisticsPerformanceDetails(params: ReportTimeRangeQuery = {}) {
@@ -203,11 +163,7 @@ export function listLogisticsPerformanceDetails(params: ReportTimeRangeQuery = {
 
 export async function downloadLogisticsPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/logistics-performance-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/logistics-performance-details.csv${query ? `?${query}` : ''}`);
 }
 
 export function listDecoctionPerformanceDetails(params: ReportTimeRangeQuery = {}) {
@@ -219,11 +175,7 @@ export function listDecoctionPerformanceDetails(params: ReportTimeRangeQuery = {
 
 export async function downloadDecoctionPerformanceDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/decoction-performance-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/decoction-performance-details.csv${query ? `?${query}` : ''}`);
 }
 
 export function listHerbDosage(params: ReportTimeRangeQuery = {}) {
@@ -233,11 +185,7 @@ export function listHerbDosage(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadHerbDosageCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/herb-dosage.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/herb-dosage.csv${query ? `?${query}` : ''}`);
 }
 
 export function listInstitutionHerbReconciliation(params: ReportTimeRangeQuery = {}) {
@@ -249,11 +197,7 @@ export function listInstitutionHerbReconciliation(params: ReportTimeRangeQuery =
 
 export async function downloadInstitutionHerbReconciliationCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/institution-herb-reconciliation.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/institution-herb-reconciliation.csv${query ? `?${query}` : ''}`);
 }
 
 export function listPrescriptionHerbDetails(params: ReportTimeRangeQuery = {}) {
@@ -265,9 +209,5 @@ export function listPrescriptionHerbDetails(params: ReportTimeRangeQuery = {}) {
 
 export async function downloadPrescriptionHerbDetailsCsv(params: ReportTimeRangeQuery = {}) {
   const query = buildQuery(params);
-  const response = await fetch(`/report-api/api/admin/reports/prescription-herb-details.csv${query ? `?${query}` : ''}`);
-  if (!response.ok) {
-    throw new Error(`导出失败：HTTP ${response.status}`);
-  }
-  return response.blob();
+  return downloadBlob(`/report-api/api/admin/reports/prescription-herb-details.csv${query ? `?${query}` : ''}`);
 }
