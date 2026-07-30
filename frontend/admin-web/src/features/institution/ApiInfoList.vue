@@ -8,7 +8,7 @@ import type {
   AdminInstitutionApiRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -59,11 +59,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function enabledLabel(value: boolean) {
   return value ? '启用' : '停用';
@@ -342,11 +337,11 @@ defineExpose({
             <td colspan="8" class="legacy-empty">没有相关接口</td>
           </tr>
           <tr v-for="row in rows" :key="row.id" class="legacy-main-info">
-            <td><code>{{ rowValue(row.apiCode) }}</code></td>
-            <td class="legacy-left"><strong>{{ rowValue(row.apiName) }}</strong></td>
-            <td>{{ rowValue(row.requestMethod) }}</td>
-            <td class="legacy-left"><code>{{ rowValue(row.requestPath) }}</code></td>
-            <td class="legacy-left">{{ rowValue(row.description) }}</td>
+            <td><code>{{ displayValue(row.apiCode) }}</code></td>
+            <td class="legacy-left"><strong>{{ displayValue(row.apiName) }}</strong></td>
+            <td>{{ displayValue(row.requestMethod) }}</td>
+            <td class="legacy-left"><code>{{ displayValue(row.requestPath) }}</code></td>
+            <td class="legacy-left">{{ displayValue(row.description) }}</td>
             <td>{{ enabledLabel(row.enabled) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>

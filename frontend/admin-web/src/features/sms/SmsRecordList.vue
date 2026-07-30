@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { listSmsRecords } from '../../api/sms';
 import type { SmsSendResult } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -38,11 +38,6 @@ const records = computed(() => recordPage.value?.records ?? []);
 const total = computed(() => recordPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function sendStatusText(value: string) {
   return statusOptions.find((option) => option.value === value)?.label ?? value;
@@ -220,11 +215,11 @@ defineExpose({
           <tr v-for="record in records" :key="record.id">
             <td>{{ record.templateName }}</td>
             <td>{{ record.receiverPhone }}</td>
-            <td>{{ rowValue(record.receiverName) }}</td>
-            <td>{{ rowValue(record.relatedOrderNo) }}</td>
+            <td>{{ displayValue(record.receiverName) }}</td>
+            <td>{{ displayValue(record.relatedOrderNo) }}</td>
             <td>{{ sendStatusText(record.sendStatus) }}</td>
             <td>{{ record.retryCount }}</td>
-            <td>{{ rowValue(record.operator) }}</td>
+            <td>{{ displayValue(record.operator) }}</td>
             <td>{{ formatDate(record.createdAt) }}</td>
             <td>
               <button class="legacy-link-btn" type="button" @click="showDetail(record)">详情</button>
@@ -254,10 +249,10 @@ defineExpose({
         <span>模板编码：{{ selectedRecord.templateCode }}</span>
         <span>模板名称：{{ selectedRecord.templateName }}</span>
         <span>手机号：{{ selectedRecord.receiverPhone }}</span>
-        <span>接收人：{{ rowValue(selectedRecord.receiverName) }}</span>
-        <span>关联订单：{{ rowValue(selectedRecord.relatedOrderNo) }}</span>
-        <span>服务商流水：{{ rowValue(selectedRecord.providerMessageId) }}</span>
-        <span>失败原因：{{ rowValue(selectedRecord.failureReason) }}</span>
+        <span>接收人：{{ displayValue(selectedRecord.receiverName) }}</span>
+        <span>关联订单：{{ displayValue(selectedRecord.relatedOrderNo) }}</span>
+        <span>服务商流水：{{ displayValue(selectedRecord.providerMessageId) }}</span>
+        <span>失败原因：{{ displayValue(selectedRecord.failureReason) }}</span>
         <span>更新时间：{{ formatDate(selectedRecord.updatedAt) }}</span>
       </div>
       <div class="detail-content">

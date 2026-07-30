@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createSmsTemplate, listSmsTemplates, updateSmsTemplate } from '../../api/sms';
 import type { SmsTemplateRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -63,11 +63,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const isEditing = computed(() => form.value.id !== '');
 const previewText = computed(() => renderPreview(form.value.contentTemplate));
-
-function rowValue(value: string | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return value;
-}
 
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
@@ -363,7 +358,7 @@ defineExpose({
             <td>{{ record.templateCode }}</td>
             <td>{{ record.templateName }}</td>
             <td>{{ templateTypeText(record.templateType) }}</td>
-            <td>{{ rowValue(record.signature) }}</td>
+            <td>{{ displayValue(record.signature) }}</td>
             <td class="content-cell">{{ record.contentTemplate }}</td>
             <td>{{ enabledText(record.enabled) }}</td>
             <td>{{ formatDate(record.updatedAt) }}</td>

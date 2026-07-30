@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -73,11 +73,6 @@ const saveButtonLabel = computed(() => {
   if (!editing.value) return '新增应用';
   return form.value.appSecret.trim() ? '保存并重置密钥' : '保存修改';
 });
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function enabledLabel(value: boolean) {
   return value ? '启用' : '停用';
@@ -403,10 +398,10 @@ defineExpose({
             <td class="legacy-left">
               <strong>{{ institutionText(row) }}</strong>
             </td>
-            <td><code>{{ rowValue(row.appKey) }}</code></td>
-            <td>{{ rowValue(row.signType) }}</td>
+            <td><code>{{ displayValue(row.appKey) }}</code></td>
+            <td>{{ displayValue(row.signType) }}</td>
             <td>{{ secretLabel(row) }}</td>
-            <td class="legacy-left">{{ rowValue(row.callbackUrl) }}</td>
+            <td class="legacy-left">{{ displayValue(row.callbackUrl) }}</td>
             <td>{{ enabledLabel(row.enabled) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>

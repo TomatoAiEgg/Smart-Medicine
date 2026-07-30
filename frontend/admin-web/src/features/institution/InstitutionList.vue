@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -53,11 +53,6 @@ const disabledCount = computed(() => rows.value.filter((row) => row.status !== '
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function statusLabel(value: string) {
   if (value === 'ENABLED') return '启用';
@@ -334,11 +329,11 @@ defineExpose({
             <td colspan="8" class="legacy-empty">没有相关机构</td>
           </tr>
           <tr v-for="row in rows" :key="row.id" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.institutionCode) }}</strong></td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
+            <td><strong>{{ displayValue(row.institutionCode) }}</strong></td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
             <td>{{ typeLabel(row.institutionType) }}</td>
             <td>{{ statusLabel(row.status) }}</td>
-            <td>{{ rowValue(row.storageType) }}</td>
+            <td>{{ displayValue(row.storageType) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { menuItems, standaloneRouteItems, type AppRouteItem } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { formatNumber } from '../../domain/formatters';
+import { displayValue, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type StatusFilter = 'all' | 'implemented' | 'pending';
@@ -59,11 +59,6 @@ const groupedRows = computed(() => {
 });
 const filteredCount = computed(() => groupedRows.value.reduce((count, entry) => count + entry.rows.length, 0));
 const exportRows = computed(() => groupedRows.value.flatMap((entry) => entry.rows));
-
-function rowValue(value: string | null | undefined) {
-  if (!value) return '-';
-  return value;
-}
 
 function downloadMenuCsv() {
   const headers = ['菜单', '分组', '路径', '旧系统路由', '优先级', '状态', '组件', '核心动作', '接口依赖'];
@@ -202,7 +197,7 @@ defineExpose({
               </td>
               <td>{{ row.group }}</td>
               <td>{{ row.path }}</td>
-              <td>{{ rowValue(row.legacyRoute) }}</td>
+              <td>{{ displayValue(row.legacyRoute) }}</td>
               <td>{{ row.priority }}</td>
               <td>
                 <span :class="['menu-registry-status', row.implemented ? 'is-ready' : 'is-pending']">

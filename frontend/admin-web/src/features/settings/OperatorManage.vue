@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminOperator, listAdminOperators, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -51,11 +51,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function enabledText(value: boolean) {
   return value ? '启用' : '停用';
@@ -303,9 +298,9 @@ defineExpose({
             <td colspan="7" class="legacy-empty">没有相关工号</td>
           </tr>
           <tr v-for="row in rows" :key="row.id" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.username) }}</strong></td>
-            <td>{{ rowValue(row.displayName) }}</td>
-            <td>{{ rowValue(row.roleCode) }}</td>
+            <td><strong>{{ displayValue(row.username) }}</strong></td>
+            <td>{{ displayValue(row.displayName) }}</td>
+            <td>{{ displayValue(row.roleCode) }}</td>
             <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>

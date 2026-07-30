@@ -11,7 +11,7 @@ import {
 } from '../../api/order';
 import type { AdminDictItemRecord, AdminDictTypeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -75,11 +75,6 @@ const hasNextItemPage = computed(() => !loadingItems.value && itemPageNo.value *
 
 function queryEnabled(value: EnabledFilter) {
   return value === '' ? undefined : value;
-}
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
 }
 
 function enabledText(value: boolean) {
@@ -558,7 +553,7 @@ defineExpose({
                 <td>{{ row.typeName }}</td>
                 <td>{{ row.itemCode }}</td>
                 <td>{{ row.itemName }}</td>
-                <td>{{ rowValue(row.itemValue) }}</td>
+                <td>{{ displayValue(row.itemValue) }}</td>
                 <td>{{ row.sortNo }}</td>
                 <td>{{ enabledText(row.enabled) }}</td>
                 <td>{{ formatDate(row.updatedAt) }}</td>
