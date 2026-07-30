@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadLogisticsPerformanceDetailsCsv, listLogisticsPerformanceDetails } from '../../api/report';
 import type { LogisticsPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber, numericValueOrZero as numericValue } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber, labelFromMap, numericValueOrZero as numericValue } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -43,10 +43,11 @@ function formatWeight(value: number | string | null | undefined) {
 }
 
 function logisticsStatusLabel(value: string | null) {
-  if (value === 'PACKED') return '已打包';
-  if (value === 'SHIPPED') return '已发货';
-  if (value === 'SIGNED') return '已签收';
-  return displayValue(value);
+  return labelFromMap(value, {
+    PACKED: '已打包',
+    SHIPPED: '已发货',
+    SIGNED: '已签收',
+  });
 }
 
 async function refreshLogisticsPerformanceDetails() {

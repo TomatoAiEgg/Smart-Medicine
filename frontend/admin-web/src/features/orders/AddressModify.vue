@@ -15,7 +15,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, joinDisplayParts } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -80,11 +80,14 @@ const selectedRows = computed(() => rows.value.filter((row) => selectedOrderNos.
 const selectedCurrentPageAll = computed(() => rows.value.length > 0 && selectedRows.value.length === rows.value.length);
 
 function addressTypeLabel(value: string | null | undefined) {
-  if (!value) return '-';
-  if (value === '0' || value === 'DEFAULT') return '默认';
-  if (value === '1' || value === 'HOSPITAL') return '送医院';
-  if (value === '2' || value === 'PERSONAL') return '送个人';
-  return value;
+  return labelFromMap(value, {
+    0: '默认',
+    DEFAULT: '默认',
+    1: '送医院',
+    HOSPITAL: '送医院',
+    2: '送个人',
+    PERSONAL: '送个人',
+  });
 }
 
 function fullAddress(row: AdminOrderListItem | AdminOrderDetail) {

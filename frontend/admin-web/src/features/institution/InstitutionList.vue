@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -55,16 +55,18 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const editing = computed(() => form.value.id !== null);
 
 function statusLabel(value: string) {
-  if (value === 'ENABLED') return '启用';
-  if (value === 'DISABLED') return '停用';
-  return value;
+  return labelFromMap(value, {
+    ENABLED: '启用',
+    DISABLED: '停用',
+  }, value);
 }
 
 function typeLabel(value: string) {
-  if (value === 'HOSPITAL') return '医院';
-  if (value === 'PHARMACY') return '药房';
-  if (value === 'PLATFORM') return '平台';
-  return value;
+  return labelFromMap(value, {
+    HOSPITAL: '医院',
+    PHARMACY: '药房',
+    PLATFORM: '平台',
+  }, value);
 }
 
 function commandFromForm(): AdminInstitutionCommand {
