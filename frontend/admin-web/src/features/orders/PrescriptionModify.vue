@@ -16,7 +16,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -96,11 +96,6 @@ const calculatedDecoctionCount = computed(() => {
 });
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function formNumber(value: FormNumberValue) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -450,12 +445,12 @@ defineExpose({
             class="legacy-main-info"
             :class="{ active: selectedOrder?.orderNo === row.orderNo }"
           >
-            <td>{{ rowValue(row.prescriptionNos) }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.prescriptionNos) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionTypes) }}</td>
-            <td>{{ rowValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.doseCount) }}</td>
             <td>-</td>
             <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
@@ -488,7 +483,7 @@ defineExpose({
         <span>机构</span>
         <strong>{{ selectedOrder.institutionName }}</strong>
         <span>病人</span>
-        <strong>{{ rowValue(selectedOrder.patientName) }} / {{ rowValue(selectedOrder.patientPhone) }}</strong>
+        <strong>{{ displayValue(selectedOrder.patientName) }} / {{ displayValue(selectedOrder.patientPhone) }}</strong>
         <span>订单状态</span>
         <strong><StatusPill :value="selectedOrder.orderStatus" :tone="statusTone(selectedOrder.orderStatus)" /></strong>
         <span>处方数量</span>
@@ -523,14 +518,14 @@ defineExpose({
             <td>{{ item.prescriptionNo }}</td>
             <td>{{ item.externalPrescriptionNo }}</td>
             <td>{{ prescriptionTypeText(item.prescriptionType) }}</td>
-            <td>{{ rowValue(item.doseCount) }}</td>
-            <td>{{ rowValue(item.boilTimes) }}</td>
+            <td>{{ displayValue(item.doseCount) }}</td>
+            <td>{{ displayValue(item.boilTimes) }}</td>
             <td>{{ isWithinText(item.isWithin) }}</td>
-            <td>{{ rowValue(item.perPackNum) }}</td>
-            <td>{{ rowValue(item.perPackDose) }}</td>
-            <td class="legacy-left">{{ rowValue(item.medicationMethod) }}</td>
-            <td class="legacy-left">{{ rowValue(item.medicationInstruction) }}</td>
-            <td class="legacy-left">{{ rowValue(item.prescriptionRemark) }}</td>
+            <td>{{ displayValue(item.perPackNum) }}</td>
+            <td>{{ displayValue(item.perPackDose) }}</td>
+            <td class="legacy-left">{{ displayValue(item.medicationMethod) }}</td>
+            <td class="legacy-left">{{ displayValue(item.medicationInstruction) }}</td>
+            <td class="legacy-left">{{ displayValue(item.prescriptionRemark) }}</td>
             <td><StatusPill :value="item.prescriptionStatus" :tone="statusTone(item.prescriptionStatus)" /></td>
           </tr>
         </tbody>

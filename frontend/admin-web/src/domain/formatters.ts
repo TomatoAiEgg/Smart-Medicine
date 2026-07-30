@@ -20,6 +20,7 @@ export function formatNumber(value: number | null | undefined) {
 
 export function displayValue(value: string | number | boolean | null | undefined) {
   if (value === null || value === undefined || value === '') return EMPTY_VALUE;
+  if (typeof value === 'boolean') return value ? '是' : '否';
   return String(value);
 }
 

@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { EMPTY_VALUE, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -107,8 +107,6 @@ const ADVANCE_FLOW_ORDER_STATUSES = new Set(['RECHECKED', 'DECOCTING', 'DECOCTED
 const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
 }>();
-
-const EMPTY_VALUE = '-';
 
 const startTime = ref('');
 const endTime = ref('');
@@ -290,12 +288,6 @@ const pageSummary = computed(() => {
   const end = Math.min(start + orderRows.value.length - 1, total);
   return `显示第 ${start} 至 ${end} 项记录，共 ${total} 项`;
 });
-
-function rowValue(value: string | number | boolean | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  if (typeof value === 'boolean') return value ? '是' : '否';
-  return String(value);
-}
 
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
@@ -1274,15 +1266,15 @@ defineExpose({
             </td>
           </tr>
           <tr v-for="row in orderRows" :key="`${row.orderId}-${row.prescriptionNos}`" class="legacy-main-info">
-            <td>{{ rowValue(row.prescriptionNos) }}</td>
+            <td>{{ displayValue(row.prescriptionNos) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
-            <td>{{ rowValue(row.storageType) }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.storageType) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
             <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
-            <td>{{ rowValue(row.prescriptionTypes) }}</td>
-            <td>{{ rowValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.prescriptionTypes) }}</td>
+            <td>{{ displayValue(row.doseCount) }}</td>
             <td>{{ moneyValue(row.totalAmount) }}</td>
             <td>{{ deliveryTypeText(row.addressType) }}</td>
             <td class="legacy-left">{{ receiverSummary(row) }}</td>
@@ -1291,7 +1283,7 @@ defineExpose({
               <StatusPill :value="statusText(row.orderStatus)" :tone="statusTone(row.orderStatus)" />
             </td>
             <td>{{ batchText(row.batchNo) }}</td>
-            <td class="legacy-left">{{ rowValue(row.orderRemark) }}</td>
+            <td class="legacy-left">{{ displayValue(row.orderRemark) }}</td>
             <td>
               <button
                 class="legacy-link-btn"
@@ -1389,7 +1381,7 @@ defineExpose({
           <button class="legacy-link-btn" type="button" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">关闭</button>
         </div>
         <div class="cancel-warning">
-          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>当前仅支持订单创建或审核通过状态下修改处方结构化字段。</span>
         </div>
         <div class="address-form-grid">
@@ -1488,7 +1480,7 @@ defineExpose({
           <button class="legacy-link-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">关闭</button>
         </div>
         <div class="cancel-warning">
-          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>取消后订单和处方会进入已取消状态，未完成工作流任务会同步关闭。</span>
         </div>
         <div class="address-form-grid">
@@ -1521,7 +1513,7 @@ defineExpose({
           <button class="legacy-link-btn" type="button" :disabled="initializeSubmitting" @click="closeInitializeModal">关闭</button>
         </div>
         <div class="cancel-warning">
-          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>初始化会把订单回退到初始审核状态，重置处方状态，取消未完成流程和活跃煎药任务，并清理物流运行记录。</span>
         </div>
         <div class="address-form-grid">
@@ -1558,17 +1550,17 @@ defineExpose({
           <button class="legacy-link-btn" type="button" :disabled="signSubmitting" @click="closeSignModal">关闭</button>
         </div>
         <div class="cancel-warning">
-          <strong>{{ rowValue(orderDetail?.orderNo) }}</strong>
+          <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>签收会通过物流服务推进订单状态，并生成物流轨迹和签收回调。</span>
         </div>
         <div class="address-form-grid">
           <label>
             <span>物流单号</span>
-            <input class="legacy-input" :value="rowValue(signableShipment?.logisticsNo)" disabled />
+            <input class="legacy-input" :value="displayValue(signableShipment?.logisticsNo)" disabled />
           </label>
           <label>
             <span>物流公司</span>
-            <input class="legacy-input" :value="rowValue(signableShipment?.logisticsCompany)" disabled />
+            <input class="legacy-input" :value="displayValue(signableShipment?.logisticsCompany)" disabled />
           </label>
           <label>
             <span>物流状态</span>
@@ -1611,15 +1603,15 @@ defineExpose({
           <div class="order-detail-grid">
             <div>
               <span>平台订单号</span>
-              <strong>{{ rowValue(order.orderNo) }}</strong>
+              <strong>{{ displayValue(order.orderNo) }}</strong>
             </div>
             <div>
               <span>订单 ID</span>
-              <strong>{{ rowValue(order.orderId) }}</strong>
+              <strong>{{ displayValue(order.orderId) }}</strong>
             </div>
             <div>
               <span>外部订单号</span>
-              <strong>{{ rowValue(orderDetail?.externalOrderNo || order.externalOrderNo) }}</strong>
+              <strong>{{ displayValue(orderDetail?.externalOrderNo || order.externalOrderNo) }}</strong>
             </div>
             <div>
               <span>订单状态</span>
@@ -1627,7 +1619,7 @@ defineExpose({
             </div>
             <div>
               <span>是否重复推单</span>
-              <strong>{{ rowValue(order.duplicated) }}</strong>
+              <strong>{{ displayValue(order.duplicated) }}</strong>
             </div>
             <div>
               <span>创建时间</span>
@@ -1639,7 +1631,7 @@ defineExpose({
             </div>
             <div>
               <span>机构名称</span>
-              <strong>{{ rowValue(orderDetail?.institutionName) }}</strong>
+              <strong>{{ displayValue(orderDetail?.institutionName) }}</strong>
             </div>
             <div>
               <span>患者信息</span>
@@ -1655,7 +1647,7 @@ defineExpose({
             </div>
             <div>
               <span>煎煮中心</span>
-              <strong>{{ rowValue(orderDetail?.storageType) }}</strong>
+              <strong>{{ displayValue(orderDetail?.storageType) }}</strong>
             </div>
             <div>
               <span>送货时间</span>
@@ -1667,7 +1659,7 @@ defineExpose({
             </div>
             <div>
               <span>订单备注</span>
-              <strong>{{ rowValue(orderDetail?.orderRemark) }}</strong>
+              <strong>{{ displayValue(orderDetail?.orderRemark) }}</strong>
             </div>
           </div>
         </section>
@@ -1706,26 +1698,26 @@ defineExpose({
                   <td colspan="19" class="empty">暂无处方信息</td>
                 </tr>
                 <tr v-for="item in detailPrescriptions" :key="item.prescriptionId">
-                  <td>{{ rowValue(item.prescriptionNo) }}</td>
-                  <td>{{ rowValue(item.externalPrescriptionNo) }}</td>
+                  <td>{{ displayValue(item.prescriptionNo) }}</td>
+                  <td>{{ displayValue(item.externalPrescriptionNo) }}</td>
                   <td>
                     <StatusPill :value="statusText(item.prescriptionStatus)" :tone="statusTone(item.prescriptionStatus)" />
                   </td>
-                  <td>{{ rowValue(item.prescriptionType) }}</td>
+                  <td>{{ displayValue(item.prescriptionType) }}</td>
                   <td>{{ hospitalTypeText(item.hospitalType) }}</td>
-                  <td>{{ rowValue(item.doseCount) }}</td>
+                  <td>{{ displayValue(item.doseCount) }}</td>
                   <td>{{ moneyValue(item.totalAmount) }}</td>
-                  <td>{{ rowValue(item.decoctionCount) }}</td>
-                  <td>{{ rowValue(item.boilTimes) }}</td>
+                  <td>{{ displayValue(item.decoctionCount) }}</td>
+                  <td>{{ displayValue(item.boilTimes) }}</td>
                   <td>{{ isWithinText(item.isWithin) }}</td>
-                  <td>{{ rowValue(item.perPackNum) }}</td>
-                  <td>{{ rowValue(item.perPackDose) }}</td>
-                  <td>{{ rowValue(item.doctorName) }}</td>
-                  <td class="legacy-left">{{ rowValue(item.diagnosis) }}</td>
-                  <td class="legacy-left">{{ rowValue([item.departmentName, item.wardName, item.bedNo].filter(Boolean).join(' / ')) }}</td>
-                  <td class="legacy-left">{{ rowValue([item.medicationMethod, item.medicationInstruction].filter(Boolean).join(' / ')) }}</td>
-                  <td class="legacy-left">{{ rowValue(item.prescriptionRemark) }}</td>
-                  <td>{{ rowValue(item.detailCount) }}</td>
+                  <td>{{ displayValue(item.perPackNum) }}</td>
+                  <td>{{ displayValue(item.perPackDose) }}</td>
+                  <td>{{ displayValue(item.doctorName) }}</td>
+                  <td class="legacy-left">{{ displayValue(item.diagnosis) }}</td>
+                  <td class="legacy-left">{{ displayValue([item.departmentName, item.wardName, item.bedNo].filter(Boolean).join(' / ')) }}</td>
+                  <td class="legacy-left">{{ displayValue([item.medicationMethod, item.medicationInstruction].filter(Boolean).join(' / ')) }}</td>
+                  <td class="legacy-left">{{ displayValue(item.prescriptionRemark) }}</td>
+                  <td>{{ displayValue(item.detailCount) }}</td>
                   <td>{{ formatDate(item.createdAt) }}</td>
                 </tr>
               </tbody>
@@ -1767,25 +1759,25 @@ defineExpose({
                   <td colspan="19" class="empty">暂无药品明细</td>
                 </tr>
                 <tr v-for="row in detailDrugRows" :key="row.detail.detailId">
-                  <td>{{ rowValue(row.prescriptionNo) }}</td>
-                  <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
-                  <td>{{ rowValue(row.detail.drugCode) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.drugName) }}</td>
-                  <td>{{ rowValue(row.detail.platformDrugCode) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.platformDrugName) }}</td>
-                  <td>{{ rowValue(row.detail.drugSpecs) }}</td>
-                  <td>{{ rowValue(row.detail.drugOrigin) }}</td>
-                  <td>{{ rowValue(row.detail.dose) }}</td>
-                  <td>{{ rowValue(row.detail.unit) }}</td>
+                  <td>{{ displayValue(row.prescriptionNo) }}</td>
+                  <td>{{ displayValue(row.externalPrescriptionNo) }}</td>
+                  <td>{{ displayValue(row.detail.drugCode) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.drugName) }}</td>
+                  <td>{{ displayValue(row.detail.platformDrugCode) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.platformDrugName) }}</td>
+                  <td>{{ displayValue(row.detail.drugSpecs) }}</td>
+                  <td>{{ displayValue(row.detail.drugOrigin) }}</td>
+                  <td>{{ displayValue(row.detail.dose) }}</td>
+                  <td>{{ displayValue(row.detail.unit) }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.unitPrice) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
                   <td>{{ moneyValue(row.detail.settlementUnitPrice) }}</td>
                   <td>{{ moneyValue(row.detail.settlementTotalPrice) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.specialUsage) }}</td>
-                  <td>{{ rowValue(row.detail.batchNo) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.remark) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.validationTips) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.specialUsage) }}</td>
+                  <td>{{ displayValue(row.detail.batchNo) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.remark) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.validationTips) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -1880,8 +1872,8 @@ defineExpose({
                 <tr v-for="task in workflowTasks" :key="task.taskId">
                   <td>{{ taskTypeText(task.taskType) }}</td>
                   <td><StatusPill :value="statusText(task.taskStatus)" :tone="statusTone(task.taskStatus)" /></td>
-                  <td>{{ rowValue(task.operator) }}</td>
-                  <td class="legacy-left">{{ rowValue(task.comment) }}</td>
+                  <td>{{ displayValue(task.operator) }}</td>
+                  <td class="legacy-left">{{ displayValue(task.comment) }}</td>
                   <td>{{ formatDate(task.createdAt) }}</td>
                   <td>{{ formatDate(task.completedAt) }}</td>
                 </tr>
@@ -1905,29 +1897,29 @@ defineExpose({
               <tbody>
                 <tr v-for="record in dispenseRecords" :key="record.recordId">
                   <td>调剂</td>
-                  <td>{{ rowValue(record.taskId) }}</td>
+                  <td>{{ displayValue(record.taskId) }}</td>
                   <td><StatusPill :value="statusText(record.printStatus)" :tone="statusTone(record.printStatus)" /></td>
-                  <td>{{ rowValue(record.dispenser) }}</td>
-                  <td class="legacy-left">{{ rowValue(record.dispenseComment) }}</td>
+                  <td>{{ displayValue(record.dispenser) }}</td>
+                  <td class="legacy-left">{{ displayValue(record.dispenseComment) }}</td>
                   <td>{{ formatDate(record.dispensedAt) }}</td>
                 </tr>
                 <tr v-for="task in decoctionTasks" :key="task.taskId">
                   <td>煎煮</td>
-                  <td>{{ rowValue(task.taskNo) }}</td>
+                  <td>{{ displayValue(task.taskNo) }}</td>
                   <td><StatusPill :value="statusText(task.taskStatus)" :tone="statusTone(task.taskStatus)" /></td>
-                  <td>{{ rowValue(task.operator) }}</td>
+                  <td>{{ displayValue(task.operator) }}</td>
                   <td class="legacy-left">
-                    处方 {{ rowValue(task.prescriptionNo) }}；设备 {{ rowValue(task.deviceCode) }}；桶号 {{ rowValue(task.pailNo) }}
+                    处方 {{ displayValue(task.prescriptionNo) }}；设备 {{ displayValue(task.deviceCode) }}；桶号 {{ displayValue(task.pailNo) }}
                   </td>
                   <td>{{ formatDate(task.finishedAt || task.startedAt || task.createdAt) }}</td>
                 </tr>
                 <tr v-for="shipment in shipments" :key="shipment.shipmentId">
                   <td>物流</td>
-                  <td>{{ rowValue(shipment.logisticsNo) }}</td>
+                  <td>{{ displayValue(shipment.logisticsNo) }}</td>
                   <td><StatusPill :value="statusText(shipment.logisticsStatus)" :tone="statusTone(shipment.logisticsStatus)" /></td>
-                  <td>{{ rowValue(shipment.logisticsCompany) }}</td>
+                  <td>{{ displayValue(shipment.logisticsCompany) }}</td>
                   <td class="legacy-left">
-                    {{ rowValue(shipment.latestTraceStatus) }} {{ shipment.latestTraceContent || '' }}
+                    {{ displayValue(shipment.latestTraceStatus) }} {{ shipment.latestTraceContent || '' }}
                   </td>
                   <td>{{ formatDate(shipment.latestTraceTime) }}</td>
                 </tr>
@@ -1957,9 +1949,9 @@ defineExpose({
                 </tr>
                 <tr v-for="callback in callbacks" :key="callback.callbackId">
                   <td>{{ callbackTypeText(callback.callbackType) }}</td>
-                  <td>{{ rowValue(callback.businessId) }}</td>
+                  <td>{{ displayValue(callback.businessId) }}</td>
                   <td><StatusPill :value="statusText(callback.callbackStatus)" :tone="statusTone(callback.callbackStatus)" /></td>
-                  <td>{{ rowValue(callback.retryCount) }}</td>
+                  <td>{{ displayValue(callback.retryCount) }}</td>
                   <td>{{ formatDate(callback.nextRetryAt) }}</td>
                   <td>{{ formatDate(callback.updatedAt) }}</td>
                 </tr>
@@ -1986,8 +1978,8 @@ defineExpose({
                 <tr v-for="log in statusLogs" :key="log.logId">
                   <td>{{ statusText(log.fromStatus) }}</td>
                   <td><StatusPill :value="statusText(log.toStatus)" :tone="statusTone(log.toStatus)" /></td>
-                  <td>{{ rowValue(log.operatorType) }}</td>
-                  <td>{{ rowValue(log.source) }}</td>
+                  <td>{{ displayValue(log.operatorType) }}</td>
+                  <td>{{ displayValue(log.source) }}</td>
                   <td>{{ formatDate(log.createdAt) }}</td>
                 </tr>
               </tbody>

@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -68,11 +68,6 @@ const rows = computed(() => manualProcessPage.value?.records ?? []);
 const total = computed(() => manualProcessPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function splitValues(value: string | null | undefined) {
   if (!value) return [];
@@ -429,17 +424,17 @@ defineExpose({
           <tr v-for="row in rows" v-else :key="row.orderId">
             <td>{{ row.orderNo }}</td>
             <td class="cell-wide">{{ fullAddress(row) }}</td>
-            <td>{{ rowValue(formatDate(row.deliveryTime)) }}</td>
+            <td>{{ displayValue(formatDate(row.deliveryTime)) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ deliveryTypeText(row.addressType) }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
             <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
-            <td>{{ rowValue(row.patientNames) }}</td>
+            <td>{{ displayValue(row.patientNames) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionTypes) }}</td>
-            <td>{{ rowValue(row.doseCounts) }}</td>
-            <td>{{ rowValue(row.prescriptionNos) }}</td>
-            <td class="cell-wide">{{ rowValue(row.orderRemark) }}</td>
+            <td>{{ displayValue(row.doseCounts) }}</td>
+            <td>{{ displayValue(row.prescriptionNos) }}</td>
+            <td class="cell-wide">{{ displayValue(row.orderRemark) }}</td>
             <td><StatusPill :value="row.orderStatus" :tone="statusTone(row.orderStatus)" /></td>
             <td>
               <button class="legacy-btn legacy-btn-primary" type="button" :disabled="!canProcess(row)" @click="openProcess(row)">

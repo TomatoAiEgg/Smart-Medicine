@@ -13,7 +13,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -52,11 +52,6 @@ const rows = computed(() => orderPage.value?.records ?? []);
 const total = computed(() => orderPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function queryParams(): AdminOrderQueryParams {
   return {
@@ -297,13 +292,13 @@ defineExpose({
             <td colspan="13" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in rows" :key="row.prescriptionId" class="legacy-main-info">
-            <td>{{ rowValue(row.prescriptionNos) }}</td>
+            <td>{{ displayValue(row.prescriptionNos) }}</td>
             <td>{{ row.orderNo }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
             <td>{{ patientInfo(row) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionTypes) }}</td>
-            <td>{{ rowValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.doseCount) }}</td>
             <td>{{ medicationMethodText(row.isWithin) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td><StatusPill :value="row.orderStatus" :tone="statusTone(row.orderStatus)" /></td>
@@ -353,7 +348,7 @@ defineExpose({
           <span>平台订单号</span>
           <strong>{{ actionDialog.row.orderNo }}</strong>
           <span>机构处方号</span>
-          <strong>{{ rowValue(actionDialog.row.externalPrescriptionNos) }}</strong>
+          <strong>{{ displayValue(actionDialog.row.externalPrescriptionNos) }}</strong>
           <span>当前状态</span>
           <strong>
             <StatusPill :value="actionDialog.row.orderStatus" :tone="statusTone(actionDialog.row.orderStatus)" />

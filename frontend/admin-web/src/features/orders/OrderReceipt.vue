@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -62,11 +62,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const batchOrderNos = computed(() => splitOrderNos(batchText.value));
 const batchFailedItems = computed(() => batchResult.value?.items.filter((item) => !item.success) ?? []);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function fullAddress(row: AdminOrderReceiptItem) {
   return [
@@ -313,13 +308,13 @@ defineExpose({
           </tr>
           <tr v-for="row in rows" :key="row.orderId" class="legacy-main-info">
             <td>{{ row.orderNo }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.receiverName) }}</td>
-            <td>{{ rowValue(row.receiverPhone) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.receiverName) }}</td>
+            <td>{{ displayValue(row.receiverPhone) }}</td>
             <td class="legacy-left">{{ fullAddress(row) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionTypes) }}</td>
-            <td>{{ rowValue(row.logisticsNo) }}</td>
+            <td>{{ displayValue(row.logisticsNo) }}</td>
             <td><StatusPill :value="row.orderStatus" :tone="statusTone(row.orderStatus)" /></td>
             <td><StatusPill :value="row.logisticsStatus || '-'" :tone="statusTone(row.logisticsStatus || '')" /></td>
             <td>
@@ -398,7 +393,7 @@ defineExpose({
           <span>订单号</span>
           <strong>{{ selectedOrder.orderNo }}</strong>
           <span>收货人</span>
-          <strong>{{ rowValue(selectedOrder.receiverName) }} / {{ rowValue(selectedOrder.receiverPhone) }}</strong>
+          <strong>{{ displayValue(selectedOrder.receiverName) }} / {{ displayValue(selectedOrder.receiverPhone) }}</strong>
           <span>收货信息</span>
           <strong>{{ fullAddress(selectedOrder) }}</strong>
           <span>当前状态</span>

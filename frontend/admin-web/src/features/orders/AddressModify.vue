@@ -15,7 +15,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -78,11 +78,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const selectedRows = computed(() => rows.value.filter((row) => selectedOrderNos.value.includes(row.orderNo)));
 const selectedCurrentPageAll = computed(() => rows.value.length > 0 && selectedRows.value.length === rows.value.length);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function addressTypeLabel(value: string | null | undefined) {
   if (!value) return '-';
@@ -429,9 +424,9 @@ defineExpose({
             <td>{{ row.orderNo }}</td>
             <td>{{ row.institutionName }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
-            <td>{{ rowValue(row.receiverName) }}</td>
-            <td>{{ rowValue(row.receiverPhone) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.receiverName) }}</td>
+            <td>{{ displayValue(row.receiverPhone) }}</td>
             <td class="legacy-left">{{ fullAddress(row) }}</td>
             <td>{{ addressTypeLabel(row.addressType) }}</td>
             <td>{{ formatDate(row.deliveryTime) }}</td>
@@ -462,11 +457,11 @@ defineExpose({
 
       <div class="legacy-detail-grid">
         <span>旧收货信息</span>
-        <strong>{{ rowValue(selectedOrder.receiverName) }}，{{ rowValue(selectedOrder.receiverPhone) }}，{{ fullAddress(selectedOrder) }}</strong>
+        <strong>{{ displayValue(selectedOrder.receiverName) }}，{{ displayValue(selectedOrder.receiverPhone) }}，{{ fullAddress(selectedOrder) }}</strong>
         <span>机构</span>
         <strong>{{ selectedOrder.institutionName }}</strong>
         <span>病人姓名</span>
-        <strong>{{ rowValue(selectedOrder.patientName) }}</strong>
+        <strong>{{ displayValue(selectedOrder.patientName) }}</strong>
         <span>当前状态</span>
         <strong><StatusPill :value="selectedOrder.orderStatus" :tone="statusTone(selectedOrder.orderStatus)" /></strong>
       </div>

@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -42,11 +42,6 @@ const rows = computed(() => reprintPage.value?.records ?? []);
 const total = computed(() => reprintPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function fullAddress(row: AdminPrescriptionReprintItem | AdminPrescriptionPrintPayload) {
   return [
@@ -214,7 +209,7 @@ async function goNextPage() {
 }
 
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -416,14 +411,14 @@ defineExpose({
             <td>{{ formatDate(row.deliveryTime) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ addressTypeText(row.addressType) }}</td>
-            <td>{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNo) }}</td>
             <td>{{ hospitalTypeText(row.hospitalType) }}</td>
             <td>{{ prescriptionTypeText(row.prescriptionType) }}</td>
             <td>{{ medicationMethodText(row.isWithin) }}</td>
-            <td>{{ rowValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.doseCount) }}</td>
             <td>{{ batchText(row.batchNo) }}</td>
-            <td>{{ rowValue(row.dispenser) }}</td>
+            <td>{{ displayValue(row.dispenser) }}</td>
             <td>
               <button
                 class="legacy-link-btn workflow-pass-btn"
