@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listSmsTemplates, sendSingleSms } from '../../api/sms';
 import type { SmsSendResult, SmsTemplateRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
@@ -42,13 +42,6 @@ const selectedTemplate = computed(() => templates.value.find((template) => templ
 const placeholderKeys = computed(() => extractPlaceholders(selectedTemplate.value?.contentTemplate ?? ''));
 const hasTemplates = computed(() => templates.value.length > 0);
 const previewText = computed(() => renderPreview(selectedTemplate.value?.contentTemplate ?? ''));
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function extractPlaceholders(template: string) {
   const keys = new Set<string>();
