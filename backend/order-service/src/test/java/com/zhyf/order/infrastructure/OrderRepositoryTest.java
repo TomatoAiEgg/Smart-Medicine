@@ -39,7 +39,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
-@SuppressWarnings("unchecked")
 class OrderRepositoryTest {
 
     private final JdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(JdbcTemplate.class);
@@ -69,7 +68,6 @@ class OrderRepositoryTest {
         when(rs.getObject("updated_at", OffsetDateTime.class)).thenReturn(createdAt.plusSeconds(1));
         when(rs.getObject("completed_at", OffsetDateTime.class)).thenReturn(null);
         when(jdbcTemplate.query(anyString(), anyRowMapper())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
             return List.of(mapper.mapRow(rs, 0));
         });
@@ -114,13 +112,11 @@ class OrderRepositoryTest {
         when(dispenseRs.getObject("dispensed_at", OffsetDateTime.class)).thenReturn(createdAt.plusSeconds(20));
 
         when(jdbcTemplate.query(anyString(), anyRowMapper(), eq("ZHYF1"))).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
             return List.of(mapper.mapRow(orderRs, 0));
         });
         when(jdbcTemplate.query(anyString(), anyRowMapper(), eq(orderId))).thenAnswer(invocation -> {
             String sql = invocation.getArgument(0);
-            @SuppressWarnings("unchecked")
             RowMapper<Object> mapper = invocation.getArgument(1);
             if (sql.contains("from prescription p")) {
                 return List.of(mapper.mapRow(prescriptionRs, 0));
