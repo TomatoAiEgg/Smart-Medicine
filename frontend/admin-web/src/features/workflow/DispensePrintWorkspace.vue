@@ -10,7 +10,7 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type NumericValue = string | number | null | undefined;
@@ -133,11 +133,6 @@ const previewPrintStatus = computed(() => {
   if (selectedTask.value?.taskStatus === 'COMPLETED') return '已完成';
   return printStatus.value;
 });
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
 
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
@@ -494,7 +489,7 @@ defineExpose({
                 @click="selectTask(task)"
               >
                 <td>
-                  <strong>{{ rowValue(task.orderNo) }}</strong>
+                  <strong>{{ displayValue(task.orderNo) }}</strong>
                   <small>选择后加载处方号</small>
                 </td>
                 <td>{{ patientName || waitingDetail() }}</td>
@@ -553,15 +548,15 @@ defineExpose({
             <div class="dispense-detail-grid">
               <div>
                 <span>订单号</span>
-                <strong>{{ rowValue(orderProgress?.orderNo ?? selectedTask.orderNo) }}</strong>
+                <strong>{{ displayValue(orderProgress?.orderNo ?? selectedTask.orderNo) }}</strong>
               </div>
               <div>
                 <span>外部订单号</span>
-                <strong>{{ rowValue(orderProgress?.externalOrderNo ?? selectedTask.externalOrderNo) }}</strong>
+                <strong>{{ displayValue(orderProgress?.externalOrderNo ?? selectedTask.externalOrderNo) }}</strong>
               </div>
               <div>
                 <span>订单状态</span>
-                <strong>{{ rowValue(orderProgress?.orderStatus ?? selectedTask.orderStatus) }}</strong>
+                <strong>{{ displayValue(orderProgress?.orderStatus ?? selectedTask.orderStatus) }}</strong>
               </div>
               <div>
                 <span>任务状态</span>
@@ -609,7 +604,7 @@ defineExpose({
             </div>
             <div>
               <span>订单号</span>
-              <strong>{{ rowValue(orderProgress?.orderNo ?? selectedTask?.orderNo) }}</strong>
+              <strong>{{ displayValue(orderProgress?.orderNo ?? selectedTask?.orderNo) }}</strong>
             </div>
             <div>
               <span>病人信息</span>
@@ -653,9 +648,9 @@ defineExpose({
                   <td colspan="4">暂无处方信息</td>
                 </tr>
                 <tr v-for="prescription in selectedPrescriptions" :key="prescription.prescriptionId">
-                  <td>{{ rowValue(prescription.prescriptionNo) }}</td>
-                  <td>{{ rowValue(prescription.externalPrescriptionNo) }}</td>
-                  <td>{{ rowValue(prescription.prescriptionStatus) }}</td>
+                  <td>{{ displayValue(prescription.prescriptionNo) }}</td>
+                  <td>{{ displayValue(prescription.externalPrescriptionNo) }}</td>
+                  <td>{{ displayValue(prescription.prescriptionStatus) }}</td>
                   <td>{{ prescription.detailCount }}</td>
                 </tr>
               </tbody>
@@ -680,7 +675,7 @@ defineExpose({
                 <tr v-for="workflowTask in selectedWorkflowTasks" :key="workflowTask.taskId">
                   <td>{{ taskTypeText(workflowTask.taskType) }}</td>
                   <td>{{ taskStatusText(workflowTask.taskStatus) }}</td>
-                  <td>{{ rowValue(workflowTask.operator) }}</td>
+                  <td>{{ displayValue(workflowTask.operator) }}</td>
                   <td>{{ formatDate(workflowTask.completedAt) }}</td>
                 </tr>
               </tbody>
@@ -708,14 +703,14 @@ defineExpose({
                 </tr>
                 <tr v-for="row in printDrugRows" :key="row.detail.detailId">
                   <td>
-                    <strong>{{ rowValue(row.detail.drugName || row.detail.platformDrugName) }}</strong>
-                    <small>{{ rowValue(row.detail.drugCode || row.detail.platformDrugCode) }}</small>
+                    <strong>{{ displayValue(row.detail.drugName || row.detail.platformDrugName) }}</strong>
+                    <small>{{ displayValue(row.detail.drugCode || row.detail.platformDrugCode) }}</small>
                   </td>
-                  <td>{{ rowValue([row.detail.drugSpecs, row.detail.drugOrigin].filter(Boolean).join(' / ')) }}</td>
-                  <td>{{ rowValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ displayValue([row.detail.drugSpecs, row.detail.drugOrigin].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ displayValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
-                  <td>{{ rowValue([row.detail.specialUsage, row.detail.validationTips].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ displayValue([row.detail.specialUsage, row.detail.validationTips].filter(Boolean).join(' / ')) }}</td>
                 </tr>
               </tbody>
             </table>

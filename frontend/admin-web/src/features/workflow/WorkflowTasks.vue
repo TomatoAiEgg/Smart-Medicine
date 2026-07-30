@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -183,13 +183,8 @@ const reviewDetailAmountSummary = computed(() => {
   };
 });
 
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
-
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -256,8 +251,8 @@ function prescriptionList(task: WorkflowTaskSnapshot) {
 }
 
 function validationText(task: WorkflowTaskSnapshot) {
-  const status = rowValue(task.validationStatus);
-  const message = rowValue(task.validationMessage);
+  const status = displayValue(task.validationStatus);
+  const message = displayValue(task.validationMessage);
   return `${status} / ${message}`;
 }
 
@@ -944,11 +939,11 @@ defineExpose({
           <div class="review-detail-grid">
             <div>
               <span>校验状态</span>
-              <strong>{{ rowValue(selectedReviewTask.validationStatus) }}</strong>
+              <strong>{{ displayValue(selectedReviewTask.validationStatus) }}</strong>
             </div>
             <div>
               <span>校验提示</span>
-              <strong>{{ rowValue(selectedReviewTask.validationMessage) }}</strong>
+              <strong>{{ displayValue(selectedReviewTask.validationMessage) }}</strong>
             </div>
             <div>
               <span>任务提示</span>
@@ -962,19 +957,19 @@ defineExpose({
           <div class="review-detail-grid">
             <div>
               <span>平台订单号</span>
-              <strong>{{ rowValue(reviewOrderProgress?.orderNo ?? selectedReviewTask.orderNo) }}</strong>
+              <strong>{{ displayValue(reviewOrderProgress?.orderNo ?? selectedReviewTask.orderNo) }}</strong>
             </div>
             <div>
               <span>订单 ID</span>
-              <strong>{{ rowValue(reviewOrderProgress?.orderId ?? selectedReviewTask.orderId) }}</strong>
+              <strong>{{ displayValue(reviewOrderProgress?.orderId ?? selectedReviewTask.orderId) }}</strong>
             </div>
             <div>
               <span>外部订单号</span>
-              <strong>{{ rowValue(reviewOrderProgress?.externalOrderNo ?? selectedReviewTask.externalOrderNo) }}</strong>
+              <strong>{{ displayValue(reviewOrderProgress?.externalOrderNo ?? selectedReviewTask.externalOrderNo) }}</strong>
             </div>
             <div>
               <span>订单状态</span>
-              <strong>{{ rowValue(reviewOrderProgress?.orderStatus ?? selectedReviewTask.orderStatus) }}</strong>
+              <strong>{{ displayValue(reviewOrderProgress?.orderStatus ?? selectedReviewTask.orderStatus) }}</strong>
             </div>
             <div>
               <span>创建时间</span>
@@ -1008,9 +1003,9 @@ defineExpose({
                   <td colspan="5" class="legacy-empty">暂无处方进度</td>
                 </tr>
                 <tr v-for="prescription in reviewOrderProgress.prescriptions" :key="prescription.prescriptionId" class="legacy-main-info">
-                  <td>{{ rowValue(prescription.prescriptionNo) }}</td>
-                  <td>{{ rowValue(prescription.externalPrescriptionNo) }}</td>
-                  <td>{{ rowValue(prescription.prescriptionStatus) }}</td>
+                  <td>{{ displayValue(prescription.prescriptionNo) }}</td>
+                  <td>{{ displayValue(prescription.externalPrescriptionNo) }}</td>
+                  <td>{{ displayValue(prescription.prescriptionStatus) }}</td>
                   <td>{{ prescription.detailCount }}</td>
                   <td>{{ formatDate(prescription.createdAt) }}</td>
                 </tr>
@@ -1036,8 +1031,8 @@ defineExpose({
                 <tr v-for="workflowTask in reviewOrderProgress.workflowTasks" :key="workflowTask.taskId" class="legacy-main-info">
                   <td>{{ taskTypeText(workflowTask.taskType) }}</td>
                   <td>{{ taskStatusText(workflowTask.taskStatus) }}</td>
-                  <td>{{ rowValue(workflowTask.operator) }}</td>
-                  <td class="legacy-left">{{ rowValue(workflowTask.comment) }}</td>
+                  <td>{{ displayValue(workflowTask.operator) }}</td>
+                  <td class="legacy-left">{{ displayValue(workflowTask.comment) }}</td>
                   <td>{{ formatDate(workflowTask.createdAt) }}</td>
                   <td>{{ formatDate(workflowTask.completedAt) }}</td>
                 </tr>
@@ -1076,20 +1071,20 @@ defineExpose({
                   <td colspan="14" class="legacy-empty">暂无药品明细</td>
                 </tr>
                 <tr v-for="row in reviewDetailDrugRows" :key="row.detail.detailId" class="legacy-main-info">
-                  <td>{{ rowValue(row.prescriptionNo) }}</td>
-                  <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
-                  <td>{{ rowValue(row.detail.drugCode) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.drugName) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.platformDrugName) }}</td>
-                  <td>{{ rowValue(row.detail.drugSpecs) }}</td>
-                  <td>{{ rowValue(row.detail.drugOrigin) }}</td>
-                  <td>{{ rowValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ displayValue(row.prescriptionNo) }}</td>
+                  <td>{{ displayValue(row.externalPrescriptionNo) }}</td>
+                  <td>{{ displayValue(row.detail.drugCode) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.drugName) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.platformDrugName) }}</td>
+                  <td>{{ displayValue(row.detail.drugSpecs) }}</td>
+                  <td>{{ displayValue(row.detail.drugOrigin) }}</td>
+                  <td>{{ displayValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.unitPrice) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
                   <td>{{ moneyValue(row.detail.settlementTotalPrice) }}</td>
-                  <td>{{ rowValue(row.detail.batchNo) }}</td>
-                  <td class="legacy-left">{{ rowValue(row.detail.validationTips) }}</td>
+                  <td>{{ displayValue(row.detail.batchNo) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.validationTips) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -1356,7 +1351,7 @@ defineExpose({
               <td>{{ selectedValue(prescriptionType) }}</td>
               <td>{{ selectedValue(dosageRange) }}</td>
               <td>{{ prescriptionList(task) }}</td>
-              <td class="legacy-left">{{ rowValue(task.reviewComment) }}</td>
+              <td class="legacy-left">{{ displayValue(task.reviewComment) }}</td>
               <td class="workflow-action-cell">
                 <button
                   class="legacy-link-btn workflow-pass-btn"
@@ -1410,7 +1405,7 @@ defineExpose({
               <td>{{ selectedValue(hospitalType) }}</td>
               <td>{{ formatDate(task.createdAt) }}</td>
               <td>-</td>
-              <td>{{ rowValue(dispenseUserId) }}</td>
+              <td>{{ displayValue(dispenseUserId) }}</td>
               <td>{{ formatDate(task.completedAt) }}</td>
               <td>
                 <input v-model="operator" class="legacy-input workflow-inline-input" />
@@ -1418,7 +1413,7 @@ defineExpose({
               <td>
                 <input class="legacy-input workflow-inline-input" />
               </td>
-              <td class="legacy-left">{{ rowValue(task.reviewComment) }}</td>
+              <td class="legacy-left">{{ displayValue(task.reviewComment) }}</td>
               <td>
                 <button
                   class="legacy-link-btn workflow-pass-btn"

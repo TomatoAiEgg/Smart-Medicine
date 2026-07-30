@@ -43,7 +43,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -147,10 +147,10 @@ const filteredCloudPrintRecords = computed(() => {
 
   return cloudPrintRecords.value.filter((record) => {
     const matchesPrescription = !prescriptionNo
-      || rowValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo);
+      || displayValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo);
     const matchesDevice = !deviceCode
-      || rowValue(record.deviceCode).toLowerCase().includes(deviceCode)
-      || rowValue(record.pailNo).toLowerCase().includes(deviceCode);
+      || displayValue(record.deviceCode).toLowerCase().includes(deviceCode)
+      || displayValue(record.pailNo).toLowerCase().includes(deviceCode);
     const matchesResult = !actionResult || record.actionResult === actionResult;
     return matchesPrescription && matchesDevice && matchesResult;
   });
@@ -166,15 +166,15 @@ const filteredDecoctionDevices = computed(() => {
 
   return decoctionDevices.value.filter((device) => {
     const matchesPrescription = !prescriptionNo
-      || rowValue(device.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
-      || rowValue(device.activeTaskNo).toLowerCase().includes(prescriptionNo);
+      || displayValue(device.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
+      || displayValue(device.activeTaskNo).toLowerCase().includes(prescriptionNo);
     const matchesDevice = !deviceCode
-      || rowValue(device.deviceCode).toLowerCase().includes(deviceCode)
-      || rowValue(device.deviceName).toLowerCase().includes(deviceCode)
-      || rowValue(device.activeTaskNo).toLowerCase().includes(deviceCode)
-      || rowValue(device.activePrescriptionNo).toLowerCase().includes(deviceCode);
+      || displayValue(device.deviceCode).toLowerCase().includes(deviceCode)
+      || displayValue(device.deviceName).toLowerCase().includes(deviceCode)
+      || displayValue(device.activeTaskNo).toLowerCase().includes(deviceCode)
+      || displayValue(device.activePrescriptionNo).toLowerCase().includes(deviceCode);
     const matchesType = !type || device.deviceType === type;
-    const matchesGroup = !group || rowValue(device.deviceGroup).toLowerCase().includes(group);
+    const matchesGroup = !group || displayValue(device.deviceGroup).toLowerCase().includes(group);
     const matchesCenter = !center || device.decoctionCenter === center;
     const matchesStatus = !status
       || device.deviceStatus === status
@@ -192,12 +192,12 @@ const filteredDecoctionTasks = computed(() => {
 
   return decoctionTasks.value.filter((task) => {
     const matchesPrescription = !prescriptionNo
-      || rowValue(task.prescriptionNo).toLowerCase().includes(prescriptionNo)
-      || rowValue(task.orderNo).toLowerCase().includes(prescriptionNo)
-      || rowValue(task.taskNo).toLowerCase().includes(prescriptionNo);
+      || displayValue(task.prescriptionNo).toLowerCase().includes(prescriptionNo)
+      || displayValue(task.orderNo).toLowerCase().includes(prescriptionNo)
+      || displayValue(task.taskNo).toLowerCase().includes(prescriptionNo);
     const matchesDevice = !deviceCode
-      || rowValue(task.deviceCode).toLowerCase().includes(deviceCode)
-      || rowValue(task.pailNo).toLowerCase().includes(deviceCode);
+      || displayValue(task.deviceCode).toLowerCase().includes(deviceCode)
+      || displayValue(task.pailNo).toLowerCase().includes(deviceCode);
     const matchesStatus = !status || task.taskStatus === status;
     return matchesPrescription && matchesDevice && matchesStatus;
   });
@@ -224,14 +224,14 @@ const filteredWaterPails = computed(() => {
 
   return waterPails.value.filter((pail) => {
     const matchesPrescription = !prescriptionNo
-      || rowValue(pail.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
-      || rowValue(pail.activeTaskNo).toLowerCase().includes(prescriptionNo);
+      || displayValue(pail.activePrescriptionNo).toLowerCase().includes(prescriptionNo)
+      || displayValue(pail.activeTaskNo).toLowerCase().includes(prescriptionNo);
     const matchesPail = !pailKeyword
-      || rowValue(pail.pailNo).toLowerCase().includes(pailKeyword)
-      || rowValue(pail.pailName).toLowerCase().includes(pailKeyword)
-      || rowValue(pail.activeTaskNo).toLowerCase().includes(pailKeyword)
-      || rowValue(pail.activePrescriptionNo).toLowerCase().includes(pailKeyword);
-    const matchesGroup = !group || rowValue(pail.pailGroup).toLowerCase().includes(group);
+      || displayValue(pail.pailNo).toLowerCase().includes(pailKeyword)
+      || displayValue(pail.pailName).toLowerCase().includes(pailKeyword)
+      || displayValue(pail.activeTaskNo).toLowerCase().includes(pailKeyword)
+      || displayValue(pail.activePrescriptionNo).toLowerCase().includes(pailKeyword);
+    const matchesGroup = !group || displayValue(pail.pailGroup).toLowerCase().includes(group);
     const matchesCenter = !center || pail.decoctionCenter === center;
     const matchesStatus = !status
       || pail.pailStatus === status
@@ -250,11 +250,11 @@ const filteredDecoctionWorkRecords = computed(() => {
 
   return decoctionWorkRecords.value.filter((record) => {
     const matchesPrescription = !prescriptionNo
-      || rowValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo)
-      || rowValue(record.taskNo).toLowerCase().includes(prescriptionNo);
+      || displayValue(record.prescriptionNo).toLowerCase().includes(prescriptionNo)
+      || displayValue(record.taskNo).toLowerCase().includes(prescriptionNo);
     const matchesDevice = !deviceCode
-      || rowValue(record.deviceCode).toLowerCase().includes(deviceCode)
-      || rowValue(record.pailNo).toLowerCase().includes(deviceCode);
+      || displayValue(record.deviceCode).toLowerCase().includes(deviceCode)
+      || displayValue(record.pailNo).toLowerCase().includes(deviceCode);
     const matchesResult = !actionResult || record.actionResult === actionResult;
     const matchesStatus = !status || record.taskStatusBefore === status || record.taskStatusAfter === status;
     return matchesPrescription && matchesDevice && matchesResult && matchesStatus;
@@ -293,13 +293,8 @@ function newOperationId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
 
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return '-';
-  return String(value);
-}
-
 function escapeHtml(value: string | number | null | undefined) {
-  return rowValue(value)
+  return displayValue(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -1529,15 +1524,15 @@ defineExpose({
               <td>{{ task.taskId }}</td>
               <td>{{ task.taskNo }}</td>
               <td>{{ bindType(task) }}</td>
-              <td>{{ rowValue(task.deviceCode) }}</td>
-              <td>{{ rowValue(task.pailNo) }}</td>
+              <td>{{ displayValue(task.deviceCode) }}</td>
+              <td>{{ displayValue(task.pailNo) }}</td>
               <td>{{ task.prescriptionNo }}</td>
               <td>{{ task.orderNo }}</td>
               <td>{{ expectedWaterVolume(task) }}</td>
               <td>{{ actualWaterVolume(task) }}</td>
               <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
               <td>{{ taskDataStatus(task) }}</td>
-              <td>{{ rowValue(task.operator) }}</td>
+              <td>{{ displayValue(task.operator) }}</td>
               <td>
                 <strong>{{ formatDate(task.createdAt) }}</strong>
                 <small>{{ formatDate(task.updatedAt) }}</small>
@@ -1565,16 +1560,16 @@ defineExpose({
             </tr>
             <tr v-for="device in filteredDecoctionDevices" :key="device.deviceCode" class="legacy-main-info">
               <td>{{ device.deviceCode }}</td>
-              <td>{{ rowValue(device.deviceName) }}</td>
-              <td>{{ rowValue(device.deviceType) }}</td>
-              <td>{{ rowValue(device.pdaCode) }}</td>
-              <td>{{ rowValue(device.printerCode) }}</td>
-              <td>{{ rowValue(device.deviceGroup) }}</td>
+              <td>{{ displayValue(device.deviceName) }}</td>
+              <td>{{ displayValue(device.deviceType) }}</td>
+              <td>{{ displayValue(device.pdaCode) }}</td>
+              <td>{{ displayValue(device.printerCode) }}</td>
+              <td>{{ displayValue(device.deviceGroup) }}</td>
               <td><StatusPill :value="device.deviceStatus" :tone="statusTone(device.deviceStatus)" /></td>
               <td>{{ deviceUseStatus(device) }}</td>
-              <td>{{ rowValue(device.activeTaskNo || device.activePrescriptionNo) }}</td>
-              <td>{{ rowValue(device.decoctionCenter) }}</td>
-              <td>{{ rowValue(device.remark) }}</td>
+              <td>{{ displayValue(device.activeTaskNo || device.activePrescriptionNo) }}</td>
+              <td>{{ displayValue(device.decoctionCenter) }}</td>
+              <td>{{ displayValue(device.remark) }}</td>
               <td class="decoction-action-cell">
                 <button class="legacy-link-btn" type="button" :disabled="deviceSaving" @click="openEditDeviceForm(device)">编辑</button>
                 <button class="legacy-link-btn" type="button" :disabled="deviceSaving || device.enabled" @click="toggleDeviceEnabled(device, true)">启用</button>
@@ -1595,12 +1590,12 @@ defineExpose({
               <td colspan="9" class="legacy-empty">暂无设备打印配置</td>
             </tr>
             <tr v-for="device in filteredDecoctionDevices" :key="`printer-${device.deviceCode}`" class="legacy-main-info">
-              <td>{{ rowValue(device.deviceId) }}</td>
-              <td>{{ rowValue(device.pdaCode) }}</td>
-              <td>{{ rowValue(device.deviceCode) }}</td>
-              <td>{{ rowValue(device.deviceName) }}</td>
-              <td>{{ rowValue(device.printerCode) }}</td>
-              <td>{{ rowValue(device.printTemplateCode) }}</td>
+              <td>{{ displayValue(device.deviceId) }}</td>
+              <td>{{ displayValue(device.pdaCode) }}</td>
+              <td>{{ displayValue(device.deviceCode) }}</td>
+              <td>{{ displayValue(device.deviceName) }}</td>
+              <td>{{ displayValue(device.printerCode) }}</td>
+              <td>{{ displayValue(device.printTemplateCode) }}</td>
               <td><StatusPill :value="device.enabled ? '启用' : '停用'" :tone="statusTone(device.deviceStatus)" /></td>
               <td>{{ formatDate(device.updatedAt) }}</td>
               <td class="decoction-action-cell">
@@ -1622,12 +1617,12 @@ defineExpose({
               <td colspan="10" class="legacy-empty">暂无加水桶</td>
             </tr>
             <tr v-for="pail in filteredWaterPails" :key="pail.pailNo" class="legacy-main-info">
-              <td>{{ rowValue(pail.pailId) }}</td>
+              <td>{{ displayValue(pail.pailId) }}</td>
               <td>{{ pail.pailNo }}</td>
-              <td>{{ rowValue(pail.pailName) }}</td>
-              <td>{{ rowValue(pail.decoctionCenter) }}</td>
+              <td>{{ displayValue(pail.pailName) }}</td>
+              <td>{{ displayValue(pail.decoctionCenter) }}</td>
               <td>
-                <strong>{{ rowValue(pail.pailGroup) }}</strong>
+                <strong>{{ displayValue(pail.pailGroup) }}</strong>
                 <small>{{ pail.capacityMl === null ? '-' : `${pail.capacityMl} ml` }}</small>
               </td>
               <td>
@@ -1635,8 +1630,8 @@ defineExpose({
                 <small>{{ waterPailUseStatus(pail) }}</small>
               </td>
               <td>
-                <strong>{{ rowValue(pail.activeTaskNo) }}</strong>
-                <small>{{ rowValue(pail.activePrescriptionNo) }}</small>
+                <strong>{{ displayValue(pail.activeTaskNo) }}</strong>
+                <small>{{ displayValue(pail.activePrescriptionNo) }}</small>
               </td>
               <td>{{ formatDate(pail.createdAt) }}</td>
               <td>{{ formatDate(pail.updatedAt) }}</td>
@@ -1665,18 +1660,18 @@ defineExpose({
               class="legacy-main-info"
             >
               <td>{{ record.taskNo }}</td>
-              <td>{{ rowValue(record.prescriptionNo) }}</td>
+              <td>{{ displayValue(record.prescriptionNo) }}</td>
               <td>{{ record.doseCount }}</td>
-              <td>{{ rowValue(record.deviceCode) }}</td>
+              <td>{{ displayValue(record.deviceCode) }}</td>
               <td>
-                <strong>{{ rowValue(record.pailNo) }}</strong>
-                <small>{{ rowValue(record.source) }}</small>
+                <strong>{{ displayValue(record.pailNo) }}</strong>
+                <small>{{ displayValue(record.source) }}</small>
               </td>
               <td>
                 <strong>{{ record.actionType }}</strong>
                 <small>{{ record.actionResult }}</small>
               </td>
-              <td>{{ rowValue(record.operator) }}</td>
+              <td>{{ displayValue(record.operator) }}</td>
               <td>{{ formatDate(record.actionTime) }}</td>
               <td class="decoction-action-cell">
                 <button class="legacy-link-btn" type="button" @click="printCloudPrintRecord(record)">浏览器补打单</button>
@@ -1695,13 +1690,13 @@ defineExpose({
               </td>
               <td>{{ record.prescriptionNo }}</td>
               <td>
-                <strong>{{ rowValue(record.deviceCode) }}</strong>
-                <small>{{ rowValue(record.pailNo) }}</small>
+                <strong>{{ displayValue(record.deviceCode) }}</strong>
+                <small>{{ displayValue(record.pailNo) }}</small>
               </td>
               <td><StatusPill :value="record.actionType" :tone="statusTone(record.actionType)" /></td>
               <td><StatusPill :value="record.actionResult" :tone="statusTone(record.actionResult)" /></td>
               <td>
-                <strong>{{ rowValue(record.taskStatusBefore) }} -> {{ rowValue(record.taskStatusAfter) }}</strong>
+                <strong>{{ displayValue(record.taskStatusBefore) }} -> {{ displayValue(record.taskStatusAfter) }}</strong>
               </td>
               <td>{{ record.source }}</td>
               <td>
@@ -1809,11 +1804,11 @@ defineExpose({
                 <small>{{ record.actionResult }}</small>
               </td>
               <td>
-                <strong>{{ rowValue(record.taskStatusBefore) }} -> {{ rowValue(record.taskStatusAfter) }}</strong>
+                <strong>{{ displayValue(record.taskStatusBefore) }} -> {{ displayValue(record.taskStatusAfter) }}</strong>
                 <small>{{ record.prescriptionNo }}</small>
               </td>
               <td>
-                <strong>{{ rowValue(record.deviceCode) }}</strong>
+                <strong>{{ displayValue(record.deviceCode) }}</strong>
                 <small>{{ record.source }}</small>
               </td>
               <td>{{ record.operator }}</td>
