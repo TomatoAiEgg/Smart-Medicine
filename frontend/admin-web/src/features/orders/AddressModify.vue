@@ -15,7 +15,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -118,6 +118,10 @@ function queryParams(): AdminOrderQueryParams {
   };
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 function buildAddressCommand() {
   const command: AdminOrderAddressUpdateCommand = {
     receiverName: addressForm.value.receiverName.trim(),
@@ -191,6 +195,7 @@ async function refreshAddressOrders() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrders(queryParams());
     orderPage.value = nextPage;
     page.value = nextPage.page;

@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { cancelAdminOrderMerge, createAdminOrderMerge, listAdminOrderMerges } from '../../api/order';
 import type { AdminOrderMergeCommand, AdminOrderMergePage, AdminOrderMergeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -103,10 +103,15 @@ function downloadMergeCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条合单记录`);
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshOrderMerges() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrderMerges({
       keyword: keyword.value,
       status: status.value,

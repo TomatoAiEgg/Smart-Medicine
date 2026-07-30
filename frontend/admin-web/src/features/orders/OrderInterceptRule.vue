@@ -12,7 +12,7 @@ import type {
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledBooleanParam, enabledText, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -130,10 +130,15 @@ function downloadRuleCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条拦截规则`);
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshOrderInterceptRules() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrderInterceptRules({
       keyword: keyword.value,
       interceptStage: interceptStage.value,

@@ -13,7 +13,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -64,6 +64,10 @@ function queryParams(): AdminOrderQueryParams {
     page: page.value,
     pageSize: pageSize.value,
   };
+}
+
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 function prescriptionTypeText(value: string | null | undefined) {
@@ -144,6 +148,7 @@ async function refreshOrderManageActions() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrders(queryParams());
     orderPage.value = nextPage;
     page.value = nextPage.page;

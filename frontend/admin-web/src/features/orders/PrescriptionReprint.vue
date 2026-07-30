@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -60,6 +60,10 @@ function queryParams(): AdminPrescriptionReprintQueryParams {
     page: page.value,
     pageSize: pageSize.value,
   };
+}
+
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 function hospitalTypeText(value: string | null | undefined) {
@@ -178,6 +182,7 @@ async function refreshPrescriptionReprints() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminPrescriptionReprints(queryParams());
     reprintPage.value = nextPage;
     page.value = nextPage.page;

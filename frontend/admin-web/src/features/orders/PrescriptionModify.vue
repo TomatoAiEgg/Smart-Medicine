@@ -16,7 +16,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { amountValue, boundedPositiveInteger, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -176,6 +176,10 @@ function downloadPrescriptionCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条处方修改记录`);
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 function fillPrescriptionForm(prescription: AdminOrderDetailPrescription) {
   selectedPrescriptionId.value = prescription.prescriptionId;
   prescriptionForm.value = {
@@ -200,6 +204,7 @@ async function refreshPrescriptionOrders() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrders(queryParams());
     orderPage.value = nextPage;
     page.value = nextPage.page;

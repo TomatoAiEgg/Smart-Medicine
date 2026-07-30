@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -102,6 +102,10 @@ function queryParams(): AdminOrderReceiptQueryParams {
   };
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 function splitOrderNos(value: string) {
   return Array.from(new Set(value.split(/[\s,，;；]+/)
     .map((item) => item.trim())
@@ -136,6 +140,7 @@ async function refreshOrderReceipts() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOrderReceipts(queryParams());
     receiptPage.value = nextPage;
     page.value = nextPage.page;
