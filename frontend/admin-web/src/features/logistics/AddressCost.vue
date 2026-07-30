@@ -14,7 +14,7 @@ import type {
   AdminLogisticsAddressCostRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -74,12 +74,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function enabledParam() {
-  if (enabledFilter.value === 'true') return true;
-  if (enabledFilter.value === 'false') return false;
-  return undefined;
-}
 
 function amountNumber(value: AmountValue) {
   if (value === null || value === undefined || value === '') return 0;
@@ -159,7 +153,7 @@ async function refreshAddressCosts() {
       keyword: keyword.value,
       institutionId: institutionId.value,
       logisticsCompany: logisticsCompany.value,
-      enabled: enabledParam(),
+      enabled: enabledBooleanParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

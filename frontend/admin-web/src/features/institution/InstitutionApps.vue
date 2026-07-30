@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -78,12 +78,6 @@ function secretLabel(row: AdminInstitutionAppRecord) {
   return row.appSecretConfigured ? '已配置' : '未配置';
 }
 
-function enabledParam() {
-  if (enabledFilter.value === 'true') return true;
-  if (enabledFilter.value === 'false') return false;
-  return undefined;
-}
-
 function institutionText(row: AdminInstitutionAppRecord) {
   return `${row.institutionName}（${row.institutionCode}）`;
 }
@@ -141,7 +135,7 @@ async function refreshInstitutionApps() {
     const nextPage = await listAdminInstitutionApps({
       keyword: keyword.value,
       institutionId: institutionId.value,
-      enabled: enabledParam(),
+      enabled: enabledBooleanParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

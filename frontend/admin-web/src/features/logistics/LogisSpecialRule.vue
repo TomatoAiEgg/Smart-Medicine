@@ -14,7 +14,7 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -89,12 +89,6 @@ function amountInput(value: string) {
   return Number.isFinite(nextValue) && nextValue >= 0 ? value : '0';
 }
 
-function enabledParam() {
-  if (enabledFilter.value === 'true') return true;
-  if (enabledFilter.value === 'false') return false;
-  return undefined;
-}
-
 function institutionText(row: AdminInstitutionRecord | AdminLogisticsSpecialRuleRecord) {
   return `${row.institutionName}（${row.institutionCode}）`;
 }
@@ -152,7 +146,7 @@ async function refreshLogisticsSpecialRules() {
     const nextPage = await listAdminLogisticsSpecialRules({
       keyword: keyword.value,
       institutionId: institutionId.value,
-      enabled: enabledParam(),
+      enabled: enabledBooleanParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

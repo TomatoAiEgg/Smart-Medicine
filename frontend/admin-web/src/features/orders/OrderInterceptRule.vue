@@ -12,7 +12,7 @@ import type {
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledBooleanParam, enabledText, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -70,12 +70,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function enabledParam() {
-  if (enabledFilter.value === 'true') return true;
-  if (enabledFilter.value === 'false') return false;
-  return undefined;
-}
 
 function stageLabel(value: string) {
   const labels: Record<string, string> = {
@@ -143,7 +137,7 @@ async function refreshOrderInterceptRules() {
     const nextPage = await listAdminOrderInterceptRules({
       keyword: keyword.value,
       interceptStage: interceptStage.value,
-      enabled: enabledParam(),
+      enabled: enabledBooleanParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });
