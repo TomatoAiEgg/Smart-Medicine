@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -44,12 +44,12 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 
 function fullAddress(row: AdminPrescriptionReprintItem | AdminPrescriptionPrintPayload) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function queryParams(): AdminPrescriptionReprintQueryParams {
@@ -124,7 +124,7 @@ function batchText(value: string | null | undefined) {
 }
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
-  return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
+  return joinDisplayParts([row.patientName, row.patientPhone], ' / ');
 }
 
 function downloadReprintCsv() {

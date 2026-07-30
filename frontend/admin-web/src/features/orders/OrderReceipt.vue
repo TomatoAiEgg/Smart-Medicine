@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -64,12 +64,12 @@ const batchOrderNos = computed(() => splitOrderNos(batchText.value));
 const batchFailedItems = computed(() => batchResult.value?.items.filter((item) => !item.success) ?? []);
 
 function fullAddress(row: AdminOrderReceiptItem) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function prescriptionTypeText(value: string | null | undefined) {

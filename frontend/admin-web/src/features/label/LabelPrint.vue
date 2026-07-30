@@ -19,7 +19,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, displayValue, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -66,12 +66,12 @@ const selectedTemplate = computed(() => (
 const failedPrintRecords = computed(() => printRecords.value.filter((record) => record.printStatus === 'FAILED'));
 
 function fullAddress(row: AdminPrescriptionReprintItem | AdminPrescriptionPrintPayload) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function queryParams(): AdminPrescriptionReprintQueryParams {
@@ -133,7 +133,7 @@ function templateOptionText(template: AdminLabelTemplateRecord) {
 }
 
 function patientInfo(row: AdminPrescriptionReprintItem) {
-  return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
+  return joinDisplayParts([row.patientName, row.patientPhone], ' / ');
 }
 
 function isPrescriptionSelected(nextPrescriptionNo: string) {

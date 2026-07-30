@@ -5,7 +5,7 @@ import { listShipmentTraces, listShipments, receiveShipmentTrace, signShipment }
 import type { ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDisplayParts } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -65,9 +65,9 @@ function queryStatus() {
 }
 
 function fullAddress(record: ShipmentRecord) {
-  return [
+  return joinDisplayParts([
     record.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function defaultFollowupContent(record: ShipmentRecord) {

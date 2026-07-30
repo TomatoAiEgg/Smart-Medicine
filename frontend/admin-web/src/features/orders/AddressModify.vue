@@ -15,7 +15,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, formatDate, formatNumber, joinDisplayParts } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -88,12 +88,12 @@ function addressTypeLabel(value: string | null | undefined) {
 }
 
 function fullAddress(row: AdminOrderListItem | AdminOrderDetail) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function legacyDateTimeInput(value: string | null | undefined) {

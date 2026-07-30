@@ -64,6 +64,15 @@ export function amountValue(value: string | number | null | undefined, fallback 
   return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
+export function joinDisplayParts(
+  parts: Array<string | number | null | undefined>,
+  separator = '',
+  fallback = EMPTY_VALUE,
+) {
+  const values = parts.filter((value) => value !== null && value !== undefined && value !== '');
+  return values.length > 0 ? values.map(String).join(separator) : fallback;
+}
+
 export function enabledText(value: boolean) {
   return value ? '启用' : '停用';
 }

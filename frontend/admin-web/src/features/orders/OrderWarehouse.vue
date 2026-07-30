@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -60,12 +60,12 @@ function splitValues(value: string | null | undefined) {
 }
 
 function fullAddress(row: AdminOrderWarehouseItem) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function deliveryTypeText(value: string | null | undefined) {

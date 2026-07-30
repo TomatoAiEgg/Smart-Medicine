@@ -13,7 +13,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, labelFromMap } from '../../domain/formatters';
+import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -92,16 +92,16 @@ function medicationMethodText(value: number | null | undefined) {
 }
 
 function patientInfo(row: AdminOrderListItem) {
-  return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
+  return joinDisplayParts([row.patientName, row.patientPhone], ' / ');
 }
 
 function fullAddress(row: AdminOrderListItem) {
-  return [
+  return joinDisplayParts([
     row.receiverProvince,
     row.receiverCity,
     row.receiverZone,
     row.receiverAddress,
-  ].filter(Boolean).join('') || '-';
+  ]);
 }
 
 function canInitialize(row: AdminOrderListItem) {
