@@ -14,11 +14,10 @@ import type {
   AdminLogisticsAddressCostRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, fixedDecimalValue, formatDate, formatNumber, nonNegativeNumberInput } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
-type AmountValue = number | string | null | undefined;
 
 interface CostForm {
   id: string | null;
@@ -75,21 +74,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function amountNumber(value: AmountValue) {
-  if (value === null || value === undefined || value === '') return 0;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : 0;
-}
-
-function amountText(value: AmountValue) {
-  return amountNumber(value).toFixed(2);
-}
-
-function amountInput(value: string) {
-  const nextValue = Number(value);
-  return Number.isFinite(nextValue) && nextValue >= 0 ? value : '0';
-}
-
 function institutionText(row: AdminInstitutionRecord | AdminLogisticsAddressCostRecord) {
   return `${row.institutionName}（${row.institutionCode}）`;
 }
@@ -105,7 +89,7 @@ function commandFromForm(): AdminLogisticsAddressCostCommand {
     province: form.value.province.trim(),
     city: form.value.city.trim(),
     district: form.value.district.trim(),
-    costAmount: amountInput(form.value.costAmount),
+    costAmount: nonNegativeNumberInput(form.value.costAmount),
     remark: form.value.remark.trim(),
     enabled: form.value.enabled,
   };
@@ -122,7 +106,7 @@ function downloadAddressCostCsv() {
       row.city,
       row.district,
       addressText(row),
-      amountText(row.costAmount),
+      fixedDecimalValue(row.costAmount),
       enabledText(row.enabled),
       row.remark,
       formatDate(row.updatedAt),
@@ -205,7 +189,7 @@ function editCost(row: AdminLogisticsAddressCostRecord) {
     province: row.province,
     city: row.city,
     district: row.district,
-    costAmount: amountText(row.costAmount),
+    costAmount: fixedDecimalValue(row.costAmount),
     remark: row.remark ?? '',
     enabled: row.enabled,
   };
@@ -423,7 +407,7 @@ defineExpose({
             </td>
             <td>{{ row.logisticsCompany }}</td>
             <td>{{ addressText(row) }}</td>
-            <td>{{ amountText(row.costAmount) }}</td>
+            <td>{{ fixedDecimalValue(row.costAmount) }}</td>
             <td>
               <span class="legacy-status" :class="row.enabled ? 'status-success' : 'status-muted'">
                 {{ enabledText(row.enabled) }}

@@ -14,11 +14,10 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, fixedDecimalValue, formatDate, formatNumber, nonNegativeNumberInput } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
-type AmountValue = number | string | null | undefined;
 
 interface RuleForm {
   id: string | null;
@@ -74,21 +73,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function amountNumber(value: AmountValue) {
-  if (value === null || value === undefined || value === '') return 0;
-  const nextValue = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(nextValue) ? nextValue : 0;
-}
-
-function amountText(value: AmountValue) {
-  return amountNumber(value).toFixed(2);
-}
-
-function amountInput(value: string) {
-  const nextValue = Number(value);
-  return Number.isFinite(nextValue) && nextValue >= 0 ? value : '0';
-}
-
 function institutionText(row: AdminInstitutionRecord | AdminLogisticsSpecialRuleRecord) {
   return `${row.institutionName}（${row.institutionCode}）`;
 }
@@ -98,9 +82,9 @@ function commandFromForm(): AdminLogisticsSpecialRuleCommand {
     institutionId: form.value.institutionId,
     ruleName: form.value.ruleName.trim(),
     logisticsCompany: form.value.logisticsCompany.trim(),
-    baseFee: amountInput(form.value.baseFee),
-    extraFee: amountInput(form.value.extraFee),
-    freeThreshold: amountInput(form.value.freeThreshold),
+    baseFee: nonNegativeNumberInput(form.value.baseFee),
+    extraFee: nonNegativeNumberInput(form.value.extraFee),
+    freeThreshold: nonNegativeNumberInput(form.value.freeThreshold),
     remark: form.value.remark.trim(),
     enabled: form.value.enabled,
   };
@@ -114,9 +98,9 @@ function downloadSpecialRuleCsv() {
       institutionText(row),
       row.ruleName,
       row.logisticsCompany,
-      amountText(row.baseFee),
-      amountText(row.extraFee),
-      amountText(row.freeThreshold),
+      fixedDecimalValue(row.baseFee),
+      fixedDecimalValue(row.extraFee),
+      fixedDecimalValue(row.freeThreshold),
       enabledText(row.enabled),
       row.remark,
       formatDate(row.updatedAt),
@@ -196,9 +180,9 @@ function editRule(row: AdminLogisticsSpecialRuleRecord) {
     institutionId: row.institutionId,
     ruleName: row.ruleName,
     logisticsCompany: row.logisticsCompany,
-    baseFee: amountText(row.baseFee),
-    extraFee: amountText(row.extraFee),
-    freeThreshold: amountText(row.freeThreshold),
+    baseFee: fixedDecimalValue(row.baseFee),
+    extraFee: fixedDecimalValue(row.extraFee),
+    freeThreshold: fixedDecimalValue(row.freeThreshold),
     remark: row.remark ?? '',
     enabled: row.enabled,
   };
@@ -414,9 +398,9 @@ defineExpose({
             </td>
             <td>{{ row.ruleName }}</td>
             <td>{{ row.logisticsCompany }}</td>
-            <td>{{ amountText(row.baseFee) }}</td>
-            <td>{{ amountText(row.extraFee) }}</td>
-            <td>{{ amountText(row.freeThreshold) }}</td>
+            <td>{{ fixedDecimalValue(row.baseFee) }}</td>
+            <td>{{ fixedDecimalValue(row.extraFee) }}</td>
+            <td>{{ fixedDecimalValue(row.freeThreshold) }}</td>
             <td>
               <span class="legacy-status" :class="row.enabled ? 'status-success' : 'status-muted'">
                 {{ enabledText(row.enabled) }}

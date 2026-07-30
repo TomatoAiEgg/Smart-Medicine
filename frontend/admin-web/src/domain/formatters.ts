@@ -79,6 +79,15 @@ export function moneyValueOrZero(value: string | number | null | undefined) {
   return decimalValue(value, 2);
 }
 
+export function fixedDecimalValue(value: string | number | null | undefined, fractionDigits = 2) {
+  return numericValueOrZero(value).toFixed(fractionDigits);
+}
+
+export function nonNegativeNumberInput(value: string) {
+  const nextValue = Number(value);
+  return Number.isFinite(nextValue) && nextValue >= 0 ? value : '0';
+}
+
 export function joinDisplayParts(
   parts: Array<string | number | null | undefined>,
   separator = '',
