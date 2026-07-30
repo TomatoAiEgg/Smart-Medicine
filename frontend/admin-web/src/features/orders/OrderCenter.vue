@@ -47,7 +47,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, amountValue, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
+import { EMPTY_VALUE, amountValue, boundedPositiveInteger, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -956,6 +956,7 @@ async function queryOrder() {
   orderLoading.value = true;
   orderError.value = '';
   try {
+    pageSize.value = boundedPositiveInteger(pageSize.value, 20, 100);
     const nextPage = await listAdminOrders(currentOrderQueryParams({ includePaging: true }));
     orderPage.value = nextPage;
     page.value = nextPage.page;

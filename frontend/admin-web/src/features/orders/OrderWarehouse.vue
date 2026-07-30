@@ -12,7 +12,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, splitCommaValues } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, currentIsoDate, formatDate, joinDisplayParts, labelFromMap, splitCommaValues } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -146,6 +146,7 @@ async function refreshOrderWarehouses() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = boundedPositiveInteger(pageSize.value, 20, 100);
     const nextPage = await listAdminOrderWarehouses(queryParams());
     warehousePage.value = nextPage;
     page.value = nextPage.page;
