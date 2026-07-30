@@ -165,12 +165,21 @@ const reviewDetailAmountSummary = computed(() => {
   const drugAmount = sumNumbers(reviewDetailDrugRows.value.map((row) => row.detail.totalPrice));
   const decoctionAmount = sumNumbers(reviewDetailPrescriptions.value.map((item) => item.decoctionTotalPrice));
   const settlementDetailAmount = sumNumbers(reviewDetailDrugRows.value.map((row) => row.detail.settlementTotalPrice));
+  const logisticsFee = numericValue(reviewOrderDetail.value?.logisticsFee);
+  const discountAmount = numericValue(reviewOrderDetail.value?.discountAmount);
+  const basePayableAmount = prescriptionAmount ?? settlementDetailAmount ?? (
+    drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null
+  );
   return {
     prescriptionAmount,
     drugAmount,
     decoctionAmount,
     settlementDetailAmount,
-    payableAmount: drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null,
+    logisticsFee,
+    discountAmount,
+    payableAmount: basePayableAmount === null
+      ? null
+      : basePayableAmount + (logisticsFee ?? 0) - (discountAmount ?? 0),
   };
 });
 
@@ -1023,7 +1032,15 @@ defineExpose({
               <strong>{{ moneyValue(reviewDetailAmountSummary.settlementDetailAmount) }}</strong>
             </div>
             <div>
-              <span>药品+煎煮合计</span>
+              <span>物流费</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.logisticsFee) }}</strong>
+            </div>
+            <div>
+              <span>优惠金额</span>
+              <strong>{{ moneyValue(reviewDetailAmountSummary.discountAmount) }}</strong>
+            </div>
+            <div>
+              <span>应收金额</span>
               <strong>{{ moneyValue(reviewDetailAmountSummary.payableAmount) }}</strong>
             </div>
           </div>
