@@ -41,7 +41,8 @@ public class OrderStatusUpdateService {
         int updated = orderRepository.updateOrderStatusIfCurrent(
                 order.orderId(),
                 transition.fromStatusName(),
-                transition.toStatusName()
+                transition.toStatusName(),
+                normalizeOptional(command.batchNo())
         );
         if (updated == 0) {
             throw new BusinessException("ORDER_STATUS_CONFLICT", "Order status changed, please refresh and retry");
@@ -87,5 +88,9 @@ public class OrderStatusUpdateService {
 
     private String defaultValue(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String normalizeOptional(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

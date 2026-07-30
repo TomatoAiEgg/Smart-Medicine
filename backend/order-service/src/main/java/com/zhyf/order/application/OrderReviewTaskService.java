@@ -65,7 +65,8 @@ public class OrderReviewTaskService {
         int updated = orderRepository.updateOrderStatusIfCurrent(
                 order.orderId(),
                 transition.fromStatusName(),
-                transition.toStatusName()
+                transition.toStatusName(),
+                approved ? normalizeComment(command.batchNo()) : null
         );
         if (updated == 0) {
             throw new BusinessException("ORDER_STATUS_CONFLICT", "Order status changed, please refresh and retry");

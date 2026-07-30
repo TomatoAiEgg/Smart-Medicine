@@ -73,7 +73,13 @@ public class OrderReviewTaskService {
         OrderStatus targetStatus = approved ? OrderStatus.AUDIT_PASSED : OrderStatus.AUDIT_FAILED;
         String taskStatus = approved ? "APPROVED" : "REJECTED";
         String source = approved ? "workflow-service-review-approve" : "workflow-service-review-reject";
-        OrderStatusClient.OrderStatusUpdateResult orderResult = updateOrderStatus(task, approved, targetStatus, source);
+        OrderStatusClient.OrderStatusUpdateResult orderResult = updateOrderStatus(
+                task,
+                approved,
+                targetStatus,
+                source,
+                command.batchNo()
+        );
 
         int taskUpdated = taskRepository.updateWorkflowTaskReviewResult(
                 task.taskId(),
@@ -109,7 +115,8 @@ public class OrderReviewTaskService {
             WorkflowTaskSnapshot task,
             boolean approved,
             OrderStatus targetStatus,
-            String source
+            String source,
+            String batchNo
     ) {
         if (approved && isPrescriptionRecheckTask(task) && OrderStatus.AUDIT_PASSED.name().equals(task.orderStatus())) {
             return new OrderStatusClient.OrderStatusUpdateResult(
@@ -123,7 +130,8 @@ public class OrderReviewTaskService {
                 task.orderId(),
                 targetStatus.name(),
                 "AUDIT",
-                source
+                source,
+                approved ? normalizeComment(batchNo) : null
         );
     }
 

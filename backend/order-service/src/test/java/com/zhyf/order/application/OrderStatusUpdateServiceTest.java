@@ -36,7 +36,7 @@ class OrderStatusUpdateServiceTest {
                 Instant.now()
         );
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", null)).thenReturn(1);
 
         OrderStatusUpdateResult result = service.updateStatus(
                 orderId,
@@ -46,6 +46,30 @@ class OrderStatusUpdateServiceTest {
         assertThat(result.orderId()).isEqualTo(orderId);
         assertThat(result.orderNo()).isEqualTo("ZHYF1");
         assertThat(result.fromStatus()).isEqualTo("CREATED");
+        assertThat(result.toStatus()).isEqualTo("AUDIT_PASSED");
+    }
+
+    @Test
+    void shouldUpdateBatchNoWithStatusWhenProvided() {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        OrderSnapshot order = new OrderSnapshot(
+                orderId,
+                tenantId,
+                UUID.randomUUID(),
+                "ZHYF1",
+                "EXT1",
+                "CREATED",
+                Instant.now()
+        );
+        when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", "1")).thenReturn(1);
+
+        OrderStatusUpdateResult result = service.updateStatus(
+                orderId,
+                new OrderStatusUpdateCommand("AUDIT_PASSED", "AUDIT", "workflow-service-review-approve", "1")
+        );
+
         assertThat(result.toStatus()).isEqualTo("AUDIT_PASSED");
     }
 
@@ -63,7 +87,7 @@ class OrderStatusUpdateServiceTest {
                 Instant.now()
         );
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatusIfCurrent(orderId, "AUDIT_PASSED", "AUDIT_FAILED")).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "AUDIT_PASSED", "AUDIT_FAILED", null)).thenReturn(1);
 
         OrderStatusUpdateResult result = service.updateStatus(
                 orderId,
@@ -99,7 +123,7 @@ class OrderStatusUpdateServiceTest {
                 Instant.now()
         );
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(0);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", null)).thenReturn(0);
 
         assertThatThrownBy(() -> service.updateStatus(
                 orderId,

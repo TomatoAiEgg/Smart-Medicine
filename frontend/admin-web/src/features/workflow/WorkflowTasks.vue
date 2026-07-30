@@ -431,7 +431,12 @@ function shouldRefreshActiveTasks() {
   return recheckTasks.value.length === 0;
 }
 
-async function submitReview(task: WorkflowTaskSnapshot, action: 'approve' | 'reject', reviewComment: string) {
+async function submitReview(
+  task: WorkflowTaskSnapshot,
+  action: 'approve' | 'reject',
+  reviewComment: string,
+  batchNo?: string,
+) {
   if (!operator.value.trim()) {
     workflowError.value = '处理人不能为空';
     return;
@@ -444,6 +449,7 @@ async function submitReview(task: WorkflowTaskSnapshot, action: 'approve' | 'rej
     const command = {
       reviewer: operator.value.trim(),
       reviewComment,
+      batchNo,
     };
     const result = action === 'approve'
       ? await approveReviewTask(task.taskId, command)
@@ -464,7 +470,7 @@ async function handleReviewFailure(task: WorkflowTaskSnapshot) {
 
 async function handleBatchApproval(task: WorkflowTaskSnapshot, batch: '早批次' | '晚批次') {
   const batchNo = batch === '早批次' ? 1 : 3;
-  await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`);
+  await submitReview(task, 'approve', `审核通过；批次：${batch}(${batchNo})`, String(batchNo));
 }
 
 function handlePendingReviewAction(actionName: '备注' | '拆单') {
@@ -663,7 +669,7 @@ defineExpose({
             审核失败意见：
             <input v-model="comment" class="legacy-input input-large" placeholder="填写审核失败原因" />
           </label>
-          <span>后端批次字段待补契约，早/晚批次当前仅写入 reviewComment。</span>
+          <span>早/晚批次会写入订单批次字段，并同步保留在审核意见中。</span>
         </div>
 
         <p v-if="workflowError" class="error-line">{{ workflowError }}</p>

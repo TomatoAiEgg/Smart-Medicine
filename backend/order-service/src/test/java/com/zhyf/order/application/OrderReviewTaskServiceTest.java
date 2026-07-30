@@ -75,7 +75,7 @@ class OrderReviewTaskServiceTest {
         OrderSnapshot order = new OrderSnapshot(orderId, tenantId, UUID.randomUUID(), "ZHYF1", "EXT1", "CREATED", Instant.now());
         when(orderRepository.findReviewTaskById(taskId)).thenReturn(Optional.of(task));
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", null)).thenReturn(1);
         when(orderRepository.updateWorkflowTaskReviewResult(taskId, "APPROVED", "reviewer1", "ok")).thenReturn(1);
 
         var result = service.approve(taskId, new OrderReviewCommand("reviewer1", "ok"));
@@ -85,6 +85,41 @@ class OrderReviewTaskServiceTest {
         assertThat(result.orderStatus()).isEqualTo("AUDIT_PASSED");
         assertThat(result.taskStatus()).isEqualTo("APPROVED");
         assertThat(result.reviewer()).isEqualTo("reviewer1");
+    }
+
+    @Test
+    void shouldApprovePendingReviewTaskWithBatchNo() {
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+        WorkflowTaskSnapshot task = new WorkflowTaskSnapshot(
+                taskId,
+                tenantId,
+                orderId,
+                "ORDER_REVIEW",
+                "PENDING",
+                "event-1",
+                null,
+                null,
+                "ZHYF1",
+                "EXT1",
+                "CREATED",
+                "PASSED",
+                "basic validation passed",
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        OrderSnapshot order = new OrderSnapshot(orderId, tenantId, UUID.randomUUID(), "ZHYF1", "EXT1", "CREATED", Instant.now());
+        when(orderRepository.findReviewTaskById(taskId)).thenReturn(Optional.of(task));
+        when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", "3")).thenReturn(1);
+        when(orderRepository.updateWorkflowTaskReviewResult(taskId, "APPROVED", "reviewer1", "ok")).thenReturn(1);
+
+        var result = service.approve(taskId, new OrderReviewCommand("reviewer1", "ok", "3"));
+
+        assertThat(result.orderStatus()).isEqualTo("AUDIT_PASSED");
+        assertThat(result.taskStatus()).isEqualTo("APPROVED");
     }
 
     @Test
@@ -113,7 +148,7 @@ class OrderReviewTaskServiceTest {
         OrderSnapshot order = new OrderSnapshot(orderId, tenantId, UUID.randomUUID(), "ZHYF1", "EXT1", "CREATED", Instant.now());
         when(orderRepository.findReviewTaskById(taskId)).thenReturn(Optional.of(task));
         when(orderRepository.findOrderById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED")).thenReturn(0);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "CREATED", "AUDIT_PASSED", null)).thenReturn(0);
 
         assertThatThrownBy(() -> service.approve(taskId, new OrderReviewCommand("reviewer1", "ok")))
                 .isInstanceOf(BusinessException.class)

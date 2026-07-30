@@ -1488,6 +1488,7 @@ export interface WorkflowTaskSnapshot {
 export interface OrderReviewCommand {
   reviewer: string;
   reviewComment: string;
+  batchNo?: string;
 }
 
 export interface OrderReviewResult {

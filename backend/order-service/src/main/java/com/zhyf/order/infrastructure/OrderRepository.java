@@ -3806,13 +3806,24 @@ public class OrderRepository {
     }
 
     public int updateOrderStatusIfCurrent(UUID orderId, String currentStatus, String targetStatus) {
+        return updateOrderStatusIfCurrent(orderId, currentStatus, targetStatus, null);
+    }
+
+    public int updateOrderStatusIfCurrent(
+            UUID orderId,
+            String currentStatus,
+            String targetStatus,
+            String batchNo
+    ) {
         String sql = """
                 update order_main
-                set status = ?, updated_at = now()
+                set status = ?,
+                    batch_no = coalesce(nullif(?, ''), batch_no),
+                    updated_at = now()
                 where id = ?
                   and status = ?
                 """;
-        return jdbcTemplate.update(sql, targetStatus, orderId, currentStatus);
+        return jdbcTemplate.update(sql, targetStatus, batchNo, orderId, currentStatus);
     }
 
     public int updateOrderStatusAndAppendRemarkIfCurrent(

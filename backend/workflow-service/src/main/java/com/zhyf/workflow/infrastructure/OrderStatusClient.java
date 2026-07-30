@@ -32,7 +32,17 @@ public class OrderStatusClient {
             String operatorType,
             String source
     ) {
-        OrderStatusUpdateCommand command = new OrderStatusUpdateCommand(targetStatus, operatorType, source);
+        return updateStatus(orderId, targetStatus, operatorType, source, null);
+    }
+
+    public OrderStatusUpdateResult updateStatus(
+            UUID orderId,
+            String targetStatus,
+            String operatorType,
+            String source,
+            String batchNo
+    ) {
+        OrderStatusUpdateCommand command = new OrderStatusUpdateCommand(targetStatus, operatorType, source, batchNo);
         ApiResponse<OrderStatusUpdateResult> response = restClient.patch()
                 .uri(properties.getOrderServiceBaseUrl() + "/internal/orders/" + orderId + "/status")
                 .body(command)
@@ -67,8 +77,12 @@ public class OrderStatusClient {
     public record OrderStatusUpdateCommand(
             String targetStatus,
             String operatorType,
-            String source
+            String source,
+            String batchNo
     ) {
+        public OrderStatusUpdateCommand(String targetStatus, String operatorType, String source) {
+            this(targetStatus, operatorType, source, null);
+        }
     }
 
     public record OrderStatusUpdateResult(

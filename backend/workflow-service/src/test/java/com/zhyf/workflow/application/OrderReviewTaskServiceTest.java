@@ -61,7 +61,8 @@ class OrderReviewTaskServiceTest {
                 orderId,
                 "AUDIT_PASSED",
                 "AUDIT",
-                "workflow-service-review-approve"
+                "workflow-service-review-approve",
+                null
         )).thenReturn(new OrderStatusClient.OrderStatusUpdateResult(orderId, "ZHYF1", "CREATED", "AUDIT_PASSED"));
         when(taskRepository.updateWorkflowTaskReviewResult(taskId, "APPROVED", "reviewer1", "ok")).thenReturn(1);
 
@@ -73,6 +74,45 @@ class OrderReviewTaskServiceTest {
         assertThat(result.orderStatus()).isEqualTo("AUDIT_PASSED");
         assertThat(result.reviewer()).isEqualTo("reviewer1");
         assertThat(result.completedAt()).isEqualTo(now);
+        verify(dispenseTaskService).createPendingDispenseTask(task, "order-review-approved");
+    }
+
+    @Test
+    void shouldPassBatchNoWhenApprovingReviewTask() {
+        UUID taskId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        WorkflowTaskSnapshot task = new WorkflowTaskSnapshot(
+                taskId,
+                tenantId,
+                orderId,
+                "ORDER_REVIEW",
+                "PENDING",
+                "event-1",
+                null,
+                null,
+                "ZHYF1",
+                "EXT1",
+                "CREATED",
+                "PASSED",
+                "basic validation passed",
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        when(taskRepository.findReviewTaskById(taskId)).thenReturn(java.util.Optional.of(task));
+        when(orderStatusClient.updateStatus(
+                orderId,
+                "AUDIT_PASSED",
+                "AUDIT",
+                "workflow-service-review-approve",
+                "1"
+        )).thenReturn(new OrderStatusClient.OrderStatusUpdateResult(orderId, "ZHYF1", "CREATED", "AUDIT_PASSED"));
+        when(taskRepository.updateWorkflowTaskReviewResult(taskId, "APPROVED", "reviewer1", "ok")).thenReturn(1);
+
+        OrderReviewResult result = service.approve(taskId, new OrderReviewCommand("reviewer1", "ok", "1"));
+
+        assertThat(result.orderStatus()).isEqualTo("AUDIT_PASSED");
         verify(dispenseTaskService).createPendingDispenseTask(task, "order-review-approved");
     }
 
@@ -139,7 +179,8 @@ class OrderReviewTaskServiceTest {
                 orderId,
                 "AUDIT_FAILED",
                 "AUDIT",
-                "workflow-service-review-reject"
+                "workflow-service-review-reject",
+                null
         )).thenReturn(new OrderStatusClient.OrderStatusUpdateResult(orderId, "ZHYF1", "AUDIT_PASSED", "AUDIT_FAILED"));
         when(taskRepository.updateWorkflowTaskReviewResult(taskId, "REJECTED", "reviewer1", "bad")).thenReturn(1);
 
