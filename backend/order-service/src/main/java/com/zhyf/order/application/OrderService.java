@@ -23,6 +23,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -1426,6 +1427,70 @@ public class OrderService {
         return orderRepository.searchAdminPrescriptionReprints(normalized, reprintableStatusNames());
     }
 
+    public AdminLabelPrintRecordPage listAdminLabelPrintRecords(AdminLabelPrintRecordQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        String printStatus = cleanText(query.printStatus());
+        if (StringUtils.hasText(printStatus)) {
+            printStatus = normalizeLabelPrintStatus(printStatus);
+        }
+        return orderRepository.searchAdminLabelPrintRecords(new AdminLabelPrintRecordQuery(
+                printStatus,
+                cleanText(query.prescriptionNo()),
+                page,
+                pageSize
+        ));
+    }
+
+    @Transactional
+    public AdminLabelPrintRecord createAdminLabelPrintRecord(
+            String prescriptionNo,
+            AdminLabelPrintRecordCommand command
+    ) {
+        if (command == null) {
+            throw new BusinessException("LABEL_PRINT_RECORD_COMMAND_REQUIRED", "标签打印记录参数不能为空");
+        }
+        String normalizedPrescriptionNo = requireText(
+                prescriptionNo,
+                "PRESCRIPTION_NO_REQUIRED",
+                "处方号不能为空"
+        );
+        String printStatus = normalizeLabelPrintStatus(requireText(
+                command.printStatus(),
+                "LABEL_PRINT_STATUS_REQUIRED",
+                "标签打印状态不能为空"
+        ));
+        String orderNo = orderRepository.findOrderNoByPrescriptionNo(normalizedPrescriptionNo)
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        AdminOrderDetail detail = getAdminOrderDetail(orderNo);
+        AdminOrderDetail.Prescription prescription = detail.prescriptions().stream()
+                .filter(item -> normalizedPrescriptionNo.equals(item.prescriptionNo()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        String failureReason = "FAILED".equals(printStatus)
+                ? defaultText(command.failureReason(), "浏览器标签打印失败")
+                : cleanText(command.failureReason());
+        return orderRepository.insertAdminLabelPrintRecord(
+                UUID.randomUUID(),
+                detail.tenantId(),
+                detail.orderId(),
+                prescription.prescriptionId(),
+                detail.orderNo(),
+                detail.externalOrderNo(),
+                prescription.prescriptionNo(),
+                prescription.externalPrescriptionNo(),
+                detail.institutionName(),
+                detail.patientName(),
+                printStatus,
+                "BROWSER",
+                command.templateId(),
+                cleanText(command.templateName()),
+                failureReason,
+                defaultText(command.operator(), "admin"),
+                command.retryOf()
+        );
+    }
+
     public AdminPrescriptionPrintPayload getAdminPrescriptionPrintPayload(String prescriptionNo) {
         String normalizedPrescriptionNo = requireText(
                 prescriptionNo,
@@ -1480,6 +1545,14 @@ public class OrderService {
                 prescription.details(),
                 Instant.now()
         );
+    }
+
+    private String normalizeLabelPrintStatus(String value) {
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (!"PRINTED".equals(normalized) && !"FAILED".equals(normalized)) {
+            throw new BusinessException("LABEL_PRINT_STATUS_INVALID", "标签打印状态只能是 PRINTED 或 FAILED");
+        }
+        return normalized;
     }
 
     @Transactional

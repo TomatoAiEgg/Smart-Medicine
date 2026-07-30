@@ -2,11 +2,14 @@
 import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import {
+  createAdminLabelPrintRecord,
   getAdminPrescriptionPrintPayload,
+  listAdminLabelPrintRecords,
   listAdminLabelTemplates,
   listAdminPrescriptionReprints,
 } from '../../api/order';
 import type {
+  AdminLabelPrintRecord,
   AdminLabelTemplateRecord,
   AdminOrderDetailDrug,
   AdminPrescriptionPrintPayload,
@@ -43,9 +46,12 @@ const loading = ref(false);
 const templateLoading = ref(false);
 const printingNo = ref('');
 const batchPrinting = ref(false);
+const recordLoading = ref(false);
+const retryingRecordId = ref('');
 const errorLine = ref('');
 const templateError = ref('');
 const selectedPrescriptionNos = ref<string[]>([]);
+const printRecords = ref<AdminLabelPrintRecord[]>([]);
 
 const rows = computed(() => labelPage.value?.records ?? []);
 const total = computed(() => labelPage.value?.total ?? 0);
@@ -57,6 +63,7 @@ const selectedTemplate = computed(() => (
   labelTemplates.value.find((template) => template.id === selectedTemplateId.value)
   ?? null
 ));
+const failedPrintRecords = computed(() => printRecords.value.filter((record) => record.printStatus === 'FAILED'));
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -121,6 +128,14 @@ function batchText(value: string | null | undefined) {
     1: '早批次',
     2: '午批次',
     3: '晚批次',
+  };
+  return value ? labels[value] ?? value : '-';
+}
+
+function printStatusText(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    PRINTED: '已打开',
+    FAILED: '失败',
   };
   return value ? labels[value] ?? value : '-';
 }
@@ -238,6 +253,42 @@ async function refreshLabelTemplates() {
   }
 }
 
+async function refreshLabelPrintRecords() {
+  recordLoading.value = true;
+  try {
+    const nextPage = await listAdminLabelPrintRecords({
+      page: 1,
+      pageSize: 20,
+    });
+    printRecords.value = nextPage.records;
+  } catch (error) {
+    emit('notice', 'error', `标签打印记录加载失败：${errorMessage(error)}`);
+  } finally {
+    recordLoading.value = false;
+  }
+}
+
+async function saveLabelPrintRecord(
+  prescriptionNoValue: string,
+  printStatus: 'PRINTED' | 'FAILED',
+  failureReason?: string,
+  retryOf?: string | null,
+) {
+  try {
+    await createAdminLabelPrintRecord(prescriptionNoValue, {
+      printStatus,
+      templateId: selectedTemplate.value?.id ?? null,
+      templateName: selectedTemplate.value?.templateName ?? null,
+      failureReason: failureReason ?? null,
+      operator: 'admin',
+      retryOf: retryOf ?? null,
+    });
+    await refreshLabelPrintRecords();
+  } catch (error) {
+    emit('notice', 'error', `标签打印记录保存失败：${errorMessage(error)}`);
+  }
+}
+
 async function searchFirstPage() {
   page.value = 1;
   await refreshLabelPrints();
@@ -335,24 +386,42 @@ function renderLabelHtml(payloads: AdminPrescriptionPrintPayload[], template: Ad
 </html>`;
 }
 
-async function openLabelPrint(row: AdminPrescriptionReprintItem) {
-  printingNo.value = row.prescriptionNo;
+async function openLabelPrintByPrescriptionNo(prescriptionNoValue: string, retryOf?: string | null) {
   errorLine.value = '';
   try {
-    const payload = await getAdminPrescriptionPrintPayload(row.prescriptionNo);
+    const payload = await getAdminPrescriptionPrintPayload(prescriptionNoValue);
     const printWindow = window.open('', '_blank', 'width=720,height=520');
     if (!printWindow) {
       errorLine.value = '浏览器阻止了标签打印窗口';
+      await saveLabelPrintRecord(prescriptionNoValue, 'FAILED', errorLine.value, retryOf);
       return;
     }
     printWindow.document.open();
     printWindow.document.write(renderLabelHtml([payload], selectedTemplate.value));
     printWindow.document.close();
-    emit('notice', 'success', `处方 ${row.prescriptionNo} 标签打印窗口已打开`);
+    await saveLabelPrintRecord(prescriptionNoValue, 'PRINTED', undefined, retryOf);
+    emit('notice', 'success', `处方 ${prescriptionNoValue} 标签打印窗口已打开`);
   } catch (error) {
     errorLine.value = errorMessage(error);
+    await saveLabelPrintRecord(prescriptionNoValue, 'FAILED', errorLine.value, retryOf);
+  }
+}
+
+async function openLabelPrint(row: AdminPrescriptionReprintItem) {
+  printingNo.value = row.prescriptionNo;
+  try {
+    await openLabelPrintByPrescriptionNo(row.prescriptionNo);
   } finally {
     printingNo.value = '';
+  }
+}
+
+async function retryLabelPrint(record: AdminLabelPrintRecord) {
+  retryingRecordId.value = record.id;
+  try {
+    await openLabelPrintByPrescriptionNo(record.prescriptionNo, record.id);
+  } finally {
+    retryingRecordId.value = '';
   }
 }
 
@@ -363,21 +432,31 @@ async function openSelectedLabelPrints() {
   }
   batchPrinting.value = true;
   errorLine.value = '';
+  const selectedPrescriptionNosSnapshot = selectedRows.value.map((row) => row.prescriptionNo);
   try {
     const payloads = await Promise.all(
-      selectedRows.value.map((row) => getAdminPrescriptionPrintPayload(row.prescriptionNo)),
+      selectedPrescriptionNosSnapshot.map((nextPrescriptionNo) => getAdminPrescriptionPrintPayload(nextPrescriptionNo)),
     );
     const printWindow = window.open('', '_blank', 'width=720,height=520');
     if (!printWindow) {
       errorLine.value = '浏览器阻止了标签打印窗口';
+      await Promise.all(selectedPrescriptionNosSnapshot.map((nextPrescriptionNo) => (
+        saveLabelPrintRecord(nextPrescriptionNo, 'FAILED', errorLine.value)
+      )));
       return;
     }
     printWindow.document.open();
     printWindow.document.write(renderLabelHtml(payloads, selectedTemplate.value));
     printWindow.document.close();
+    await Promise.all(selectedPrescriptionNosSnapshot.map((nextPrescriptionNo) => (
+      saveLabelPrintRecord(nextPrescriptionNo, 'PRINTED')
+    )));
     emit('notice', 'success', `已打开 ${payloads.length} 张处方标签的批量打印窗口`);
   } catch (error) {
     errorLine.value = errorMessage(error);
+    await Promise.all(selectedPrescriptionNosSnapshot.map((nextPrescriptionNo) => (
+      saveLabelPrintRecord(nextPrescriptionNo, 'FAILED', errorLine.value)
+    )));
   } finally {
     batchPrinting.value = false;
   }
@@ -389,12 +468,14 @@ watch(
     if (!active) return;
     void refreshLabelPrints();
     void refreshLabelTemplates();
+    void refreshLabelPrintRecords();
   },
   { immediate: true },
 );
 
 defineExpose({
   refreshLabelPrints,
+  refreshLabelPrintRecords,
 });
 </script>
 
@@ -449,13 +530,67 @@ defineExpose({
     </ul>
 
     <p class="label-print-hint">
-      当前页面使用真实可打印处方记录生成浏览器标签；可读取启用标签模板并应用模板尺寸，打印任务、失败记录和失败重试仍等待后端契约。
+      当前页面使用真实可打印处方记录生成浏览器标签；窗口打开成功或失败会写入打印记录，失败记录可在本页重试。
     </p>
     <p v-if="selectedTemplate" class="label-template-hint">
       当前模板：{{ selectedTemplate.templateName }} / {{ selectedTemplate.labelWidthMm }} x {{ selectedTemplate.labelHeightMm }} mm
     </p>
     <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
     <p v-if="templateError" class="error-line">标签模板加载失败：{{ templateError }}</p>
+
+    <section class="legacy-panel label-print-record-panel">
+      <div class="label-print-record-title">
+        <div>
+          <strong>最近打印记录</strong>
+          <span>失败 {{ failedPrintRecords.length }} 条</span>
+        </div>
+        <button class="legacy-btn" type="button" :disabled="recordLoading" @click="refreshLabelPrintRecords">
+          {{ recordLoading ? '刷新中' : '刷新记录' }}
+        </button>
+      </div>
+      <table class="legacy-main-table label-print-record-table">
+        <thead>
+          <tr class="legacy-main-head">
+            <th>处方号</th>
+            <th>状态</th>
+            <th>模板</th>
+            <th>失败原因</th>
+            <th>操作人</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="recordLoading" class="legacy-main-info">
+            <td colspan="7" class="legacy-empty">正在加载打印记录</td>
+          </tr>
+          <tr v-else-if="printRecords.length === 0" class="legacy-main-info">
+            <td colspan="7" class="legacy-empty">暂无打印记录</td>
+          </tr>
+          <tr v-for="record in printRecords" :key="record.id" class="legacy-main-info">
+            <td>
+              <strong>{{ record.prescriptionNo }}</strong>
+              <small>{{ rowValue(record.orderNo) }}</small>
+            </td>
+            <td><StatusPill :value="printStatusText(record.printStatus)" :tone="statusTone(record.printStatus)" /></td>
+            <td>{{ rowValue(record.templateName) }}</td>
+            <td class="legacy-left">{{ rowValue(record.failureReason) }}</td>
+            <td>{{ rowValue(record.operator) }}</td>
+            <td>{{ formatDate(record.createdAt) }}</td>
+            <td>
+              <button
+                class="legacy-link-btn workflow-pass-btn"
+                type="button"
+                :disabled="record.printStatus !== 'FAILED' || retryingRecordId === record.id"
+                @click="retryLabelPrint(record)"
+              >
+                {{ retryingRecordId === record.id ? '重试中' : '重试' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <div class="legacy-panel">
       <table class="legacy-main-table label-print-table">
@@ -576,5 +711,32 @@ defineExpose({
 .label-print-table td:nth-child(5) {
   min-width: 190px;
   white-space: normal;
+}
+
+.label-print-record-panel {
+  margin-bottom: 12px;
+}
+
+.label-print-record-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.label-print-record-title div {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.label-print-record-title span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.label-print-record-table {
+  min-width: 920px;
 }
 </style>

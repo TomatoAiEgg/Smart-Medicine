@@ -43,6 +43,9 @@ import com.zhyf.order.application.AdminInstitutionRecord;
 import com.zhyf.order.application.AdminLabelTemplatePage;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLabelTemplateRecord;
+import com.zhyf.order.application.AdminLabelPrintRecord;
+import com.zhyf.order.application.AdminLabelPrintRecordPage;
+import com.zhyf.order.application.AdminLabelPrintRecordQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostPage;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostRecord;
@@ -2861,6 +2864,96 @@ public class OrderRepository {
         );
     }
 
+    public AdminLabelPrintRecordPage searchAdminLabelPrintRecords(AdminLabelPrintRecordQuery query) {
+        QueryParts filters = adminLabelPrintRecordFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(*)
+                from label_print_record r
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long total = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    r.id, r.tenant_id, r.order_id, r.prescription_id,
+                    r.order_no, r.external_order_no, r.prescription_no, r.external_prescription_no,
+                    r.institution_name, r.patient_name, r.print_status, r.print_channel,
+                    r.template_id, r.template_name, r.failure_reason, r.operator,
+                    r.retry_of, r.created_at
+                from label_print_record r
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by r.created_at desc, r.id desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminLabelPrintRecordPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminLabelPrintRecord, listQuery.args()),
+                total == null ? 0 : total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
+    public AdminLabelPrintRecord insertAdminLabelPrintRecord(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID prescriptionId,
+            String orderNo,
+            String externalOrderNo,
+            String prescriptionNo,
+            String externalPrescriptionNo,
+            String institutionName,
+            String patientName,
+            String printStatus,
+            String printChannel,
+            UUID templateId,
+            String templateName,
+            String failureReason,
+            String operator,
+            UUID retryOf
+    ) {
+        String sql = """
+                insert into label_print_record (
+                    id, tenant_id, order_id, prescription_id,
+                    order_no, external_order_no, prescription_no, external_prescription_no,
+                    institution_name, patient_name, print_status, print_channel,
+                    template_id, template_name, failure_reason, operator, retry_of
+                )
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                returning id, tenant_id, order_id, prescription_id,
+                          order_no, external_order_no, prescription_no, external_prescription_no,
+                          institution_name, patient_name, print_status, print_channel,
+                          template_id, template_name, failure_reason, operator, retry_of, created_at
+                """;
+        return jdbcTemplate.queryForObject(
+                sql,
+                this::mapAdminLabelPrintRecord,
+                id,
+                tenantId,
+                orderId,
+                prescriptionId,
+                orderNo,
+                externalOrderNo,
+                prescriptionNo,
+                externalPrescriptionNo,
+                institutionName,
+                patientName,
+                printStatus,
+                printChannel,
+                templateId,
+                templateName,
+                failureReason,
+                operator,
+                retryOf
+        );
+    }
+
     public Optional<String> findOrderNoByPrescriptionNo(String prescriptionNo) {
         String sql = """
                 select o.order_no
@@ -3544,6 +3637,19 @@ public class OrderRepository {
         filters.addInFilter("o.status", reprintStatuses);
         filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
         filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
+        return filters;
+    }
+
+    private QueryParts adminLabelPrintRecordFilters(AdminLabelPrintRecordQuery query) {
+        QueryParts filters = new QueryParts("");
+        if (query.printStatus() != null && !query.printStatus().isBlank()) {
+            filters.append(" and r.print_status = ?");
+            filters.add(query.printStatus().trim());
+        }
+        if (query.prescriptionNo() != null && !query.prescriptionNo().isBlank()) {
+            filters.append(" and r.prescription_no ilike ?");
+            filters.add("%" + query.prescriptionNo().trim() + "%");
+        }
         return filters;
     }
 
@@ -5024,6 +5130,29 @@ public class OrderRepository {
                 integer(rs, "dose_count"),
                 rs.getString("batch_no"),
                 rs.getString("dispenser")
+        );
+    }
+
+    private AdminLabelPrintRecord mapAdminLabelPrintRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminLabelPrintRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("institution_name"),
+                rs.getString("patient_name"),
+                rs.getString("print_status"),
+                rs.getString("print_channel"),
+                rs.getObject("template_id", UUID.class),
+                rs.getString("template_name"),
+                rs.getString("failure_reason"),
+                rs.getString("operator"),
+                rs.getObject("retry_of", UUID.class),
+                instant(rs, "created_at")
         );
     }
 

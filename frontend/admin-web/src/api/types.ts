@@ -1077,6 +1077,50 @@ export interface AdminPrescriptionPrintPayload {
   printedAt: string;
 }
 
+export interface AdminLabelPrintRecordQueryParams {
+  printStatus?: string;
+  prescriptionNo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminLabelPrintRecord {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  prescriptionId: string;
+  orderNo: string;
+  externalOrderNo: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string | null;
+  institutionName: string;
+  patientName: string | null;
+  printStatus: string;
+  printChannel: string;
+  templateId: string | null;
+  templateName: string | null;
+  failureReason: string | null;
+  operator: string | null;
+  retryOf: string | null;
+  createdAt: string;
+}
+
+export interface AdminLabelPrintRecordPage {
+  records: AdminLabelPrintRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminLabelPrintRecordCommand {
+  printStatus: string;
+  templateId?: string | null;
+  templateName?: string | null;
+  failureReason?: string | null;
+  operator?: string | null;
+  retryOf?: string | null;
+}
+
 export interface AdminLabelTemplateQueryParams {
   keyword?: string;
   institutionId?: string;

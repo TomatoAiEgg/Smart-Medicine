@@ -57,6 +57,10 @@ import com.zhyf.order.application.AdminLabelTemplateCommand;
 import com.zhyf.order.application.AdminLabelTemplatePage;
 import com.zhyf.order.application.AdminLabelTemplateQuery;
 import com.zhyf.order.application.AdminLabelTemplateRecord;
+import com.zhyf.order.application.AdminLabelPrintRecord;
+import com.zhyf.order.application.AdminLabelPrintRecordCommand;
+import com.zhyf.order.application.AdminLabelPrintRecordPage;
+import com.zhyf.order.application.AdminLabelPrintRecordQuery;
 import com.zhyf.order.application.AdminLogisticsAddressCostCommand;
 import com.zhyf.order.application.AdminLogisticsAddressCostPage;
 import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
@@ -306,6 +310,29 @@ public class InstitutionOrderController {
             @PathVariable String prescriptionNo
     ) {
         return ApiResponse.ok(orderService.getAdminPrescriptionPrintPayload(prescriptionNo));
+    }
+
+    @GetMapping("/admin/label-print-records")
+    public ApiResponse<AdminLabelPrintRecordPage> listLabelPrintRecords(
+            @RequestParam(required = false) String printStatus,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminLabelPrintRecords(new AdminLabelPrintRecordQuery(
+                printStatus,
+                prescriptionNo,
+                page,
+                pageSize
+        )));
+    }
+
+    @PostMapping("/admin/prescription-reprints/{prescriptionNo}/print-records")
+    public ApiResponse<AdminLabelPrintRecord> createLabelPrintRecord(
+            @PathVariable String prescriptionNo,
+            @RequestBody AdminLabelPrintRecordCommand command
+    ) {
+        return ApiResponse.ok(orderService.createAdminLabelPrintRecord(prescriptionNo, command));
     }
 
     @GetMapping("/admin/label-templates")
