@@ -1,3 +1,5 @@
+export const EMPTY_VALUE = '-';
+
 export function formatDate(value: string | null | undefined) {
   if (!value) return '-';
   const date = new Date(value);
@@ -14,6 +16,11 @@ export function formatDate(value: string | null | undefined) {
 
 export function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat('zh-CN').format(value || 0);
+}
+
+export function displayValue(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
+  return String(value);
 }
 
 export function defaultDate(offsetDays: number) {

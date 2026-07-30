@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadDecoctionPerformanceDetailsCsv, listDecoctionPerformanceDetails } from '../../api/report';
 import type { DecoctionPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -33,11 +31,6 @@ const totalOperators = computed(() => new Set(records.value.map((row) => row.ope
 const totalDevices = computed(() => new Set(records.value.map((row) => row.deviceCode)).size);
 const totalPrescriptions = computed(() => new Set(records.value.map((row) => row.prescriptionNo).filter(Boolean)).size);
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function actionLabel(value: string) {
   if (value === 'FINISH') return '完成';
@@ -186,21 +179,21 @@ defineExpose({
           </tr>
           <tr v-for="row in records" :key="`${row.taskNo}-${row.operator}-${row.actionTime || ''}`" class="legacy-main-info">
             <td>{{ formatDate(row.actionTime) }}</td>
-            <td><strong>{{ rowValue(row.operator) }}</strong></td>
+            <td><strong>{{ displayValue(row.operator) }}</strong></td>
             <td>{{ actionLabel(row.actionType) }}</td>
             <td>{{ resultLabel(row.actionResult) }}</td>
-            <td>{{ rowValue(row.orderNo) }}</td>
-            <td>{{ rowValue(row.externalOrderNo) }}</td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
-            <td>{{ rowValue(row.taskNo) }}</td>
-            <td>{{ rowValue(row.prescriptionNo) }}</td>
-            <td>{{ rowValue(row.deviceCode) }}</td>
-            <td>{{ rowValue(row.pailNo) }}</td>
-            <td>{{ rowValue(row.taskStatusBefore) }}</td>
-            <td>{{ rowValue(row.taskStatusAfter) }}</td>
+            <td>{{ displayValue(row.orderNo) }}</td>
+            <td>{{ displayValue(row.externalOrderNo) }}</td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.taskNo) }}</td>
+            <td>{{ displayValue(row.prescriptionNo) }}</td>
+            <td>{{ displayValue(row.deviceCode) }}</td>
+            <td>{{ displayValue(row.pailNo) }}</td>
+            <td>{{ displayValue(row.taskStatusBefore) }}</td>
+            <td>{{ displayValue(row.taskStatusAfter) }}</td>
             <td>{{ formatNumber(row.doseCount) }}</td>
-            <td>{{ rowValue(row.source) }}</td>
+            <td>{{ displayValue(row.source) }}</td>
           </tr>
         </tbody>
       </table>

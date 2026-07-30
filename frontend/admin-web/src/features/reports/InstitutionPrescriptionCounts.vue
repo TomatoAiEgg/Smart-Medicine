@@ -7,12 +7,10 @@ import {
 } from '../../api/report';
 import type { InstitutionPrescriptionCountRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { displayValue, EMPTY_VALUE, currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type NumericValue = number | string | null | undefined;
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -37,11 +35,6 @@ const totalOrders = computed(() => records.value.reduce((total, row) => total + 
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
 const totalAmount = computed(() => sumNumbers(records.value.map((row) => row.totalAmount)));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
@@ -190,8 +183,8 @@ defineExpose({
             <td colspan="6" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.institutionId" class="legacy-main-info">
-            <td>{{ rowValue(row.institutionCode) }}</td>
-            <td class="legacy-left"><strong>{{ rowValue(row.institutionName) }}</strong></td>
+            <td>{{ displayValue(row.institutionCode) }}</td>
+            <td class="legacy-left"><strong>{{ displayValue(row.institutionName) }}</strong></td>
             <td>{{ formatNumber(row.orderCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.doseCount) }}</td>

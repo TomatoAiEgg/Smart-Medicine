@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadRecheckPerformanceCsv, listRecheckPerformance } from '../../api/report';
 import type { RecheckPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -33,11 +31,6 @@ const totalRechecks = computed(() => records.value.reduce((total, row) => total 
 const totalOrders = computed(() => records.value.reduce((total, row) => total + row.orderCount, 0));
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 async function refreshRecheckPerformance() {
   if (loading.value) return;
@@ -163,7 +156,7 @@ defineExpose({
             <td colspan="7" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.rechecker" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.rechecker) }}</strong></td>
+            <td><strong>{{ displayValue(row.rechecker) }}</strong></td>
             <td>{{ formatNumber(row.recheckCount) }}</td>
             <td>{{ formatNumber(row.orderCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>

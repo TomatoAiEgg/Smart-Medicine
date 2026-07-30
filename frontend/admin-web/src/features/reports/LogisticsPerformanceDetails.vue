@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadLogisticsPerformanceDetailsCsv, listLogisticsPerformanceDetails } from '../../api/report';
 import type { LogisticsPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -36,11 +34,6 @@ const totalDoses = computed(() => records.value.reduce((total, row) => total + r
 const totalPackageWeight = computed(() => records.value.reduce((total, row) => total + numericValue(row.packageWeight), 0));
 const totalPackageCount = computed(() => records.value.reduce((total, row) => total + row.packageCount, 0));
 
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
-
 function numericValue(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return 0;
   const parsed = Number(value);
@@ -59,7 +52,7 @@ function logisticsStatusLabel(value: string | null) {
   if (value === 'PACKED') return '已打包';
   if (value === 'SHIPPED') return '已发货';
   if (value === 'SIGNED') return '已签收';
-  return rowValue(value);
+  return displayValue(value);
 }
 
 async function refreshLogisticsPerformanceDetails() {
@@ -201,13 +194,13 @@ defineExpose({
             <td colspan="14" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="`${row.orderNo}-${row.logisticsNo || ''}`" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.logisticsCompany) }}</strong></td>
-            <td>{{ rowValue(row.logisticsNo) }}</td>
+            <td><strong>{{ displayValue(row.logisticsCompany) }}</strong></td>
+            <td>{{ displayValue(row.logisticsNo) }}</td>
             <td>{{ logisticsStatusLabel(row.logisticsStatus) }}</td>
-            <td>{{ rowValue(row.orderNo) }}</td>
-            <td>{{ rowValue(row.externalOrderNo) }}</td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.orderNo) }}</td>
+            <td>{{ displayValue(row.externalOrderNo) }}</td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.doseCount) }}</td>
             <td>{{ formatWeight(row.packageWeight) }}</td>

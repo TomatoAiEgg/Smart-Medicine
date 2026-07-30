@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadInstitutionHerbReconciliationCsv, listInstitutionHerbReconciliation } from '../../api/report';
 import type { InstitutionHerbReconciliationRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -52,11 +50,6 @@ function decimalValue(value: number | string | null | undefined, maximumFraction
 
 function moneyValue(value: number | string | null | undefined) {
   return decimalValue(value, 2);
-}
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
 }
 
 async function refreshInstitutionHerbReconciliation() {
@@ -215,13 +208,13 @@ defineExpose({
             :key="`${row.institutionId}-${row.herbCode}-${row.herbName}-${row.drugSpecs || ''}`"
             class="legacy-main-info"
           >
-            <td>{{ rowValue(row.institutionCode) }}</td>
-            <td class="legacy-left"><strong>{{ rowValue(row.institutionName) }}</strong></td>
-            <td>{{ rowValue(row.herbCode) }}</td>
-            <td class="legacy-left">{{ rowValue(row.herbName) }}</td>
-            <td>{{ rowValue(row.drugSpecs) }}</td>
-            <td>{{ rowValue(row.drugOrigin) }}</td>
-            <td>{{ rowValue(row.unit) }}</td>
+            <td>{{ displayValue(row.institutionCode) }}</td>
+            <td class="legacy-left"><strong>{{ displayValue(row.institutionName) }}</strong></td>
+            <td>{{ displayValue(row.herbCode) }}</td>
+            <td class="legacy-left">{{ displayValue(row.herbName) }}</td>
+            <td>{{ displayValue(row.drugSpecs) }}</td>
+            <td>{{ displayValue(row.drugOrigin) }}</td>
+            <td>{{ displayValue(row.unit) }}</td>
             <td>{{ formatNumber(row.detailCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.orderCount) }}</td>

@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadAuditPerformanceDetailsCsv, listAuditPerformanceDetails } from '../../api/report';
 import type { AuditPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -34,11 +32,6 @@ const totalApproved = computed(() => records.value.filter((row) => row.auditResu
 const totalRejected = computed(() => records.value.filter((row) => row.auditResult === 'REJECTED').length);
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function resultLabel(value: string) {
   if (value === 'APPROVED') return '通过';
@@ -178,15 +171,15 @@ defineExpose({
           </tr>
           <tr v-for="row in records" :key="`${row.orderNo}-${row.auditor}-${row.auditedAt || ''}`" class="legacy-main-info">
             <td>{{ formatDate(row.auditedAt) }}</td>
-            <td><strong>{{ rowValue(row.auditor) }}</strong></td>
+            <td><strong>{{ displayValue(row.auditor) }}</strong></td>
             <td>{{ resultLabel(row.auditResult) }}</td>
-            <td>{{ rowValue(row.orderNo) }}</td>
-            <td>{{ rowValue(row.externalOrderNo) }}</td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.orderNo) }}</td>
+            <td>{{ displayValue(row.externalOrderNo) }}</td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.doseCount) }}</td>
-            <td class="legacy-left">{{ rowValue(row.reviewComment) }}</td>
+            <td class="legacy-left">{{ displayValue(row.reviewComment) }}</td>
           </tr>
         </tbody>
       </table>

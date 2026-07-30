@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadDispensePerformanceCsv, listDispensePerformance } from '../../api/report';
 import type { DispensePerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -33,11 +31,6 @@ const totalDispenses = computed(() => records.value.reduce((total, row) => total
 const totalOrders = computed(() => records.value.reduce((total, row) => total + row.orderCount, 0));
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 async function refreshDispensePerformance() {
   if (loading.value) return;
@@ -163,7 +156,7 @@ defineExpose({
             <td colspan="7" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.dispenser" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.dispenser) }}</strong></td>
+            <td><strong>{{ displayValue(row.dispenser) }}</strong></td>
             <td>{{ formatNumber(row.dispenseCount) }}</td>
             <td>{{ formatNumber(row.orderCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>

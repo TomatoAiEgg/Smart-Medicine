@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadHerbDosageCsv, listHerbDosage } from '../../api/report';
 import type { HerbDosageRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -51,11 +49,6 @@ function decimalValue(value: number | string | null | undefined, maximumFraction
 
 function moneyValue(value: number | string | null | undefined) {
   return decimalValue(value, 2);
-}
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
 }
 
 async function refreshHerbDosage() {
@@ -194,11 +187,11 @@ defineExpose({
             <td colspan="11" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="`${row.herbCode}-${row.herbName}-${row.drugSpecs || ''}`" class="legacy-main-info">
-            <td>{{ rowValue(row.herbCode) }}</td>
-            <td class="legacy-left"><strong>{{ rowValue(row.herbName) }}</strong></td>
-            <td>{{ rowValue(row.drugSpecs) }}</td>
-            <td>{{ rowValue(row.drugOrigin) }}</td>
-            <td>{{ rowValue(row.unit) }}</td>
+            <td>{{ displayValue(row.herbCode) }}</td>
+            <td class="legacy-left"><strong>{{ displayValue(row.herbName) }}</strong></td>
+            <td>{{ displayValue(row.drugSpecs) }}</td>
+            <td>{{ displayValue(row.drugOrigin) }}</td>
+            <td>{{ displayValue(row.unit) }}</td>
             <td>{{ formatNumber(row.detailCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.orderCount) }}</td>

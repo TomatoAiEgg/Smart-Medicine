@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadAuditPerformanceCsv, listAuditPerformance } from '../../api/report';
 import type { AuditPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -35,11 +33,6 @@ const totalRejected = computed(() => records.value.reduce((total, row) => total 
 const totalOrders = computed(() => records.value.reduce((total, row) => total + row.orderCount, 0));
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 async function refreshAuditPerformance() {
   if (loading.value) return;
@@ -175,7 +168,7 @@ defineExpose({
             <td colspan="9" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.auditor" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.auditor) }}</strong></td>
+            <td><strong>{{ displayValue(row.auditor) }}</strong></td>
             <td>{{ formatNumber(row.auditCount) }}</td>
             <td>{{ formatNumber(row.approvedCount) }}</td>
             <td>{{ formatNumber(row.rejectedCount) }}</td>

@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadPrescriptionHerbDetailsCsv, listPrescriptionHerbDetails } from '../../api/report';
 import type { PrescriptionHerbDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -50,11 +48,6 @@ function decimalValue(value: number | string | null | undefined, maximumFraction
 
 function moneyValue(value: number | string | null | undefined) {
   return decimalValue(value, 2);
-}
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
 }
 
 async function refreshPrescriptionHerbDetails() {
@@ -203,25 +196,25 @@ defineExpose({
             class="legacy-main-info"
           >
             <td>{{ formatDate(row.prescriptionCreatedAt) }}</td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.orderNo) }}</td>
-            <td>{{ rowValue(row.externalOrderNo) }}</td>
-            <td>{{ rowValue(row.prescriptionNo) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNo) }}</td>
-            <td>{{ rowValue(row.herbCode) }}</td>
-            <td class="legacy-left"><strong>{{ rowValue(row.herbName) }}</strong></td>
-            <td>{{ rowValue(row.drugSpecs) }}</td>
-            <td>{{ rowValue(row.drugOrigin) }}</td>
-            <td>{{ rowValue(row.dose) }}</td>
-            <td>{{ rowValue(row.unit) }}</td>
-            <td>{{ rowValue(row.specialUsage) }}</td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.orderNo) }}</td>
+            <td>{{ displayValue(row.externalOrderNo) }}</td>
+            <td>{{ displayValue(row.prescriptionNo) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNo) }}</td>
+            <td>{{ displayValue(row.herbCode) }}</td>
+            <td class="legacy-left"><strong>{{ displayValue(row.herbName) }}</strong></td>
+            <td>{{ displayValue(row.drugSpecs) }}</td>
+            <td>{{ displayValue(row.drugOrigin) }}</td>
+            <td>{{ displayValue(row.dose) }}</td>
+            <td>{{ displayValue(row.unit) }}</td>
+            <td>{{ displayValue(row.specialUsage) }}</td>
             <td>{{ decimalValue(row.quantity) }}</td>
             <td>{{ moneyValue(row.unitPrice) }}</td>
             <td>{{ moneyValue(row.totalPrice) }}</td>
             <td>{{ moneyValue(row.settlementUnitPrice) }}</td>
             <td>{{ moneyValue(row.settlementTotalPrice) }}</td>
-            <td>{{ rowValue(row.batchNo) }}</td>
-            <td>{{ rowValue(row.remark) }}</td>
+            <td>{{ displayValue(row.batchNo) }}</td>
+            <td>{{ displayValue(row.remark) }}</td>
           </tr>
         </tbody>
       </table>

@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadLogisticsPerformanceCsv, listLogisticsPerformance } from '../../api/report';
 import type { LogisticsPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -37,11 +35,6 @@ const totalPrescriptions = computed(() => records.value.reduce((total, row) => t
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
 const totalPackageWeight = computed(() => records.value.reduce((total, row) => total + numericValue(row.totalPackageWeight), 0));
 const totalPackageCount = computed(() => records.value.reduce((total, row) => total + row.packageCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function numericValue(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return 0;
@@ -203,7 +196,7 @@ defineExpose({
             <td colspan="13" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.logisticsCompany" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.logisticsCompany) }}</strong></td>
+            <td><strong>{{ displayValue(row.logisticsCompany) }}</strong></td>
             <td>{{ formatNumber(row.shipmentCount) }}</td>
             <td>{{ formatNumber(row.shippedCount) }}</td>
             <td>{{ formatNumber(row.signedCount) }}</td>

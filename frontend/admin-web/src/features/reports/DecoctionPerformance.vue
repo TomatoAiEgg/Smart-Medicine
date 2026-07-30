@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadDecoctionPerformanceCsv, listDecoctionPerformance } from '../../api/report';
 import type { DecoctionPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -34,11 +32,6 @@ const totalOrders = computed(() => records.value.reduce((total, row) => total + 
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
 const totalDevices = computed(() => records.value.reduce((total, row) => total + row.deviceCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 async function refreshDecoctionPerformance() {
   if (loading.value) return;
@@ -169,7 +162,7 @@ defineExpose({
             <td colspan="8" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in records" :key="row.operator" class="legacy-main-info">
-            <td><strong>{{ rowValue(row.operator) }}</strong></td>
+            <td><strong>{{ displayValue(row.operator) }}</strong></td>
             <td>{{ formatNumber(row.decoctionCount) }}</td>
             <td>{{ formatNumber(row.orderCount) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>

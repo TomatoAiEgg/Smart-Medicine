@@ -4,11 +4,9 @@ import { errorMessage } from '../../domain/errors';
 import { downloadRecheckPerformanceDetailsCsv, listRecheckPerformanceDetails } from '../../api/report';
 import type { RecheckPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -33,11 +31,6 @@ const totalRecheckers = computed(() => new Set(records.value.map((row) => row.re
 const totalCompleted = computed(() => records.value.filter((row) => row.recheckResult === 'COMPLETED').length);
 const totalPrescriptions = computed(() => records.value.reduce((total, row) => total + row.prescriptionCount, 0));
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function resultLabel(value: string) {
   if (value === 'COMPLETED') return '已复核';
@@ -172,15 +165,15 @@ defineExpose({
           </tr>
           <tr v-for="row in records" :key="`${row.orderNo}-${row.rechecker}-${row.recheckedAt || ''}`" class="legacy-main-info">
             <td>{{ formatDate(row.recheckedAt) }}</td>
-            <td><strong>{{ rowValue(row.rechecker) }}</strong></td>
+            <td><strong>{{ displayValue(row.rechecker) }}</strong></td>
             <td>{{ resultLabel(row.recheckResult) }}</td>
-            <td>{{ rowValue(row.orderNo) }}</td>
-            <td>{{ rowValue(row.externalOrderNo) }}</td>
-            <td class="legacy-left">{{ rowValue(row.institutionName) }}</td>
-            <td>{{ rowValue(row.patientName) }}</td>
+            <td>{{ displayValue(row.orderNo) }}</td>
+            <td>{{ displayValue(row.externalOrderNo) }}</td>
+            <td class="legacy-left">{{ displayValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ formatNumber(row.prescriptionCount) }}</td>
             <td>{{ formatNumber(row.doseCount) }}</td>
-            <td class="legacy-left">{{ rowValue(row.recheckComment) }}</td>
+            <td class="legacy-left">{{ displayValue(row.recheckComment) }}</td>
           </tr>
         </tbody>
       </table>

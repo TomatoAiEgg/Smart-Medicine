@@ -9,13 +9,11 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { currentIsoDate, formatDate } from '../../domain/formatters';
+import { displayValue, EMPTY_VALUE, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type NumericValue = number | string | null | undefined;
-
-const EMPTY_VALUE = '-';
 
 const props = defineProps<{
   active: boolean;
@@ -50,11 +48,6 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const pageAmount = computed(() => sumNumbers(rows.value.map((row) => row.totalAmount)));
 const pagePrescriptionCount = computed(() => rows.value.reduce((totalCount, row) => totalCount + row.prescriptionCount, 0));
 const pageDoseCount = computed(() => sumNumbers(rows.value.map((row) => row.doseCount)));
-
-function rowValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
-  return String(value);
-}
 
 function numericValue(value: NumericValue) {
   if (value === null || value === undefined || value === '') return null;
@@ -343,19 +336,19 @@ defineExpose({
             <td colspan="16" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.orderId}-${row.prescriptionId}`" class="legacy-main-info">
-            <td>{{ rowValue(row.prescriptionNos) }}</td>
-            <td>{{ rowValue(row.externalPrescriptionNos) }}</td>
+            <td>{{ displayValue(row.prescriptionNos) }}</td>
+            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
             <td>
               <strong>{{ row.orderNo }}</strong>
               <small>{{ row.externalOrderNo }}</small>
             </td>
-            <td>{{ rowValue(row.institutionName) }}</td>
+            <td>{{ displayValue(row.institutionName) }}</td>
             <td>
-              <strong>{{ rowValue(row.patientName) }}</strong>
-              <small>{{ rowValue(row.patientPhone) }}</small>
+              <strong>{{ displayValue(row.patientName) }}</strong>
+              <small>{{ displayValue(row.patientPhone) }}</small>
             </td>
             <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
-            <td>{{ rowValue(row.prescriptionTypes) }}</td>
+            <td>{{ displayValue(row.prescriptionTypes) }}</td>
             <td>{{ row.prescriptionCount }}</td>
             <td>{{ row.detailCount }}</td>
             <td>{{ amountValue(row.doseCount) }}</td>
@@ -368,7 +361,7 @@ defineExpose({
             <td><StatusPill :value="statusText(row.orderStatus)" :tone="statusTone(row.orderStatus)" /></td>
             <td>
               <StatusPill :value="statusText(row.logisticsStatus)" :tone="statusTone(row.logisticsStatus)" />
-              <small>{{ rowValue(row.logisticsNo) }}</small>
+              <small>{{ displayValue(row.logisticsNo) }}</small>
             </td>
             <td>{{ formatDate(row.createdAt) }}</td>
           </tr>
