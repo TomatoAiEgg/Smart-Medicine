@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listAdminHerbIndexOperationLogs, listAdminInstitutions } from '../../api/order';
 import type {
   AdminHerbIndexOperationLogPage,
@@ -46,13 +46,6 @@ const createdCount = computed(() => rows.value.filter((row) => row.actionType ==
 const changedCount = computed(() => rows.value.filter((row) => row.actionType !== 'CREATED').length);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function actionText(value: string) {
   return actionTypes.find((option) => option.value === value)?.label ?? value;

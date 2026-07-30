@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { createAdminHerb, listAdminHerbs, updateAdminHerb } from '../../api/order';
 import type { AdminHerbCommand } from '../../api/types';
 import { formatNumber } from '../../domain/formatters';
@@ -54,13 +54,6 @@ const failedResults = computed(() => results.value.filter((row) => row.status ==
 const precheckErrorCount = computed(() => precheckIssues.value.filter((row) => row.level === 'ERROR').length);
 const precheckWarningCount = computed(() => precheckIssues.value.filter((row) => row.level === 'WARNING').length);
 const canImport = computed(() => rows.value.length > 0 && !importing.value && !prechecking.value);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function requiredCell(row: CsvRow, aliases: readonly string[], label: string) {
   const value = csvCell(row, aliases);
