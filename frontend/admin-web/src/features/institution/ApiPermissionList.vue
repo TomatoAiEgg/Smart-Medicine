@@ -16,7 +16,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -120,11 +120,16 @@ async function loadOptions() {
   }
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshApiPermissions() {
   loading.value = true;
   errorLine.value = '';
   try {
     await loadOptions();
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminInstitutionApiPermissions({
       keyword: keyword.value,
       institutionId: institutionId.value,

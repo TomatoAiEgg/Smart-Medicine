@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, currentIsoDate, formatDate, formatNumber, labelFromMap } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -96,10 +96,15 @@ function downloadInstitutionCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个机构`);
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshInstitutions() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminInstitutions({
       keyword: keyword.value,
       status: status.value,

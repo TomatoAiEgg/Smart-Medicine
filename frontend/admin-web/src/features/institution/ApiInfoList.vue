@@ -8,7 +8,7 @@ import type {
   AdminInstitutionApiRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -88,10 +88,15 @@ function downloadApiCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个接口`);
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshInstitutionApis() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminInstitutionApis({
       keyword: keyword.value,
       enabled: enabledBooleanParam(enabledFilter.value),
