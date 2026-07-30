@@ -265,7 +265,7 @@ const activeDecoctionTableColspan = computed(() => {
   if (activeDecoctionDataset.value === 'devices') return 12;
   if (activeDecoctionDataset.value === 'printerConfig') return 9;
   if (activeDecoctionDataset.value === 'pails') return 10;
-  if (activeDecoctionDataset.value === 'cloudPrints') return 8;
+  if (activeDecoctionDataset.value === 'cloudPrints') return 9;
   if (activeDecoctionDataset.value === 'workRecords') return 9;
   return 14;
 });
@@ -303,6 +303,15 @@ function newOperationId(prefix: string) {
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
   return String(value);
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return rowValue(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function emptyDeviceForm(): DeviceFormState {
@@ -757,6 +766,91 @@ function downloadCloudPrintCsv() {
     ]),
   );
   emit('notice', 'success', `已导出 ${filteredCloudPrintRecords.value.length} 条煎煮作业/打印相关记录`);
+}
+
+function renderCloudPrintRecordRows(records: readonly DecoctionPerformanceDetailRecord[]) {
+  if (records.length === 0) return '<tr><td colspan="11">没有可补打的作业记录</td></tr>';
+  return records.map((record, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td>${escapeHtml(record.taskNo)}</td>
+      <td>${escapeHtml(record.orderNo)}</td>
+      <td>${escapeHtml(record.externalOrderNo)}</td>
+      <td>${escapeHtml(record.prescriptionNo)}</td>
+      <td>${escapeHtml(record.institutionName)} / ${escapeHtml(record.patientName)}</td>
+      <td>${escapeHtml(record.deviceCode)} / ${escapeHtml(record.pailNo)}</td>
+      <td>${escapeHtml(record.actionType)} / ${escapeHtml(record.actionResult)}</td>
+      <td>${escapeHtml(record.doseCount)}</td>
+      <td>${escapeHtml(record.operator)} / ${escapeHtml(record.source)}</td>
+      <td>${escapeHtml(formatDate(record.actionTime))}</td>
+    </tr>
+  `).join('');
+}
+
+function renderCloudPrintRecordHtml(records: readonly DecoctionPerformanceDetailRecord[], title: string) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 11px; }
+    .toolbar { position: fixed; right: 14px; top: 14px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    h1 { margin: 0 0 8px; font-size: 20px; letter-spacing: 0; }
+    .meta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; color: #475569; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #cbd5e1; padding: 5px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    .foot { margin-top: 10px; color: #64748b; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="meta">
+    <span>打印时间：${escapeHtml(formatDate(new Date().toISOString()))}</span>
+    <span>记录数：${records.length}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>序号</th><th>任务号</th><th>订单号</th><th>外部订单号</th><th>处方号</th><th>机构/患者</th><th>设备/水桶</th><th>动作/结果</th><th>剂数</th><th>操作人/来源</th><th>作业时间</th>
+      </tr>
+    </thead>
+    <tbody>${renderCloudPrintRecordRows(records)}</tbody>
+  </table>
+  <div class="foot">浏览器补打单基于煎煮作业明细生成，不代表云打印任务重新下发或打印机回执。</div>
+</body>
+</html>`;
+}
+
+function printCloudPrintRecords(records: readonly DecoctionPerformanceDetailRecord[], title: string) {
+  decoctionError.value = '';
+  if (records.length === 0) {
+    decoctionError.value = '没有可补打的煎煮作业/打印相关记录';
+    return;
+  }
+  const printWindow = window.open('', '_blank', 'width=1200,height=820');
+  if (!printWindow) {
+    decoctionError.value = '浏览器阻止了煎煮补打单窗口';
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(renderCloudPrintRecordHtml(records, title));
+  printWindow.document.close();
+  emit('notice', 'success', `${title}窗口已打开`);
+}
+
+function printCloudPrintRecord(record: DecoctionPerformanceDetailRecord) {
+  printCloudPrintRecords([record], `煎煮作业补打单-${record.taskNo}`);
+}
+
+function printFilteredCloudPrintRecords() {
+  printCloudPrintRecords(filteredCloudPrintRecords.value, '煎煮作业补打单-当前结果');
 }
 
 function handleMainQuery() {
@@ -1437,6 +1531,7 @@ defineExpose({
             <th>动作结果</th>
             <th>操作人</th>
             <th>作业时间</th>
+            <th>操作</th>
           </tr>
           <tr v-else class="legacy-main-head">
             <th>作业任务</th>
@@ -1591,7 +1686,7 @@ defineExpose({
 
           <template v-else-if="activeDecoctionDataset === 'cloudPrints'">
             <tr v-if="filteredCloudPrintRecords.length === 0" class="legacy-main-info">
-              <td colspan="8" class="legacy-empty">暂无煎煮作业/打印相关记录</td>
+              <td colspan="9" class="legacy-empty">暂无煎煮作业/打印相关记录</td>
             </tr>
             <tr
               v-for="record in filteredCloudPrintRecords"
@@ -1612,6 +1707,9 @@ defineExpose({
               </td>
               <td>{{ rowValue(record.operator) }}</td>
               <td>{{ formatDate(record.actionTime) }}</td>
+              <td class="decoction-action-cell">
+                <button class="legacy-link-btn" type="button" @click="printCloudPrintRecord(record)">浏览器补打单</button>
+              </td>
             </tr>
           </template>
 
@@ -1657,8 +1755,8 @@ defineExpose({
         {{ cloudPrintLoading ? '查询中' : '查询云打印记录' }}
       </button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredCloudPrintRecords.length === 0" @click="downloadCloudPrintCsv">导出</button>
-      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端补打契约">补打</button>
-      <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录；独立云打印流水、云打印下发和补打接口仍等待后端契约。</span>
+      <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredCloudPrintRecords.length === 0" @click="printFilteredCloudPrintRecords">补打当前结果</button>
+      <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录，可生成浏览器补打单；独立云打印流水、云打印下发和云端补打接口仍等待后端契约。</span>
       <span v-else-if="activeDecoctionDataset === 'devices'">设备管理已接入主数据接口；停用设备不可继续绑定新煎煮任务。</span>
       <span v-else-if="activeDecoctionDataset === 'printerConfig'">PDA、打码机和打印模板配置复用设备主数据接口维护。</span>
       <span v-else-if="activeDecoctionDataset === 'pails'">加水桶管理已接入主数据接口；停用水桶不可继续绑定新煎煮任务。</span>

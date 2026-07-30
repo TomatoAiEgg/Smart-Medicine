@@ -1158,12 +1158,12 @@ export const menuItems = [
     legacyRoute: 'decoct/listBqPrintRecord.html',
     priority: 'P2',
     implemented: true,
-    subtitle: '云打印相关记录和补打缺口提示',
+    subtitle: '云打印相关记录和浏览器补打单',
     componentKey: 'decoction',
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
-    coreActions: ['云打印记录入口', '当前结果筛选', '云打印导出', '补打缺口提示'],
-    apiDependencies: ['煎煮绩效明细查询', '重试接口待补', '重打记录待补'],
+    coreActions: ['云打印记录入口', '当前结果筛选', '云打印导出', '浏览器补打单', '云打印缺口提示'],
+    apiDependencies: ['煎煮绩效明细查询', '云打印下发待补', '云端重打记录待补'],
   },
 ] as const satisfies readonly MenuItem[];
 
