@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   createAdminDictItem,
   createAdminDictType,
@@ -72,13 +72,6 @@ const hasPreviousTypePage = computed(() => typePageNo.value > 1 && !loadingTypes
 const hasNextTypePage = computed(() => !loadingTypes.value && typePageNo.value * typePageSize.value < totalTypes.value);
 const hasPreviousItemPage = computed(() => itemPageNo.value > 1 && !loadingItems.value);
 const hasNextItemPage = computed(() => !loadingItems.value && itemPageNo.value * itemPageSize.value < totalItems.value);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function queryEnabled(value: EnabledFilter) {
   return value === '' ? undefined : value;
