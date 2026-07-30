@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { downloadAdminOrdersCsv, listAdminOrders } from '../../api/order';
 import type {
   AdminOrderListItem,
@@ -50,13 +50,6 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const pageAmount = computed(() => sumNumbers(rows.value.map((row) => row.totalAmount)));
 const pagePrescriptionCount = computed(() => rows.value.reduce((totalCount, row) => totalCount + row.prescriptionCount, 0));
 const pageDoseCount = computed(() => sumNumbers(rows.value.map((row) => row.doseCount)));
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return EMPTY_VALUE;

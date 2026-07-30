@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { downloadDecoctionPerformanceDetailsCsv, listDecoctionPerformanceDetails } from '../../api/report';
 import type { DecoctionPerformanceDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
@@ -33,13 +33,6 @@ const totalOperators = computed(() => new Set(records.value.map((row) => row.ope
 const totalDevices = computed(() => new Set(records.value.map((row) => row.deviceCode)).size);
 const totalPrescriptions = computed(() => new Set(records.value.map((row) => row.prescriptionNo).filter(Boolean)).size);
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return EMPTY_VALUE;

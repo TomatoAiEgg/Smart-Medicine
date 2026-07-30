@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { downloadPrescriptionHerbDetailsCsv, listPrescriptionHerbDetails } from '../../api/report';
 import type { PrescriptionHerbDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
@@ -34,13 +34,6 @@ const totalAmount = computed(() => records.value.reduce((total, row) => total + 
 const totalSettlementAmount = computed(() => records.value.reduce((total, row) => total + numericValue(row.settlementTotalPrice), 0));
 const totalOrders = computed(() => new Set(records.value.map((row) => row.orderNo)).size);
 const totalPrescriptions = computed(() => new Set(records.value.map((row) => row.prescriptionNo)).size);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function numericValue(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === '') return 0;

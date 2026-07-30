@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { downloadReportOverviewCsv, getReportOverview } from '../../api/report';
 import type { ReportOverview } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
@@ -27,13 +27,6 @@ const reportLoading = ref(false);
 const reportExporting = ref(false);
 const reportError = ref('');
 const reportOverview = ref<ReportOverview | null>(null);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function normalizedReportTrendDays() {
   if (!Number.isFinite(reportTrendDays.value) || reportTrendDays.value <= 0) return 14;
