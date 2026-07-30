@@ -20,7 +20,7 @@ import {
 import type { CallbackRecord, DeliveryOrderRecord, ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { pageSummaryText, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
+import { boundedPositiveInteger, pageSummaryText, displayValue, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -114,8 +114,7 @@ function datasetCount(dataset: LogisticsDataset) {
 }
 
 function normalizedLogisticsLimit() {
-  if (!Number.isFinite(logisticsLimit.value) || logisticsLimit.value <= 0) return 50;
-  return Math.min(Math.trunc(logisticsLimit.value), 200);
+  return boundedPositiveInteger(logisticsLimit.value, 50, 200);
 }
 
 function logisticsQueryParams(limit: number) {

@@ -13,7 +13,7 @@ import {
 import type { HospitalOrderRecord, IntegrationMessageRecord, IntegrationRetryTaskRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -62,8 +62,7 @@ const hospitalOrder = ref<HospitalOrderRecord | null>(null);
 const integrationCount = computed(() => integrationMessages.value.length + integrationRetryTasks.value.length);
 
 function normalizedIntegrationLimit() {
-  if (!Number.isFinite(integrationLimit.value) || integrationLimit.value <= 0) return 50;
-  return Math.min(Math.trunc(integrationLimit.value), 200);
+  return boundedPositiveInteger(integrationLimit.value, 50, 200);
 }
 
 function downloadIntegrationCsv() {

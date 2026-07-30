@@ -25,7 +25,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -105,8 +105,7 @@ function datasetCount(dataset: OpsDataset) {
 const activeOpsCount = computed(() => datasetCount(activeOpsDataset.value));
 
 function normalizedOpsLimit() {
-  if (!Number.isFinite(opsLimit.value) || opsLimit.value <= 0) return 50;
-  return Math.min(Math.trunc(opsLimit.value), 200);
+  return boundedPositiveInteger(opsLimit.value, 50, 200);
 }
 
 function normalizedOpsHealthHours() {

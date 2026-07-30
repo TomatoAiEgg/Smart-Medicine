@@ -5,7 +5,7 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -66,8 +66,7 @@ function amountValue(value: NumericValue) {
 }
 
 function normalizedLimit() {
-  if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
-  return Math.min(Math.trunc(limit.value), 200);
+  return boundedPositiveInteger(limit.value, 50, 200);
 }
 
 function statusText(value: string | null | undefined) {

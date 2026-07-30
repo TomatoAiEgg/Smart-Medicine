@@ -10,7 +10,7 @@ import type {
   OrderObservabilityBundle,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type LegacyTone = 'normal' | 'success' | 'warning' | 'danger';
@@ -38,8 +38,7 @@ const failedOutboxStatuses = new Set(['FAILED', 'PUBLISH_FAILED', 'DEAD']);
 const openDeadLetterStatuses = new Set(['OPEN']);
 
 function normalizedLimit() {
-  if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
-  return Math.min(Math.trunc(limit.value), 200);
+  return boundedPositiveInteger(limit.value, 50, 200);
 }
 
 function text(value: string | number | null | undefined) {

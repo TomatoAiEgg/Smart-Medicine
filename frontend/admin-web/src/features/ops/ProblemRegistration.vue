@@ -14,7 +14,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -98,8 +98,7 @@ function formatAmount(value: number | null | undefined) {
 }
 
 function normalizedLimit() {
-  if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
-  return Math.min(Math.trunc(limit.value), 200);
+  return boundedPositiveInteger(limit.value, 50, 200);
 }
 
 async function refreshProblemRegistrations() {

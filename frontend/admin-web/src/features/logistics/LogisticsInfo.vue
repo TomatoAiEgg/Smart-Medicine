@@ -5,7 +5,7 @@ import { listLogisticsInfos } from '../../api/logistics';
 import type { LogisticsInfoRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, pageSummaryText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -32,8 +32,7 @@ const records = ref<LogisticsInfoRecord[]>([]);
 const requestId = ref(0);
 
 function normalizedLimit() {
-  if (!Number.isFinite(limit.value) || limit.value <= 0) return 50;
-  return Math.min(Math.trunc(limit.value), 200);
+  return boundedPositiveInteger(limit.value, 50, 200);
 }
 
 function downloadLogisticsInfoCsv() {
