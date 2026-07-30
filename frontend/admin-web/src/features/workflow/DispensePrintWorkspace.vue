@@ -10,7 +10,7 @@ import type {
   WorkflowTaskSnapshot,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, joinDisplayParts, labelFromMap, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, joinDisplayParts, joinTruthyParts, labelFromMap, moneyValue, pageSummaryText, formatDate, formatNumber, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type PrintDrugRow = {
@@ -675,7 +675,7 @@ defineExpose({
                     <small>{{ displayValue(row.detail.drugCode || row.detail.platformDrugCode) }}</small>
                   </td>
                   <td>{{ joinDisplayParts([row.detail.drugSpecs, row.detail.drugOrigin], ' / ') }}</td>
-                  <td>{{ displayValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ joinTruthyParts([row.detail.dose, row.detail.unit], ' / ') }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
                   <td>{{ joinDisplayParts([row.detail.specialUsage, row.detail.validationTips], ' / ') }}</td>

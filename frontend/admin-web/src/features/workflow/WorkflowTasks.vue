@@ -21,7 +21,7 @@ import type {
 } from '../../api/types';
 import type { ViewKey } from '../../app/views';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, displayValue, labelFromMap, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
+import { amountValue, displayValue, joinTruthyParts, labelFromMap, moneyValue, numericValue, pageSummaryText, currentIsoDate, formatDate, sumNumbers } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type WorkflowCounts = { reviews: number; dispenses: number; rechecks: number };
@@ -449,7 +449,7 @@ function renderSplitPreviewDrugRows(details: readonly AdminOrderDetailDrug[]) {
       <td>${escapeHtml(detail.drugName)}</td>
       <td>${escapeHtml(detail.platformDrugName)}</td>
       <td>${escapeHtml(detail.drugSpecs)}</td>
-      <td>${escapeHtml([detail.dose, detail.unit].filter(Boolean).join(' / '))}</td>
+      <td>${escapeHtml(joinTruthyParts([detail.dose, detail.unit], ' / ', ''))}</td>
       <td>${escapeHtml(amountValue(detail.quantity))}</td>
       <td>${escapeHtml(moneyValue(detail.totalPrice))}</td>
     </tr>
@@ -1047,7 +1047,7 @@ defineExpose({
                   <td class="legacy-left">{{ displayValue(row.detail.platformDrugName) }}</td>
                   <td>{{ displayValue(row.detail.drugSpecs) }}</td>
                   <td>{{ displayValue(row.detail.drugOrigin) }}</td>
-                  <td>{{ displayValue([row.detail.dose, row.detail.unit].filter(Boolean).join(' / ')) }}</td>
+                  <td>{{ joinTruthyParts([row.detail.dose, row.detail.unit], ' / ') }}</td>
                   <td>{{ amountValue(row.detail.quantity) }}</td>
                   <td>{{ moneyValue(row.detail.unitPrice) }}</td>
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>

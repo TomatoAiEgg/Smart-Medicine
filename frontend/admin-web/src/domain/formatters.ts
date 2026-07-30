@@ -88,6 +88,15 @@ export function joinDisplayParts(
   return values.length > 0 ? values.map(String).join(separator) : fallback;
 }
 
+export function joinTruthyParts(
+  parts: Array<string | number | null | undefined>,
+  separator = '',
+  fallback = EMPTY_VALUE,
+) {
+  const values = parts.filter(Boolean);
+  return values.length > 0 ? values.map(String).join(separator) : fallback;
+}
+
 export function splitCommaValues(value: string | null | undefined) {
   if (!value) return [];
   return value.split(',').map((item) => item.trim()).filter(Boolean);
