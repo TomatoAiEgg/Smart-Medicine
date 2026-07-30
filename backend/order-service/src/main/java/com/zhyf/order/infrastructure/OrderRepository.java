@@ -194,6 +194,8 @@ public class OrderRepository {
                     o.delivery_time,
                     o.batch_no,
                     o.order_remark,
+                    order_amount.logistics_fee,
+                    order_amount.discount_amount,
                     latest_validation.validation_status,
                     latest_validation.validation_message,
                     latest_validation.validation_created_at,
@@ -211,6 +213,47 @@ public class OrderRepository {
                     order by r.created_at desc
                     limit 1
                 ) latest_validation on true
+                left join lateral (
+                    select
+                        (
+                            select candidate.amount_text::numeric
+                            from (
+                                select nullif(trim(payload_field.value), '') as amount_text
+                                from jsonb_each_text(o.raw_payload) payload_field
+                                where payload_field.key in (
+                                    'logisticsFee', 'logistics_fee', 'freight', 'freightFee',
+                                    'freight_fee', 'shippingFee', 'shipping_fee', 'deliveryFee',
+                                    'delivery_fee', 'expressFee', 'express_fee'
+                                )
+                                order by array_position(array[
+                                    'logisticsFee', 'logistics_fee', 'freight', 'freightFee',
+                                    'freight_fee', 'shippingFee', 'shipping_fee', 'deliveryFee',
+                                    'delivery_fee', 'expressFee', 'express_fee'
+                                ], payload_field.key)
+                                limit 1
+                            ) candidate
+                            where candidate.amount_text ~ '^-?[0-9]+([.][0-9]+)?$'
+                        ) as logistics_fee,
+                        (
+                            select candidate.amount_text::numeric
+                            from (
+                                select nullif(trim(payload_field.value), '') as amount_text
+                                from jsonb_each_text(o.raw_payload) payload_field
+                                where payload_field.key in (
+                                    'discountAmount', 'discount_amount', 'discount', 'couponAmount',
+                                    'coupon_amount', 'preferentialAmount', 'preferential_amount',
+                                    'reduceAmount', 'reduce_amount', 'promotionAmount', 'promotion_amount'
+                                )
+                                order by array_position(array[
+                                    'discountAmount', 'discount_amount', 'discount', 'couponAmount',
+                                    'coupon_amount', 'preferentialAmount', 'preferential_amount',
+                                    'reduceAmount', 'reduce_amount', 'promotionAmount', 'promotion_amount'
+                                ], payload_field.key)
+                                limit 1
+                            ) candidate
+                            where candidate.amount_text ~ '^-?[0-9]+([.][0-9]+)?$'
+                        ) as discount_amount
+                ) order_amount on true
                 where o.order_no = ?
                 """;
         return jdbcTemplate.query(sql, this::mapAdminOrderDetailHeader, orderNo)
@@ -237,6 +280,8 @@ public class OrderRepository {
                         header.deliveryTime(),
                         header.batchNo(),
                         header.orderRemark(),
+                        header.logisticsFee(),
+                        header.discountAmount(),
                         header.validationStatus(),
                         header.validationMessage(),
                         header.validationCreatedAt(),
@@ -5004,6 +5049,8 @@ public class OrderRepository {
                 instant(rs, "delivery_time"),
                 rs.getString("batch_no"),
                 rs.getString("order_remark"),
+                rs.getBigDecimal("logistics_fee"),
+                rs.getBigDecimal("discount_amount"),
                 rs.getString("validation_status"),
                 rs.getString("validation_message"),
                 instant(rs, "validation_created_at"),
@@ -5100,6 +5147,8 @@ public class OrderRepository {
             Instant deliveryTime,
             String batchNo,
             String orderRemark,
+            BigDecimal logisticsFee,
+            BigDecimal discountAmount,
             String validationStatus,
             String validationMessage,
             Instant validationCreatedAt,

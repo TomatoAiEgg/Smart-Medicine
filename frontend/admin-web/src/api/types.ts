@@ -1332,6 +1332,8 @@ export interface AdminOrderDetail {
   deliveryTime: string | null;
   batchNo: string | null;
   orderRemark: string | null;
+  logisticsFee: number | string | null;
+  discountAmount: number | string | null;
   validationStatus: string | null;
   validationMessage: string | null;
   validationCreatedAt: string | null;

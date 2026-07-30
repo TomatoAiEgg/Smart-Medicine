@@ -107,7 +107,6 @@ const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
 }>();
 
-const WAITING_API = '待接口';
 const EMPTY_VALUE = '-';
 
 const startTime = ref('');
@@ -211,13 +210,20 @@ const detailAmountSummary = computed(() => {
   const drugAmount = sumNumbers(detailDrugRows.value.map((row) => row.detail.totalPrice));
   const decoctionAmount = sumNumbers(detailPrescriptions.value.map((item) => item.decoctionTotalPrice));
   const settlementDetailAmount = sumNumbers(detailDrugRows.value.map((row) => row.detail.settlementTotalPrice));
+  const logisticsFee = numericValue(orderDetail.value?.logisticsFee);
+  const discountAmount = numericValue(orderDetail.value?.discountAmount);
+  const baseReceivableAmount = prescriptionAmount ?? settlementDetailAmount ?? (
+    drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null
+  );
   return {
     prescriptionAmount,
     drugAmount,
     decoctionAmount,
-    receivableAmount: prescriptionAmount ?? settlementDetailAmount ?? (
-      drugAmount !== null || decoctionAmount !== null ? (drugAmount ?? 0) + (decoctionAmount ?? 0) : null
-    ),
+    logisticsFee,
+    discountAmount,
+    receivableAmount: baseReceivableAmount === null
+      ? null
+      : baseReceivableAmount + (logisticsFee ?? 0) - (discountAmount ?? 0),
   };
 });
 const prescriptions = computed(() => orderProgress.value?.prescriptions ?? []);
@@ -428,10 +434,6 @@ function deliveryTypeText(type: string | null | undefined) {
     '自提': '自提',
   };
   return type ? labels[type] ?? type : EMPTY_VALUE;
-}
-
-function waitingValue() {
-  return WAITING_API;
 }
 
 function statusText(status: string | null | undefined) {
@@ -1822,11 +1824,11 @@ defineExpose({
             </div>
             <div>
               <span>物流费</span>
-              <strong>{{ waitingValue() }}</strong>
+              <strong>{{ moneyValue(detailAmountSummary.logisticsFee) }}</strong>
             </div>
             <div>
               <span>优惠金额</span>
-              <strong>{{ waitingValue() }}</strong>
+              <strong>{{ moneyValue(detailAmountSummary.discountAmount) }}</strong>
             </div>
             <div>
               <span>应收金额</span>

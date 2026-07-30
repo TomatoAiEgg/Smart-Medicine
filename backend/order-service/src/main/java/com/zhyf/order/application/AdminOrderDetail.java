@@ -26,6 +26,8 @@ public record AdminOrderDetail(
         Instant deliveryTime,
         String batchNo,
         String orderRemark,
+        BigDecimal logisticsFee,
+        BigDecimal discountAmount,
         String validationStatus,
         String validationMessage,
         Instant validationCreatedAt,
