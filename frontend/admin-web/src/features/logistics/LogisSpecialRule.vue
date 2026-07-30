@@ -14,7 +14,7 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledBooleanParam, enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -138,11 +138,16 @@ async function loadInstitutionOptions() {
   }
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshLogisticsSpecialRules() {
   loading.value = true;
   errorLine.value = '';
   try {
     await loadInstitutionOptions();
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminLogisticsSpecialRules({
       keyword: keyword.value,
       institutionId: institutionId.value,

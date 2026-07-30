@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { listAdminOperatorRoles, listAdminOperators, renameAdminOperatorRole } from '../../api/order';
 import type { AdminOperatorRecord, AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledText, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -133,10 +133,15 @@ async function downloadRoleMemberCsv(row: AdminOperatorRoleRecord) {
   }
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshRoles() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOperatorRoles({
       keyword: keyword.value,
       page: page.value,

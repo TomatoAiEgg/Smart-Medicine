@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminOperator, listAdminOperators, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -77,10 +77,15 @@ function commandFromForm(): AdminOperatorCommand {
   };
 }
 
+function normalizePageSize() {
+  return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
 async function refreshOperators() {
   loading.value = true;
   errorLine.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminOperators({
       keyword: keyword.value,
       enabled: enabledStringParam(enabledFilter.value),
