@@ -386,7 +386,7 @@ defineExpose({
     </ul>
 
     <p class="label-print-hint">
-      当前页面使用真实处方打印数据生成浏览器标签；可读取启用标签模板并应用模板尺寸，打印记录和失败重试仍等待后端契约。
+      当前页面使用真实可打印处方记录生成浏览器标签；可读取启用标签模板并应用模板尺寸，失败重试仍等待后端契约。
     </p>
     <p v-if="selectedTemplate" class="label-template-hint">
       当前模板：{{ selectedTemplate.templateName }} / {{ selectedTemplate.labelWidthMm }} x {{ selectedTemplate.labelHeightMm }} mm
