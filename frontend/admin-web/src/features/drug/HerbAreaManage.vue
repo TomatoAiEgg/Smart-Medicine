@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminHerbArea, listAdminHerbAreas, updateAdminHerbArea } from '../../api/order';
 import type { AdminHerbAreaPage, AdminHerbAreaRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -61,8 +61,7 @@ function downloadAreaCsv() {
 }
 
 function normalizePageSize() {
-  if (!Number.isFinite(pageSize.value) || pageSize.value <= 0) return 20;
-  return Math.min(Math.trunc(pageSize.value), 100);
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 function resetForm() {

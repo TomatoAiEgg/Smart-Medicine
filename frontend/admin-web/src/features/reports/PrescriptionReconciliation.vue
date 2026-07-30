@@ -9,7 +9,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { displayValue, EMPTY_VALUE, currentIsoDate, formatDate } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, EMPTY_VALUE, currentIsoDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -131,8 +131,7 @@ function receiverSummary(row: AdminOrderListItem) {
 }
 
 function normalizePageSize() {
-  if (!Number.isFinite(pageSize.value) || pageSize.value <= 0) return 20;
-  return Math.min(Math.trunc(pageSize.value), 100);
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 function queryParams(options: { includePaging: boolean }): AdminOrderQueryParams {

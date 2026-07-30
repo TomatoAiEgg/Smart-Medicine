@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createSmsTemplate, listSmsTemplates, updateSmsTemplate } from '../../api/sms';
 import type { SmsTemplateRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -87,8 +87,7 @@ function downloadTemplateCsv() {
 }
 
 function normalizePageSize() {
-  if (!Number.isFinite(pageSize.value) || pageSize.value <= 0) return 20;
-  return Math.min(Math.trunc(pageSize.value), 100);
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 function renderPreview(template: string) {

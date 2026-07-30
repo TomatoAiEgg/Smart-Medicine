@@ -19,7 +19,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -194,8 +194,7 @@ function downloadLabelPrintCsv() {
 }
 
 function normalizePageSize() {
-  if (!Number.isFinite(pageSize.value) || pageSize.value <= 0) return 20;
-  return Math.min(Math.trunc(pageSize.value), 100);
+  return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
 async function refreshLabelPrints() {

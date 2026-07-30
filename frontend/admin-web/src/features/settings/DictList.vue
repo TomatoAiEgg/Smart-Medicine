@@ -11,7 +11,7 @@ import {
 } from '../../api/order';
 import type { AdminDictItemRecord, AdminDictTypeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -110,8 +110,7 @@ function downloadItemCsv() {
 }
 
 function normalizePageSize(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return 20;
-  return Math.min(Math.trunc(value), 100);
+  return boundedPositiveInteger(value, 20, 100);
 }
 
 function resetTypeForm() {

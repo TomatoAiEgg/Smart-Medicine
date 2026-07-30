@@ -38,6 +38,11 @@ export function enabledStringParam(value: '' | 'true' | 'false') {
   return value === '' ? undefined : value;
 }
 
+export function boundedPositiveInteger(value: number, fallback: number, max: number) {
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.min(Math.trunc(value), max);
+}
+
 export function pageSummaryText(count: number, totalLabel = '项', totalCount = count) {
   return `显示第 ${count > 0 ? 1 : 0} 至 ${count} 项记录，共 ${totalCount} ${totalLabel}`;
 }
