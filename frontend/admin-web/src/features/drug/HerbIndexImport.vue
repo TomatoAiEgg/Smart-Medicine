@@ -380,17 +380,21 @@ function resetImport() {
 }
 
 function downloadTemplate() {
-  const content = [
-    'institutionCode,institutionName,externalHerbCode,externalHerbName,herbCode,herbName,matchType,enabled,remark',
-    'HOSP001,示例机构,EXT001,院内药品,HERB001,平台药品,IMPORT,true,示例',
-  ].join('\n');
-  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'herb-index-import-template.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(
+    'herb-index-import-template.csv',
+    ['institutionCode', 'institutionName', 'externalHerbCode', 'externalHerbName', 'herbCode', 'herbName', 'matchType', 'enabled', 'remark'],
+    [{
+      institutionCode: 'HOSP001',
+      institutionName: '示例机构',
+      externalHerbCode: 'EXT001',
+      externalHerbName: '院内药品',
+      herbCode: 'HERB001',
+      herbName: '平台药品',
+      matchType: 'IMPORT',
+      enabled: 'true',
+      remark: '示例',
+    }],
+  );
 }
 
 function downloadFailures() {

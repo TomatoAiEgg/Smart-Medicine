@@ -1,9 +1,9 @@
+import { downloadCsv as downloadRowsCsv, type CsvExportValue } from '../../domain/csv';
+
 export interface CsvRow {
   rowNumber: number;
   values: Record<string, string>;
 }
-
-type CsvExportValue = string | number | null | undefined;
 
 export function parseCsv(text: string): CsvRow[] {
   const rows: string[][] = [];
@@ -80,24 +80,10 @@ export function parseEnabled(value: string) {
   return ['true', '1', 'yes', 'y', '启用', '是'].includes(normalized);
 }
 
-function escapeCsvCell(value: CsvExportValue) {
-  const text = value === null || value === undefined ? '' : String(value);
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
 export function downloadCsv(filename: string, headers: readonly string[], rows: readonly Record<string, CsvExportValue>[]) {
-  const content = [
-    headers.map(escapeCsvCell).join(','),
-    ...rows.map((row) => headers.map((header) => escapeCsvCell(row[header])).join(',')),
-  ].join('\n');
-  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadRowsCsv(
+    filename,
+    headers,
+    rows.map((row) => headers.map((header) => row[header])),
+  );
 }

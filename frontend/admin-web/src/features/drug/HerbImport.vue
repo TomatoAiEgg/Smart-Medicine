@@ -258,17 +258,20 @@ function resetImport() {
 }
 
 function downloadTemplate() {
-  const content = [
-    'herbCode,herbName,drugSpecs,drugOrigin,unit,retailPrice,enabled,remark',
-    'HERB001,示例药品,10g,四川,g,0.35,true,示例',
-  ].join('\n');
-  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'herb-import-template.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCsv(
+    'herb-import-template.csv',
+    ['herbCode', 'herbName', 'drugSpecs', 'drugOrigin', 'unit', 'retailPrice', 'enabled', 'remark'],
+    [{
+      herbCode: 'HERB001',
+      herbName: '示例药品',
+      drugSpecs: '10g',
+      drugOrigin: '四川',
+      unit: 'g',
+      retailPrice: 0.35,
+      enabled: 'true',
+      remark: '示例',
+    }],
+  );
 }
 
 function downloadFailures() {
