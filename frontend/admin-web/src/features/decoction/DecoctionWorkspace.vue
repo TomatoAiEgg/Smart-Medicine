@@ -1658,7 +1658,7 @@ defineExpose({
       </button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" :disabled="filteredCloudPrintRecords.length === 0" @click="downloadCloudPrintCsv">导出</button>
       <button v-if="activeDecoctionDataset === 'cloudPrints'" class="legacy-btn legacy-btn-export" type="button" disabled title="等待后端补打契约">补打</button>
-      <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录，不新增独立云打印流水或补打接口。</span>
+      <span v-if="activeDecoctionDataset === 'cloudPrints'">当前复用煎煮绩效明细查询作业/打印相关记录；独立云打印流水、云打印下发和补打接口仍等待后端契约。</span>
       <span v-else-if="activeDecoctionDataset === 'devices'">设备管理已接入主数据接口；停用设备不可继续绑定新煎煮任务。</span>
       <span v-else-if="activeDecoctionDataset === 'printerConfig'">PDA、打码机和打印模板配置复用设备主数据接口维护。</span>
       <span v-else-if="activeDecoctionDataset === 'pails'">加水桶管理已接入主数据接口；停用水桶不可继续绑定新煎煮任务。</span>

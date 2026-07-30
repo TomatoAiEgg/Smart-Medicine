@@ -373,7 +373,7 @@ defineExpose({
     </ul>
 
     <p class="logis-print-hint">
-      当前页面基于真实物流单生成浏览器发货清单；承运商电子面单、面单模板、云打印下发和重打记录仍等待后端契约。
+      当前页面基于真实物流单生成浏览器发货清单和导出文件；承运商电子面单、面单模板、云打印下发和重打记录仍等待后端契约。
     </p>
     <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
 
