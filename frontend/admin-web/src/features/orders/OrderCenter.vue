@@ -46,6 +46,7 @@ import type {
   WorkflowProgress,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { saveBlob } from '../../domain/download';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -1046,14 +1047,7 @@ async function exportOrders() {
   orderError.value = '';
   try {
     const blob = await downloadAdminOrdersCsv(currentOrderQueryParams({ includePaging: false }));
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `订单信息汇总-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(`订单信息汇总-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '订单信息汇总已导出');
   } catch (error) {
     orderError.value = errorMessage(error);

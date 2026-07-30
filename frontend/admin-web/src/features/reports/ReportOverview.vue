@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import { downloadReportOverviewCsv, getReportOverview } from '../../api/report';
 import type { ReportOverview } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { saveBlob } from '../../domain/download';
 import { dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -73,14 +74,7 @@ async function exportReports() {
       to: dateInputToIso(reportTo.value, true),
       trendDays,
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `report-overview-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(`report-overview-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '报表 CSV 已导出');
   } catch (error) {
     reportError.value = errorMessage(error);

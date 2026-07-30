@@ -11,6 +11,7 @@ import type {
   AdminOrderWarehouseQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { saveBlob } from '../../domain/download';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -185,12 +186,7 @@ async function exportWarehouseCsv() {
   errorLine.value = '';
   try {
     const blob = await downloadAdminOrderWarehousesCsv(queryParams(false));
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `订单仓库汇总-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveBlob(`订单仓库汇总-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '订单仓库汇总已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

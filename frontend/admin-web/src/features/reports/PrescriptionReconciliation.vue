@@ -8,6 +8,7 @@ import type {
   AdminOrderQueryParams,
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
+import { saveBlob } from '../../domain/download';
 import { formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
@@ -205,14 +206,7 @@ async function exportPrescriptionReconciliation() {
   errorLine.value = '';
   try {
     const blob = await downloadAdminOrdersCsv(queryParams({ includePaging: false }));
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `处方对账明细-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(`处方对账明细-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '处方对账明细已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { downloadHerbDosageCsv, listHerbDosage } from '../../api/report';
 import type { HerbDosageRecord } from '../../api/types';
+import { saveBlob } from '../../domain/download';
 import { dateInputToIso, defaultDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -95,14 +96,7 @@ async function exportHerbDosage() {
       from: dateInputToIso(dosageFrom.value),
       to: dateInputToIso(dosageTo.value, true),
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `药材用量统计-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(`药材用量统计-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '药材用量统计 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

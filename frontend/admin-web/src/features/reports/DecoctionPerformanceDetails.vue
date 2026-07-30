@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { ApiError } from '../../api/client';
 import { downloadDecoctionPerformanceDetailsCsv, listDecoctionPerformanceDetails } from '../../api/report';
 import type { DecoctionPerformanceDetailRecord } from '../../api/types';
+import { saveBlob } from '../../domain/download';
 import { dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -89,14 +90,7 @@ async function exportDecoctionPerformanceDetails() {
       from: dateInputToIso(detailFrom.value),
       to: dateInputToIso(detailTo.value, true),
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `煎煮员绩效明细-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(`煎煮员绩效明细-${new Date().toISOString().slice(0, 10)}.csv`, blob);
     emit('notice', 'success', '煎煮员绩效明细 CSV 已导出');
   } catch (error) {
     errorLine.value = errorMessage(error);

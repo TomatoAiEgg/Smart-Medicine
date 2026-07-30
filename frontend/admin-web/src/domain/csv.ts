@@ -1,3 +1,5 @@
+import { saveBlob } from './download';
+
 export type CsvExportValue = string | number | boolean | null | undefined;
 
 function escapeCsvCell(value: CsvExportValue) {
@@ -14,10 +16,5 @@ export function downloadCsv(filename: string, headers: readonly string[], rows: 
     ...rows.map((row) => row.map(escapeCsvCell).join(',')),
   ];
   const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  saveBlob(filename, blob);
 }
