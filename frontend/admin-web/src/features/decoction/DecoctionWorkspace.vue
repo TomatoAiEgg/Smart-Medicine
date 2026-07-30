@@ -211,6 +211,10 @@ const decoctionDeviceByCode = computed(() => (
   new Map(decoctionDevices.value.map((device) => [device.deviceCode, device]))
 ));
 
+const waterPailByNo = computed(() => (
+  new Map(waterPails.value.map((pail) => [pail.pailNo, pail]))
+));
+
 const filteredWaterPails = computed(() => {
   const prescriptionNo = prescriptionNoQuery.value.trim().toLowerCase();
   const pailKeyword = deviceCodeQuery.value.trim().toLowerCase();
@@ -367,6 +371,16 @@ function taskDataStatus(task: DecoctionTaskRecord) {
 
 function bindType(task: DecoctionTaskRecord) {
   return task.pailNo ? '水桶绑定' : '设备绑定';
+}
+
+function expectedWaterVolume(task: DecoctionTaskRecord) {
+  if (!task.pailNo) return '-';
+  const capacityMl = waterPailByNo.value.get(task.pailNo)?.capacityMl;
+  return capacityMl === null || capacityMl === undefined ? '-' : `${capacityMl} ml`;
+}
+
+function actualWaterVolume(task: DecoctionTaskRecord) {
+  return task.latestWaterVolumeMl === null ? '-' : `${task.latestWaterVolumeMl} ml`;
 }
 
 function deviceUseStatus(device: DeviceRecord) {
@@ -1453,8 +1467,8 @@ defineExpose({
               <td>{{ rowValue(task.pailNo) }}</td>
               <td>{{ task.prescriptionNo }}</td>
               <td>{{ task.orderNo }}</td>
-              <td>待接口</td>
-              <td>待接口</td>
+              <td>{{ expectedWaterVolume(task) }}</td>
+              <td>{{ actualWaterVolume(task) }}</td>
               <td><StatusPill :value="task.taskStatus" :tone="statusTone(task.taskStatus)" /></td>
               <td>{{ taskDataStatus(task) }}</td>
               <td>{{ rowValue(task.operator) }}</td>

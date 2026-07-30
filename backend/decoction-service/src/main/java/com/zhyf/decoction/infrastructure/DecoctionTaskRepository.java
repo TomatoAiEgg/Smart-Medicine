@@ -548,6 +548,7 @@ public class DecoctionTaskRepository {
                     t.prescription_no,
                     t.device_code,
                     t.pail_no,
+                    water.latest_water_volume_ml,
                     t.task_status,
                     t.operator,
                     t.started_at,
@@ -556,6 +557,15 @@ public class DecoctionTaskRepository {
                     t.updated_at
                 from decoction_task t
                 join order_main o on o.id = t.order_id
+                left join lateral (
+                    select (e.event_payload ->> 'waterVolumeMl')::int as latest_water_volume_ml
+                    from decoction_task_event e
+                    where e.task_id = t.id
+                      and e.event_type = 'WATER_FINISHED'
+                      and e.event_payload ? 'waterVolumeMl'
+                    order by e.event_time desc, e.created_at desc
+                    limit 1
+                ) water on true
                 """;
     }
 
@@ -665,6 +675,7 @@ public class DecoctionTaskRepository {
                 rs.getString("prescription_no"),
                 rs.getString("device_code"),
                 rs.getString("pail_no"),
+                integer(rs, "latest_water_volume_ml"),
                 rs.getString("task_status"),
                 rs.getString("operator"),
                 instant(rs, "started_at"),

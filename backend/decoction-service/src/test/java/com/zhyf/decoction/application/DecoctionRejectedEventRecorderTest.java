@@ -101,6 +101,7 @@ class DecoctionRejectedEventRecorderTest {
                 "RX1",
                 "DECOCT-001",
                 "PAIL-1",
+                null,
                 DecoctionTaskStatus.DECOCTING.name(),
                 "operator-1",
                 null,

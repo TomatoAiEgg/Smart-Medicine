@@ -74,6 +74,7 @@ public final class DecoctionRecords {
             String prescriptionNo,
             String deviceCode,
             String pailNo,
+            Integer latestWaterVolumeMl,
             String taskStatus,
             String operator,
             Instant startedAt,

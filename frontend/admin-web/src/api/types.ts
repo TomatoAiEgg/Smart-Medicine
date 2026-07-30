@@ -1593,6 +1593,7 @@ export interface DecoctionTaskRecord {
   prescriptionNo: string;
   deviceCode: string;
   pailNo: string | null;
+  latestWaterVolumeMl: number | null;
   taskStatus: string;
   operator: string;
   startedAt: string | null;

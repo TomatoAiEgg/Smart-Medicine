@@ -82,6 +82,7 @@ class DecoctionTaskRepositoryTest {
                 "RX1",
                 "DECOCT-001",
                 "PAIL-1",
+                null,
                 "BOUND",
                 "operator",
                 null,

@@ -541,6 +541,7 @@ class DecoctionSimulatorServiceTest {
                 "RX1",
                 "DECOCT-001",
                 "PAIL-1",
+                null,
                 status,
                 "operator-1",
                 null,

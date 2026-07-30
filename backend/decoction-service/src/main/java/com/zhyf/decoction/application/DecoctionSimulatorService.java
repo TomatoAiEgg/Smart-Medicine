@@ -1104,6 +1104,7 @@ public class DecoctionSimulatorService {
                 task.prescriptionNo(),
                 task.deviceCode(),
                 task.pailNo(),
+                task.latestWaterVolumeMl(),
                 task.taskStatus(),
                 task.operator(),
                 task.startedAt(),
