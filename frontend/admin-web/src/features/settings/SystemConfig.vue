@@ -8,7 +8,7 @@ import {
 } from '../../api/order';
 import type { AdminSystemConfigPage, AdminSystemConfigRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -61,10 +61,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== '');
-
-function queryEnabled() {
-  return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
 
 function valueTypeText(value: string) {
   return valueTypes.find((option) => option.value === value)?.label ?? value;
@@ -125,7 +121,7 @@ async function refreshSystemConfigs() {
     const nextPage = await listAdminSystemConfigs({
       keyword: keyword.value,
       valueType: valueType.value,
-      enabled: queryEnabled(),
+      enabled: enabledStringParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

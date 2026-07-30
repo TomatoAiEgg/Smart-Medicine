@@ -11,7 +11,7 @@ import {
 } from '../../api/order';
 import type { AdminDictItemRecord, AdminDictTypeRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -73,9 +73,6 @@ const hasNextTypePage = computed(() => !loadingTypes.value && typePageNo.value *
 const hasPreviousItemPage = computed(() => itemPageNo.value > 1 && !loadingItems.value);
 const hasNextItemPage = computed(() => !loadingItems.value && itemPageNo.value * itemPageSize.value < totalItems.value);
 
-function queryEnabled(value: EnabledFilter) {
-  return value === '' ? undefined : value;
-}
 
 function downloadTypeCsv() {
   downloadCsv(
@@ -146,7 +143,7 @@ async function refreshDictTypes() {
   try {
     const nextPage = await listAdminDictTypes({
       keyword: typeKeyword.value,
-      enabled: queryEnabled(typeEnabledFilter.value),
+      enabled: enabledStringParam(typeEnabledFilter.value),
       page: typePageNo.value,
       pageSize: typePageSize.value,
     });
@@ -180,7 +177,7 @@ async function refreshDictItems() {
     const nextPage = await listAdminDictItems({
       keyword: itemKeyword.value,
       typeId: selectedTypeId.value,
-      enabled: queryEnabled(itemEnabledFilter.value),
+      enabled: enabledStringParam(itemEnabledFilter.value),
       page: itemPageNo.value,
       pageSize: itemPageSize.value,
     });

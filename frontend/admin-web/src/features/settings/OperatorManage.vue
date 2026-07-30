@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminOperator, listAdminOperators, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -68,11 +68,6 @@ function downloadOperatorCsv() {
   emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 个工号`);
 }
 
-function queryEnabled() {
-  if (enabledFilter.value === '') return undefined;
-  return enabledFilter.value;
-}
-
 function commandFromForm(): AdminOperatorCommand {
   return {
     username: form.value.username.trim(),
@@ -88,7 +83,7 @@ async function refreshOperators() {
   try {
     const nextPage = await listAdminOperators({
       keyword: keyword.value,
-      enabled: queryEnabled(),
+      enabled: enabledStringParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

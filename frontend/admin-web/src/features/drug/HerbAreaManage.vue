@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminHerbArea, listAdminHerbAreas, updateAdminHerbArea } from '../../api/order';
 import type { AdminHerbAreaPage, AdminHerbAreaRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -43,10 +43,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== '');
-
-function queryEnabled() {
-  return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
 
 function downloadAreaCsv() {
   downloadCsv(
@@ -96,7 +92,7 @@ async function refreshHerbAreas() {
   try {
     const nextPage = await listAdminHerbAreas({
       keyword: keyword.value,
-      enabled: queryEnabled(),
+      enabled: enabledStringParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });

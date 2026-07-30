@@ -15,7 +15,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { enabledText, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledStringParam, enabledText, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -66,10 +66,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== '');
-
-function queryEnabled() {
-  return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
 
 function matchTypeText(value: string) {
   return matchTypes.find((option) => option.value === value)?.label ?? value;
@@ -157,7 +153,7 @@ async function refreshHerbIndexes() {
     const nextPage = await listAdminHerbIndexes({
       keyword: keyword.value,
       institutionId: institutionFilter.value,
-      enabled: queryEnabled(),
+      enabled: enabledStringParam(enabledFilter.value),
       page: page.value,
       pageSize: pageSize.value,
     });
