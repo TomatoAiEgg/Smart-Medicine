@@ -217,6 +217,10 @@ function canSign(shipment: ShipmentRecord) {
   return shipment.logisticsStatus !== 'SIGNED';
 }
 
+function canPrintShipmentWaybill(shipment: ShipmentRecord) {
+  return !!shipment.logisticsNo && !!shipment.logisticsCompany;
+}
+
 function renderReadyOrderPrintHtml(record: DeliveryOrderRecord) {
   return `<!doctype html>
 <html>
@@ -293,6 +297,80 @@ function renderShipmentPrintHtml(record: ShipmentRecord) {
 </html>`;
 }
 
+function renderShipmentWaybillHtml(record: ShipmentRecord, reprint: boolean) {
+  const printTitle = reprint ? '物流面单重打' : '物流面单';
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${printTitle}-${escapeHtml(record.logisticsNo)}</title>
+  <style>
+    @page { size: 100mm 150mm; margin: 6mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 12px; }
+    .toolbar { position: fixed; right: 10px; top: 10px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    .waybill { min-height: 138mm; border: 2px solid #111827; padding: 5mm; display: flex; flex-direction: column; gap: 3mm; }
+    .head { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #111827; padding-bottom: 3mm; }
+    .company { font-size: 20px; font-weight: 800; }
+    .tag { align-self: flex-start; border: 1px solid #111827; padding: 2px 6px; font-weight: 700; }
+    .no { border: 1px dashed #111827; padding: 3mm; text-align: center; }
+    .no strong { display: block; font-family: Consolas, monospace; font-size: 20px; letter-spacing: 1px; }
+    .barcode { margin-top: 2mm; height: 14mm; background: repeating-linear-gradient(90deg, #111827 0 2px, transparent 2px 5px, #111827 5px 6px, transparent 6px 10px); }
+    .block { border: 1px solid #cbd5e1; }
+    .block-title { background: #f1f5f9; padding: 2mm; color: #475569; font-weight: 700; }
+    .block-body { padding: 2mm; line-height: 1.55; word-break: break-word; }
+    .receiver { font-size: 15px; font-weight: 700; }
+    .grid { display: grid; grid-template-columns: 24mm 1fr; border: 1px solid #cbd5e1; border-bottom: 0; }
+    .grid div { padding: 2mm; border-bottom: 1px solid #cbd5e1; }
+    .label { background: #f8fafc; color: #475569; font-weight: 700; }
+    .foot { margin-top: auto; color: #64748b; font-size: 10px; }
+    @media print { .toolbar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  <section class="waybill">
+    <header class="head">
+      <div>
+        <div class="company">${escapeHtml(record.logisticsCompany)}</div>
+        <div>${escapeHtml(printTitle)}</div>
+      </div>
+      <div class="tag">${escapeHtml(record.addressType)}</div>
+    </header>
+    <section class="no">
+      <span>物流单号</span>
+      <strong>${escapeHtml(record.logisticsNo)}</strong>
+      <div class="barcode" aria-hidden="true"></div>
+    </section>
+    <section class="block">
+      <div class="block-title">收件信息</div>
+      <div class="block-body">
+        <div class="receiver">${escapeHtml(record.receiverName)} / ${escapeHtml(record.receiverPhone)}</div>
+        <div>${escapeHtml(record.receiverAddress)}</div>
+      </div>
+    </section>
+    <section class="block">
+      <div class="block-title">订单信息</div>
+      <div class="block-body">
+        <div>平台订单号：${escapeHtml(record.orderNo)}</div>
+        <div>外部订单号：${escapeHtml(record.externalOrderNo)}</div>
+        <div>机构/患者：${escapeHtml(record.institutionName)} / ${escapeHtml(record.patientName)}</div>
+      </div>
+    </section>
+    <section class="grid">
+      <div class="label">件数/重量</div><div>${escapeHtml(record.pkgNum)} 件 / ${escapeHtml(record.pkgWeight)} kg</div>
+      <div class="label">付款方式</div><div>${escapeHtml(paymentLabel(record.payMethod))}</div>
+      <div class="label">物流状态</div><div>${escapeHtml(record.logisticsStatus)}</div>
+      <div class="label">打包时间</div><div>${escapeHtml(formatDate(record.packageTime))}</div>
+      <div class="label">打印时间</div><div>${escapeHtml(formatDate(new Date().toISOString()))}</div>
+    </section>
+    <div class="foot">浏览器面单基于系统已有物流单生成，不代表承运商电子面单下发结果。</div>
+  </section>
+</body>
+</html>`;
+}
+
 function openPrintWindow(html: string, title: string) {
   const printWindow = window.open('', '_blank', 'width=900,height=680');
   if (!printWindow) {
@@ -313,6 +391,15 @@ function printReadyOrderList(record: DeliveryOrderRecord) {
 function printShipmentList(record: ShipmentRecord) {
   logisticsError.value = '';
   openPrintWindow(renderShipmentPrintHtml(record), `订单 ${record.orderNo} 物流清单`);
+}
+
+function printShipmentWaybill(record: ShipmentRecord, reprint = false) {
+  logisticsError.value = '';
+  if (!canPrintShipmentWaybill(record)) {
+    logisticsError.value = '缺少物流公司或物流单号，无法生成浏览器面单';
+    return;
+  }
+  openPrintWindow(renderShipmentWaybillHtml(record, reprint), `${record.logisticsNo} ${reprint ? '重打面单' : '浏览器面单'}`);
 }
 
 function deliveryOrderCsvRows(records: readonly DeliveryOrderRecord[]) {
@@ -842,8 +929,8 @@ defineExpose({
                   打包
                 </button>
                 <button class="legacy-link-btn" type="button" @click="printReadyOrderList(item)">打印清单</button>
-                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
-                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
+                <button class="legacy-link-btn" type="button" disabled title="待打包订单尚未生成物流单号">面单(待物流单)</button>
+                <button class="legacy-link-btn" type="button" disabled title="待打包订单尚未生成物流单号">重打(待物流单)</button>
               </td>
             </tr>
           </template>
@@ -873,8 +960,24 @@ defineExpose({
               <td class="logistics-action-cell">
                 <button class="legacy-link-btn" type="button" @click="refreshShipmentTraces(shipment)">轨迹</button>
                 <button class="legacy-link-btn" type="button" @click="printShipmentList(shipment)">打印清单</button>
-                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">打单(待接口)</button>
-                <button class="legacy-link-btn" type="button" disabled title="等待后端面单接口">重打(待接口)</button>
+                <button
+                  class="legacy-link-btn"
+                  type="button"
+                  :disabled="!canPrintShipmentWaybill(shipment)"
+                  title="基于已有物流单生成浏览器面单"
+                  @click="printShipmentWaybill(shipment)"
+                >
+                  浏览器面单
+                </button>
+                <button
+                  class="legacy-link-btn"
+                  type="button"
+                  :disabled="!canPrintShipmentWaybill(shipment)"
+                  title="重新打开浏览器面单打印窗口"
+                  @click="printShipmentWaybill(shipment, true)"
+                >
+                  重打面单
+                </button>
                 <button
                   class="legacy-link-btn workflow-pass-btn"
                   type="button"
