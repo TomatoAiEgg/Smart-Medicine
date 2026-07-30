@@ -56,7 +56,9 @@ const selectedOrder = ref<AdminOrderDetail | null>(null);
 const loading = ref(false);
 const detailLoading = ref(false);
 const submitting = ref(false);
+const batchSubmitting = ref(false);
 const errorLine = ref('');
+const selectedOrderNos = ref<string[]>([]);
 const addressForm = ref<AddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -74,6 +76,8 @@ const rows = computed(() => orderPage.value?.records ?? []);
 const total = computed(() => orderPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
+const selectedRows = computed(() => rows.value.filter((row) => selectedOrderNos.value.includes(row.orderNo)));
+const selectedCurrentPageAll = computed(() => rows.value.length > 0 && selectedRows.value.length === rows.value.length);
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -123,6 +127,40 @@ function queryParams(): AdminOrderQueryParams {
   };
 }
 
+function buildAddressCommand() {
+  const command: AdminOrderAddressUpdateCommand = {
+    receiverName: addressForm.value.receiverName.trim(),
+    receiverPhone: addressForm.value.receiverPhone.trim(),
+    receiverProvince: addressForm.value.receiverProvince.trim(),
+    receiverCity: addressForm.value.receiverCity.trim(),
+    receiverZone: addressForm.value.receiverZone.trim(),
+    receiverAddress: addressForm.value.receiverAddress.trim(),
+    addressType: addressForm.value.addressType,
+    deliveryTime: addressForm.value.deliveryTime.trim(),
+    operator: addressForm.value.operator.trim() || 'admin',
+    reason: addressForm.value.reason.trim(),
+  };
+  if (!command.receiverName || !command.receiverPhone || !command.receiverAddress) {
+    errorLine.value = '收货人、收货电话和详细地址不能为空';
+    return null;
+  }
+  return command;
+}
+
+function isOrderSelected(orderNo: string) {
+  return selectedOrderNos.value.includes(orderNo);
+}
+
+function toggleOrderSelection(orderNo: string, checked: boolean) {
+  selectedOrderNos.value = checked
+    ? Array.from(new Set([...selectedOrderNos.value, orderNo]))
+    : selectedOrderNos.value.filter((item) => item !== orderNo);
+}
+
+function toggleCurrentPageSelection(checked: boolean) {
+  selectedOrderNos.value = checked ? rows.value.map((row) => row.orderNo) : [];
+}
+
 function downloadAddressCsv() {
   downloadCsv(
     `订单地址修改-第${page.value}页.csv`,
@@ -166,6 +204,7 @@ async function refreshAddressOrders() {
     orderPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
+    selectedOrderNos.value = [];
     emit('notice', 'success', `已查询到 ${nextPage.total} 条可修改地址订单`);
   } catch (error) {
     orderPage.value = null;
@@ -201,22 +240,8 @@ async function submitAddressUpdate() {
     errorLine.value = '请先选择一条订单';
     return;
   }
-  const command: AdminOrderAddressUpdateCommand = {
-    receiverName: addressForm.value.receiverName.trim(),
-    receiverPhone: addressForm.value.receiverPhone.trim(),
-    receiverProvince: addressForm.value.receiverProvince.trim(),
-    receiverCity: addressForm.value.receiverCity.trim(),
-    receiverZone: addressForm.value.receiverZone.trim(),
-    receiverAddress: addressForm.value.receiverAddress.trim(),
-    addressType: addressForm.value.addressType,
-    deliveryTime: addressForm.value.deliveryTime.trim(),
-    operator: addressForm.value.operator.trim() || 'admin',
-    reason: addressForm.value.reason.trim(),
-  };
-  if (!command.receiverName || !command.receiverPhone || !command.receiverAddress) {
-    errorLine.value = '收货人、收货电话和详细地址不能为空';
-    return;
-  }
+  const command = buildAddressCommand();
+  if (!command) return;
   submitting.value = true;
   errorLine.value = '';
   try {
@@ -231,6 +256,39 @@ async function submitAddressUpdate() {
     errorLine.value = errorMessage(error);
   } finally {
     submitting.value = false;
+  }
+}
+
+async function submitBatchAddressUpdate() {
+  if (selectedRows.value.length === 0) {
+    errorLine.value = '请先勾选要批量修改地址的订单';
+    return;
+  }
+  const command = buildAddressCommand();
+  if (!command) return;
+
+  batchSubmitting.value = true;
+  errorLine.value = '';
+  const targets = [...selectedRows.value];
+  const failures: string[] = [];
+  try {
+    for (const row of targets) {
+      try {
+        await updateAdminOrderAddress(row.orderNo, command);
+      } catch (error) {
+        failures.push(`${row.orderNo}: ${errorMessage(error)}`);
+      }
+    }
+    await refreshAddressOrders();
+    const successCount = targets.length - failures.length;
+    if (failures.length > 0) {
+      errorLine.value = `批量修改完成：成功 ${successCount} 条，失败 ${failures.length} 条；${failures.join('；')}`;
+      emit('notice', 'error', `批量修改地址部分失败：成功 ${successCount} 条，失败 ${failures.length} 条`);
+      return;
+    }
+    emit('notice', 'success', `批量修改地址成功：${successCount} 条`);
+  } finally {
+    batchSubmitting.value = false;
   }
 }
 
@@ -313,8 +371,14 @@ defineExpose({
         </button>
       </li>
       <li>
-        <button class="legacy-btn legacy-btn-export" type="button" disabled title="当前后端未提供批量修改接口">
-          批量修改地址
+        <button
+          class="legacy-btn legacy-btn-export"
+          type="button"
+          :disabled="batchSubmitting || selectedRows.length === 0"
+          title="按当前地址表单逐条修改已勾选订单"
+          @click="submitBatchAddressUpdate"
+        >
+          {{ batchSubmitting ? '批量修改中' : `批量修改地址(${selectedRows.length})` }}
         </button>
       </li>
     </ul>
@@ -325,6 +389,15 @@ defineExpose({
       <table class="legacy-main-table order-main-table">
         <thead>
           <tr class="legacy-main-head">
+            <th>
+              <input
+                type="checkbox"
+                :checked="selectedCurrentPageAll"
+                :disabled="rows.length === 0 || loading || submitting || batchSubmitting"
+                aria-label="选择当前页订单"
+                @change="toggleCurrentPageSelection(($event.target as HTMLInputElement).checked)"
+              />
+            </th>
             <th>订单号</th>
             <th>机构</th>
             <th>下单时间</th>
@@ -340,10 +413,10 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="loading" class="legacy-main-info">
-            <td colspan="11" class="legacy-empty">正在查询订单地址</td>
+            <td colspan="12" class="legacy-empty">正在查询订单地址</td>
           </tr>
           <tr v-else-if="rows.length === 0" class="legacy-main-info">
-            <td colspan="11" class="legacy-empty">暂无订单地址记录</td>
+            <td colspan="12" class="legacy-empty">暂无订单地址记录</td>
           </tr>
           <tr
             v-for="row in rows"
@@ -351,6 +424,15 @@ defineExpose({
             class="legacy-main-info"
             :class="{ active: selectedOrder?.orderNo === row.orderNo }"
           >
+            <td>
+              <input
+                type="checkbox"
+                :checked="isOrderSelected(row.orderNo)"
+                :disabled="submitting || batchSubmitting"
+                :aria-label="`选择订单 ${row.orderNo}`"
+                @change="toggleOrderSelection(row.orderNo, ($event.target as HTMLInputElement).checked)"
+              />
+            </td>
             <td>{{ row.orderNo }}</td>
             <td>{{ row.institutionName }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
