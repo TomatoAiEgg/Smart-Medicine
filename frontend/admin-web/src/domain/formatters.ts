@@ -64,6 +64,21 @@ export function amountValue(value: string | number | null | undefined, fallback 
   return Number.isInteger(nextValue) ? String(nextValue) : String(Number(nextValue.toFixed(4)));
 }
 
+export function numericValueOrZero(value: string | number | null | undefined) {
+  return numericValue(value) ?? 0;
+}
+
+export function decimalValue(value: string | number | null | undefined, maximumFractionDigits = 4) {
+  return new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(numericValueOrZero(value));
+}
+
+export function moneyValueOrZero(value: string | number | null | undefined) {
+  return decimalValue(value, 2);
+}
+
 export function joinDisplayParts(
   parts: Array<string | number | null | undefined>,
   separator = '',

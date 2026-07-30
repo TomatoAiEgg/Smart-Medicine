@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadPrescriptionHerbDetailsCsv, listPrescriptionHerbDetails } from '../../api/report';
 import type { PrescriptionHerbDetailRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { decimalValue, displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber, moneyValueOrZero as moneyValue, numericValueOrZero as numericValue } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -32,23 +32,6 @@ const totalAmount = computed(() => records.value.reduce((total, row) => total + 
 const totalSettlementAmount = computed(() => records.value.reduce((total, row) => total + numericValue(row.settlementTotalPrice), 0));
 const totalOrders = computed(() => new Set(records.value.map((row) => row.orderNo)).size);
 const totalPrescriptions = computed(() => new Set(records.value.map((row) => row.prescriptionNo)).size);
-
-function numericValue(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === '') return 0;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function decimalValue(value: number | string | null | undefined, maximumFractionDigits = 4) {
-  return new Intl.NumberFormat('zh-CN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits,
-  }).format(numericValue(value));
-}
-
-function moneyValue(value: number | string | null | undefined) {
-  return decimalValue(value, 2);
-}
 
 async function refreshPrescriptionHerbDetails() {
   if (loading.value) return;

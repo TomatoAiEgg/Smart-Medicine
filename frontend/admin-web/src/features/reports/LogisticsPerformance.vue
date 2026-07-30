@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { downloadLogisticsPerformanceCsv, listLogisticsPerformance } from '../../api/report';
 import type { LogisticsPerformanceRecord } from '../../api/types';
 import { saveBlob } from '../../domain/download';
-import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber } from '../../domain/formatters';
+import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate, formatNumber, numericValueOrZero as numericValue } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -35,12 +35,6 @@ const totalPrescriptions = computed(() => records.value.reduce((total, row) => t
 const totalDoses = computed(() => records.value.reduce((total, row) => total + row.doseCount, 0));
 const totalPackageWeight = computed(() => records.value.reduce((total, row) => total + numericValue(row.totalPackageWeight), 0));
 const totalPackageCount = computed(() => records.value.reduce((total, row) => total + row.packageCount, 0));
-
-function numericValue(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === '') return 0;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 function formatWeight(value: number | string | null | undefined) {
   const parsed = numericValue(value);
