@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { completeRecheckTask, listRecheckTasks } from '../../api/workflow';
 import type { WorkflowTaskSnapshot } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
@@ -84,13 +84,6 @@ function valueText(value: string | null | undefined) {
 
 function taskMatchKeys(task: WorkflowTaskSnapshot): string[] {
   return [task.orderNo, task.externalOrderNo, task.orderId, task.taskId].filter((value) => value.trim().length > 0);
-}
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
 }
 
 function emitCountChanged() {

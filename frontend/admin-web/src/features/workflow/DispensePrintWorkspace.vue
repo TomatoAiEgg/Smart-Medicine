@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { getAdminOrderDetail, getOrderProgress } from '../../api/order';
 import { completeDispenseTask, listDispenseTasks } from '../../api/workflow';
 import type {
@@ -133,13 +133,6 @@ const previewPrintStatus = computed(() => {
   if (selectedTask.value?.taskStatus === 'COMPLETED') return '已完成';
   return printStatus.value;
 });
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';
