@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
@@ -39,13 +39,6 @@ const requestId = ref(0);
 
 const totalWeight = computed(() => sumNumbers(records.value.map((record) => record.pkgWeight)));
 const totalPackages = computed(() => sumNumbers(records.value.map((record) => record.pkgNum)));
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';

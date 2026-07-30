@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   createAdminLogisticsSpecialRule,
   listAdminInstitutions,
@@ -73,13 +73,6 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';

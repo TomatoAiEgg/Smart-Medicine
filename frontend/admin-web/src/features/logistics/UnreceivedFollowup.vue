@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listShipmentTraces, listShipments, receiveShipmentTrace, signShipment } from '../../api/logistics';
 import type { ShipmentRecord, ShipmentTraceRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
@@ -55,13 +55,6 @@ const operator = computed({
   get: () => props.operationOperator,
   set: (value: string) => emit('update:operationOperator', value),
 });
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';

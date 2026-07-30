@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import { listLogisticsInfos } from '../../api/logistics';
 import type { LogisticsInfoRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
@@ -30,13 +30,6 @@ const loading = ref(false);
 const error = ref('');
 const records = ref<LogisticsInfoRecord[]>([]);
 const requestId = ref(0);
-
-function errorMessage(errorValue: unknown) {
-  if (errorValue instanceof ApiError) {
-    return errorValue.status ? `${errorValue.message}（HTTP ${errorValue.status}）` : errorValue.message;
-  }
-  return errorValue instanceof Error ? errorValue.message : '请求失败';
-}
 
 function rowValue(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === '') return '-';

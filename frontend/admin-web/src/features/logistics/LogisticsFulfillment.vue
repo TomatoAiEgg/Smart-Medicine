@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ApiError } from '../../api/client';
+import { errorMessage } from '../../domain/errors';
 import {
   dispatchDueCallbacks,
   listCallbackRecords,
@@ -111,13 +111,6 @@ function datasetCount(dataset: LogisticsDataset) {
   if (dataset === 'ready') return readyDeliveryOrders.value.length;
   if (dataset === 'shipments') return shipments.value.length;
   return callbackRecords.value.length;
-}
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.status ? `${error.message}（HTTP ${error.status}）` : error.message;
-  }
-  return error instanceof Error ? error.message : '请求失败';
 }
 
 function normalizedLogisticsLimit() {
