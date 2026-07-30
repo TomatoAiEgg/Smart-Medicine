@@ -38,6 +38,10 @@ export function parseCsv(text: string): CsvRow[] {
     }
   }
 
+  if (quoted) {
+    throw new Error('CSV 引号未闭合，请检查文件格式');
+  }
+
   currentRow.push(currentCell);
   rows.push(currentRow);
 
