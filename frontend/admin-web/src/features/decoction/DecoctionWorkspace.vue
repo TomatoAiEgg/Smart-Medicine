@@ -43,7 +43,7 @@ import type {
 } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
+import { displayValue, enabledText, currentIsoDate, dateInputToIso, defaultDate, formatDate } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -454,7 +454,7 @@ async function toggleDeviceEnabled(device: DeviceRecord, enabled: boolean) {
   decoctionError.value = '';
   try {
     const updated = await updateAdminDecoctionDevice(device.deviceCode, deviceCommandFromRecord(device, enabled));
-    emit('notice', 'success', `设备 ${updated.deviceCode} 已${enabled ? '启用' : '停用'}`);
+    emit('notice', 'success', `设备 ${updated.deviceCode} 已${enabledText(enabled)}`);
     await refreshDecoctionSimulator();
   } catch (error) {
     decoctionError.value = errorMessage(error);
@@ -565,7 +565,7 @@ async function toggleWaterPailEnabled(pail: WaterPailRecord, enabled: boolean) {
   decoctionError.value = '';
   try {
     const updated = await updateAdminWaterPail(pail.pailNo, waterPailCommandFromRecord(pail, enabled));
-    emit('notice', 'success', `加水桶 ${updated.pailNo} 已${enabled ? '启用' : '停用'}`);
+    emit('notice', 'success', `加水桶 ${updated.pailNo} 已${enabledText(enabled)}`);
     await refreshDecoctionSimulator();
   } catch (error) {
     decoctionError.value = errorMessage(error);
@@ -592,7 +592,7 @@ function downloadDeviceCsv() {
       device.pdaCode,
       device.printerCode,
       device.printTemplateCode,
-      device.enabled ? '启用' : '停用',
+      enabledText(device.enabled),
       device.deviceStatus,
       deviceUseStatus(device),
       device.activeTaskNo,
@@ -613,7 +613,7 @@ function downloadPrinterConfigCsv() {
       device.deviceName,
       device.printerCode,
       device.printTemplateCode,
-      device.enabled ? '启用' : '停用',
+      enabledText(device.enabled),
       formatDate(device.updatedAt),
       device.remark,
     ]),
@@ -631,7 +631,7 @@ function downloadWaterPailCsv() {
       pail.decoctionCenter,
       pail.pailGroup,
       pail.capacityMl,
-      pail.enabled ? '启用' : '停用',
+      enabledText(pail.enabled),
       pail.pailStatus,
       waterPailUseStatus(pail),
       pail.activeTaskNo,
@@ -1596,7 +1596,7 @@ defineExpose({
               <td>{{ displayValue(device.deviceName) }}</td>
               <td>{{ displayValue(device.printerCode) }}</td>
               <td>{{ displayValue(device.printTemplateCode) }}</td>
-              <td><StatusPill :value="device.enabled ? '启用' : '停用'" :tone="statusTone(device.deviceStatus)" /></td>
+              <td><StatusPill :value="enabledText(device.enabled)" :tone="statusTone(device.deviceStatus)" /></td>
               <td>{{ formatDate(device.updatedAt) }}</td>
               <td class="decoction-action-cell">
                 <button class="legacy-link-btn" type="button" :disabled="deviceSaving" @click="openEditDeviceForm(device)">编辑</button>

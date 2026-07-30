@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { createAdminHerbArea, listAdminHerbAreas, updateAdminHerbArea } from '../../api/order';
 import type { AdminHerbAreaPage, AdminHerbAreaRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -46,10 +46,6 @@ const editing = computed(() => form.value.id !== '');
 
 function queryEnabled() {
   return enabledFilter.value === '' ? undefined : enabledFilter.value;
-}
-
-function enabledText(value: boolean) {
-  return value ? '启用' : '停用';
 }
 
 function downloadAreaCsv() {

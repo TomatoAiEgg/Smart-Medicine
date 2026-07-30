@@ -12,7 +12,7 @@ import type {
   AdminOrderInterceptRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -77,10 +77,6 @@ function enabledParam() {
   return undefined;
 }
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function stageLabel(value: string) {
   const labels: Record<string, string> = {
     CREATE_ORDER: '机构推单',
@@ -131,7 +127,7 @@ function downloadRuleCsv() {
       matchTypeLabel(row.matchType),
       row.matchValue,
       row.priority,
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       row.reason,
       formatDate(row.createdAt),
       formatDate(row.updatedAt),
@@ -431,7 +427,7 @@ defineExpose({
             <td>{{ row.priority }}</td>
             <td>
               <span class="legacy-status" :class="row.enabled ? 'status-success' : 'status-muted'">
-                {{ enabledLabel(row.enabled) }}
+                {{ enabledText(row.enabled) }}
               </span>
             </td>
             <td>{{ row.reason }}</td>

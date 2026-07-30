@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -74,10 +74,6 @@ const saveButtonLabel = computed(() => {
   return form.value.appSecret.trim() ? '保存并重置密钥' : '保存修改';
 });
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function secretLabel(row: AdminInstitutionAppRecord) {
   return row.appSecretConfigured ? '已配置' : '未配置';
 }
@@ -117,7 +113,7 @@ function downloadAppCsv() {
       row.signType,
       secretLabel(row),
       row.callbackUrl,
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       formatDate(row.updatedAt),
     ]),
   );
@@ -402,7 +398,7 @@ defineExpose({
             <td>{{ displayValue(row.signType) }}</td>
             <td>{{ secretLabel(row) }}</td>
             <td class="legacy-left">{{ displayValue(row.callbackUrl) }}</td>
-            <td>{{ enabledLabel(row.enabled) }}</td>
+            <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>
               <button class="legacy-btn" type="button" :disabled="saving" @click="editApp(row)">编辑</button>

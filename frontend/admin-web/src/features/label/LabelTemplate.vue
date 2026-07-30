@@ -12,7 +12,7 @@ import type {
   AdminLabelTemplateRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -79,10 +79,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const isEditing = computed(() => form.value.id !== '');
 const previewText = computed(() => renderPreview(form.value.contentTemplate));
-
-function enabledText(value: boolean) {
-  return value ? '启用' : '停用';
-}
 
 function scopeText(value: string) {
   return scopeTypes.find((option) => option.value === value)?.label ?? value;

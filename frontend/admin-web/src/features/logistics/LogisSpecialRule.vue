@@ -14,7 +14,7 @@ import type {
   AdminLogisticsSpecialRuleRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -74,10 +74,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function amountNumber(value: AmountValue) {
   if (value === null || value === undefined || value === '') return 0;
   const nextValue = typeof value === 'number' ? value : Number(value);
@@ -127,7 +123,7 @@ function downloadSpecialRuleCsv() {
       amountText(row.baseFee),
       amountText(row.extraFee),
       amountText(row.freeThreshold),
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       row.remark,
       formatDate(row.updatedAt),
     ]),
@@ -424,7 +420,7 @@ defineExpose({
             <td>{{ amountText(row.freeThreshold) }}</td>
             <td>
               <span class="legacy-status" :class="row.enabled ? 'status-success' : 'status-muted'">
-                {{ enabledLabel(row.enabled) }}
+                {{ enabledText(row.enabled) }}
               </span>
             </td>
             <td>{{ displayValue(row.remark) }}</td>

@@ -16,7 +16,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -69,10 +69,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function enabledParam() {
   if (enabledFilter.value === 'true') return true;
   if (enabledFilter.value === 'false') return false;
@@ -105,7 +101,7 @@ function downloadPermissionCsv() {
       apiText(row),
       row.requestMethod,
       row.requestPath,
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       row.remark,
       formatDate(row.updatedAt),
     ]),
@@ -389,7 +385,7 @@ defineExpose({
             <td>{{ row.requestMethod }}</td>
             <td>
               <span class="legacy-status" :class="row.enabled ? 'status-success' : 'status-muted'">
-                {{ enabledLabel(row.enabled) }}
+                {{ enabledText(row.enabled) }}
               </span>
             </td>
             <td>{{ displayValue(row.remark) }}</td>

@@ -14,7 +14,7 @@ import type {
   AdminInstitutionRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -64,10 +64,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function enabledParam() {
   if (enabledFilter.value === 'true') return true;
   if (enabledFilter.value === 'false') return false;
@@ -98,7 +94,7 @@ function downloadWhitelistCsv() {
       institutionText(row),
       row.institutionType,
       row.ipRange,
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       formatDate(row.createdAt),
     ]),
   );
@@ -354,7 +350,7 @@ defineExpose({
             </td>
             <td>{{ displayValue(row.institutionType) }}</td>
             <td><code>{{ displayValue(row.ipRange) }}</code></td>
-            <td>{{ enabledLabel(row.enabled) }}</td>
+            <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>
               <button class="legacy-btn" type="button" :disabled="saving" @click="editWhitelist(row)">编辑</button>

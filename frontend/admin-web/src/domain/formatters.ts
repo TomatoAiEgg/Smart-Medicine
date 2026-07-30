@@ -24,6 +24,10 @@ export function displayValue(value: string | number | boolean | null | undefined
   return String(value);
 }
 
+export function enabledText(value: boolean) {
+  return value ? '启用' : '停用';
+}
+
 export function defaultDate(offsetDays: number) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);

@@ -4,7 +4,7 @@ import { errorMessage } from '../../domain/errors';
 import { listAdminOperatorRoles, listAdminOperators, renameAdminOperatorRole } from '../../api/order';
 import type { AdminOperatorRecord, AdminOperatorRolePage, AdminOperatorRoleRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 
@@ -48,10 +48,6 @@ const disabledTotal = computed(() => rows.value.reduce((sum, row) => sum + row.d
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const canRename = computed(() => renameForm.value.oldRoleCode.trim() && renameForm.value.newRoleCode.trim());
-
-function enabledLabel(enabled: boolean) {
-  return enabled ? '启用' : '停用';
-}
 
 async function listExportRoles() {
   const records: AdminOperatorRoleRecord[] = [];
@@ -124,7 +120,7 @@ async function downloadRoleMemberCsv(row: AdminOperatorRoleRecord) {
         row.roleCode,
         operator.username,
         operator.displayName,
-        enabledLabel(operator.enabled),
+        enabledText(operator.enabled),
         formatDate(operator.createdAt),
         formatDate(operator.updatedAt),
       ]),

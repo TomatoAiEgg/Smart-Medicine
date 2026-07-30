@@ -8,7 +8,7 @@ import type {
   AdminInstitutionApiRecord,
 } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
-import { displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
+import { enabledText, displayValue, currentIsoDate, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
@@ -60,10 +60,6 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 
-function enabledLabel(value: boolean) {
-  return value ? '启用' : '停用';
-}
-
 function enabledParam() {
   if (enabledFilter.value === 'true') return true;
   if (enabledFilter.value === 'false') return false;
@@ -91,7 +87,7 @@ function downloadApiCsv() {
       row.requestMethod,
       row.requestPath,
       row.description,
-      enabledLabel(row.enabled),
+      enabledText(row.enabled),
       formatDate(row.updatedAt),
     ]),
   );
@@ -342,7 +338,7 @@ defineExpose({
             <td>{{ displayValue(row.requestMethod) }}</td>
             <td class="legacy-left"><code>{{ displayValue(row.requestPath) }}</code></td>
             <td class="legacy-left">{{ displayValue(row.description) }}</td>
-            <td>{{ enabledLabel(row.enabled) }}</td>
+            <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>
               <button class="legacy-btn" type="button" :disabled="saving" @click="editApi(row)">编辑</button>
