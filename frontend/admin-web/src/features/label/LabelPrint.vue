@@ -42,13 +42,17 @@ const selectedTemplateId = ref('');
 const loading = ref(false);
 const templateLoading = ref(false);
 const printingNo = ref('');
+const batchPrinting = ref(false);
 const errorLine = ref('');
 const templateError = ref('');
+const selectedPrescriptionNos = ref<string[]>([]);
 
 const rows = computed(() => labelPage.value?.records ?? []);
 const total = computed(() => labelPage.value?.total ?? 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
+const selectedRows = computed(() => rows.value.filter((row) => selectedPrescriptionNos.value.includes(row.prescriptionNo)));
+const selectedCurrentPageAll = computed(() => rows.value.length > 0 && selectedRows.value.length === rows.value.length);
 const selectedTemplate = computed(() => (
   labelTemplates.value.find((template) => template.id === selectedTemplateId.value)
   ?? null
@@ -129,6 +133,20 @@ function patientInfo(row: AdminPrescriptionReprintItem) {
   return [row.patientName, row.patientPhone].filter(Boolean).join(' / ') || '-';
 }
 
+function isPrescriptionSelected(nextPrescriptionNo: string) {
+  return selectedPrescriptionNos.value.includes(nextPrescriptionNo);
+}
+
+function togglePrescriptionSelection(nextPrescriptionNo: string, checked: boolean) {
+  selectedPrescriptionNos.value = checked
+    ? Array.from(new Set([...selectedPrescriptionNos.value, nextPrescriptionNo]))
+    : selectedPrescriptionNos.value.filter((item) => item !== nextPrescriptionNo);
+}
+
+function toggleCurrentPageSelection(checked: boolean) {
+  selectedPrescriptionNos.value = checked ? rows.value.map((row) => row.prescriptionNo) : [];
+}
+
 function downloadLabelPrintCsv() {
   downloadCsv(
     `处方标签打印-第${page.value}页.csv`,
@@ -186,6 +204,7 @@ async function refreshLabelPrints() {
     labelPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
+    selectedPrescriptionNos.value = [];
     emit('countChanged', nextPage.total);
     emit('notice', 'success', `已查询到 ${nextPage.total} 条可打印处方标签`);
   } catch (error) {
@@ -259,35 +278,10 @@ function renderDrugSummary(details: AdminOrderDetailDrug[]) {
   `).join('');
 }
 
-function renderLabelHtml(payload: AdminPrescriptionPrintPayload, template: AdminLabelTemplateRecord | null) {
+function renderLabelSection(payload: AdminPrescriptionPrintPayload, template: AdminLabelTemplateRecord | null) {
   const drugs = renderDrugSummary(payload.details);
-  const labelWidthMm = template?.labelWidthMm ?? 90;
-  const labelHeightMm = template?.labelHeightMm ?? 60;
   const templateName = template?.templateName ?? '默认浏览器标签';
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>处方标签-${escapeHtml(payload.prescriptionNo)}</title>
-  <style>
-    @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 3mm; }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 10px; }
-    .toolbar { position: fixed; right: 12px; top: 12px; display: flex; gap: 8px; }
-    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
-    .label { width: ${labelWidthMm}mm; min-height: ${labelHeightMm}mm; padding: 4mm; border: 1px solid #111827; display: grid; grid-template-columns: 1fr 22mm; gap: 3mm; }
-    .title { margin: 0 0 2mm; font-size: 15px; letter-spacing: 0; }
-    .muted { color: #475569; }
-    .line { margin: 1mm 0; }
-    .code { border: 1px solid #111827; min-height: 22mm; display: grid; place-items: center; text-align: center; word-break: break-all; padding: 2mm; font-size: 9px; }
-    ul { margin: 2mm 0 0; padding: 0; list-style: none; display: grid; gap: 1mm; }
-    li { display: flex; justify-content: space-between; gap: 2mm; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1mm; }
-    strong { font-weight: 700; }
-    @media print { .toolbar { display: none; } .label { border: 0; padding: 0; } }
-  </style>
-</head>
-<body>
-  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  return `
   <section class="label">
     <main>
       <h1 class="title">${escapeHtml(payload.institutionName)} 处方标签</h1>
@@ -304,7 +298,39 @@ function renderLabelHtml(payload: AdminPrescriptionPrintPayload, template: Admin
       <div class="code">${escapeHtml(payload.prescriptionNo)}</div>
       <div class="line muted">打印：${escapeHtml(formatDate(payload.printedAt))}</div>
     </aside>
-  </section>
+  </section>`;
+}
+
+function renderLabelHtml(payloads: AdminPrescriptionPrintPayload[], template: AdminLabelTemplateRecord | null) {
+  const labelWidthMm = template?.labelWidthMm ?? 90;
+  const labelHeightMm = template?.labelHeightMm ?? 60;
+  const titlePrescriptionNo = payloads.length === 1 ? payloads[0]?.prescriptionNo : `批量${payloads.length}张`;
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>处方标签-${escapeHtml(titlePrescriptionNo)}</title>
+  <style>
+    @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 3mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111827; font-family: "Microsoft YaHei", Arial, sans-serif; font-size: 10px; }
+    .toolbar { position: fixed; right: 12px; top: 12px; display: flex; gap: 8px; }
+    .toolbar button { border: 1px solid #1d4ed8; background: #2563eb; color: white; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+    .label { width: ${labelWidthMm}mm; min-height: ${labelHeightMm}mm; padding: 4mm; border: 1px solid #111827; display: grid; grid-template-columns: 1fr 22mm; gap: 3mm; }
+    .title { margin: 0 0 2mm; font-size: 15px; letter-spacing: 0; }
+    .muted { color: #475569; }
+    .line { margin: 1mm 0; }
+    .label + .label { page-break-before: always; }
+    .code { border: 1px solid #111827; min-height: 22mm; display: grid; place-items: center; text-align: center; word-break: break-all; padding: 2mm; font-size: 9px; }
+    ul { margin: 2mm 0 0; padding: 0; list-style: none; display: grid; gap: 1mm; }
+    li { display: flex; justify-content: space-between; gap: 2mm; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1mm; }
+    strong { font-weight: 700; }
+    @media print { .toolbar { display: none; } .label { border: 0; padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">打印</button><button onclick="window.close()">关闭</button></div>
+  ${payloads.map((payload) => renderLabelSection(payload, template)).join('\n')}
 </body>
 </html>`;
 }
@@ -320,13 +346,40 @@ async function openLabelPrint(row: AdminPrescriptionReprintItem) {
       return;
     }
     printWindow.document.open();
-    printWindow.document.write(renderLabelHtml(payload, selectedTemplate.value));
+    printWindow.document.write(renderLabelHtml([payload], selectedTemplate.value));
     printWindow.document.close();
     emit('notice', 'success', `处方 ${row.prescriptionNo} 标签打印窗口已打开`);
   } catch (error) {
     errorLine.value = errorMessage(error);
   } finally {
     printingNo.value = '';
+  }
+}
+
+async function openSelectedLabelPrints() {
+  if (selectedRows.value.length === 0) {
+    errorLine.value = '请先勾选要批量打印的处方';
+    return;
+  }
+  batchPrinting.value = true;
+  errorLine.value = '';
+  try {
+    const payloads = await Promise.all(
+      selectedRows.value.map((row) => getAdminPrescriptionPrintPayload(row.prescriptionNo)),
+    );
+    const printWindow = window.open('', '_blank', 'width=720,height=520');
+    if (!printWindow) {
+      errorLine.value = '浏览器阻止了标签打印窗口';
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(renderLabelHtml(payloads, selectedTemplate.value));
+    printWindow.document.close();
+    emit('notice', 'success', `已打开 ${payloads.length} 张处方标签的批量打印窗口`);
+  } catch (error) {
+    errorLine.value = errorMessage(error);
+  } finally {
+    batchPrinting.value = false;
   }
 }
 
@@ -383,6 +436,16 @@ defineExpose({
           导出当前页
         </button>
       </li>
+      <li>
+        <button
+          class="legacy-btn legacy-btn-export"
+          type="button"
+          :disabled="batchPrinting || selectedRows.length === 0"
+          @click="openSelectedLabelPrints"
+        >
+          {{ batchPrinting ? '打开中' : `批量打印标签(${selectedRows.length})` }}
+        </button>
+      </li>
     </ul>
 
     <p class="label-print-hint">
@@ -398,6 +461,15 @@ defineExpose({
       <table class="legacy-main-table label-print-table">
         <thead>
           <tr class="legacy-main-head">
+            <th>
+              <input
+                type="checkbox"
+                :checked="selectedCurrentPageAll"
+                :disabled="rows.length === 0 || loading || batchPrinting"
+                aria-label="选择当前页处方"
+                @change="toggleCurrentPageSelection(($event.target as HTMLInputElement).checked)"
+              />
+            </th>
             <th>平台处方号</th>
             <th>状态</th>
             <th>病人信息</th>
@@ -415,12 +487,21 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="loading" class="legacy-main-info">
-            <td colspan="13" class="legacy-empty">正在查询处方标签</td>
+            <td colspan="14" class="legacy-empty">正在查询处方标签</td>
           </tr>
           <tr v-else-if="rows.length === 0" class="legacy-main-info">
-            <td colspan="13" class="legacy-empty">没有相关数据</td>
+            <td colspan="14" class="legacy-empty">没有相关数据</td>
           </tr>
           <tr v-for="row in rows" :key="row.prescriptionId" class="legacy-main-info">
+            <td>
+              <input
+                type="checkbox"
+                :checked="isPrescriptionSelected(row.prescriptionNo)"
+                :disabled="printingNo === row.prescriptionNo || batchPrinting"
+                :aria-label="`选择处方 ${row.prescriptionNo}`"
+                @change="togglePrescriptionSelection(row.prescriptionNo, ($event.target as HTMLInputElement).checked)"
+              />
+            </td>
             <td>
               <strong>{{ row.prescriptionNo }}</strong>
               <small>{{ rowValue(row.externalPrescriptionNo) }}</small>
