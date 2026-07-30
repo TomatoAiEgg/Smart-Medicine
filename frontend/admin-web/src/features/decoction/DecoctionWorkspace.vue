@@ -291,7 +291,8 @@ function deviceUseStatus(device: DeviceRecord) {
 }
 
 function deviceName(deviceCode: string) {
-  return decoctionDeviceByCode.value.get(deviceCode)?.deviceName ?? '待接口';
+  const registeredDeviceName = decoctionDeviceByCode.value.get(deviceCode)?.deviceName;
+  return registeredDeviceName ?? `未登记设备：${deviceCode}`;
 }
 
 function downloadDeviceCsv() {
