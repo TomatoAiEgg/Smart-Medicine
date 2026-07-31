@@ -23,6 +23,8 @@ import { boundedPositiveInteger, displayValue, formatDate, formatNumber, joinDis
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
+type LabelPrintStatus = 'PENDING' | 'SENT' | 'PRINTED' | 'FAILED';
+type LabelPrintChannel = 'BROWSER' | 'CLOUD';
 
 const props = defineProps<{
   active: boolean;
@@ -45,11 +47,14 @@ const selectedTemplateId = ref('');
 const loading = ref(false);
 const templateLoading = ref(false);
 const printingNo = ref('');
+const cloudPrintingNo = ref('');
 const batchPrinting = ref(false);
 const recordLoading = ref(false);
 const retryingRecordId = ref('');
 const errorLine = ref('');
 const templateError = ref('');
+const cloudPrinterCode = ref('');
+const cloudPrinterName = ref('');
 const selectedPrescriptionNos = ref<string[]>([]);
 const printRecords = ref<AdminLabelPrintRecord[]>([]);
 
@@ -122,8 +127,18 @@ function batchText(value: string | null | undefined) {
 
 function printStatusText(value: string | null | undefined) {
   const labels: Record<string, string> = {
+    PENDING: '待下发',
+    SENT: '已下发',
     PRINTED: '已打开',
     FAILED: '失败',
+  };
+  return labelFromMap(value, labels);
+}
+
+function printChannelText(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    BROWSER: '浏览器',
+    CLOUD: '云打印',
   };
   return labelFromMap(value, labels);
 }
@@ -257,13 +272,18 @@ async function refreshLabelPrintRecords() {
 
 async function saveLabelPrintRecord(
   prescriptionNoValue: string,
-  printStatus: 'PRINTED' | 'FAILED',
+  printStatus: LabelPrintStatus,
   failureReason?: string,
   retryOf?: string | null,
+  printChannel: LabelPrintChannel = 'BROWSER',
 ) {
   try {
     await createAdminLabelPrintRecord(prescriptionNoValue, {
       printStatus,
+      printChannel,
+      printerCode: printChannel === 'CLOUD' ? cloudPrinterCode.value.trim() || null : null,
+      printerName: printChannel === 'CLOUD' ? cloudPrinterName.value.trim() || null : null,
+      provider: printChannel === 'CLOUD' ? 'POSCOM' : null,
       templateId: selectedTemplate.value?.id ?? null,
       templateName: selectedTemplate.value?.templateName ?? null,
       failureReason: failureReason ?? null,
@@ -271,8 +291,17 @@ async function saveLabelPrintRecord(
       retryOf: retryOf ?? null,
     });
     await refreshLabelPrintRecords();
+    return true;
   } catch (error) {
     emit('notice', 'error', `标签打印记录保存失败：${errorMessage(error)}`);
+    return false;
+  }
+}
+
+async function createCloudLabelPrintRecord(prescriptionNoValue: string, retryOf?: string | null) {
+  const saved = await saveLabelPrintRecord(prescriptionNoValue, 'PENDING', undefined, retryOf, 'CLOUD');
+  if (saved) {
+    emit('notice', 'success', `处方 ${prescriptionNoValue} 云打印任务已登记`);
   }
 }
 
@@ -406,9 +435,25 @@ async function openLabelPrint(row: AdminPrescriptionReprintItem) {
 async function retryLabelPrint(record: AdminLabelPrintRecord) {
   retryingRecordId.value = record.id;
   try {
-    await openLabelPrintByPrescriptionNo(record.prescriptionNo, record.id);
+    if (record.printChannel === 'CLOUD') {
+      await createCloudLabelPrintRecord(record.prescriptionNo, record.id);
+    } else {
+      await openLabelPrintByPrescriptionNo(record.prescriptionNo, record.id);
+    }
   } finally {
     retryingRecordId.value = '';
+  }
+}
+
+async function openCloudLabelPrint(row: AdminPrescriptionReprintItem) {
+  cloudPrintingNo.value = row.prescriptionNo;
+  try {
+    await createCloudLabelPrintRecord(row.prescriptionNo);
+  } catch (error) {
+    errorLine.value = errorMessage(error);
+    await saveLabelPrintRecord(row.prescriptionNo, 'FAILED', errorLine.value, null, 'CLOUD');
+  } finally {
+    cloudPrintingNo.value = '';
   }
 }
 
@@ -491,6 +536,14 @@ defineExpose({
         </select>
       </li>
       <li>
+        云打印机编号：
+        <input v-model="cloudPrinterCode" class="legacy-input input-medium" placeholder="可选" />
+      </li>
+      <li>
+        云打印机名称：
+        <input v-model="cloudPrinterName" class="legacy-input input-medium" placeholder="可选" />
+      </li>
+      <li>
         条数：
         <input v-model.number="pageSize" class="legacy-input input-small" type="number" min="5" max="100" step="5" />
       </li>
@@ -517,7 +570,7 @@ defineExpose({
     </ul>
 
     <p class="label-print-hint">
-      当前页面使用真实可打印处方记录生成浏览器标签；窗口打开成功或失败会写入打印记录，失败记录可在本页重试。
+      当前页面使用真实可打印处方记录生成浏览器标签；浏览器打印和云打印任务都会写入打印记录，失败记录可在本页按原渠道重试。
     </p>
     <p v-if="selectedTemplate" class="label-template-hint">
       当前模板：{{ selectedTemplate.templateName }} / {{ selectedTemplate.labelWidthMm }} x {{ selectedTemplate.labelHeightMm }} mm
@@ -539,8 +592,10 @@ defineExpose({
         <thead>
           <tr class="legacy-main-head">
             <th>处方号</th>
+            <th>渠道</th>
             <th>状态</th>
             <th>模板</th>
+            <th>云打印机</th>
             <th>失败原因</th>
             <th>操作人</th>
             <th>时间</th>
@@ -549,18 +604,23 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="recordLoading" class="legacy-main-info">
-            <td colspan="7" class="legacy-empty">正在加载打印记录</td>
+            <td colspan="9" class="legacy-empty">正在加载打印记录</td>
           </tr>
           <tr v-else-if="printRecords.length === 0" class="legacy-main-info">
-            <td colspan="7" class="legacy-empty">暂无打印记录</td>
+            <td colspan="9" class="legacy-empty">暂无打印记录</td>
           </tr>
           <tr v-for="record in printRecords" :key="record.id" class="legacy-main-info">
             <td>
               <strong>{{ record.prescriptionNo }}</strong>
               <small>{{ displayValue(record.orderNo) }}</small>
             </td>
+            <td>{{ printChannelText(record.printChannel) }}</td>
             <td><StatusPill :value="printStatusText(record.printStatus)" :tone="statusTone(record.printStatus)" /></td>
             <td>{{ displayValue(record.templateName) }}</td>
+            <td>
+              <strong>{{ displayValue(record.printerCode) }}</strong>
+              <small>{{ displayValue(record.printerName || record.provider) }}</small>
+            </td>
             <td class="legacy-left">{{ displayValue(record.failureReason) }}</td>
             <td>{{ displayValue(record.operator) }}</td>
             <td>{{ formatDate(record.createdAt) }}</td>
@@ -650,6 +710,14 @@ defineExpose({
                 @click="openLabelPrint(row)"
               >
                 {{ printingNo === row.prescriptionNo ? '打开中' : '打印标签' }}
+              </button>
+              <button
+                class="legacy-link-btn"
+                type="button"
+                :disabled="cloudPrintingNo === row.prescriptionNo"
+                @click="openCloudLabelPrint(row)"
+              >
+                {{ cloudPrintingNo === row.prescriptionNo ? '登记中' : '云打印' }}
               </button>
             </td>
           </tr>

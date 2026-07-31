@@ -7,7 +7,9 @@ import com.zhyf.logistics.infrastructure.LogisticsRepository;
 import com.zhyf.logistics.infrastructure.OrderStatusClient;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,34 @@ public class LogisticsService {
 
     public List<LogisticsRecords.LogisticsInfoRecord> listLogisticsInfos(LogisticsShipmentQuery query) {
         return repository.findLogisticsInfos(normalizeQuery(query));
+    }
+
+    public Map<String, Object> queryBillPrintInfo(String orderNo) {
+        LogisticsRecords.ShipmentRecord shipment = requireShipmentByOrderNo(orderNo);
+        Map<String, Object> result = waybillPayload(shipment);
+        result.put("printStatus", "READY");
+        result.put("message", "系统已生成物流单，可生成浏览器面单；承运商电子面单需配置外部服务后下发");
+        return result;
+    }
+
+    public Map<String, Object> printWaybill(String orderNo, String templateCode) {
+        LogisticsRecords.ShipmentRecord shipment = requireShipmentByOrderNo(orderNo);
+        Map<String, Object> result = waybillPayload(shipment);
+        result.put("templateCode", StringUtils.hasText(templateCode) ? templateCode.trim() : "DEFAULT");
+        result.put("printStatus", "PENDING_EXTERNAL_PROVIDER");
+        result.put("message", "电子面单请求已进入系统契约，等待承运商服务配置后下发");
+        return result;
+    }
+
+    public Map<String, Object> queryEmsPdfFile(String logisticsNo) {
+        requireText(logisticsNo, "LOGISTICS_NO_REQUIRED", "Logistics no is required");
+        LogisticsRecords.ShipmentRecord shipment = repository.findShipmentByLogisticsNo(logisticsNo)
+                .orElseThrow(() -> new BusinessException("SHIPMENT_NOT_FOUND", "Shipment not found"));
+        Map<String, Object> result = waybillPayload(shipment);
+        result.put("pdfBase64", null);
+        result.put("printStatus", "PENDING_EXTERNAL_PROVIDER");
+        result.put("message", "EMS PDF 需外部 EMS 服务配置后获取");
+        return result;
     }
 
     @Transactional
@@ -202,6 +232,34 @@ public class LogisticsService {
     private LogisticsRecords.ShipmentRecord requireShipment(UUID shipmentId) {
         return repository.findShipmentById(shipmentId)
                 .orElseThrow(() -> new BusinessException("SHIPMENT_NOT_FOUND", "Shipment not found"));
+    }
+
+    private LogisticsRecords.ShipmentRecord requireShipmentByOrderNo(String orderNo) {
+        requireText(orderNo, "ORDER_NO_REQUIRED", "Order no is required");
+        return repository.findShipmentByOrderNo(orderNo.trim())
+                .orElseThrow(() -> new BusinessException("SHIPMENT_NOT_FOUND", "Shipment not found"));
+    }
+
+    private Map<String, Object> waybillPayload(LogisticsRecords.ShipmentRecord shipment) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("shipmentId", shipment.shipmentId());
+        payload.put("orderId", shipment.orderNo());
+        payload.put("orderNo", shipment.orderNo());
+        payload.put("externalOrderNo", shipment.externalOrderNo());
+        payload.put("logisticsNo", shipment.logisticsNo());
+        payload.put("waybillNo", shipment.logisticsNo());
+        payload.put("logisticsCompany", shipment.logisticsCompany());
+        payload.put("logisticsStatus", shipment.logisticsStatus());
+        payload.put("logisticsPayMethod", shipment.payMethod());
+        payload.put("receiverName", shipment.receiverName());
+        payload.put("receiverPhone", shipment.receiverPhone());
+        payload.put("receiverAddress", shipment.receiverAddress());
+        payload.put("patientName", shipment.patientName());
+        payload.put("institutionName", shipment.institutionName());
+        payload.put("pkgWeight", shipment.pkgWeight());
+        payload.put("pkgNum", shipment.pkgNum());
+        payload.put("deliveryTime", shipment.deliveryTime());
+        return payload;
     }
 
     private int normalizeLimit(int limit) {

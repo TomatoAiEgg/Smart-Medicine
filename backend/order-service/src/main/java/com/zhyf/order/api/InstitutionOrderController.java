@@ -94,6 +94,8 @@ import com.zhyf.order.application.AdminOrderRemarkUpdateResult;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderSearchQuery;
+import com.zhyf.order.application.AdminOrderSplitCommand;
+import com.zhyf.order.application.AdminOrderSplitResult;
 import com.zhyf.order.application.AdminOperatorCommand;
 import com.zhyf.order.application.AdminOperatorPage;
 import com.zhyf.order.application.AdminOperatorQuery;
@@ -513,6 +515,14 @@ public class InstitutionOrderController {
     @GetMapping("/admin/orders/{orderNo}/detail")
     public ApiResponse<AdminOrderDetail> getOrderDetail(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.getAdminOrderDetail(orderNo));
+    }
+
+    @PostMapping("/admin/orders/{orderNo}/split")
+    public ApiResponse<AdminOrderSplitResult> splitAdminOrder(
+            @PathVariable String orderNo,
+            @RequestBody AdminOrderSplitCommand command
+    ) {
+        return ApiResponse.ok(orderService.splitAdminOrder(orderNo, command));
     }
 
     @GetMapping("/admin/operators")

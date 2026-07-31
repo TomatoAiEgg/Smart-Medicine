@@ -9,6 +9,7 @@ import type {
   MesTaskOperationCommand,
   PrescriptionRecord,
   SimulatorOperationCommand,
+  WaterPailBatchCommand,
   WaterPailCommand,
   WaterPailRecord,
 } from './types';
@@ -45,6 +46,13 @@ export function listAdminWaterPails() {
 
 export function createAdminWaterPail(command: WaterPailCommand) {
   return request<WaterPailRecord>('/decoction-api/admin/decoction/water-pails', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function createAdminWaterPails(command: WaterPailBatchCommand) {
+  return request<WaterPailRecord[]>('/decoction-api/admin/decoction/water-pails/batch', {
     method: 'POST',
     body: JSON.stringify(command),
   });

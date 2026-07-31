@@ -7,7 +7,7 @@ import {
   cancelMesTask,
   cancelPdaDecoction,
   createAdminDecoctionDevice,
-  createAdminWaterPail,
+  createAdminWaterPails,
   finishMesTask,
   finishPdaDecoction,
   listAdminDecoctionDevices,
@@ -66,6 +66,8 @@ type DeviceFormState = {
 };
 type WaterPailFormState = {
   pailNos: string;
+  startPailNo: string;
+  addNum: number | null;
   pailName: string;
   decoctionCenter: string;
   pailGroup: string;
@@ -320,6 +322,8 @@ function emptyDeviceForm(): DeviceFormState {
 function emptyWaterPailForm(): WaterPailFormState {
   return {
     pailNos: '',
+    startPailNo: '',
+    addNum: null,
     pailName: '',
     decoctionCenter: '良益堂煎煮中心',
     pailGroup: '默认组',
@@ -504,6 +508,8 @@ function openEditWaterPailForm(pail: WaterPailRecord) {
   editingPailNo.value = pail.pailNo;
   waterPailForm.value = {
     pailNos: pail.pailNo,
+    startPailNo: '',
+    addNum: null,
     pailName: pail.pailName,
     decoctionCenter: pail.decoctionCenter ?? '',
     pailGroup: pail.pailGroup ?? '',
@@ -523,8 +529,14 @@ function closeWaterPailForm() {
 
 async function saveWaterPailForm() {
   const pailNos = splitPailNos(waterPailForm.value.pailNos);
-  if (pailNos.length === 0) {
-    decoctionError.value = '加水桶号不能为空';
+  const startPailNo = waterPailForm.value.startPailNo.trim();
+  const addNum = waterPailForm.value.addNum;
+  if (!editingPailNo.value && pailNos.length === 0 && !startPailNo) {
+    decoctionError.value = '加水桶号或起始桶号不能为空';
+    return;
+  }
+  if (startPailNo && (!addNum || addNum <= 0)) {
+    decoctionError.value = '连续新增数量必须大于 0';
     return;
   }
   if (waterPailForm.value.capacityMl !== null && waterPailForm.value.capacityMl < 0) {
@@ -538,12 +550,19 @@ async function saveWaterPailForm() {
       const updated = await updateAdminWaterPail(editingPailNo.value, waterPailCommandFromForm(editingPailNo.value));
       emit('notice', 'success', `加水桶 ${updated.pailNo} 已更新`);
     } else {
-      let createdCount = 0;
-      for (const nextPailNo of pailNos) {
-        await createAdminWaterPail(waterPailCommandFromForm(nextPailNo));
-        createdCount += 1;
-      }
-      emit('notice', 'success', `已新增 ${createdCount} 个加水桶`);
+      const baseCommand = waterPailCommandFromForm(pailNos[0] ?? startPailNo);
+      const created = await createAdminWaterPails({
+        pailNos,
+        startPailNo: startPailNo || null,
+        addNum,
+        pailName: baseCommand.pailName,
+        decoctionCenter: baseCommand.decoctionCenter,
+        pailGroup: baseCommand.pailGroup,
+        capacityMl: baseCommand.capacityMl,
+        enabled: baseCommand.enabled,
+        remark: baseCommand.remark,
+      });
+      emit('notice', 'success', `已新增 ${created.length} 个加水桶`);
     }
     waterPailFormOpen.value = false;
     editingPailNo.value = '';
@@ -1366,6 +1385,14 @@ defineExpose({
             placeholder="可粘贴多个桶号，支持换行、逗号或空格分隔"
             :disabled="Boolean(editingPailNo) || waterPailSaving"
           ></textarea>
+        </label>
+        <label>
+          起始桶号
+          <input v-model="waterPailForm.startPailNo" class="legacy-input" placeholder="如 PAIL-001" :disabled="Boolean(editingPailNo) || waterPailSaving" />
+        </label>
+        <label>
+          新增数量
+          <input v-model.number="waterPailForm.addNum" class="legacy-input" type="number" min="1" step="1" :disabled="Boolean(editingPailNo) || waterPailSaving" />
         </label>
         <label>
           名称

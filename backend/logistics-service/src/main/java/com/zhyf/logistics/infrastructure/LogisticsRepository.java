@@ -44,6 +44,11 @@ public class LogisticsRepository {
         return jdbcTemplate.query(sql, this::mapShipment, orderId).stream().findFirst();
     }
 
+    public Optional<LogisticsRecords.ShipmentRecord> findShipmentByOrderNo(String orderNo) {
+        String sql = baseShipmentQuery() + " where s.order_no = ? or o.external_order_no = ?";
+        return jdbcTemplate.query(sql, this::mapShipment, orderNo, orderNo).stream().findFirst();
+    }
+
     public Optional<LogisticsRecords.ShipmentRecord> findShipmentById(UUID shipmentId) {
         String sql = baseShipmentQuery() + " where s.id = ?";
         return jdbcTemplate.query(sql, this::mapShipment, shipmentId).stream().findFirst();

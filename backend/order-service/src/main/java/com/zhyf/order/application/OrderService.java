@@ -1467,9 +1467,16 @@ public class OrderService {
                 .filter(item -> normalizedPrescriptionNo.equals(item.prescriptionNo()))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        String printChannel = normalizeLabelPrintChannel(command.printChannel());
         String failureReason = "FAILED".equals(printStatus)
-                ? defaultText(command.failureReason(), "浏览器标签打印失败")
+                ? defaultText(command.failureReason(), "CLOUD".equals(printChannel) ? "标签云打印失败" : "浏览器标签打印失败")
                 : cleanText(command.failureReason());
+        String requestParam = defaultText(command.requestParam(), labelPrintRequestParam(
+                detail,
+                prescription,
+                printChannel,
+                command
+        ));
         return orderRepository.insertAdminLabelPrintRecord(
                 UUID.randomUUID(),
                 detail.tenantId(),
@@ -1482,9 +1489,15 @@ public class OrderService {
                 detail.institutionName(),
                 detail.patientName(),
                 printStatus,
-                "BROWSER",
+                printChannel,
+                cleanText(command.printerCode()),
+                cleanText(command.printerName()),
+                defaultText(command.provider(), "CLOUD".equals(printChannel) ? "POSCOM" : null),
+                cleanText(command.providerTaskNo()),
                 command.templateId(),
                 cleanText(command.templateName()),
+                requestParam,
+                cleanText(command.responseBody()),
                 failureReason,
                 defaultText(command.operator(), "admin"),
                 command.retryOf()
@@ -1547,12 +1560,226 @@ public class OrderService {
         );
     }
 
+    @Transactional
+    public AdminOrderSplitResult splitAdminOrder(String orderNo, AdminOrderSplitCommand command) {
+        AdminOrderDetail current = getAdminOrderDetail(orderNo);
+        if (command == null || command.items() == null || command.items().size() < 2) {
+            throw new BusinessException("ORDER_SPLIT_ITEMS_REQUIRED", "拆单至少需要两份剂数");
+        }
+        AdminOrderDetail.Prescription prescription = findSplitPrescription(current, command.prescriptionNo());
+        List<Integer> doseCounts = command.items().stream()
+                .map(AdminOrderSplitCommand.SplitItem::doseCount)
+                .map(dose -> dose == null ? 0 : dose)
+                .toList();
+        if (doseCounts.stream().anyMatch(dose -> dose <= 0)) {
+            throw new BusinessException("ORDER_SPLIT_DOSE_INVALID", "拆单剂数必须大于 0");
+        }
+        int splitTotal = doseCounts.stream().mapToInt(Integer::intValue).sum();
+        if (prescription.doseCount() != null && splitTotal != prescription.doseCount()) {
+            throw new BusinessException("ORDER_SPLIT_DOSE_MISMATCH", "拆单剂数合计必须等于原处方剂数");
+        }
+
+        String operator = defaultText(command.operator(), "admin");
+        AdminOrderSplitCommand.SplitItem firstItem = command.items().getFirst();
+        orderRepository.updatePrescription(
+                current.orderId(),
+                prescription.prescriptionId(),
+                prescription.prescriptionType(),
+                prescription.hospitalType(),
+                firstItem.doseCount(),
+                splitDecoctionCount(firstItem.doseCount(), prescription.boilTimes(), prescription.decoctionCount()),
+                prescription.boilTimes(),
+                prescription.isWithin(),
+                prescription.perPackNum(),
+                prescription.perPackDose(),
+                prescription.medicationMethod(),
+                prescription.medicationInstruction(),
+                appendRemark(prescription.prescriptionRemark(), "拆分前剂数为" + value(prescription.doseCount()) + "，操作人：" + operator)
+        );
+        orderRepository.updateOrderRemark(
+                current.orderId(),
+                appendRemark(current.orderRemark(), "订单已拆分，操作人：" + operator)
+        );
+
+        List<String> splitOrderNos = new ArrayList<>();
+        splitOrderNos.add(current.orderNo());
+        for (int i = 1; i < command.items().size(); i++) {
+            splitOrderNos.add(createSplitOrder(current, prescription, command.items().get(i), i + 1, operator));
+        }
+        return new AdminOrderSplitResult(current.orderNo(), prescription.prescriptionNo(), splitOrderNos, "SUCCESS");
+    }
+
     private String normalizeLabelPrintStatus(String value) {
         String normalized = value.trim().toUpperCase(Locale.ROOT);
-        if (!"PRINTED".equals(normalized) && !"FAILED".equals(normalized)) {
-            throw new BusinessException("LABEL_PRINT_STATUS_INVALID", "标签打印状态只能是 PRINTED 或 FAILED");
+        if (!Set.of("PENDING", "SENT", "PRINTED", "FAILED").contains(normalized)) {
+            throw new BusinessException("LABEL_PRINT_STATUS_INVALID", "标签打印状态只能是 PENDING、SENT、PRINTED 或 FAILED");
         }
         return normalized;
+    }
+
+    private String normalizeLabelPrintChannel(String value) {
+        String normalized = StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : "BROWSER";
+        if (!Set.of("BROWSER", "CLOUD").contains(normalized)) {
+            throw new BusinessException("LABEL_PRINT_CHANNEL_INVALID", "标签打印渠道只能是 BROWSER 或 CLOUD");
+        }
+        return normalized;
+    }
+
+    private String labelPrintRequestParam(
+            AdminOrderDetail detail,
+            AdminOrderDetail.Prescription prescription,
+            String printChannel,
+            AdminLabelPrintRecordCommand command
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("printChannel", printChannel);
+        payload.put("orderNo", detail.orderNo());
+        payload.put("externalOrderNo", detail.externalOrderNo());
+        payload.put("prescriptionNo", prescription.prescriptionNo());
+        payload.put("externalPrescriptionNo", prescription.externalPrescriptionNo());
+        payload.put("templateId", command.templateId());
+        payload.put("templateName", command.templateName());
+        payload.put("printerCode", command.printerCode());
+        payload.put("printerName", command.printerName());
+        payload.put("provider", command.provider());
+        return writeJson(payload);
+    }
+
+    private AdminOrderDetail.Prescription findSplitPrescription(AdminOrderDetail current, String prescriptionNo) {
+        if (StringUtils.hasText(prescriptionNo)) {
+            return current.prescriptions().stream()
+                    .filter(prescription -> prescription.prescriptionNo().equals(prescriptionNo.trim()))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        }
+        if (current.prescriptions().size() != 1) {
+            throw new BusinessException("PRESCRIPTION_NO_REQUIRED", "多处方订单拆单必须指定处方号");
+        }
+        return current.prescriptions().getFirst();
+    }
+
+    private String createSplitOrder(
+            AdminOrderDetail current,
+            AdminOrderDetail.Prescription prescription,
+            AdminOrderSplitCommand.SplitItem item,
+            int splitIndex,
+            String operator
+    ) {
+        UUID splitOrderId = UUID.randomUUID();
+        UUID splitPrescriptionId = UUID.randomUUID();
+        String splitOrderNo = "ZHYF" + Instant.now().toEpochMilli() + "S" + splitIndex;
+        String splitExternalOrderNo = current.externalOrderNo() + "_sub" + splitIndex;
+        String splitPrescriptionNo = splitOrderNo + "-1";
+        String splitExternalPrescriptionNo = prescription.externalPrescriptionNo() + "_sub" + splitIndex;
+        orderRepository.insertOrder(
+                splitOrderId,
+                current.tenantId(),
+                current.institutionId(),
+                splitOrderNo,
+                splitExternalOrderNo,
+                OrderStatus.CREATED.name(),
+                current.patientName(),
+                current.patientPhone(),
+                current.receiverName(),
+                current.receiverPhone(),
+                current.receiverProvince(),
+                current.receiverCity(),
+                current.receiverZone(),
+                current.receiverAddress(),
+                current.addressType(),
+                item.deliveryTime() == null ? current.deliveryTime() : item.deliveryTime(),
+                current.batchNo(),
+                appendRemark(current.orderRemark(), "拆分来源订单：" + current.orderNo() + "，操作人：" + operator),
+                null,
+                current.logisticsFee(),
+                current.discountAmount(),
+                writeJson(Map.of(
+                        "source", "admin-order-split",
+                        "originOrderNo", current.orderNo(),
+                        "originPrescriptionNo", prescription.prescriptionNo(),
+                        "splitIndex", splitIndex
+                ))
+        );
+        orderRepository.insertOrderStatusLog(
+                UUID.randomUUID(),
+                current.tenantId(),
+                splitOrderId,
+                null,
+                OrderStatus.CREATED.name(),
+                "ADMIN",
+                "admin-order-split"
+        );
+        orderRepository.insertPrescription(
+                splitPrescriptionId,
+                current.tenantId(),
+                current.institutionId(),
+                splitOrderId,
+                splitPrescriptionNo,
+                splitExternalPrescriptionNo,
+                prescription.prescriptionType(),
+                PrescriptionStatus.CREATED.name(),
+                prescription.hospitalType(),
+                item.doseCount(),
+                splitDecoctionCount(item.doseCount(), prescription.boilTimes(), prescription.decoctionCount()),
+                prescription.boilTimes(),
+                prescription.isWithin(),
+                prescription.perPackNum(),
+                prescription.perPackDose(),
+                prescription.decoctionUnitPrice(),
+                prescription.decoctionTotalPrice(),
+                prescription.totalAmount(),
+                prescription.doctorName(),
+                prescription.diagnosis(),
+                prescription.departmentName(),
+                prescription.wardName(),
+                prescription.bedNo(),
+                prescription.medicationMethod(),
+                prescription.medicationInstruction(),
+                appendRemark(prescription.prescriptionRemark(), "拆分来源处方：" + prescription.prescriptionNo()),
+                writeJson(Map.of(
+                        "source", "admin-order-split",
+                        "originPrescriptionNo", prescription.prescriptionNo(),
+                        "splitIndex", splitIndex
+                ))
+        );
+        for (AdminOrderDetail.DrugDetail detail : prescription.details()) {
+            orderRepository.insertPrescriptionDetail(
+                    UUID.randomUUID(),
+                    current.tenantId(),
+                    splitPrescriptionId,
+                    detail.drugCode(),
+                    detail.drugName(),
+                    detail.platformDrugCode(),
+                    detail.platformDrugName(),
+                    detail.drugSpecs(),
+                    detail.drugOrigin(),
+                    detail.dose(),
+                    detail.unit(),
+                    detail.specialUsage(),
+                    detail.quantity(),
+                    detail.unitPrice(),
+                    detail.settlementUnitPrice(),
+                    detail.totalPrice(),
+                    detail.settlementTotalPrice(),
+                    detail.batchNo(),
+                    detail.remark(),
+                    detail.validationTips(),
+                    detail.sortNo()
+            );
+        }
+        return splitOrderNo;
+    }
+
+    private Integer splitDecoctionCount(Integer doseCount, Integer boilTimes, Integer fallback) {
+        if (doseCount == null || boilTimes == null) {
+            return fallback;
+        }
+        return doseCount * boilTimes;
+    }
+
+    private String appendRemark(String original, String addition) {
+        String cleanedOriginal = cleanText(original);
+        return cleanedOriginal == null ? addition : cleanedOriginal + "；" + addition;
     }
 
     @Transactional
@@ -2582,6 +2809,12 @@ public class OrderService {
                 readText(payload, "batchNo", "classes"),
                 readText(payload, "orderRemark", "order_remark", "remark"),
                 app.callbackUrl(),
+                readDecimal(payload, "logisticsFee", "logistics_fee", "freight", "freightFee",
+                        "freight_fee", "shippingFee", "shipping_fee", "deliveryFee",
+                        "delivery_fee", "expressFee", "express_fee"),
+                readDecimal(payload, "discountAmount", "discount_amount", "discount", "couponAmount",
+                        "coupon_amount", "preferentialAmount", "preferential_amount",
+                        "reduceAmount", "reduce_amount", "promotionAmount", "promotion_amount"),
                 rawPayload
         );
         orderRepository.insertOrderStatusLog(

@@ -1097,12 +1097,19 @@ export interface AdminLabelPrintRecord {
   patientName: string | null;
   printStatus: string;
   printChannel: string;
+  printerCode: string | null;
+  printerName: string | null;
+  provider: string | null;
+  providerTaskNo: string | null;
   templateId: string | null;
   templateName: string | null;
+  requestParam: string | null;
+  responseBody: string | null;
   failureReason: string | null;
   operator: string | null;
   retryOf: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminLabelPrintRecordPage {
@@ -1114,8 +1121,15 @@ export interface AdminLabelPrintRecordPage {
 
 export interface AdminLabelPrintRecordCommand {
   printStatus: string;
+  printChannel?: string | null;
+  printerCode?: string | null;
+  printerName?: string | null;
+  provider?: string | null;
+  providerTaskNo?: string | null;
   templateId?: string | null;
   templateName?: string | null;
+  requestParam?: string | null;
+  responseBody?: string | null;
   failureReason?: string | null;
   operator?: string | null;
   retryOf?: string | null;
@@ -1621,6 +1635,18 @@ export interface WaterPailRecord {
 
 export interface WaterPailCommand {
   pailNo?: string;
+  pailName?: string;
+  decoctionCenter?: string | null;
+  pailGroup?: string | null;
+  capacityMl?: number | null;
+  enabled?: boolean;
+  remark?: string | null;
+}
+
+export interface WaterPailBatchCommand {
+  pailNos?: string[];
+  startPailNo?: string | null;
+  addNum?: number | null;
   pailName?: string;
   decoctionCenter?: string | null;
   pailGroup?: string | null;

@@ -37,6 +37,33 @@ public class LegacyLogisticsController {
         return ApiResponse.ok(logisticsService.receiveTrace(traceCommand(query, body, "EMS")));
     }
 
+    @RequestMapping(path = "/logistics/queryBillPrintInfo", method = {RequestMethod.GET, RequestMethod.POST})
+    public ApiResponse<Map<String, Object>> queryBillPrintInfo(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return ApiResponse.ok(logisticsService.queryBillPrintInfo(value(query, body, "orderId", "orderNo", "bspOrderNo")));
+    }
+
+    @RequestMapping(path = "/logistics/printWaybills", method = {RequestMethod.GET, RequestMethod.POST})
+    public ApiResponse<Map<String, Object>> printWaybills(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return ApiResponse.ok(logisticsService.printWaybill(
+                value(query, body, "orderId", "orderNo", "bspOrderNo"),
+                value(query, body, "templateCode", "template_code")
+        ));
+    }
+
+    @RequestMapping(path = "/logistics/queryEmsPdfFile", method = {RequestMethod.GET, RequestMethod.POST})
+    public ApiResponse<Map<String, Object>> queryEmsPdfFile(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return ApiResponse.ok(logisticsService.queryEmsPdfFile(value(query, body, "waybillNo", "logisticsNo", "mailNo")));
+    }
+
     private LogisticsCommands.TraceCommand traceCommand(Map<String, String> query, Map<String, Object> body, String provider) {
         String logisticsNo = value(query, body, "logisticsNo", "mailNo", "waybillNo", "logistics_no");
         String opCode = value(query, body, "opCode", "statusCode", "code");
@@ -52,6 +79,10 @@ public class LegacyLogisticsController {
             }
             if (body != null && body.get(key) != null && !String.valueOf(body.get(key)).isBlank()) {
                 return String.valueOf(body.get(key));
+            }
+            if (body != null && body.get("data") instanceof Map<?, ?> data
+                    && data.get(key) != null && !String.valueOf(data.get(key)).isBlank()) {
+                return String.valueOf(data.get(key));
             }
         }
         return null;

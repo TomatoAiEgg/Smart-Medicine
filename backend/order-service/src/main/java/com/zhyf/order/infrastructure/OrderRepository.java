@@ -197,8 +197,8 @@ public class OrderRepository {
                     o.delivery_time,
                     o.batch_no,
                     o.order_remark,
-                    order_amount.logistics_fee,
-                    order_amount.discount_amount,
+                    coalesce(o.logistics_fee, order_amount.logistics_fee) as logistics_fee,
+                    coalesce(o.discount_amount, order_amount.discount_amount) as discount_amount,
                     latest_validation.validation_status,
                     latest_validation.validation_message,
                     latest_validation.validation_created_at,
@@ -2880,8 +2880,9 @@ public class OrderRepository {
                     r.id, r.tenant_id, r.order_id, r.prescription_id,
                     r.order_no, r.external_order_no, r.prescription_no, r.external_prescription_no,
                     r.institution_name, r.patient_name, r.print_status, r.print_channel,
-                    r.template_id, r.template_name, r.failure_reason, r.operator,
-                    r.retry_of, r.created_at
+                    r.printer_code, r.printer_name, r.provider, r.provider_task_no,
+                    r.template_id, r.template_name, r.request_param, r.response_body,
+                    r.failure_reason, r.operator, r.retry_of, r.created_at, r.updated_at
                 from label_print_record r
                 where 1 = 1
                 """);
@@ -2912,8 +2913,14 @@ public class OrderRepository {
             String patientName,
             String printStatus,
             String printChannel,
+            String printerCode,
+            String printerName,
+            String provider,
+            String providerTaskNo,
             UUID templateId,
             String templateName,
+            String requestParam,
+            String responseBody,
             String failureReason,
             String operator,
             UUID retryOf
@@ -2923,13 +2930,17 @@ public class OrderRepository {
                     id, tenant_id, order_id, prescription_id,
                     order_no, external_order_no, prescription_no, external_prescription_no,
                     institution_name, patient_name, print_status, print_channel,
-                    template_id, template_name, failure_reason, operator, retry_of
+                    printer_code, printer_name, provider, provider_task_no,
+                    template_id, template_name, request_param, response_body,
+                    failure_reason, operator, retry_of
                 )
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id, tenant_id, order_id, prescription_id,
                           order_no, external_order_no, prescription_no, external_prescription_no,
                           institution_name, patient_name, print_status, print_channel,
-                          template_id, template_name, failure_reason, operator, retry_of, created_at
+                          printer_code, printer_name, provider, provider_task_no,
+                          template_id, template_name, request_param, response_body,
+                          failure_reason, operator, retry_of, created_at, updated_at
                 """;
         return jdbcTemplate.queryForObject(
                 sql,
@@ -2946,8 +2957,14 @@ public class OrderRepository {
                 patientName,
                 printStatus,
                 printChannel,
+                printerCode,
+                printerName,
+                provider,
+                providerTaskNo,
                 templateId,
                 templateName,
+                requestParam,
+                responseBody,
                 failureReason,
                 operator,
                 retryOf
@@ -3832,6 +3849,8 @@ public class OrderRepository {
             String batchNo,
             String orderRemark,
             String callbackUrl,
+            BigDecimal logisticsFee,
+            BigDecimal discountAmount,
             String rawPayload
     ) {
         String sql = """
@@ -3839,13 +3858,13 @@ public class OrderRepository {
                     id, tenant_id, institution_id, order_no, external_order_no, status,
                     patient_name, patient_phone, receiver_name, receiver_phone, receiver_province,
                     receiver_city, receiver_zone, receiver_address, address_type, delivery_time,
-                    batch_no, order_remark, callback_url, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    batch_no, order_remark, callback_url, logistics_fee, discount_amount, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderNo, externalOrderNo, status,
                 patientName, patientPhone, receiverName, receiverPhone, receiverProvince, receiverCity, receiverZone,
                 receiverAddress, addressType, offsetDateTime(deliveryTime), batchNo, orderRemark, callbackUrl,
-                rawPayload);
+                logisticsFee, discountAmount, rawPayload);
     }
 
     public void insertOrderStatusLog(
@@ -5147,12 +5166,19 @@ public class OrderRepository {
                 rs.getString("patient_name"),
                 rs.getString("print_status"),
                 rs.getString("print_channel"),
+                rs.getString("printer_code"),
+                rs.getString("printer_name"),
+                rs.getString("provider"),
+                rs.getString("provider_task_no"),
                 rs.getObject("template_id", UUID.class),
                 rs.getString("template_name"),
+                rs.getString("request_param"),
+                rs.getString("response_body"),
                 rs.getString("failure_reason"),
                 rs.getString("operator"),
                 rs.getObject("retry_of", UUID.class),
-                instant(rs, "created_at")
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
         );
     }
 

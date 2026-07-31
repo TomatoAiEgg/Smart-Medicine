@@ -16,9 +16,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -192,6 +195,27 @@ public class DecoctionSimulatorService {
     }
 
     @Transactional
+    public List<DecoctionRecords.WaterPailRecord> createWaterPails(WaterPailBatchCommand command) {
+        if (command == null) {
+            throw new BusinessException("PAIL_BATCH_COMMAND_REQUIRED", "Pail batch command is required");
+        }
+        List<String> pailNos = expandPailNos(command);
+        List<DecoctionRecords.WaterPailRecord> records = new ArrayList<>();
+        for (String pailNo : pailNos) {
+            records.add(createWaterPail(new WaterPailCommand(
+                    pailNo,
+                    command.pailName(),
+                    command.decoctionCenter(),
+                    command.pailGroup(),
+                    command.capacityMl(),
+                    command.enabled(),
+                    command.remark()
+            )));
+        }
+        return List.copyOf(records);
+    }
+
+    @Transactional
     public DecoctionRecords.WaterPailRecord updateWaterPail(String pailNo, WaterPailCommand command) {
         String normalizedPailNo = requireText(pailNo, "PAIL_NO_REQUIRED", "Pail no is required");
         WaterPailConfigSnapshot existing = taskRepository.findWaterPailConfigByNo(DEFAULT_ADMIN_TENANT_ID, normalizedPailNo)
@@ -211,6 +235,54 @@ public class DecoctionSimulatorService {
                 .orElseThrow(() -> new BusinessException("PAIL_NOT_FOUND", "Pail not found"));
         DecoctionTaskSnapshot activeTask = taskRepository.findActiveTaskByPailNo(updated.pailNo()).orElse(null);
         return toWaterPailRecord(updated, activeTask);
+    }
+
+    private List<String> expandPailNos(WaterPailBatchCommand command) {
+        Set<String> pailNos = new LinkedHashSet<>();
+        if (command.pailNos() != null) {
+            command.pailNos().stream()
+                    .map(this::cleanText)
+                    .filter(StringUtils::hasText)
+                    .forEach(pailNos::add);
+        }
+        String startPailNo = cleanText(command.startPailNo());
+        if (StringUtils.hasText(startPailNo)) {
+            int addNum = command.addNum() == null ? 0 : command.addNum();
+            if (addNum <= 0) {
+                throw new BusinessException("PAIL_BATCH_NUM_INVALID", "Pail batch count must be greater than 0");
+            }
+            pailNos.addAll(generateContinuousPailNos(startPailNo, addNum));
+        }
+        if (pailNos.isEmpty()) {
+            throw new BusinessException("PAIL_NO_REQUIRED", "Pail no is required");
+        }
+        if (pailNos.size() > 500) {
+            throw new BusinessException("PAIL_BATCH_TOO_LARGE", "Pail batch count cannot exceed 500");
+        }
+        return List.copyOf(pailNos);
+    }
+
+    private List<String> generateContinuousPailNos(String startPailNo, int addNum) {
+        int suffixStart = startPailNo.length();
+        while (suffixStart > 0 && Character.isDigit(startPailNo.charAt(suffixStart - 1))) {
+            suffixStart--;
+        }
+        String prefix = startPailNo.substring(0, suffixStart);
+        String suffix = startPailNo.substring(suffixStart);
+        if (!StringUtils.hasText(suffix)) {
+            throw new BusinessException("PAIL_BATCH_START_INVALID", "Pail batch start no must end with number");
+        }
+        long start = Long.parseLong(suffix);
+        int width = suffix.length();
+        List<String> pailNos = new ArrayList<>();
+        for (int i = 0; i < addNum; i++) {
+            String nextNo = Long.toString(start + i);
+            if (nextNo.length() < width) {
+                nextNo = "0".repeat(width - nextNo.length()) + nextNo;
+            }
+            pailNos.add(prefix + nextNo);
+        }
+        return pailNos;
     }
 
     public List<DecoctionRecords.DecoctionTaskRecord> listPendingMesTasks() {
