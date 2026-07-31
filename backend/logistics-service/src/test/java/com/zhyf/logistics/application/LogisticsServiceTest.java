@@ -98,6 +98,61 @@ class LogisticsServiceTest {
                 eq("{\"op\":\"50\"}"), eq(Instant.now(clock)));
     }
 
+    @Test
+    void shouldCreateLegacyLogisticsOrderWithWaybillPayload() {
+        UUID shipmentId = UUID.randomUUID();
+        LogisticsRecords.DeliveryOrderRecord order = order(OrderStatus.DECOCTED.name());
+        LogisticsRecords.ShipmentRecord shipment = shipment(shipmentId, order, OrderStatus.PACKED.name());
+        when(repository.findOrderByOrderNo("ZHYF1")).thenReturn(Optional.of(order));
+        when(repository.findShipmentByOrderId(order.orderId())).thenReturn(Optional.empty());
+        when(repository.findShipmentById(any())).thenReturn(Optional.of(shipment));
+
+        java.util.Map<String, Object> result = service.createLegacyLogisticsOrder(
+                new LogisticsCommands.LegacyLogisticsOrderCommand(
+                        "ZHYF1",
+                        "SF",
+                        "SF-1",
+                        "1",
+                        new BigDecimal("1.20"),
+                        1,
+                        "legacy-logistics",
+                        "legacy create"
+                )
+        );
+
+        assertThat(result).containsEntry("waybillNo", "SF-1");
+        verify(repository).createShipment(any(), eq(order), eq("SF-1"), eq("SF"), eq("1"),
+                eq(new BigDecimal("1.20")), eq(1), eq(Instant.now(clock)));
+    }
+
+    @Test
+    void shouldCancelLegacyLogisticsOrderWithoutCancellingOrder() {
+        UUID shipmentId = UUID.randomUUID();
+        LogisticsRecords.DeliveryOrderRecord order = order(OrderStatus.PACKED.name());
+        LogisticsRecords.ShipmentRecord shipment = shipment(shipmentId, order, OrderStatus.PACKED.name());
+        LogisticsRecords.ShipmentRecord cancelled = shipment(shipmentId, order, OrderStatus.CANCELLED.name());
+        when(repository.findShipmentByOrderNo("ZHYF1")).thenReturn(Optional.of(shipment));
+        when(repository.findShipmentById(shipmentId)).thenReturn(Optional.of(cancelled));
+
+        java.util.Map<String, Object> result = service.cancelLegacyLogisticsOrder(
+                new LogisticsCommands.LegacyLogisticsOrderCommand(
+                        "ZHYF1",
+                        "SF",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "legacy-logistics",
+                        "legacy cancel"
+                )
+        );
+
+        assertThat(result).containsEntry("cancelStatus", "CANCELLED");
+        verify(repository).updateShipmentStatus(shipmentId, "CANCELLED", Instant.now(clock));
+        verify(repository).createTrace(any(), eq(cancelled), eq("CANCELLED"), eq("legacy cancel"),
+                eq("{\"source\":\"logistics-service\"}"), eq(Instant.now(clock)));
+    }
+
     private LogisticsRecords.DeliveryOrderRecord order(String status) {
         return new LogisticsRecords.DeliveryOrderRecord(
                 UUID.randomUUID(),

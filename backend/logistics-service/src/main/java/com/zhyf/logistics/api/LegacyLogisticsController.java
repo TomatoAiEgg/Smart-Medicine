@@ -46,6 +46,22 @@ public class LegacyLogisticsController {
         return ApiResponse.ok(logisticsService.queryBillPrintInfo(value(query, body, "orderId", "orderNo", "bspOrderNo")));
     }
 
+    @RequestMapping(path = "/logistics/createLogisticsOrder", method = {RequestMethod.GET, RequestMethod.POST})
+    public LegacyApiResponse<Map<String, Object>> createLogisticsOrder(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return legacyResult(() -> logisticsService.createLegacyLogisticsOrder(legacyOrderCommand(query, body)));
+    }
+
+    @RequestMapping(path = "/logistics/cancelLogisticsOrder", method = {RequestMethod.GET, RequestMethod.POST})
+    public LegacyApiResponse<Map<String, Object>> cancelLogisticsOrder(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return legacyResult(() -> logisticsService.cancelLegacyLogisticsOrder(legacyOrderCommand(query, body)));
+    }
+
     @RequestMapping(path = "/logistics/printWaybills", method = {RequestMethod.GET, RequestMethod.POST})
     public ApiResponse<Map<String, Object>> printWaybills(
             @RequestParam Map<String, String> query,
@@ -94,6 +110,22 @@ public class LegacyLogisticsController {
         return new LogisticsCommands.TraceCommand(logisticsNo, provider, opCode, content, rawPayload, Instant.now(), "legacy-logistics");
     }
 
+    private LogisticsCommands.LegacyLogisticsOrderCommand legacyOrderCommand(
+            Map<String, String> query,
+            Map<String, Object> body
+    ) {
+        return new LogisticsCommands.LegacyLogisticsOrderCommand(
+                value(query, body, "orderId", "orderNo", "bspOrderNo"),
+                value(query, body, "logisticsCompany", "logisticsCompanyName", "provider"),
+                value(query, body, "waybillNo", "logisticsNo", "mailNo"),
+                value(query, body, "payMethod"),
+                decimalValue(value(query, body, "parcelWeighs", "pkgWeight", "weight")),
+                intValue(value(query, body, "packagesNo", "pkgNum", "depositumNo")),
+                "legacy-logistics",
+                value(query, body, "remark")
+        );
+    }
+
     private String value(Map<String, String> query, Map<String, Object> body, String... keys) {
         for (String key : keys) {
             if (query != null && query.get(key) != null && !query.get(key).isBlank()) {
@@ -129,6 +161,36 @@ public class LegacyLogisticsController {
         }
     }
 
+    private java.math.BigDecimal decimalValue(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(value.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private LegacyApiResponse<Map<String, Object>> legacyResult(LegacyOperation operation) {
+        try {
+            return LegacyApiResponse.ok(operation.execute());
+        } catch (com.zhyf.common.exception.BusinessException ex) {
+            return LegacyApiResponse.fail(mapLegacyCode(ex.code()), ex.getMessage());
+        } catch (Exception ex) {
+            return LegacyApiResponse.fail("441000", "系统内部错误");
+        }
+    }
+
+    private String mapLegacyCode(String code) {
+        return switch (code == null ? "" : code) {
+            case "ORDER_NO_REQUIRED" -> "440100";
+            case "ORDER_NOT_FOUND", "SHIPMENT_NOT_FOUND" -> "440900";
+            case "SHIPMENT_CANCEL_NOT_ALLOWED" -> "440800";
+            default -> "449999";
+        };
+    }
+
     private String json(Map<String, Object> body) {
         StringBuilder builder = new StringBuilder("{");
         boolean first = true;
@@ -152,5 +214,14 @@ public class LegacyLogisticsController {
         private static <T> LegacyApiResponse<T> ok(T data) {
             return new LegacyApiResponse<>("200", "success", data);
         }
+
+        private static <T> LegacyApiResponse<T> fail(String code, String message) {
+            return new LegacyApiResponse<>(code, message, null);
+        }
+    }
+
+    @FunctionalInterface
+    private interface LegacyOperation {
+        Map<String, Object> execute();
     }
 }

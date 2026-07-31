@@ -35,4 +35,16 @@ public final class LogisticsCommands {
             String operator
     ) {
     }
+
+    public record LegacyLogisticsOrderCommand(
+            String orderNo,
+            String logisticsCompany,
+            String logisticsNo,
+            String payMethod,
+            BigDecimal pkgWeight,
+            Integer pkgNum,
+            String operator,
+            String remark
+    ) {
+    }
 }

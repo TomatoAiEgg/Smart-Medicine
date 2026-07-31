@@ -119,6 +119,47 @@ public class LogisticsService {
     }
 
     @Transactional
+    public Map<String, Object> createLegacyLogisticsOrder(LogisticsCommands.LegacyLogisticsOrderCommand command) {
+        requireText(command.orderNo(), "ORDER_NO_REQUIRED", "Order no is required");
+        LogisticsRecords.ShipmentRecord shipment = pack(new LogisticsCommands.PackCommand(
+                command.orderNo(),
+                command.logisticsCompany(),
+                command.logisticsNo(),
+                command.payMethod(),
+                command.pkgWeight(),
+                command.pkgNum(),
+                command.operator()
+        ));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("waybillNo", shipment.logisticsNo());
+        result.put("routeCode", null);
+        result.put("baseProductNo", command.logisticsCompany());
+        result.put("orderId", shipment.orderNo());
+        result.put("logisticsCompany", shipment.logisticsCompany());
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> cancelLegacyLogisticsOrder(LogisticsCommands.LegacyLogisticsOrderCommand command) {
+        requireText(command.orderNo(), "ORDER_NO_REQUIRED", "Order no is required");
+        LogisticsRecords.ShipmentRecord shipment = repository.findShipmentByOrderNo(command.orderNo().trim())
+                .orElseThrow(() -> new BusinessException("SHIPMENT_NOT_FOUND", "Shipment not found"));
+        if (!OrderStatus.PACKED.name().equals(shipment.logisticsStatus())) {
+            throw new BusinessException("SHIPMENT_CANCEL_NOT_ALLOWED", "Only packed shipment can be cancelled");
+        }
+        Instant now = Instant.now(clock);
+        repository.updateShipmentStatus(shipment.shipmentId(), OrderStatus.CANCELLED.name(), now);
+        LogisticsRecords.ShipmentRecord cancelled = requireShipment(shipment.shipmentId());
+        createTrace(cancelled, OrderStatus.CANCELLED.name(), defaultValue(command.remark(), "legacy logistics cancel"),
+                null, now);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("orderId", cancelled.orderNo());
+        result.put("waybillNo", cancelled.logisticsNo());
+        result.put("cancelStatus", cancelled.logisticsStatus());
+        return result;
+    }
+
+    @Transactional
     public LogisticsRecords.ShipmentRecord pack(LogisticsCommands.PackCommand command) {
         requireText(command.orderNo(), "ORDER_NO_REQUIRED", "Order no is required");
         LogisticsRecords.DeliveryOrderRecord order = repository.findOrderByOrderNo(command.orderNo())
