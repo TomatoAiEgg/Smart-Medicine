@@ -11,6 +11,10 @@ public record InstitutionAppView(
         String signType,
         String callbackUrl,
         boolean enabled,
-        List<String> ipWhitelist
+        List<String> ipWhitelist,
+        List<String> apiPermissions
 ) {
+    public boolean allowsApi(String apiCode) {
+        return apiPermissions != null && apiPermissions.contains(apiCode);
+    }
 }

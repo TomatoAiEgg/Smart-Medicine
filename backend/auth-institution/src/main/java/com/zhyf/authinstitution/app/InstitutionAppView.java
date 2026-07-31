@@ -11,6 +11,7 @@ public record InstitutionAppView(
         String signType,
         String callbackUrl,
         boolean enabled,
-        List<String> ipWhitelist
+        List<String> ipWhitelist,
+        List<String> apiPermissions
 ) {
 }

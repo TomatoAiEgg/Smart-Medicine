@@ -223,6 +223,9 @@ public class LegacyOrderApiController {
         } catch (BusinessException ex) {
             throw new LegacyApiException(APP_KEY_ERROR, ex.getMessage());
         }
+        if (!app.allowsApi(methodName)) {
+            throw new LegacyApiException(APP_KEY_ERROR, "接口未授权");
+        }
         try {
             ipWhitelistChecker.check(app.ipWhitelist(), clientIp(request));
         } catch (BusinessException ex) {

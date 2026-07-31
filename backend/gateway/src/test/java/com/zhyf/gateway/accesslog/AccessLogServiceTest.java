@@ -27,6 +27,7 @@ class AccessLogServiceTest {
                 "HMAC_SHA256",
                 null,
                 true,
+                List.of(),
                 List.of()
         );
 

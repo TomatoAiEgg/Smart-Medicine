@@ -40,7 +40,8 @@ public class InstitutionAppRepository {
                         app.signType(),
                         app.callbackUrl(),
                         app.enabled(),
-                        findWhitelist(app.tenantId(), app.institutionId())
+                        findWhitelist(app.tenantId(), app.institutionId()),
+                        findApiPermissions(app.tenantId(), app.institutionId())
                 ))
                 .findFirst();
     }
@@ -57,6 +58,20 @@ public class InstitutionAppRepository {
         return jdbcTemplate.queryForList(sql, String.class, tenantId, institutionId);
     }
 
+    private List<String> findApiPermissions(UUID tenantId, UUID institutionId) {
+        String sql = """
+                select a.api_code
+                  from institution_api_permission p
+                  join institution_api_definition a on a.id = p.api_id
+                 where p.tenant_id = ?
+                   and p.institution_id = ?
+                   and p.enabled = true
+                   and a.enabled = true
+                 order by a.api_code asc
+                """;
+        return jdbcTemplate.queryForList(sql, String.class, tenantId, institutionId);
+    }
+
     private InstitutionAppView mapApp(ResultSet rs, int rowNum) throws SQLException {
         return new InstitutionAppView(
                 rs.getObject("tenant_id", UUID.class),
@@ -66,6 +81,7 @@ public class InstitutionAppRepository {
                 rs.getString("sign_type"),
                 rs.getString("callback_url"),
                 rs.getBoolean("enabled"),
+                List.of(),
                 List.of()
         );
     }

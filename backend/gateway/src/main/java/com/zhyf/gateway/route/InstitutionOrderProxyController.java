@@ -62,6 +62,7 @@ public class InstitutionOrderProxyController {
                     : java.nio.charset.Charset.forName(request.getCharacterEncoding()));
             String requestIp = clientIp(request);
             app = appClient.getEnabledApp(appKey);
+            checkApiPermission(app, "createOrder");
             ipWhitelistChecker.check(app.ipWhitelist(), requestIp);
             signatureVerifier.verify(app, appKey, timestamp, signature, rawBody);
             ResponseEntity<String> response = forwardCreateOrder(appKey, timestamp, signature, rawBody);
@@ -128,6 +129,12 @@ public class InstitutionOrderProxyController {
         return """
                 {"code":"%s","message":"%s","data":null}
                 """.formatted(response.code(), escape(response.message()));
+    }
+
+    private void checkApiPermission(InstitutionAppView app, String apiCode) {
+        if (app == null || !app.allowsApi(apiCode)) {
+            throw new BusinessException("API_NOT_ALLOWED", "接口未授权");
+        }
     }
 
     private String escape(String value) {
