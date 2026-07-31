@@ -10,11 +10,12 @@ import {
   listReviewTasks,
   rejectReviewTask,
 } from '../../api/workflow';
-import { getAdminOrderDetail, getOrderProgress, updateAdminOrderAddress, updateAdminOrderRemark } from '../../api/order';
+import { getAdminOrderDetail, getOrderProgress, splitAdminOrder, updateAdminOrderAddress, updateAdminOrderRemark } from '../../api/order';
 import type {
   AdminOrderAddressUpdateCommand,
   AdminOrderDetail,
   AdminOrderDetailDrug,
+  AdminOrderSplitItemCommand,
   AdminOrderRemarkUpdateCommand,
   OrderProgressSnapshot,
   WorkflowTaskSnapshot,
@@ -46,6 +47,15 @@ type ReviewRemarkForm = {
   remark: string;
   operator: string;
   reason: string;
+};
+type ReviewSplitItemForm = {
+  doseCount: string;
+  deliveryTime: string;
+};
+type ReviewSplitForm = {
+  prescriptionNo: string;
+  operator: string;
+  items: ReviewSplitItemForm[];
 };
 
 const props = defineProps<{
@@ -96,6 +106,8 @@ const reviewAddressModalOpen = ref(false);
 const reviewAddressSubmitting = ref(false);
 const reviewRemarkModalOpen = ref(false);
 const reviewRemarkSubmitting = ref(false);
+const reviewSplitSubmitting = ref(false);
+const reviewSplitResult = ref('');
 const reviewAddressForm = ref<ReviewAddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -112,6 +124,14 @@ const reviewRemarkForm = ref<ReviewRemarkForm>({
   remark: '',
   operator: 'admin',
   reason: '',
+});
+const reviewSplitForm = ref<ReviewSplitForm>({
+  prescriptionNo: '',
+  operator: 'admin',
+  items: [
+    { doseCount: '', deliveryTime: '' },
+    { doseCount: '', deliveryTime: '' },
+  ],
 });
 
 const activeWorkflowTasks = computed(() => {
@@ -181,6 +201,30 @@ const reviewDetailAmountSummary = computed(() => {
       : basePayableAmount + (logisticsFee ?? 0) - (discountAmount ?? 0),
   };
 });
+const reviewSplitPrescription = computed(() => (
+  reviewDetailPrescriptions.value.find((prescription) => (
+    prescription.prescriptionNo === reviewSplitForm.value.prescriptionNo
+  )) ?? null
+));
+const reviewSplitDoseTotal = computed(() => (
+  reviewSplitForm.value.items.reduce((total, item) => total + (positiveIntegerValue(item.doseCount) ?? 0), 0)
+));
+const reviewSplitExpectedDose = computed(() => reviewSplitPrescription.value?.doseCount ?? null);
+const reviewSplitDoseMatched = computed(() => (
+  reviewSplitExpectedDose.value === null || reviewSplitDoseTotal.value === reviewSplitExpectedDose.value
+));
+const reviewSplitDoseSummary = computed(() => (
+  reviewSplitExpectedDose.value === null
+    ? String(reviewSplitDoseTotal.value)
+    : `${reviewSplitDoseTotal.value} / ${reviewSplitExpectedDose.value}`
+));
+const reviewSplitCanSubmit = computed(() => (
+  Boolean(reviewOrderDetail.value)
+    && reviewSplitForm.value.items.length >= 2
+    && reviewSplitForm.value.items.every((item) => positiveIntegerValue(item.doseCount) !== null)
+    && reviewSplitDoseMatched.value
+    && !reviewSplitSubmitting.value
+));
 
 function escapeHtml(value: string | number | null | undefined) {
   return displayValue(value)
@@ -189,6 +233,63 @@ function escapeHtml(value: string | number | null | undefined) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function positiveIntegerValue(value: string) {
+  const trimmed = value.trim();
+  if (!/^[1-9]\d*$/.test(trimmed)) return null;
+  return Number.parseInt(trimmed, 10);
+}
+
+function defaultSplitItems(doseCount: number | null): ReviewSplitItemForm[] {
+  if (doseCount === null || doseCount < 2) {
+    return [
+      { doseCount: '', deliveryTime: '' },
+      { doseCount: '', deliveryTime: '' },
+    ];
+  }
+  const firstDose = Math.floor(doseCount / 2);
+  return [
+    { doseCount: String(firstDose), deliveryTime: '' },
+    { doseCount: String(doseCount - firstDose), deliveryTime: '' },
+  ];
+}
+
+function resetReviewSplitForm(detail: AdminOrderDetail | null) {
+  const firstPrescription = detail?.prescriptions[0] ?? null;
+  reviewSplitForm.value = {
+    prescriptionNo: firstPrescription?.prescriptionNo ?? '',
+    operator: operator.value.trim() || 'admin',
+    items: defaultSplitItems(firstPrescription?.doseCount ?? null),
+  };
+  reviewSplitResult.value = '';
+}
+
+function resetReviewSplitItemsForPrescription() {
+  reviewSplitForm.value.items = defaultSplitItems(reviewSplitPrescription.value?.doseCount ?? null);
+  reviewSplitResult.value = '';
+}
+
+function addReviewSplitItem() {
+  reviewSplitForm.value.items.push({ doseCount: '', deliveryTime: '' });
+  reviewSplitResult.value = '';
+}
+
+function removeReviewSplitItem(index: number) {
+  if (reviewSplitForm.value.items.length <= 2) {
+    reviewDetailNotice.value = '拆单至少需要两份剂数。';
+    return;
+  }
+  reviewSplitForm.value.items.splice(index, 1);
+  reviewSplitResult.value = '';
+}
+
+function deliveryTimeIso(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
 }
 
 function selectedValue(value: string) {
@@ -291,9 +392,12 @@ async function loadReviewOrderDetail(task: WorkflowTaskSnapshot) {
   reviewOrderDetailError.value = '';
   reviewOrderDetail.value = null;
   try {
-    reviewOrderDetail.value = await getAdminOrderDetail(task.orderNo);
+    const detail = await getAdminOrderDetail(task.orderNo);
+    reviewOrderDetail.value = detail;
+    resetReviewSplitForm(detail);
   } catch (error) {
     reviewOrderDetailError.value = errorMessage(error);
+    resetReviewSplitForm(null);
   } finally {
     reviewDetailLoading.value = false;
   }
@@ -316,6 +420,8 @@ function backToReviewList() {
   reviewDetailNotice.value = '';
   reviewAddressModalOpen.value = false;
   reviewRemarkModalOpen.value = false;
+  reviewSplitSubmitting.value = false;
+  resetReviewSplitForm(null);
 }
 
 function currentCounts(): WorkflowCounts {
@@ -542,6 +648,70 @@ function printReviewSplitPreview() {
   printWindow.document.write(renderSplitPreviewHtml(reviewOrderDetail.value));
   printWindow.document.close();
   emit('notice', 'success', `${reviewOrderDetail.value.orderNo} 拆单预览窗口已打开`);
+}
+
+async function submitReviewSplit() {
+  const targetTask = selectedReviewTask.value;
+  const targetDetail = reviewOrderDetail.value;
+  if (!targetTask || !targetDetail) {
+    reviewDetailNotice.value = '订单详情尚未加载完成，暂不能提交拆单。';
+    emit('notice', 'info', reviewDetailNotice.value);
+    return;
+  }
+  if (!reviewSplitForm.value.prescriptionNo) {
+    reviewDetailNotice.value = '请选择需要拆单的处方。';
+    return;
+  }
+  if (reviewSplitForm.value.items.length < 2) {
+    reviewDetailNotice.value = '拆单至少需要两份剂数。';
+    return;
+  }
+
+  const items: AdminOrderSplitItemCommand[] = [];
+  for (const item of reviewSplitForm.value.items) {
+    const doseCount = positiveIntegerValue(item.doseCount);
+    if (doseCount === null) {
+      reviewDetailNotice.value = '拆单剂数必须为正整数。';
+      return;
+    }
+    const deliveryTime = deliveryTimeIso(item.deliveryTime);
+    if (deliveryTime === null) {
+      reviewDetailNotice.value = '配送时间格式不正确。';
+      return;
+    }
+    items.push(deliveryTime ? { doseCount, deliveryTime } : { doseCount });
+  }
+
+  if (!reviewSplitDoseMatched.value) {
+    reviewDetailNotice.value = `拆单剂数合计需等于原处方剂数 ${reviewSplitExpectedDose.value}，当前合计 ${reviewSplitDoseTotal.value}。`;
+    return;
+  }
+
+  reviewSplitSubmitting.value = true;
+  reviewDetailNotice.value = '';
+  reviewSplitResult.value = '';
+  try {
+    const result = await splitAdminOrder(targetDetail.orderNo, {
+      prescriptionNo: reviewSplitForm.value.prescriptionNo,
+      items,
+      operator: reviewSplitForm.value.operator.trim() || operator.value.trim() || 'admin',
+    });
+    const splitOrderNos = result.splitOrderNos.join('、');
+    reviewSplitResult.value = splitOrderNos;
+    reviewDetailNotice.value = `${result.originalOrderNo} 已完成拆单，生成订单：${splitOrderNos}`;
+    emit('notice', 'success', reviewDetailNotice.value);
+    await Promise.all([
+      loadReviewOrderProgress(targetTask),
+      loadReviewOrderDetail(targetTask),
+      refreshReviewTasks(),
+    ]);
+    reviewSplitResult.value = splitOrderNos;
+  } catch (error) {
+    reviewDetailNotice.value = errorMessage(error);
+    emit('notice', 'error', reviewDetailNotice.value);
+  } finally {
+    reviewSplitSubmitting.value = false;
+  }
 }
 
 function fillReviewRemarkForm() {
@@ -1009,6 +1179,123 @@ defineExpose({
             </table>
           </template>
           <p v-else class="legacy-empty">选择审核任务后加载订单进度</p>
+        </section>
+
+        <section class="review-detail-section review-split-panel">
+          <h3>订单拆单</h3>
+          <p v-if="reviewDetailLoading" class="legacy-empty">正在加载订单详情</p>
+          <p v-else-if="reviewOrderDetailError" class="error-line">订单详情加载失败：{{ reviewOrderDetailError }}</p>
+          <template v-else-if="reviewOrderDetail">
+            <div class="review-split-summary">
+              <div>
+                <span>拆单处方</span>
+                <strong>{{ displayValue(reviewSplitForm.prescriptionNo) }}</strong>
+              </div>
+              <div>
+                <span>原处方剂数</span>
+                <strong>{{ displayValue(reviewSplitExpectedDose) }}</strong>
+              </div>
+              <div>
+                <span>拆分合计</span>
+                <strong :class="{ 'review-split-mismatch': !reviewSplitDoseMatched }">{{ reviewSplitDoseTotal }}</strong>
+              </div>
+              <div>
+                <span>拆分份数</span>
+                <strong>{{ reviewSplitForm.items.length }}</strong>
+              </div>
+            </div>
+
+            <div class="review-split-form">
+              <label>
+                <span>处方号</span>
+                <select
+                  v-model="reviewSplitForm.prescriptionNo"
+                  class="legacy-input"
+                  :disabled="reviewSplitSubmitting || reviewDetailPrescriptions.length === 0"
+                  @change="resetReviewSplitItemsForPrescription"
+                >
+                  <option value="">请选择</option>
+                  <option
+                    v-for="prescription in reviewDetailPrescriptions"
+                    :key="prescription.prescriptionId"
+                    :value="prescription.prescriptionNo"
+                  >
+                    {{ prescription.prescriptionNo }} / {{ displayValue(prescription.externalPrescriptionNo) }}
+                  </option>
+                </select>
+              </label>
+              <label>
+                <span>操作人</span>
+                <input v-model="reviewSplitForm.operator" class="legacy-input" :disabled="reviewSplitSubmitting" />
+              </label>
+            </div>
+
+            <div class="review-detail-table-wrap">
+              <table class="legacy-main-table review-detail-table review-split-table">
+                <thead>
+                  <tr class="legacy-main-head">
+                    <th>序号</th>
+                    <th>拆分剂数</th>
+                    <th>配送时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, index) in reviewSplitForm.items" :key="index" class="legacy-main-info">
+                    <td>{{ index + 1 }}</td>
+                    <td>
+                      <input
+                        v-model="item.doseCount"
+                        class="legacy-input workflow-inline-input"
+                        inputmode="numeric"
+                        :disabled="reviewSplitSubmitting"
+                        aria-label="拆分剂数"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        v-model="item.deliveryTime"
+                        class="legacy-input input-large"
+                        type="datetime-local"
+                        :disabled="reviewSplitSubmitting"
+                        aria-label="配送时间"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        class="legacy-link-btn"
+                        type="button"
+                        :disabled="reviewSplitSubmitting || reviewSplitForm.items.length <= 2"
+                        @click="removeReviewSplitItem(index)"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="review-split-actions">
+              <button class="legacy-btn" type="button" :disabled="reviewSplitSubmitting" @click="addReviewSplitItem">
+                增加一份
+              </button>
+              <button
+                class="legacy-btn legacy-btn-primary"
+                type="button"
+                :disabled="!reviewSplitCanSubmit"
+                @click="submitReviewSplit"
+              >
+                {{ reviewSplitSubmitting ? '提交中' : '提交拆单' }}
+              </button>
+              <span :class="{ 'review-split-mismatch': !reviewSplitDoseMatched }">
+                剂数合计 {{ reviewSplitDoseSummary }}
+              </span>
+            </div>
+
+            <p v-if="reviewSplitResult" class="review-split-result">拆单订单：{{ reviewSplitResult }}</p>
+          </template>
+          <p v-else class="legacy-empty">选择审核任务后加载拆单数据</p>
         </section>
 
         <section class="review-detail-section">
@@ -1521,6 +1808,64 @@ defineExpose({
 
 .review-drug-table {
   min-width: 1180px;
+}
+
+.review-split-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.review-split-summary,
+.review-split-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.review-split-summary div,
+.review-split-form label {
+  min-width: 0;
+}
+
+.review-split-summary div {
+  padding: 10px;
+  border: 1px solid #edf1f5;
+  background: #fbfcfe;
+}
+
+.review-split-summary span,
+.review-split-form span {
+  display: block;
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.review-split-summary strong {
+  overflow-wrap: anywhere;
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.review-split-table {
+  min-width: 640px;
+}
+
+.review-split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.review-split-mismatch {
+  color: #b4232f !important;
+}
+
+.review-split-result {
+  margin: 0;
+  color: #166534;
+  overflow-wrap: anywhere;
 }
 
 .review-address-modal-mask {

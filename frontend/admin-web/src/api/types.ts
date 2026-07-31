@@ -1301,6 +1301,24 @@ export interface AdminOrderRemarkUpdateResult {
   updatedAt: string;
 }
 
+export interface AdminOrderSplitItemCommand {
+  doseCount: number;
+  deliveryTime?: string;
+}
+
+export interface AdminOrderSplitCommand {
+  prescriptionNo?: string;
+  items: AdminOrderSplitItemCommand[];
+  operator?: string;
+}
+
+export interface AdminOrderSplitResult {
+  originalOrderNo: string;
+  prescriptionNo: string;
+  splitOrderNos: string[];
+  status: string;
+}
+
 export interface AdminOrderCancelCommand {
   operator?: string;
   reason: string;

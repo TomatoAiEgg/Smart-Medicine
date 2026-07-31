@@ -70,6 +70,8 @@ import type {
   AdminOrderAddressUpdateResult,
   AdminOrderRemarkUpdateCommand,
   AdminOrderRemarkUpdateResult,
+  AdminOrderSplitCommand,
+  AdminOrderSplitResult,
   AdminBatchOrderReceiptCommand,
   AdminBatchOrderReceiptResult,
   AdminManualProcessCommand,
@@ -634,6 +636,16 @@ export function updateAdminOrderRemark(orderNo: string, command: AdminOrderRemar
     `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/remark`,
     {
       method: 'PATCH',
+      body: JSON.stringify(command),
+    },
+  );
+}
+
+export function splitAdminOrder(orderNo: string, command: AdminOrderSplitCommand) {
+  return request<AdminOrderSplitResult>(
+    `/order-api/api/admin/orders/${encodeURIComponent(orderNo)}/split`,
+    {
+      method: 'POST',
       body: JSON.stringify(command),
     },
   );
