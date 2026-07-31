@@ -28,6 +28,7 @@ import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
 import com.zhyf.order.application.AdminOrderMergeQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import com.zhyf.order.application.AdminOperatorRoleQuery;
+import com.zhyf.order.domain.OrderSnapshot;
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -135,6 +136,63 @@ class OrderRepositoryTest {
         assertThat(progress.prescriptions().getFirst().detailCount()).isEqualTo(2);
         assertThat(progress.dispenseRecords()).hasSize(1);
         assertThat(progress.dispenseRecords().getFirst().dispenser()).isEqualTo("dispenser1");
+    }
+
+    @Test
+    void shouldFindOrderByLegacyPdaRecipeId() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID institutionId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.ofInstant(Instant.parse("2026-07-31T01:00:00Z"), ZoneOffset.UTC);
+        ResultSet rs = org.mockito.Mockito.mock(ResultSet.class);
+        when(rs.getObject("id", UUID.class)).thenReturn(orderId);
+        when(rs.getObject("tenant_id", UUID.class)).thenReturn(tenantId);
+        when(rs.getObject("institution_id", UUID.class)).thenReturn(institutionId);
+        when(rs.getString("order_no")).thenReturn("ZHYF1");
+        when(rs.getString("external_order_no")).thenReturn("EXT1");
+        when(rs.getString("status")).thenReturn("DECOCTED");
+        when(rs.getObject("created_at", OffsetDateTime.class)).thenReturn(createdAt);
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), eq("RX1"), eq("RX1"), eq("RX1"), eq("RX1")))
+                .thenAnswer(invocation -> {
+                    RowMapper<Object> mapper = invocation.getArgument(1);
+                    return List.of(mapper.mapRow(rs, 0));
+                });
+
+        OrderSnapshot result = repository.findOrderByLegacyPdaRecipeId("RX1").orElseThrow();
+
+        assertThat(result.orderId()).isEqualTo(orderId);
+        assertThat(result.orderNo()).isEqualTo("ZHYF1");
+        assertThat(result.status()).isEqualTo("DECOCTED");
+    }
+
+    @Test
+    void shouldUpsertShippedShipmentForLegacyPdaOutbound() {
+        UUID shipmentId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Instant outboundAt = Instant.parse("2026-07-31T12:00:00Z");
+        when(jdbcTemplate.update(anyString(), eq(shipmentId), eq(tenantId), eq(orderId), eq("ZHYF1"),
+                eq("SF1"), eq("PDA"), eq(OffsetDateTime.ofInstant(outboundAt, ZoneOffset.UTC)))).thenReturn(1);
+
+        int result = repository.upsertShippedShipment(
+                shipmentId,
+                tenantId,
+                orderId,
+                "ZHYF1",
+                "SF1",
+                "PDA",
+                outboundAt
+        );
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(sqlCaptor.capture(), eq(shipmentId), eq(tenantId), eq(orderId), eq("ZHYF1"),
+                eq("SF1"), eq("PDA"), eq(OffsetDateTime.ofInstant(outboundAt, ZoneOffset.UTC)));
+        assertThat(result).isEqualTo(1);
+        assertThat(sqlCaptor.getValue())
+                .contains("insert into shipment")
+                .contains("logistics_status")
+                .contains("'SHIPPED'")
+                .contains("on conflict (order_id) do update");
     }
 
     @Test

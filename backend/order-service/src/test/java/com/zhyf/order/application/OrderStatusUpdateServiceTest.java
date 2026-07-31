@@ -2,6 +2,9 @@ package com.zhyf.order.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.zhyf.common.exception.BusinessException;
@@ -152,5 +155,75 @@ class OrderStatusUpdateServiceTest {
                 new OrderStatusUpdateCommand("RECHECKED", "AUDIT", "test")
         )).isInstanceOf(BusinessException.class)
                 .hasMessage("Order status transition not allowed: CREATED -> RECHECKED");
+    }
+
+    @Test
+    void shouldOutboundLegacyPdaOrderAndAdvanceStatusChain() {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        Instant outboundAt = Instant.parse("2026-07-31T12:00:00Z");
+        OrderSnapshot order = new OrderSnapshot(
+                orderId,
+                tenantId,
+                UUID.randomUUID(),
+                "ZHYF1",
+                "EXT1",
+                "DECOCTED",
+                Instant.now()
+        );
+        when(orderRepository.findOrderByLegacyPdaRecipeId("RX1")).thenReturn(Optional.of(order));
+        when(orderRepository.countActivePrescriptionsByOrderId(orderId)).thenReturn(2);
+        when(orderRepository.findShipmentNoByOrderId(orderId)).thenReturn(Optional.of("SF1"));
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "DECOCTED", "PACKED", null)).thenReturn(1);
+        when(orderRepository.updateOrderStatusIfCurrent(orderId, "PACKED", "SHIPPED", null)).thenReturn(1);
+
+        LegacyPdaLogisticsOutboundResult result = service.legacyPdaLogisticsOutbound(
+                new LegacyPdaLogisticsOutboundCommand("RX1", "1", "pda-user", outboundAt)
+        );
+
+        assertThat(result.orderNo()).isEqualTo("ZHYF1");
+        assertThat(result.fromStatus()).isEqualTo("DECOCTED");
+        assertThat(result.toStatus()).isEqualTo("SHIPPED");
+        assertThat(result.logisticsNo()).isEqualTo("SF1");
+        verify(orderRepository).upsertShippedShipment(
+                any(UUID.class),
+                eq(tenantId),
+                eq(orderId),
+                eq("ZHYF1"),
+                eq("SF1"),
+                eq("PDA"),
+                eq(outboundAt)
+        );
+        verify(orderRepository).insertShipmentTrace(
+                any(UUID.class),
+                eq(tenantId),
+                eq(orderId),
+                eq("SF1"),
+                eq("SHIPPED"),
+                eq("PDA物流出库完成"),
+                eq(outboundAt)
+        );
+    }
+
+    @Test
+    void shouldRejectLegacyPdaOutboundWhenMultiplePrescriptionsNotConfirmed() {
+        UUID orderId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        OrderSnapshot order = new OrderSnapshot(
+                orderId,
+                tenantId,
+                UUID.randomUUID(),
+                "ZHYF1",
+                "EXT1",
+                "PACKED",
+                Instant.now()
+        );
+        when(orderRepository.findOrderByLegacyPdaRecipeId("RX1")).thenReturn(Optional.of(order));
+        when(orderRepository.countActivePrescriptionsByOrderId(orderId)).thenReturn(2);
+
+        assertThatThrownBy(() -> service.legacyPdaLogisticsOutbound(
+                new LegacyPdaLogisticsOutboundCommand("RX1", "0", "pda-user", Instant.now())
+        )).isInstanceOf(BusinessException.class)
+                .hasMessage("Order has multiple prescriptions, confirm outbound first");
     }
 }

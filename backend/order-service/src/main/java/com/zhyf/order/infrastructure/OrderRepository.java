@@ -138,6 +138,23 @@ public class OrderRepository {
         return jdbcTemplate.query(sql, this::mapOrderSnapshot, orderNo).stream().findFirst();
     }
 
+    public Optional<OrderSnapshot> findOrderByLegacyPdaRecipeId(String recipeId) {
+        String sql = """
+                select distinct o.id, o.tenant_id, o.institution_id, o.order_no, o.external_order_no, o.status, o.created_at
+                from order_main o
+                left join prescription p on p.order_id = o.id
+                where o.order_no = ?
+                   or o.external_order_no = ?
+                   or p.prescription_no = ?
+                   or p.external_prescription_no = ?
+                order by o.created_at desc
+                limit 1
+                """;
+        return jdbcTemplate.query(sql, this::mapOrderSnapshot, recipeId, recipeId, recipeId, recipeId)
+                .stream()
+                .findFirst();
+    }
+
     public Optional<OrderSnapshot> findOrderById(UUID orderId) {
         String sql = """
                 select id, tenant_id, institution_id, order_no, external_order_no, status, created_at
@@ -4369,6 +4386,31 @@ public class OrderRepository {
                 """;
         return jdbcTemplate.update(sql, shipmentId, tenantId, orderId, orderNo, logisticsNo, logisticsCompany,
                 offsetDateTime(packageTime), offsetDateTime(outboundTime), offsetDateTime(signTime));
+    }
+
+    public int upsertShippedShipment(
+            UUID shipmentId,
+            UUID tenantId,
+            UUID orderId,
+            String orderNo,
+            String logisticsNo,
+            String logisticsCompany,
+            Instant outboundTime
+    ) {
+        String sql = """
+                insert into shipment (
+                    id, tenant_id, order_id, order_no, logistics_no, logistics_company,
+                    logistics_status, pay_method, pkg_weight, pkg_num, outbound_time
+                ) values (?, ?, ?, ?, ?, ?, 'SHIPPED', 'PDA', 0, 1, ?)
+                on conflict (order_id) do update
+                set logistics_no = coalesce(nullif(shipment.logistics_no, ''), excluded.logistics_no),
+                    logistics_company = excluded.logistics_company,
+                    logistics_status = 'SHIPPED',
+                    outbound_time = coalesce(shipment.outbound_time, excluded.outbound_time),
+                    updated_at = now()
+                """;
+        return jdbcTemplate.update(sql, shipmentId, tenantId, orderId, orderNo, logisticsNo, logisticsCompany,
+                offsetDateTime(outboundTime));
     }
 
     public Optional<String> findShipmentNoByOrderId(UUID orderId) {
