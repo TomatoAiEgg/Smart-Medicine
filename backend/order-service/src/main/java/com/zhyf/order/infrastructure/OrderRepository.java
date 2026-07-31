@@ -3000,6 +3000,24 @@ public class OrderRepository {
                 .findFirst();
     }
 
+    public Optional<String> findPrescriptionNoByLegacyPdaRecipeId(String recipeId) {
+        String sql = """
+                select p.prescription_no
+                from prescription p
+                join order_main o on o.id = p.order_id
+                where p.prescription_no = ?
+                   or p.external_prescription_no = ?
+                   or o.order_no = ?
+                   or o.external_order_no = ?
+                order by p.created_at asc, p.prescription_no asc
+                limit 1
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getString("prescription_no"),
+                        recipeId, recipeId, recipeId, recipeId)
+                .stream()
+                .findFirst();
+    }
+
     private QueryParts adminOperatorFilters(AdminOperatorQuery query) {
         QueryParts filters = new QueryParts("");
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();

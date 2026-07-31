@@ -1560,6 +1560,80 @@ public class OrderService {
         );
     }
 
+    public LegacyPdaLabelPrintInitResult getLegacyPdaLabelPrintInit(String recipeId) {
+        String normalizedRecipeId = requireText(recipeId, "RECIPE_ID_REQUIRED", "处方号不能为空");
+        String prescriptionNo = orderRepository.findPrescriptionNoByLegacyPdaRecipeId(normalizedRecipeId)
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        AdminPrescriptionPrintPayload payload = getAdminPrescriptionPrintPayload(prescriptionNo);
+        Integer totalPackNum = payload.perPackNum() == null || payload.doseCount() == null
+                ? null
+                : payload.perPackNum() * payload.doseCount();
+        String withinName = payload.isWithin() == null ? "" : payload.isWithin() == 0 ? "内服" : "外用";
+        String productionDate = DateTimeFormatter.ISO_LOCAL_DATE.withZone(DEFAULT_PAYLOAD_ZONE)
+                .format(Instant.now());
+        List<LegacyPdaLabelPrintInfo> info = legacyPdaLabelInfo(payload, withinName);
+        return new LegacyPdaLabelPrintInitResult(
+                payload.prescriptionNo(),
+                null,
+                value(payload.patientName()),
+                null,
+                null,
+                withinName,
+                payload.doseCount(),
+                payload.doseCount() == null ? "" : "剂数:" + payload.doseCount() + "剂",
+                payload.decoctionCount(),
+                payload.boilTimes(),
+                totalPackNum,
+                value(payload.institutionName()),
+                value(payload.externalPrescriptionNo()),
+                value(payload.departmentName()),
+                productionDate,
+                value(payload.medicationMethod()),
+                value(payload.wardName()),
+                value(payload.bedNo()),
+                List.of(),
+                null,
+                null,
+                "2",
+                "1",
+                "1",
+                info,
+                info.stream().map(LegacyPdaLabelPrintInfo::value).toList()
+        );
+    }
+
+    private List<LegacyPdaLabelPrintInfo> legacyPdaLabelInfo(
+            AdminPrescriptionPrintPayload payload,
+            String withinName
+    ) {
+        List<LegacyPdaLabelPrintInfo> info = new ArrayList<>();
+        addLegacyPdaLabelInfo(info, "prescri_id", "处方号", payload.prescriptionNo());
+        addLegacyPdaLabelInfo(info, "patient_name", "患者姓名", payload.patientName());
+        addLegacyPdaLabelInfo(info, "patient_gender", "患者性别", null);
+        addLegacyPdaLabelInfo(info, "patient_age", "患者年龄", null);
+        addLegacyPdaLabelInfo(info, "company_name", "医院名称", payload.institutionName());
+        addLegacyPdaLabelInfo(info, "hos_prescri_num", "医院处方号", payload.externalPrescriptionNo());
+        addLegacyPdaLabelInfo(info, "hos_bed_no", "床号", payload.bedNo());
+        addLegacyPdaLabelInfo(info, "amount", "剂数", payload.doseCount() == null ? "" : String.valueOf(payload.doseCount()));
+        addLegacyPdaLabelInfo(info, "hos_depart", "科室", payload.departmentName());
+        addLegacyPdaLabelInfo(info, "is_within", "用法", withinName);
+        return List.copyOf(info);
+    }
+
+    private void addLegacyPdaLabelInfo(
+            List<LegacyPdaLabelPrintInfo> info,
+            String param,
+            String paramName,
+            String value
+    ) {
+        info.add(new LegacyPdaLabelPrintInfo(
+                String.valueOf(info.size() + 1),
+                param,
+                paramName,
+                value(value)
+        ));
+    }
+
     @Transactional
     public AdminOrderSplitResult splitAdminOrder(String orderNo, AdminOrderSplitCommand command) {
         AdminOrderDetail current = getAdminOrderDetail(orderNo);

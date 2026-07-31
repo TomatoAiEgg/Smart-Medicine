@@ -166,6 +166,16 @@ class OrderRepositoryTest {
     }
 
     @Test
+    void shouldFindPrescriptionNoByLegacyPdaRecipeId() {
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), eq("EXT1"), eq("EXT1"), eq("EXT1"), eq("EXT1")))
+                .thenReturn(List.of("RX1"));
+
+        String result = repository.findPrescriptionNoByLegacyPdaRecipeId("EXT1").orElseThrow();
+
+        assertThat(result).isEqualTo("RX1");
+    }
+
+    @Test
     void shouldUpsertShippedShipmentForLegacyPdaOutbound() {
         UUID shipmentId = UUID.randomUUID();
         UUID tenantId = UUID.randomUUID();
