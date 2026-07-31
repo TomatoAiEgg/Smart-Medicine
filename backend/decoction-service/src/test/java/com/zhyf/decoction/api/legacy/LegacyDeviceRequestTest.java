@@ -34,4 +34,21 @@ class LegacyDeviceRequestTest {
         assertThat(result.timestamp()).isEqualTo(Instant.parse("2026-07-07T00:00:00Z"));
         assertThat(result.operationId()).contains("LEGACY-PDA-STATUS-RX1-1-2026-07-07T00:00:00Z");
     }
+
+    @Test
+    void shouldReadLegacyEnvelopeBodyAndHeader() {
+        LegacyDeviceRequest request = LegacyDeviceRequest.from(
+                Map.of(),
+                Map.of(
+                        "header", Map.of("sign", "legacy-sign"),
+                        "body", Map.of("recipeId", "RX2")
+                )
+        );
+
+        DeviceOperationRequest result = request.toOperation("LEGACY-PDA-QUERY");
+
+        assertThat(request.prescriptionNo()).isEqualTo("RX2");
+        assertThat(result.prescriptionNo()).isEqualTo("RX2");
+        assertThat(result.sign()).isEqualTo("legacy-sign");
+    }
 }

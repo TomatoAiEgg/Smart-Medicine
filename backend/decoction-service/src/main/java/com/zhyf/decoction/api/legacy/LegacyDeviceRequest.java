@@ -163,6 +163,14 @@ final class LegacyDeviceRequest {
         if (key == null || value == null) {
             return;
         }
+        if (value instanceof Map<?, ?> nested) {
+            nested.forEach((nestedKey, nestedValue) -> {
+                if (nestedKey != null) {
+                    put(values, String.valueOf(nestedKey), nestedValue);
+                }
+            });
+            return;
+        }
         values.put(normalizeKey(key), String.valueOf(value));
     }
 

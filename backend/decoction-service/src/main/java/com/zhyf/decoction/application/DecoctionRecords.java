@@ -1,6 +1,7 @@
 package com.zhyf.decoction.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public final class DecoctionRecords {
@@ -24,6 +25,52 @@ public final class DecoctionRecords {
             String externalOrderNo,
             String prescriptionNo,
             String orderStatus
+    ) {
+    }
+
+    public record PdaRecipeQueryResult(
+            String recipeId,
+            String hlkyPecipeId,
+            String orderStatusName,
+            String patientName,
+            String patientAge,
+            Integer patientGender,
+            String withinName,
+            Integer amount,
+            Integer decoctAmount,
+            Integer boilTimes,
+            Integer totalPackNum,
+            String auditName,
+            String auditTime,
+            String dispenseName,
+            String dispenseTime,
+            String recheckName,
+            String recheckTime,
+            String pailNos,
+            String soakTimeStart,
+            String water,
+            String boilUserName,
+            String boilTimeStart,
+            String boilTimeEnd,
+            String boilEquipNo,
+            String boilStatus,
+            String orderId,
+            String orderHandleFloor,
+            String xjPlanTemp,
+            String xjPlanTime,
+            String qjPlanTemp,
+            String qjPlanTime,
+            String hxPlanTemp,
+            String hxPlanTime,
+            String jyjDecoctionPlan,
+            String jyjDecoctionPlanName,
+            List<PdaPlanRecord> planList
+    ) {
+    }
+
+    public record PdaPlanRecord(
+            String planCode,
+            String planName
     ) {
     }
 

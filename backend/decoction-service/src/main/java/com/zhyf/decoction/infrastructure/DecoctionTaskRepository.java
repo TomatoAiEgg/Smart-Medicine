@@ -1,6 +1,7 @@
 package com.zhyf.decoction.infrastructure;
 
 import com.zhyf.decoction.domain.DecoctionTaskSnapshot;
+import com.zhyf.decoction.domain.PdaRecipeQuerySnapshot;
 import com.zhyf.decoction.domain.PrescriptionForDecoction;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -62,6 +63,59 @@ public class DecoctionTaskRepository {
                 where p.prescription_no = ?
                 """;
         return jdbcTemplate.query(sql, this::mapPrescriptionForDecoction, prescriptionNo)
+                .stream()
+                .findFirst();
+    }
+
+    public Optional<PdaRecipeQuerySnapshot> findPdaRecipeQuery(String recipeId) {
+        String sql = """
+                select
+                    p.prescription_no as recipe_id,
+                    o.external_order_no as hlky_recipe_id,
+                    o.order_no as order_id,
+                    o.status as order_status,
+                    coalesce(
+                        nullif(p.raw_payload ->> 'patientName', ''),
+                        nullif(p.raw_payload ->> 'patient_name', ''),
+                        nullif(o.raw_payload ->> 'patientName', ''),
+                        nullif(o.raw_payload ->> 'patient_name', ''),
+                        o.patient_name
+                    ) as patient_name,
+                    coalesce(
+                        nullif(p.raw_payload ->> 'patientAge', ''),
+                        nullif(p.raw_payload ->> 'patient_age', ''),
+                        nullif(o.raw_payload ->> 'patientAge', ''),
+                        nullif(o.raw_payload ->> 'patient_age', '')
+                    ) as patient_age,
+                    coalesce(
+                        nullif(p.raw_payload ->> 'patientGender', ''),
+                        nullif(p.raw_payload ->> 'patient_gender', ''),
+                        nullif(o.raw_payload ->> 'patientGender', ''),
+                        nullif(o.raw_payload ->> 'patient_gender', '')
+                    ) as patient_gender,
+                    p.is_within,
+                    p.dose_count as amount,
+                    p.decoction_count as decoct_amount,
+                    p.boil_times,
+                    p.per_pack_num,
+                    t.device_code,
+                    t.pail_no,
+                    t.task_status
+                from prescription p
+                join order_main o on o.id = p.order_id
+                left join lateral (
+                    select dt.device_code, dt.pail_no, dt.task_status
+                    from decoction_task dt
+                    where dt.prescription_id = p.id
+                    order by dt.created_at desc
+                    limit 1
+                ) t on true
+                where p.prescription_no = ?
+                   or p.external_prescription_no = ?
+                   or o.external_order_no = ?
+                limit 1
+                """;
+        return jdbcTemplate.query(sql, this::mapPdaRecipeQuery, recipeId, recipeId, recipeId)
                 .stream()
                 .findFirst();
     }
@@ -661,6 +715,26 @@ public class DecoctionTaskRepository {
                 rs.getString("external_order_no"),
                 rs.getString("prescription_no"),
                 rs.getString("order_status")
+        );
+    }
+
+    private PdaRecipeQuerySnapshot mapPdaRecipeQuery(ResultSet rs, int rowNum) throws SQLException {
+        return new PdaRecipeQuerySnapshot(
+                rs.getString("recipe_id"),
+                rs.getString("hlky_recipe_id"),
+                rs.getString("order_id"),
+                rs.getString("order_status"),
+                rs.getString("patient_name"),
+                rs.getString("patient_age"),
+                rs.getString("patient_gender"),
+                integer(rs, "is_within"),
+                integer(rs, "amount"),
+                integer(rs, "decoct_amount"),
+                integer(rs, "boil_times"),
+                integer(rs, "per_pack_num"),
+                rs.getString("device_code"),
+                rs.getString("pail_no"),
+                rs.getString("task_status")
         );
     }
 

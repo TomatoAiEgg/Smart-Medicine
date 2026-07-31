@@ -5,6 +5,7 @@ import com.zhyf.common.status.OrderStatus;
 import com.zhyf.decoction.config.DecoctionProperties;
 import com.zhyf.decoction.domain.DecoctionTaskSnapshot;
 import com.zhyf.decoction.domain.DecoctionTaskStatus;
+import com.zhyf.decoction.domain.PdaRecipeQuerySnapshot;
 import com.zhyf.decoction.domain.PrescriptionForDecoction;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository.DecoctionTaskEventSnapshot;
@@ -318,6 +319,13 @@ public class DecoctionSimulatorService {
         return taskRepository.findActiveTaskByPrescriptionNo(prescriptionNo)
                 .map(this::toTaskRecord)
                 .orElseThrow(() -> new BusinessException("DECOCTION_TASK_NOT_FOUND", "Decoction task not found"));
+    }
+
+    public DecoctionRecords.PdaRecipeQueryResult queryPdaRecipe(String recipeId) {
+        String normalizedRecipeId = requireText(recipeId, "PRESCRIPTION_NO_REQUIRED", "Prescription no is required");
+        PdaRecipeQuerySnapshot snapshot = taskRepository.findPdaRecipeQuery(normalizedRecipeId)
+                .orElseThrow(() -> new BusinessException("PDA_RECIPE_NOT_FOUND", "PDA recipe not found"));
+        return toPdaRecipeQueryResult(snapshot);
     }
 
     @Transactional
@@ -1048,6 +1056,104 @@ public class DecoctionSimulatorService {
                 prescription.prescriptionNo(),
                 prescription.orderStatus()
         );
+    }
+
+    private DecoctionRecords.PdaRecipeQueryResult toPdaRecipeQueryResult(PdaRecipeQuerySnapshot snapshot) {
+        return new DecoctionRecords.PdaRecipeQueryResult(
+                snapshot.recipeId(),
+                snapshot.hlkyRecipeId(),
+                orderStatusName(snapshot.orderStatus()),
+                defaultText(snapshot.patientName(), ""),
+                defaultText(snapshot.patientAge(), ""),
+                patientGender(snapshot.patientGender()),
+                withinName(snapshot.isWithin()),
+                snapshot.amount(),
+                snapshot.decoctAmount(),
+                snapshot.boilTimes(),
+                totalPackNum(snapshot.perPackNum(), snapshot.amount()),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                defaultText(snapshot.pailNo(), ""),
+                null,
+                null,
+                null,
+                null,
+                null,
+                defaultText(snapshot.deviceCode(), ""),
+                boilStatusName(snapshot.taskStatus()),
+                snapshot.orderId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of()
+        );
+    }
+
+    private String orderStatusName(String status) {
+        if (!StringUtils.hasText(status)) {
+            return "";
+        }
+        try {
+            return OrderStatus.valueOf(status).description();
+        } catch (IllegalArgumentException ex) {
+            return status;
+        }
+    }
+
+    private String withinName(Integer isWithin) {
+        if (isWithin == null) {
+            return "";
+        }
+        return isWithin == 0 ? "内服" : "外用";
+    }
+
+    private String boilStatusName(String taskStatus) {
+        if (!StringUtils.hasText(taskStatus)) {
+            return "未煎煮";
+        }
+        return switch (taskStatus) {
+            case "BOUND" -> "未煎煮";
+            case "DECOCTING" -> "进行中";
+            case "DECOCTED" -> "已完成";
+            case "CANCELLED" -> "已取消";
+            case "TERMINATED" -> "已终止";
+            default -> "未煎煮";
+        };
+    }
+
+    private Integer patientGender(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        if ("男".equals(normalized) || "M".equalsIgnoreCase(normalized) || "MALE".equalsIgnoreCase(normalized)) {
+            return 1;
+        }
+        if ("女".equals(normalized) || "F".equalsIgnoreCase(normalized) || "FEMALE".equalsIgnoreCase(normalized)) {
+            return 2;
+        }
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private Integer totalPackNum(Integer perPackNum, Integer amount) {
+        if (perPackNum == null || amount == null) {
+            return null;
+        }
+        return perPackNum * amount;
     }
 
     private DecoctionRecords.DeviceRecord toFallbackDeviceRecord(String deviceCode, DecoctionTaskSnapshot task) {

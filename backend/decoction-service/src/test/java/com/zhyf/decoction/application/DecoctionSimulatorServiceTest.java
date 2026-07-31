@@ -13,6 +13,7 @@ import com.zhyf.common.status.OrderStatus;
 import com.zhyf.decoction.config.DecoctionProperties;
 import com.zhyf.decoction.domain.DecoctionTaskSnapshot;
 import com.zhyf.decoction.domain.DecoctionTaskStatus;
+import com.zhyf.decoction.domain.PdaRecipeQuerySnapshot;
 import com.zhyf.decoction.domain.PrescriptionForDecoction;
 import com.zhyf.decoction.infrastructure.DecoctionTaskRepository;
 import com.zhyf.decoction.infrastructure.OrderStatusClient;
@@ -304,6 +305,39 @@ class DecoctionSimulatorServiceTest {
         assertThat(result.getFirst().deviceName()).isEqualTo("煎煮一号机");
         assertThat(result.getFirst().deviceGroup()).isEqualTo("A组");
         assertThat(result.getFirst().deviceStatus()).isEqualTo("IDLE");
+    }
+
+    @Test
+    void shouldQueryLegacyPdaRecipeFields() {
+        when(repository.findPdaRecipeQuery("RX1")).thenReturn(Optional.of(new PdaRecipeQuerySnapshot(
+                "RX1",
+                "HLKY-1",
+                "ZHYF1",
+                OrderStatus.RECHECKED.name(),
+                "张三",
+                "42",
+                "男",
+                0,
+                7,
+                14,
+                2,
+                3,
+                "DECOCT-001",
+                "PAIL-1",
+                DecoctionTaskStatus.DECOCTING.name()
+        )));
+
+        DecoctionRecords.PdaRecipeQueryResult result = service.queryPdaRecipe("RX1");
+
+        assertThat(result.recipeId()).isEqualTo("RX1");
+        assertThat(result.hlkyPecipeId()).isEqualTo("HLKY-1");
+        assertThat(result.patientGender()).isEqualTo(1);
+        assertThat(result.withinName()).isEqualTo("内服");
+        assertThat(result.totalPackNum()).isEqualTo(21);
+        assertThat(result.boilEquipNo()).isEqualTo("DECOCT-001");
+        assertThat(result.pailNos()).isEqualTo("PAIL-1");
+        assertThat(result.boilStatus()).isEqualTo("进行中");
+        assertThat(result.planList()).isEmpty();
     }
 
     @Test

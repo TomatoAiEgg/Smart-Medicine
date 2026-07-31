@@ -42,6 +42,14 @@ public class LegacyPdaProtocolController {
         return ApiResponse.ok(deviceAdapter.listCanOperatePrescriptions(request.limit(50)));
     }
 
+    @RequestMapping(path = "/pdaRecipeQuery", method = {RequestMethod.GET, RequestMethod.POST})
+    public ApiResponse<DecoctionRecords.PdaRecipeQueryResult> queryRecipe(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return ApiResponse.ok(deviceAdapter.queryPdaRecipe(request(query, body).prescriptionNo()));
+    }
+
     @RequestMapping(path = "/pdaBindPrescription", method = {RequestMethod.GET, RequestMethod.POST})
     public ApiResponse<DecoctionRecords.DecoctionTaskRecord> bindPrescription(
             @RequestParam Map<String, String> query,

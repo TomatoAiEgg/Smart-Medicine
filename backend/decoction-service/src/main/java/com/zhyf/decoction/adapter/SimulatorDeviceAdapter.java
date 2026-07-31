@@ -37,6 +37,11 @@ public class SimulatorDeviceAdapter implements DeviceAdapter {
     }
 
     @Override
+    public DecoctionRecords.PdaRecipeQueryResult queryPdaRecipe(String recipeId) {
+        return simulatorService.queryPdaRecipe(recipeId);
+    }
+
+    @Override
     public DecoctionRecords.DecoctionTaskRecord bindPrescription(DeviceOperationRequest request) {
         return simulatorService.bindPrescription(toSimulatorCommand(request));
     }

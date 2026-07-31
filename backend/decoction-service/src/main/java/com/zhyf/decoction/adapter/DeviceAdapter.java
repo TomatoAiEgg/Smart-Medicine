@@ -11,6 +11,8 @@ public interface DeviceAdapter {
 
     List<DecoctionRecords.PrescriptionRecord> listCanOperatePrescriptions(int limit);
 
+    DecoctionRecords.PdaRecipeQueryResult queryPdaRecipe(String recipeId);
+
     DecoctionRecords.DecoctionTaskRecord bindPrescription(DeviceOperationRequest request);
 
     DecoctionRecords.DecoctionTaskRecord reportPdaStatus(DeviceOperationRequest request);
