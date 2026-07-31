@@ -1602,6 +1602,56 @@ public class OrderService {
         );
     }
 
+    public LegacyPdaLabelPrintResult createLegacyPdaLabelPrintRecord(
+            String recipeId,
+            Integer printNum,
+            String dmjCode,
+            String dmjIp,
+            String operator
+    ) {
+        String normalizedRecipeId = requireText(recipeId, "RECIPE_ID_REQUIRED", "处方号不能为空");
+        if (printNum == null || printNum <= 0) {
+            throw new BusinessException("PRINT_NUM_INVALID", "打印张数必须大于 0");
+        }
+        String printerCode = requireText(dmjCode, "PRINTER_CODE_REQUIRED", "打码机编号不能为空");
+        String prescriptionNo = orderRepository.findPrescriptionNoByLegacyPdaRecipeId(normalizedRecipeId)
+                .orElseThrow(() -> new BusinessException("PRESCRIPTION_NOT_FOUND", "处方不存在"));
+        Map<String, Object> requestParam = new LinkedHashMap<>();
+        requestParam.put("source", "legacy-pda-label-print");
+        requestParam.put("recipeId", normalizedRecipeId);
+        requestParam.put("printNum", printNum);
+        requestParam.put("dmjCode", printerCode);
+        requestParam.put("dmjIp", cleanText(dmjIp));
+        AdminLabelPrintRecord record = createAdminLabelPrintRecord(
+                prescriptionNo,
+                new AdminLabelPrintRecordCommand(
+                        "SENT",
+                        "CLOUD",
+                        printerCode,
+                        printerCode,
+                        "LEGACY_PDA",
+                        null,
+                        null,
+                        "legacy-pda-label",
+                        writeJson(requestParam),
+                        "{\"message\":\"legacy pda print request accepted\"}",
+                        null,
+                        defaultText(operator, "legacy-pda"),
+                        null
+                )
+        );
+        return new LegacyPdaLabelPrintResult(
+                record.id(),
+                record.prescriptionNo(),
+                printNum,
+                printerCode,
+                cleanText(dmjIp),
+                record.printStatus(),
+                "legacy pda print request accepted",
+                record.createdAt()
+        );
+    }
+
     private List<LegacyPdaLabelPrintInfo> legacyPdaLabelInfo(
             AdminPrescriptionPrintPayload payload,
             String withinName
