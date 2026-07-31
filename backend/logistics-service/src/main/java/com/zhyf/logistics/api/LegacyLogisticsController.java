@@ -5,6 +5,7 @@ import com.zhyf.logistics.application.LogisticsCommands;
 import com.zhyf.logistics.application.LogisticsRecords;
 import com.zhyf.logistics.application.LogisticsService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -64,6 +65,27 @@ public class LegacyLogisticsController {
         return ApiResponse.ok(logisticsService.queryEmsPdfFile(value(query, body, "waybillNo", "logisticsNo", "mailNo")));
     }
 
+    @RequestMapping(path = "/logistics/queryLogisticsCost", method = {RequestMethod.GET, RequestMethod.POST})
+    public LegacyApiResponse<Map<String, Object>> queryLogisticsCost(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return LegacyApiResponse.ok(logisticsService.queryLogisticsCost(
+                value(query, body, "orderId", "orderNo", "bspOrderNo")
+        ));
+    }
+
+    @RequestMapping(path = "/logistics/queryLogisticsInfo", method = {RequestMethod.GET, RequestMethod.POST})
+    public LegacyApiResponse<List<Map<String, Object>>> queryLogisticsInfo(
+            @RequestParam Map<String, String> query,
+            @RequestBody(required = false) Map<String, Object> body
+    ) {
+        return LegacyApiResponse.ok(logisticsService.queryLogisticsInfo(
+                intValue(value(query, body, "queryWay")),
+                value(query, body, "paramValue", "orderId", "orderNo", "receiverPhone", "tel")
+        ));
+    }
+
     private LogisticsCommands.TraceCommand traceCommand(Map<String, String> query, Map<String, Object> body, String provider) {
         String logisticsNo = value(query, body, "logisticsNo", "mailNo", "waybillNo", "logistics_no");
         String opCode = value(query, body, "opCode", "statusCode", "code");
@@ -84,8 +106,27 @@ public class LegacyLogisticsController {
                     && data.get(key) != null && !String.valueOf(data.get(key)).isBlank()) {
                 return String.valueOf(data.get(key));
             }
+            if (body != null && body.get("body") instanceof Map<?, ?> nestedBody
+                    && nestedBody.get(key) != null && !String.valueOf(nestedBody.get(key)).isBlank()) {
+                return String.valueOf(nestedBody.get(key));
+            }
+            if (body != null && body.get("body") != null && !(body.get("body") instanceof Map<?, ?>)
+                    && !String.valueOf(body.get("body")).isBlank()) {
+                return String.valueOf(body.get("body"));
+            }
         }
         return null;
+    }
+
+    private Integer intValue(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String json(Map<String, Object> body) {
@@ -105,5 +146,11 @@ public class LegacyLogisticsController {
 
     private String escape(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private record LegacyApiResponse<T>(String code, String message, T data) {
+        private static <T> LegacyApiResponse<T> ok(T data) {
+            return new LegacyApiResponse<>("200", "success", data);
+        }
     }
 }

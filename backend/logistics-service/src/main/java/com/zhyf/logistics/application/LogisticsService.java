@@ -5,8 +5,11 @@ import com.zhyf.common.status.OrderStatus;
 import com.zhyf.logistics.infrastructure.CallbackClient;
 import com.zhyf.logistics.infrastructure.LogisticsRepository;
 import com.zhyf.logistics.infrastructure.OrderStatusClient;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,8 @@ public class LogisticsService {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
+    private static final DateTimeFormatter LEGACY_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("Asia/Shanghai"));
 
     private final LogisticsRepository repository;
     private final OrderStatusClient orderStatusClient;
@@ -90,6 +95,27 @@ public class LogisticsService {
         result.put("printStatus", "PENDING_EXTERNAL_PROVIDER");
         result.put("message", "EMS PDF 需外部 EMS 服务配置后获取");
         return result;
+    }
+
+    public Map<String, Object> queryLogisticsCost(String orderNo) {
+        requireText(orderNo, "ORDER_NO_REQUIRED", "Order no is required");
+        LogisticsRecords.LegacyLogisticsCostRecord cost = repository.findLegacyLogisticsCost(orderNo.trim())
+                .orElseThrow(() -> new BusinessException("ORDER_NOT_FOUND", "Order not found"));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("orderId", cost.orderNo());
+        result.put("orderNo", cost.orderNo());
+        result.put("externalOrderNo", cost.externalOrderNo());
+        result.put("collectionMoney", money(cost.collectionMoney()));
+        result.put("logisticsCompanyName", defaultValue(cost.logisticsCompanyName(), "SF"));
+        result.put("payMethod", payMethod(cost.payMethod()));
+        return result;
+    }
+
+    public List<Map<String, Object>> queryLogisticsInfo(Integer queryWay, String paramValue) {
+        requireText(paramValue, "QUERY_PARAM_REQUIRED", "Query param is required");
+        return repository.findLegacyRecipeInfos(queryWay, paramValue.trim()).stream()
+                .map(this::legacyRecipeInfoPayload)
+                .toList();
     }
 
     @Transactional
@@ -260,6 +286,55 @@ public class LogisticsService {
         payload.put("pkgNum", shipment.pkgNum());
         payload.put("deliveryTime", shipment.deliveryTime());
         return payload;
+    }
+
+    private Map<String, Object> legacyRecipeInfoPayload(LogisticsRecords.LegacyRecipeInfoRecord record) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("orderId", record.orderNo());
+        payload.put("recipeId", record.prescriptionNo());
+        payload.put("orderStatus", record.orderStatus());
+        payload.put("orderTime", legacyTime(record.orderTime()));
+        payload.put("logisticsCompanyName", record.logisticsCompanyName());
+        payload.put("logisticsNo", record.logisticsNo());
+        payload.put("patientName", record.patientName());
+        payload.put("recipeDiagnose", record.diagnosis());
+        payload.put("medMethod", record.medicationMethod());
+        payload.put("recipeRemark", record.prescriptionRemark());
+        payload.put("amount", record.doseCount() == null ? null : String.valueOf(record.doseCount()));
+        payload.put("lastLogisticsInfo", record.lastLogisticsInfo());
+        payload.put("logisticsList", repository.findLegacyRecipeLogisticsInfos(record.orderId()).stream()
+                .map(this::legacyRecipeTracePayload)
+                .toList());
+        return payload;
+    }
+
+    private Map<String, Object> legacyRecipeTracePayload(LogisticsRecords.LegacyRecipeLogisticsInfoRecord record) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("processStatus", record.processStatus());
+        payload.put("operater", defaultValue(record.operator(), "system"));
+        payload.put("operaTime", legacyTime(record.operationTime()));
+        payload.put("operationInfo", record.operationInfo());
+        payload.put("imageUrl", record.imageUrl());
+        return payload;
+    }
+
+    private String money(BigDecimal value) {
+        return value == null ? "0" : value.stripTrailingZeros().toPlainString();
+    }
+
+    private int payMethod(String value) {
+        if (!StringUtils.hasText(value)) {
+            return 1;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
+    }
+
+    private String legacyTime(Instant value) {
+        return value == null ? null : LEGACY_TIME_FORMATTER.format(value);
     }
 
     private int normalizeLimit(int limit) {

@@ -185,6 +185,109 @@ public class LogisticsRepository {
         return jdbcTemplate.query(parts.sql(), this::mapLogisticsInfo, parts.args());
     }
 
+    public Optional<LogisticsRecords.LegacyLogisticsCostRecord> findLegacyLogisticsCost(String orderNo) {
+        String sql = """
+                select o.order_no,
+                       o.external_order_no,
+                       coalesce(o.logistics_fee, address_cost.cost_amount, special_rule.base_fee, 0) as collection_money,
+                       coalesce(nullif(s.logistics_company, ''), nullif(address_cost.logistics_company, ''),
+                                nullif(special_rule.logistics_company, ''), 'SF') as logistics_company_name,
+                       coalesce(nullif(s.pay_method, ''), '1') as pay_method
+                from order_main o
+                left join shipment s on s.order_id = o.id
+                left join lateral (
+                    select c.logistics_company, c.cost_amount
+                    from logistics_address_cost c
+                    where c.tenant_id = o.tenant_id
+                      and c.institution_id = o.institution_id
+                      and c.enabled = true
+                      and (
+                          c.province = ''
+                          or coalesce(o.receiver_province, '') like c.province || '%'
+                          or c.province like left(coalesce(o.receiver_province, ''), 2) || '%'
+                      )
+                      and (
+                          c.city = ''
+                          or coalesce(o.receiver_city, '') like c.city || '%'
+                          or c.city like left(coalesce(o.receiver_city, ''), 2) || '%'
+                      )
+                      and (
+                          c.district = ''
+                          or coalesce(o.receiver_zone, '') like c.district || '%'
+                          or c.district like left(coalesce(o.receiver_zone, ''), 2) || '%'
+                      )
+                    order by length(c.province) + length(c.city) + length(c.district) desc
+                    limit 1
+                ) address_cost on true
+                left join lateral (
+                    select r.logistics_company, r.base_fee
+                    from logistics_special_rule r
+                    where r.tenant_id = o.tenant_id
+                      and r.institution_id = o.institution_id
+                      and r.enabled = true
+                    order by r.created_at desc
+                    limit 1
+                ) special_rule on true
+                where o.order_no = ? or o.external_order_no = ?
+                limit 1
+                """;
+        return jdbcTemplate.query(sql, this::mapLegacyLogisticsCost, orderNo, orderNo).stream().findFirst();
+    }
+
+    public List<LogisticsRecords.LegacyRecipeInfoRecord> findLegacyRecipeInfos(Integer queryWay, String paramValue) {
+        QueryParts parts = new QueryParts("""
+                select o.id as order_id,
+                       o.order_no,
+                       p.prescription_no,
+                       o.status as order_status,
+                       o.created_at as order_time,
+                       s.logistics_company as logistics_company_name,
+                       s.logistics_no,
+                       o.patient_name,
+                       p.diagnosis,
+                       p.medication_method,
+                       p.prescription_remark,
+                       p.dose_count,
+                       coalesce(nullif(latest_trace.trace_content, ''), latest_trace.trace_status) as last_logistics_info
+                from order_main o
+                left join prescription p on p.order_id = o.id
+                left join shipment s on s.order_id = o.id
+                left join lateral (
+                    select t.trace_status, t.trace_content
+                    from shipment_trace t
+                    where t.order_id = o.id
+                    order by t.trace_time desc, t.created_at desc
+                    limit 1
+                ) latest_trace on true
+                where 1 = 1
+                """);
+        if (queryWay != null && queryWay == 1) {
+            parts.append(" and (o.order_no = ? or o.external_order_no = ?)");
+            parts.add(paramValue);
+            parts.add(paramValue);
+        } else {
+            parts.append(" and (o.receiver_phone = ? or o.patient_phone = ?)");
+            parts.add(paramValue);
+            parts.add(paramValue);
+        }
+        parts.append(" order by o.created_at desc, p.created_at asc limit 50");
+        return jdbcTemplate.query(parts.sql(), this::mapLegacyRecipeInfo, parts.args());
+    }
+
+    public List<LogisticsRecords.LegacyRecipeLogisticsInfoRecord> findLegacyRecipeLogisticsInfos(UUID orderId) {
+        String sql = """
+                select t.trace_status,
+                       coalesce(nullif(t.trace_content, ''), t.trace_status) as operation_info,
+                       t.trace_time,
+                       t.raw_payload ->> 'operator' as operator,
+                       t.raw_payload ->> 'imageUrl' as image_url
+                from shipment_trace t
+                where t.order_id = ?
+                order by t.trace_time desc, t.created_at desc
+                """;
+        return jdbcTemplate.query(sql, this::mapLegacyRecipeLogisticsInfo, orderId);
+    }
+
     private String baseShipmentQuery() {
         return """
                 select s.id as shipment_id,
@@ -343,6 +446,46 @@ public class LogisticsRepository {
                 rs.getString("receiver_phone"),
                 instant(rs, "trace_time"),
                 instant(rs, "created_at")
+        );
+    }
+
+    private LogisticsRecords.LegacyLogisticsCostRecord mapLegacyLogisticsCost(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new LogisticsRecords.LegacyLogisticsCostRecord(
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getBigDecimal("collection_money"),
+                rs.getString("logistics_company_name"),
+                rs.getString("pay_method")
+        );
+    }
+
+    private LogisticsRecords.LegacyRecipeInfoRecord mapLegacyRecipeInfo(ResultSet rs, int rowNum) throws SQLException {
+        return new LogisticsRecords.LegacyRecipeInfoRecord(
+                rs.getObject("order_id", UUID.class),
+                rs.getString("order_no"),
+                rs.getString("prescription_no"),
+                rs.getString("order_status"),
+                instant(rs, "order_time"),
+                rs.getString("logistics_company_name"),
+                rs.getString("logistics_no"),
+                rs.getString("patient_name"),
+                rs.getString("diagnosis"),
+                rs.getString("medication_method"),
+                rs.getString("prescription_remark"),
+                (Integer) rs.getObject("dose_count"),
+                rs.getString("last_logistics_info")
+        );
+    }
+
+    private LogisticsRecords.LegacyRecipeLogisticsInfoRecord mapLegacyRecipeLogisticsInfo(ResultSet rs, int rowNum)
+            throws SQLException {
+        return new LogisticsRecords.LegacyRecipeLogisticsInfoRecord(
+                rs.getString("trace_status"),
+                rs.getString("operator"),
+                instant(rs, "trace_time"),
+                rs.getString("operation_info"),
+                rs.getString("image_url")
         );
     }
 

@@ -86,4 +86,39 @@ public final class LogisticsRecords {
             Instant createdAt
     ) {
     }
+
+    public record LegacyLogisticsCostRecord(
+            String orderNo,
+            String externalOrderNo,
+            BigDecimal collectionMoney,
+            String logisticsCompanyName,
+            String payMethod
+    ) {
+    }
+
+    public record LegacyRecipeInfoRecord(
+            UUID orderId,
+            String orderNo,
+            String prescriptionNo,
+            String orderStatus,
+            Instant orderTime,
+            String logisticsCompanyName,
+            String logisticsNo,
+            String patientName,
+            String diagnosis,
+            String medicationMethod,
+            String prescriptionRemark,
+            Integer doseCount,
+            String lastLogisticsInfo
+    ) {
+    }
+
+    public record LegacyRecipeLogisticsInfoRecord(
+            String processStatus,
+            String operator,
+            Instant operationTime,
+            String operationInfo,
+            String imageUrl
+    ) {
+    }
 }
