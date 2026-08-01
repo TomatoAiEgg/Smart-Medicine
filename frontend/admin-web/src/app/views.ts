@@ -6,6 +6,7 @@ export type ImplementedViewKey =
   | 'reviews'
   | 'dispensePrint'
   | 'rechecks'
+  | 'recheckRecords'
   | 'recheckScan'
   | 'decoction'
   | 'logistics'
@@ -524,9 +525,9 @@ export const menuItems = [
     priority: 'P1',
     implemented: true,
     subtitle: '复核记录查询和管理',
-    componentKey: 'rechecks',
+    componentKey: 'recheckRecords',
     showCount: true,
-    plannedComponent: 'features/workflow/WorkflowTasks.vue',
+    plannedComponent: 'features/orders/RecheckRecords.vue',
     coreActions: ['复核记录查询', '导出'],
     apiDependencies: ['复核记录', '导出任务'],
   },

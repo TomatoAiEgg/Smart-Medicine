@@ -998,6 +998,61 @@ export interface AdminManualProcessResult {
   processedAt: string;
 }
 
+export interface AdminOrderRecheckQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  isWithin?: number | string;
+  deliveryType?: string;
+  recheckStatus?: string;
+  batchNo?: string;
+  prescriptionNo?: string;
+  dispenser?: string;
+  rechecker?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderRecheckItem {
+  orderId: string;
+  tenantId: string;
+  institutionId: string;
+  prescriptionId: string;
+  institutionName: string;
+  storageType: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  prescriptionNo: string;
+  externalPrescriptionNo: string;
+  prescriptionType: string | null;
+  hospitalType: string | null;
+  isWithin: number | null;
+  doseCount: number | null;
+  patientName: string | null;
+  patientPhone: string | null;
+  addressType: string | null;
+  batchNo: string | null;
+  deliveryTime: string | null;
+  orderCreatedAt: string;
+  dispensedAt: string | null;
+  dispenser: string | null;
+  recheckedAt: string | null;
+  rechecker: string | null;
+  pailNos: string | null;
+  orderRemark: string | null;
+  updatedAt: string;
+}
+
+export interface AdminOrderRecheckPage {
+  records: AdminOrderRecheckItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AdminOrderWarehouseQueryParams {
   startTime?: string;
   endTime?: string;

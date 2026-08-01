@@ -89,6 +89,8 @@ import com.zhyf.order.application.AdminOrderReceiptCommand;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderReceiptResult;
+import com.zhyf.order.application.AdminOrderRecheckPage;
+import com.zhyf.order.application.AdminOrderRecheckQuery;
 import com.zhyf.order.application.AdminOrderRemarkUpdateCommand;
 import com.zhyf.order.application.AdminOrderRemarkUpdateResult;
 import com.zhyf.order.application.AdminOrderWarehousePage;
@@ -414,6 +416,41 @@ public class InstitutionOrderController {
             @RequestBody(required = false) AdminManualProcessCommand command
     ) {
         return ApiResponse.ok(orderService.manualProcessAdminOrder(orderNo, command));
+    }
+
+    @GetMapping("/admin/recheck-records")
+    public ApiResponse<AdminOrderRecheckPage> listRecheckRecords(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) Integer isWithin,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String recheckStatus,
+            @RequestParam(required = false) String batchNo,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String dispenser,
+            @RequestParam(required = false) String rechecker,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderRechecks(new AdminOrderRecheckQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                isWithin,
+                deliveryType,
+                recheckStatus,
+                batchNo,
+                prescriptionNo,
+                dispenser,
+                rechecker,
+                page,
+                pageSize
+        )));
     }
 
     @GetMapping("/admin/order-warehouses")

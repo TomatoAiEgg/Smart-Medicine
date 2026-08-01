@@ -113,6 +113,8 @@ import type {
   AdminOrderReceiptPage,
   AdminOrderReceiptQueryParams,
   AdminOrderReceiptResult,
+  AdminOrderRecheckPage,
+  AdminOrderRecheckQueryParams,
   AdminPrescriptionActionCommand,
   AdminPrescriptionActionResult,
   AdminPrescriptionPrintPayload,
@@ -588,6 +590,12 @@ export function listAdminManualProcessOrders(params: AdminManualProcessQueryPara
     ? `/order-api/api/admin/manual-process-orders?${query}`
     : '/order-api/api/admin/manual-process-orders';
   return request<AdminManualProcessPage>(url);
+}
+
+export function listAdminOrderRechecks(params: AdminOrderRecheckQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/recheck-records?${query}` : '/order-api/api/admin/recheck-records';
+  return request<AdminOrderRecheckPage>(url);
 }
 
 export function manualProcessAdminOrder(orderNo: string, command: AdminManualProcessCommand) {

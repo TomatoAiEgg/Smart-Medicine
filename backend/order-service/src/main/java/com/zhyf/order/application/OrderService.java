@@ -1266,6 +1266,28 @@ public class OrderService {
         return orderRepository.searchAdminManualProcessOrders(normalized);
     }
 
+    public AdminOrderRecheckPage listAdminOrderRechecks(AdminOrderRecheckQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        AdminOrderRecheckQuery normalized = new AdminOrderRecheckQuery(
+                query.startTime(),
+                query.endTime(),
+                query.institution(),
+                query.prescriptionType(),
+                query.hospitalType(),
+                query.isWithin(),
+                query.deliveryType(),
+                normalizeAdminRecheckStatus(query.recheckStatus()),
+                query.batchNo(),
+                query.prescriptionNo(),
+                query.dispenser(),
+                query.rechecker(),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminOrderRechecks(normalized);
+    }
+
     public AdminOrderWarehousePage listAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
         AdminOrderWarehouseQuery normalized = normalizeOrderWarehouseQuery(query, false);
         return orderRepository.searchAdminOrderWarehouses(normalized);
@@ -3101,6 +3123,18 @@ public class OrderService {
     private String defaultText(String value, String fallback) {
         String cleaned = cleanText(value);
         return cleaned == null ? fallback : cleaned;
+    }
+
+    private String normalizeAdminRecheckStatus(String value) {
+        String cleaned = cleanText(value);
+        if (cleaned == null) {
+            return "PENDING";
+        }
+        String normalized = cleaned.toUpperCase(Locale.ROOT);
+        if ("1".equals(normalized) || "RECHECKED".equals(normalized) || "DONE".equals(normalized)) {
+            return "RECHECKED";
+        }
+        return "PENDING";
     }
 
     private String herbIndexAction(AdminHerbIndexRecord before, AdminHerbIndexRecord after) {

@@ -66,6 +66,9 @@ import com.zhyf.order.application.AdminOrderInterceptRuleRecord;
 import com.zhyf.order.application.AdminOrderReceiptItem;
 import com.zhyf.order.application.AdminOrderReceiptPage;
 import com.zhyf.order.application.AdminOrderReceiptQuery;
+import com.zhyf.order.application.AdminOrderRecheckItem;
+import com.zhyf.order.application.AdminOrderRecheckPage;
+import com.zhyf.order.application.AdminOrderRecheckQuery;
 import com.zhyf.order.application.AdminOrderWarehouseItem;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
@@ -2620,6 +2623,94 @@ public class OrderRepository {
         );
     }
 
+    public AdminOrderRecheckPage searchAdminOrderRechecks(AdminOrderRecheckQuery query) {
+        QueryParts filters = adminOrderRecheckFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(distinct p.id)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    p.id as prescription_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    p.prescription_no,
+                    p.external_prescription_no,
+                    p.prescription_type,
+                    p.hospital_type,
+                    p.is_within,
+                    p.dose_count,
+                    o.patient_name,
+                    o.patient_phone,
+                    o.address_type,
+                    o.batch_no,
+                    o.delivery_time,
+                    o.created_at as order_created_at,
+                    latest_dispense.dispensed_at,
+                    latest_dispense.dispenser,
+                    latest_recheck.rechecked_at,
+                    latest_recheck.rechecker,
+                    pails.pail_nos,
+                    o.order_remark,
+                    o.updated_at
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select d.dispenser, d.dispensed_at
+                    from dispense_record d
+                    where d.order_id = o.id
+                    order by d.dispensed_at desc, d.id desc
+                    limit 1
+                ) latest_dispense on true
+                left join lateral (
+                    select r.rechecker, r.rechecked_at
+                    from prescription_recheck_record r
+                    where r.order_id = o.id
+                    order by r.rechecked_at desc, r.id desc
+                    limit 1
+                ) latest_recheck on true
+                left join lateral (
+                    select string_agg(x.pail_no, ',') as pail_nos
+                    from (
+                        select distinct dt.pail_no
+                        from decoction_task dt
+                        where dt.order_id = o.id
+                          and (dt.prescription_id = p.id or dt.prescription_no = p.prescription_no)
+                          and nullif(dt.pail_no, '') is not null
+                        order by dt.pail_no
+                    ) x
+                ) pails on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append(" order by o.created_at desc, p.prescription_no desc limit ? offset ?");
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminOrderRecheckPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderRecheckItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
     public AdminOrderWarehousePage searchAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
         QueryParts filters = adminOrderWarehouseFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -3634,6 +3725,71 @@ public class OrderRepository {
             filters.append(" and p.dose_count < 3");
         } else if ("HIGH".equals(query.doseRange()) || "2".equals(query.doseRange())) {
             filters.append(" and p.dose_count >= 3");
+        }
+        return filters;
+    }
+
+    private QueryParts adminOrderRecheckFilters(AdminOrderRecheckQuery query) {
+        QueryParts filters = new QueryParts("");
+        filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        filters.addLikeFilter("i.institution_name", query.institution());
+        filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addEqualsFilter("p.hospital_type", query.hospitalType());
+        filters.addEqualsFilter("o.address_type", query.deliveryType());
+        filters.addEqualsFilter("o.batch_no", query.batchNo());
+        filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
+        if (query.isWithin() != null) {
+            filters.append(" and p.is_within = ?");
+            filters.add(query.isWithin());
+        }
+        String dispenser = filters.trimmed(query.dispenser());
+        if (dispenser != null) {
+            filters.append("""
+                     and exists (
+                        select 1
+                        from dispense_record d
+                        where d.order_id = o.id
+                          and d.dispenser ilike ?
+                    )
+                    """);
+            filters.add("%" + dispenser + "%");
+        }
+        String rechecker = filters.trimmed(query.rechecker());
+        if (rechecker != null) {
+            filters.append("""
+                     and exists (
+                        select 1
+                        from prescription_recheck_record r
+                        where r.order_id = o.id
+                          and r.rechecker ilike ?
+                    )
+                    """);
+            filters.add("%" + rechecker + "%");
+        }
+        filters.append("""
+                 and exists (
+                    select 1
+                    from dispense_record d
+                    where d.order_id = o.id
+                )
+                """);
+        if ("RECHECKED".equals(query.recheckStatus())) {
+            filters.append("""
+                     and exists (
+                        select 1
+                        from prescription_recheck_record r
+                        where r.order_id = o.id
+                    )
+                    """);
+        } else {
+            filters.append("""
+                     and o.status = 'AUDIT_PASSED'
+                     and not exists (
+                        select 1
+                        from prescription_recheck_record r
+                        where r.order_id = o.id
+                    )
+                    """);
         }
         return filters;
     }
@@ -4743,6 +4899,39 @@ public class OrderRepository {
                 rs.getString("logistics_status"),
                 instant(rs, "latest_trace_time"),
                 instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderRecheckItem mapAdminOrderRecheckItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderRecheckItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getObject("prescription_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("prescription_no"),
+                rs.getString("external_prescription_no"),
+                rs.getString("prescription_type"),
+                rs.getString("hospital_type"),
+                integer(rs, "is_within"),
+                integer(rs, "dose_count"),
+                rs.getString("patient_name"),
+                rs.getString("patient_phone"),
+                rs.getString("address_type"),
+                rs.getString("batch_no"),
+                instant(rs, "delivery_time"),
+                instant(rs, "order_created_at"),
+                instant(rs, "dispensed_at"),
+                rs.getString("dispenser"),
+                instant(rs, "rechecked_at"),
+                rs.getString("rechecker"),
+                rs.getString("pail_nos"),
+                rs.getString("order_remark"),
                 instant(rs, "updated_at")
         );
     }
