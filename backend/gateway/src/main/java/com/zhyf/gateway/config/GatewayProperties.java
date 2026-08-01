@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record GatewayProperties(
         String authInstitutionBaseUrl,
         String orderServiceBaseUrl,
-        long signatureTimeoutSeconds
+        long signatureTimeoutSeconds,
+        String szlgzxyyPublicKey,
+        String szlgzxyyPrivateKey
 ) {
 }

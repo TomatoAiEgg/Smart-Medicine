@@ -14,6 +14,8 @@ zhyf:
     auth-institution-base-url: ${AUTH_INSTITUTION_BASE_URL:http://localhost:18081}
     order-service-base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:18082}
     signature-timeout-seconds: ${GATEWAY_SIGNATURE_TIMEOUT_SECONDS:300}
+    szlgzxyy-public-key: ${SZLGZXYY_PUBLIC_KEY:}
+    szlgzxyy-private-key: ${SZLGZXYY_PRIVATE_KEY:}
 
 management:
   endpoints:
