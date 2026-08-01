@@ -1219,6 +1219,7 @@ defineExpose({
             <th>病人姓名</th>
             <th>处方类型</th>
             <th>剂数</th>
+            <th>味数</th>
             <th>处方金额</th>
             <th>送货方式</th>
             <th>收货信息</th>
@@ -1231,7 +1232,7 @@ defineExpose({
         </thead>
         <tbody>
           <tr v-if="orderRows.length === 0" class="legacy-main-info">
-            <td colspan="17" class="legacy-empty">
+            <td colspan="18" class="legacy-empty">
               {{ orderLoading ? '正在查询处方订单' : '请输入筛选条件后查询' }}
             </td>
           </tr>
@@ -1245,6 +1246,7 @@ defineExpose({
             <td>{{ displayValue(row.patientName) }}</td>
             <td>{{ displayValue(row.prescriptionTypes) }}</td>
             <td>{{ displayValue(row.doseCount) }}</td>
+            <td>{{ displayValue(row.detailCount) }}</td>
             <td>{{ moneyValue(row.totalAmount) }}</td>
             <td>{{ deliveryTypeText(row.addressType) }}</td>
             <td class="legacy-left">{{ receiverSummary(row) }}</td>
@@ -1261,7 +1263,7 @@ defineExpose({
                 :disabled="detailLoading && selectedOrderNo === row.orderNo"
                 @click="loadOrderDetail(row)"
               >
-                {{ detailLoading && selectedOrderNo === row.orderNo ? '加载中' : '查看详情' }}
+                {{ detailLoading && selectedOrderNo === row.orderNo ? '加载中' : '查看' }}
               </button>
             </td>
           </tr>
