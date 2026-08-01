@@ -939,7 +939,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/reports/DispensePerformanceDetails.vue',
     coreActions: ['明细', '导出'],
-    apiDependencies: ['调剂绩效明细', '异步导出任务'],
+    apiDependencies: ['调剂绩效明细', '调剂绩效明细 CSV 导出'],
   },
   {
     key: 'reportRecheckPerformance',
@@ -969,7 +969,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/reports/RecheckPerformanceDetails.vue',
     coreActions: ['明细', '导出'],
-    apiDependencies: ['复核绩效明细', '人员筛选', '异步导出任务'],
+    apiDependencies: ['复核绩效明细', '复核绩效明细 CSV 导出'],
   },
   {
     key: 'reportDecoctionPerformance',
@@ -999,7 +999,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/reports/DecoctionPerformanceDetails.vue',
     coreActions: ['明细', '导出'],
-    apiDependencies: ['煎煮绩效明细', '设备作业记录', '异步导出任务'],
+    apiDependencies: ['煎煮绩效明细', '煎煮绩效明细 CSV 导出'],
   },
   {
     key: 'reportLogisticsPerformance',
@@ -1163,7 +1163,7 @@ export const menuItems = [
     showCount: true,
     plannedComponent: 'features/decoction/DecoctionWorkspace.vue',
     coreActions: ['云打印记录入口', '当前结果筛选', '云打印导出', '浏览器补打单', '云打印缺口提示'],
-    apiDependencies: ['煎煮绩效明细查询', '云打印下发待补', '云端重打记录待补'],
+    apiDependencies: ['煎煮绩效明细查询', '浏览器补打当前结果', '云打印下发/回执未启用'],
   },
 ] as const satisfies readonly MenuItem[];
 

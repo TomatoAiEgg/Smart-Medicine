@@ -10,11 +10,11 @@ defineProps<{
   <article class="pending-menu-page">
     <section class="pending-menu-summary">
       <div>
-        <strong>页面待实现</strong>
-        <span>接口待接入</span>
+        <strong>未挂载页面组件</strong>
+        <span>依赖待确认</span>
       </div>
       <p>
-        此路由已接入菜单和浏览器地址，等待后端 API、权限和页面组件实现后再承载业务数据。
+        此路由已接入菜单和浏览器地址，但当前没有匹配的页面组件。补齐组件和依赖契约后再承载业务数据。
       </p>
     </section>
 
@@ -46,7 +46,7 @@ defineProps<{
     </section>
 
     <section class="pending-menu-section">
-      <h2>待接入 API</h2>
+      <h2>页面依赖</h2>
       <ul>
         <li v-for="dependency in item.apiDependencies" :key="dependency">{{ dependency }}</li>
       </ul>

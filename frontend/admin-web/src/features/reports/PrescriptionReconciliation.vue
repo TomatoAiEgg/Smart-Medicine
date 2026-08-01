@@ -251,7 +251,7 @@ defineExpose({
     </ul>
 
     <p class="reconciliation-hint">
-      当前明细口径来自订单/处方分页查询，金额为处方订单金额字段；机构结算汇总、对账批次和异步导出任务等待专用后端口径。
+      当前明细口径来自订单/处方分页查询，CSV 使用订单导出接口；机构结算汇总和对账批次属于后续财务专用口径。
     </p>
     <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
 

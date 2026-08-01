@@ -71,7 +71,7 @@ function downloadMenuCsv() {
       row.path,
       row.legacyRoute ?? '',
       row.priority,
-      row.implemented ? '已接入' : '待接入',
+      row.implemented ? '已挂载组件' : '未挂载组件',
       row.plannedComponent,
       row.coreActions.join('、'),
       row.apiDependencies.join('、'),
@@ -130,8 +130,8 @@ defineExpose({
         状态：
         <select v-model="statusFilter" class="legacy-input input-small">
           <option value="all">全部</option>
-          <option value="implemented">已接入</option>
-          <option value="pending">待接入</option>
+          <option value="implemented">已挂载组件</option>
+          <option value="pending">未挂载组件</option>
         </select>
       </li>
       <li>
@@ -156,11 +156,11 @@ defineExpose({
       </li>
       <li>
         <strong>{{ formatNumber(implementedCount) }}</strong>
-        <span>已接入</span>
+        <span>已挂载组件</span>
       </li>
       <li>
         <strong>{{ formatNumber(pendingCount) }}</strong>
-        <span>待接入</span>
+        <span>未挂载组件</span>
       </li>
       <li>
         <strong>{{ formatNumber(filteredCount) }}</strong>
@@ -201,7 +201,7 @@ defineExpose({
               <td>{{ row.priority }}</td>
               <td>
                 <span :class="['menu-registry-status', row.implemented ? 'is-ready' : 'is-pending']">
-                  {{ row.implemented ? '已接入' : '待接入' }}
+                  {{ row.implemented ? '已挂载组件' : '未挂载组件' }}
                 </span>
               </td>
               <td>{{ row.plannedComponent }}</td>

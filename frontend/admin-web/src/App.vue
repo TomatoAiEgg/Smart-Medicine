@@ -709,7 +709,7 @@ async function refreshCurrentTasks() {
     await decoctionWorkspaceRef.value?.refreshDecoctionSimulator();
     return;
   }
-  showNotice('info', `${currentRouteItem.value.label} 页面待实现，暂无可刷新数据`);
+  showNotice('info', `${currentRouteItem.value.label} 当前未配置页面刷新方法`);
 }
 
 function closeTab(view: ViewKey) {
