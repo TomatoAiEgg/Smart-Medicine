@@ -45,25 +45,19 @@ const activeGroupNames = computed(() => {
   }
   return names;
 });
+
 const expandedGroupNames = ref<Set<string>>(new Set(['订单管理']));
 
-const groupIcons: Record<string, string> = {
-  系统入口: '▦',
-  系统管理: '▣',
-  参数管理: '▦',
-  机构管理: '▤',
-  物流管理: '▱',
-  订单管理: '▥',
-  维护管理: '▧',
-  标签管理: '▨',
-  短信管理: '▩',
-  药品管理: '▰',
-  报表管理: '▢',
-  煎煮管理: '▮',
-};
+const groupIndexMap = computed(() => {
+  const entries: Array<[string, string]> = [];
+  groupedMenuItems.value.forEach((group, index) => {
+    entries.push([group.name, String(index + 1).padStart(2, '0')]);
+  });
+  return Object.fromEntries(entries);
+});
 
-function groupIcon(groupName: string) {
-  return groupIcons[groupName] ?? '▣';
+function groupIndex(groupName: string) {
+  return groupIndexMap.value[groupName] ?? '00';
 }
 
 function isGroupOpen(groupName: string) {
@@ -82,38 +76,49 @@ function toggleGroup(groupName: string) {
 </script>
 
 <template>
-  <div class="legacy-shell">
-    <header class="legacy-north">
-      <div class="legacy-logo">良益堂煎药管理系统</div>
+  <div class="cloud-console-shell">
+    <header class="cloud-console-header">
+      <div class="cloud-console-brand">
+        <span class="cloud-console-brand-mark">YF</span>
+        <div>
+          <strong>智能药房 SaaS 平台</strong>
+          <small>运营控制台</small>
+        </div>
+      </div>
+
+      <div class="cloud-console-header-actions">
+        <t-tag theme="success" variant="light">生产环境</t-tag>
+        <span>admin</span>
+      </div>
     </header>
 
-    <aside class="legacy-west">
+    <aside class="cloud-console-sidebar">
       <RouterLink v-slot="{ navigate }" :to="homePath" custom>
         <button
           type="button"
-          class="legacy-home-link"
+          class="cloud-console-home"
           :class="{ active: activeView === 'dashboard' }"
           @click="navigate"
         >
           <span>首页</span>
-          <b>«</b>
+          <b>HOME</b>
         </button>
       </RouterLink>
 
-      <nav class="legacy-accordion">
+      <nav class="cloud-console-nav">
         <section
           v-for="group in groupedMenuItems"
           :key="group.name"
-          class="legacy-menu-group"
+          class="cloud-console-menu-group"
           :class="{ open: isGroupOpen(group.name) }"
         >
-          <button type="button" class="legacy-menu-title" @click="toggleGroup(group.name)">
-            <span class="legacy-menu-icon">{{ groupIcon(group.name) }}</span>
+          <button type="button" class="cloud-console-menu-title" @click="toggleGroup(group.name)">
+            <span class="cloud-console-menu-index">{{ groupIndex(group.name) }}</span>
             <span>{{ group.name }}</span>
-            <b>⌄</b>
+            <b>{{ isGroupOpen(group.name) ? '收起' : '展开' }}</b>
           </button>
 
-          <div class="legacy-menu-items">
+          <div class="cloud-console-menu-items">
             <RouterLink
               v-for="item in group.items"
               :key="item.key"
@@ -127,14 +132,16 @@ function toggleGroup(groupName: string) {
                 @click="navigate"
               >
                 <span>{{ item.label }}</span>
-                <b v-if="item.showCount">{{ counts[item.key as ViewKey] ?? 0 }}</b>
+                <t-tag v-if="item.showCount" theme="primary" variant="light" size="small">
+                  {{ counts[item.key as ViewKey] ?? 0 }}
+                </t-tag>
               </button>
             </RouterLink>
           </div>
         </section>
       </nav>
 
-      <div class="legacy-service-targets">
+      <div class="cloud-console-service-targets">
         <span>服务目标</span>
         <code>order-service :18082</code>
         <code>workflow-service :18085</code>
@@ -144,47 +151,51 @@ function toggleGroup(groupName: string) {
       </div>
     </aside>
 
-    <main class="legacy-center">
-      <div class="legacy-tabs">
+    <main class="cloud-console-main">
+      <div class="cloud-console-tabs">
         <div
           v-for="tab in tabs"
           :key="tab.key"
-          class="legacy-tab"
+          class="cloud-console-tab"
           :class="{ active: activeView === tab.key }"
         >
           <RouterLink v-slot="{ navigate }" :to="tab.path" custom>
-            <button type="button" class="legacy-tab-main" @click="navigate">
+            <button type="button" class="cloud-console-tab-main" @click="navigate">
               {{ tab.label }}
             </button>
           </RouterLink>
           <button
             v-if="tab.closable"
             type="button"
-            class="legacy-tab-close"
+            class="cloud-console-tab-close"
             :title="`关闭${tab.label}`"
             @click.stop="$emit('closeTab', tab.key)"
           >
-            ×
+            x
           </button>
         </div>
       </div>
 
-      <section class="legacy-content">
-        <header class="topbar">
+      <section class="cloud-console-content">
+        <header class="cloud-console-page-header topbar">
           <div>
             <p>{{ subtitle }}</p>
             <h1>{{ title }}</h1>
           </div>
-          <button class="icon-button" type="button" title="刷新当前页面" @click="$emit('refresh')">
-            ↻
-          </button>
+          <t-button theme="primary" variant="outline" size="small" @click="$emit('refresh')">
+            刷新
+          </t-button>
         </header>
 
-        <div v-if="notice" class="notice" :class="notice.tone">
-          {{ notice.text }}
-        </div>
+        <t-alert
+          v-if="notice"
+          class="cloud-console-notice"
+          :theme="notice.tone === 'error' ? 'error' : notice.tone"
+          :message="notice.text"
+          close
+        />
 
-        <section class="page-frame">
+        <section class="cloud-console-page-frame page-frame">
           <slot />
         </section>
       </section>
