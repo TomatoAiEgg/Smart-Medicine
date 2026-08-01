@@ -28,6 +28,11 @@ import type {
   AdminDecoctCenterPage,
   AdminDecoctCenterQueryParams,
   AdminDecoctCenterRecord,
+  AdminExportTaskBatchRunResult,
+  AdminExportTaskCreateParams,
+  AdminExportTaskPage,
+  AdminExportTaskQueryParams,
+  AdminExportTaskRecord,
   AdminHerbCommand,
   AdminHerbPage,
   AdminHerbQueryParams,
@@ -132,6 +137,46 @@ export function listAdminOrders(params: AdminOrderQueryParams = {}) {
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/orders?${query}` : '/order-api/api/admin/orders';
   return request<AdminOrderPage>(url);
+}
+
+export function listAdminExportTasks(params: AdminExportTaskQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/export-tasks?${query}` : '/order-api/api/admin/export-tasks';
+  return request<AdminExportTaskPage>(url);
+}
+
+export function createAdminOrderExportTask(params: AdminExportTaskCreateParams = {}) {
+  const query = buildOrderQuery(params);
+  return request<AdminExportTaskRecord>(`/order-api/api/admin/export-tasks/orders${query ? `?${query}` : ''}`, {
+    method: 'POST',
+  });
+}
+
+export function createAdminOrderWarehouseExportTask(params: AdminExportTaskCreateParams = {}) {
+  const query = buildOrderQuery(params);
+  return request<AdminExportTaskRecord>(
+    `/order-api/api/admin/export-tasks/order-warehouses${query ? `?${query}` : ''}`,
+    {
+      method: 'POST',
+    },
+  );
+}
+
+export function runAdminExportTask(taskId: string) {
+  return request<AdminExportTaskRecord>(`/order-api/api/admin/export-tasks/${encodeURIComponent(taskId)}/run`, {
+    method: 'POST',
+  });
+}
+
+export function runPendingAdminExportTasks(limit = 20) {
+  const query = new URLSearchParams({ limit: String(limit) }).toString();
+  return request<AdminExportTaskBatchRunResult>(`/order-api/api/admin/export-tasks/run-pending?${query}`, {
+    method: 'POST',
+  });
+}
+
+export function downloadAdminExportTaskFile(taskId: string) {
+  return downloadBlob(`/order-api/api/admin/export-tasks/${encodeURIComponent(taskId)}/file`);
 }
 
 export function listAdminOrderReceipts(params: AdminOrderReceiptQueryParams = {}) {

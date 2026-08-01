@@ -44,6 +44,7 @@ export type ImplementedViewKey =
   | 'institutionPrescriptionCounts'
   | 'prescriptionReconciliation'
   | 'integration'
+  | 'exportTasks'
   | 'observability'
   | 'ops'
   | 'problemRegistrations'
@@ -136,6 +137,21 @@ export const standaloneRouteItems = [
     plannedComponent: 'features/integration/IntegrationConsole.vue',
     coreActions: ['消息查询', '地址回推', '失败重试', '导出'],
     apiDependencies: ['外部消息', '地址回调', '重试任务'],
+  },
+  {
+    key: 'exportTasks',
+    label: '导出任务中心',
+    group: '绯荤粺鍏ュ彛',
+    path: '/exports/tasks',
+    legacyRoute: null,
+    priority: 'P0',
+    implemented: true,
+    subtitle: '统一创建、执行、重试和下载后台导出任务',
+    componentKey: 'exportTasks',
+    showCount: true,
+    plannedComponent: 'features/exports/ExportTaskCenter.vue',
+    coreActions: ['任务查询', '创建导出', '执行待处理', '失败重试', '文件下载'],
+    apiDependencies: ['导出任务查询', '订单导出任务', '订单仓库导出任务', '导出文件下载'],
   },
 ] as const satisfies readonly AppRouteItem[];
 

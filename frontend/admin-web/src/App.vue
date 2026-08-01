@@ -20,6 +20,7 @@ import HerbIndexList from './features/drug/HerbIndexList.vue';
 import HerbIndexImport from './features/drug/HerbIndexImport.vue';
 import HerbIndexOperationLog from './features/drug/HerbIndexOperationLog.vue';
 import HerbList from './features/drug/HerbList.vue';
+import ExportTaskCenter from './features/exports/ExportTaskCenter.vue';
 import IntegrationConsole from './features/integration/IntegrationConsole.vue';
 import ApiInfoList from './features/institution/ApiInfoList.vue';
 import ApiPermissionList from './features/institution/ApiPermissionList.vue';
@@ -123,6 +124,7 @@ const institutionApiPermissionsRef = ref<InstanceType<typeof ApiPermissionList> 
 const opsConsoleRef = ref<InstanceType<typeof OpsConsole> | null>(null);
 const portalLookupRef = ref<InstanceType<typeof PortalLookup> | null>(null);
 const integrationConsoleRef = ref<InstanceType<typeof IntegrationConsole> | null>(null);
+const exportTaskCenterRef = ref<InstanceType<typeof ExportTaskCenter> | null>(null);
 const addressCostRef = ref<InstanceType<typeof AddressCost> | null>(null);
 const logisSpecialRuleRef = ref<InstanceType<typeof LogisSpecialRule> | null>(null);
 const logisPrintRef = ref<InstanceType<typeof LogisPrint> | null>(null);
@@ -208,6 +210,7 @@ const institutionApisActivationKey = ref(0);
 const institutionApiPermissionsActivationKey = ref(0);
 const opsCount = ref(0);
 const integrationCount = ref(0);
+const exportTaskCount = ref(0);
 const addressCostCount = ref(0);
 const logisSpecialRuleCount = ref(0);
 const logisPrintCount = ref(0);
@@ -234,6 +237,7 @@ const decoctionCloudPrintCount = ref(0);
 const observabilityCount = ref(0);
 const opsActivationKey = ref(0);
 const integrationActivationKey = ref(0);
+const exportTaskActivationKey = ref(0);
 const addressCostActivationKey = ref(0);
 const logisSpecialRuleActivationKey = ref(0);
 const logisPrintActivationKey = ref(0);
@@ -359,6 +363,7 @@ const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   maintenanceProblemRegistrations: problemRegistrationCount.value,
   reports: reportTotalOrders.value,
   integration: integrationCount.value,
+  exportTasks: exportTaskCount.value,
   observability: observabilityCount.value,
   ops: opsCount.value,
 }));
@@ -415,6 +420,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'ops') opsActivationKey.value += 1;
   if (componentKey === 'observability') observabilityActivationKey.value += 1;
   if (componentKey === 'integration') integrationActivationKey.value += 1;
+  if (componentKey === 'exportTasks') exportTaskActivationKey.value += 1;
   if (componentKey === 'logisticsAddressCosts') addressCostActivationKey.value += 1;
   if (componentKey === 'logisticsSpecialRules') logisSpecialRuleActivationKey.value += 1;
   if (componentKey === 'logisticsPrint') logisPrintActivationKey.value += 1;
@@ -471,6 +477,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'integration') {
     await integrationConsoleRef.value?.refreshIntegrationMessages();
+    return;
+  }
+  if (componentKey === 'exportTasks') {
+    await exportTaskCenterRef.value?.refreshExportTasks();
     return;
   }
   if (componentKey === 'reports') {
@@ -1010,6 +1020,15 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'integration'"
       :activation-key="integrationActivationKey"
       @count-changed="integrationCount = $event"
+      @notice="showNotice"
+    />
+
+    <ExportTaskCenter
+      v-show="currentComponentKey === 'exportTasks'"
+      ref="exportTaskCenterRef"
+      :active="currentComponentKey === 'exportTasks'"
+      :activation-key="exportTaskActivationKey"
+      @count-changed="exportTaskCount = $event"
       @notice="showNotice"
     />
 

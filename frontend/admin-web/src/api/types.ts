@@ -79,6 +79,71 @@ export interface AdminOrderPage {
   pageSize: number;
 }
 
+export interface AdminExportTaskQueryParams {
+  taskType?: string;
+  taskStatus?: string;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminExportTaskCreateParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  orderStatus?: string;
+  excludeOrderStatus?: string;
+  decoctionCenter?: string;
+  deliveryType?: string;
+  logisticsCompany?: string;
+  province?: string;
+  keyword?: string;
+  orderNo?: string;
+  prescriptionNo?: string;
+  hospitalPrescriptionNo?: string;
+  patientName?: string;
+  receiverPhone?: string;
+  nodeTime?: string;
+  requestedBy?: string;
+  runImmediately?: boolean;
+}
+
+export interface AdminExportTaskRecord {
+  taskId: string;
+  tenantId: string;
+  taskType: string;
+  taskName: string;
+  taskStatus: string;
+  queryParam: string;
+  fileName: string | null;
+  contentType: string | null;
+  rowCount: number | null;
+  fileSizeBytes: number | null;
+  failureReason: string | null;
+  requestedBy: string | null;
+  retryCount: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminExportTaskPage {
+  records: AdminExportTaskRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminExportTaskBatchRunResult {
+  totalCount: number;
+  successCount: number;
+  failCount: number;
+  records: AdminExportTaskRecord[];
+}
+
 export interface AdminOrderReceiptQueryParams {
   prescriptionNo?: string;
   receiverName?: string;
