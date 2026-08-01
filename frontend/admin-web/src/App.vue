@@ -7,7 +7,6 @@ import {
   isViewKey,
   menuItems,
   routeByKey,
-  standaloneRouteItems,
   type AppRouteItem,
   type ImplementedViewKey,
   type ViewKey,
@@ -301,8 +300,7 @@ const layoutTabs = computed<LayoutTab[]>(() => [
   })),
 ]);
 const navigationItems = computed<readonly AppRouteItem[]>(() => [
-  ...standaloneRouteItems.filter((item) => item.key !== 'dashboard'),
-  ...menuItems,
+  ...menuItems.filter((item) => item.key !== 'institutionApps'),
 ]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reviews: workflowCounts.value.reviews,

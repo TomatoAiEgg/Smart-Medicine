@@ -141,7 +141,7 @@ export const standaloneRouteItems = [
   {
     key: 'exportTasks',
     label: '导出任务中心',
-    group: '绯荤粺鍏ュ彛',
+    group: '系统入口',
     path: '/exports/tasks',
     legacyRoute: null,
     priority: 'P0',
