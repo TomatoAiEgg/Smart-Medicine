@@ -45,6 +45,7 @@ import OrderCenter from './features/orders/OrderCenter.vue';
 import OrderWarehouse from './features/orders/OrderWarehouse.vue';
 import OrderManageAction from './features/orders/OrderManageAction.vue';
 import OrderReceipt from './features/orders/OrderReceipt.vue';
+import OrderReviewRecords from './features/orders/OrderReviewRecords.vue';
 import PrescriptionModify from './features/orders/PrescriptionModify.vue';
 import PrescriptionReprint from './features/orders/PrescriptionReprint.vue';
 import RecheckRecords from './features/orders/RecheckRecords.vue';
@@ -152,6 +153,7 @@ const addressModifyRef = ref<InstanceType<typeof AddressModify> | null>(null);
 const prescriptionModifyRef = ref<InstanceType<typeof PrescriptionModify> | null>(null);
 const orderManageActionRef = ref<InstanceType<typeof OrderManageAction> | null>(null);
 const prescriptionReprintRef = ref<InstanceType<typeof PrescriptionReprint> | null>(null);
+const orderReviewRecordsRef = ref<InstanceType<typeof OrderReviewRecords> | null>(null);
 const recheckRecordsRef = ref<InstanceType<typeof RecheckRecords> | null>(null);
 const orderInterceptRuleRef = ref<InstanceType<typeof OrderInterceptRule> | null>(null);
 const manualProcessRef = ref<InstanceType<typeof ManualProcess> | null>(null);
@@ -232,6 +234,7 @@ const herbIndexListCount = ref(0);
 const herbIndexImportCount = ref(0);
 const herbIndexOperationLogCount = ref(0);
 const prescriptionReconciliationCount = ref(0);
+const orderReviewRecordsCount = ref(0);
 const orderRecheckRecordsCount = ref(0);
 const orderInterceptRuleCount = ref(0);
 const decoctionCount = ref(0);
@@ -267,6 +270,7 @@ const addressModifyActivationKey = ref(0);
 const prescriptionModifyActivationKey = ref(0);
 const orderManageActionActivationKey = ref(0);
 const prescriptionReprintActivationKey = ref(0);
+const orderReviewRecordsActivationKey = ref(0);
 const recheckRecordsActivationKey = ref(0);
 const orderInterceptRuleActivationKey = ref(0);
 const manualProcessActivationKey = ref(0);
@@ -288,7 +292,7 @@ const currentViewTitle = computed(() => ({
 const currentComponentKey = computed<ImplementedViewKey | undefined>(() => currentRouteItem.value.componentKey);
 const workflowRouteKey = computed<WorkflowViewKey | null>(() => {
   const key = currentComponentKey.value;
-  if (key === 'reviews' || key === 'rechecks') return key;
+  if (key === 'rechecks') return key;
   return null;
 });
 const recheckScanMode = computed<RecheckScanMode>(() => (activeView.value === 'orderRechecksMulti' ? 'multi' : 'single'));
@@ -307,7 +311,7 @@ const navigationItems = computed<readonly AppRouteItem[]>(() => [
   ...menuItems.filter((item) => item.key !== 'institutionApps'),
 ]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
-  reviews: workflowCounts.value.reviews,
+  reviews: orderReviewRecordsCount.value,
   dispenses: workflowCounts.value.dispenses,
   rechecks: workflowCounts.value.rechecks,
   orderRechecksMulti: workflowCounts.value.rechecks,
@@ -449,6 +453,7 @@ watch(currentComponentKey, (componentKey) => {
   if (componentKey === 'prescriptionModify') prescriptionModifyActivationKey.value += 1;
   if (componentKey === 'orderManageAction') orderManageActionActivationKey.value += 1;
   if (componentKey === 'prescriptionReprint') prescriptionReprintActivationKey.value += 1;
+  if (componentKey === 'orderReviewRecords') orderReviewRecordsActivationKey.value += 1;
   if (componentKey === 'recheckRecords') recheckRecordsActivationKey.value += 1;
   if (componentKey === 'orderInterceptRules') orderInterceptRuleActivationKey.value += 1;
   if (componentKey === 'manualProcess') manualProcessActivationKey.value += 1;
@@ -692,6 +697,10 @@ async function refreshCurrentTasks() {
   }
   if (componentKey === 'prescriptionReprint') {
     await prescriptionReprintRef.value?.refreshPrescriptionReprints();
+    return;
+  }
+  if (componentKey === 'orderReviewRecords') {
+    await orderReviewRecordsRef.value?.refreshOrderReviews();
     return;
   }
   if (componentKey === 'recheckRecords') {
@@ -1158,6 +1167,15 @@ function closeTab(view: ViewKey) {
       ref="prescriptionReprintRef"
       active
       :activation-key="prescriptionReprintActivationKey"
+      @notice="showNotice"
+    />
+
+    <OrderReviewRecords
+      v-else-if="currentComponentKey === 'orderReviewRecords'"
+      ref="orderReviewRecordsRef"
+      active
+      :activation-key="orderReviewRecordsActivationKey"
+      @count-changed="orderReviewRecordsCount = $event"
       @notice="showNotice"
     />
 

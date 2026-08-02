@@ -1288,6 +1288,30 @@ public class OrderService {
         return orderRepository.searchAdminOrderRechecks(normalized);
     }
 
+    public AdminOrderReviewPage listAdminOrderReviews(AdminOrderReviewQuery query) {
+        int page = Math.max(query.page(), 1);
+        int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
+        String reviewStatus = normalizeAdminReviewStatus(query.reviewStatus());
+        AdminOrderReviewQuery normalized = new AdminOrderReviewQuery(
+                "REVIEWED".equals(reviewStatus) ? query.startTime() : null,
+                "REVIEWED".equals(reviewStatus) ? query.endTime() : null,
+                cleanText(query.institution()),
+                cleanText(query.prescriptionType()),
+                cleanText(query.hospitalType()),
+                query.isWithin(),
+                cleanText(query.deliveryType()),
+                reviewStatus,
+                cleanText(query.orderNo()),
+                cleanText(query.prescriptionNo()),
+                cleanText(query.hospitalPrescriptionNo()),
+                cleanText(query.patientName()),
+                cleanText(query.doseRange()),
+                page,
+                pageSize
+        );
+        return orderRepository.searchAdminOrderReviews(normalized);
+    }
+
     public AdminOrderWarehousePage listAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
         AdminOrderWarehouseQuery normalized = normalizeOrderWarehouseQuery(query, false);
         return orderRepository.searchAdminOrderWarehouses(normalized);
@@ -3133,6 +3157,21 @@ public class OrderService {
         String normalized = cleaned.toUpperCase(Locale.ROOT);
         if ("1".equals(normalized) || "RECHECKED".equals(normalized) || "DONE".equals(normalized)) {
             return "RECHECKED";
+        }
+        return "PENDING";
+    }
+
+    private String normalizeAdminReviewStatus(String value) {
+        String cleaned = cleanText(value);
+        if (cleaned == null) {
+            return "PENDING";
+        }
+        String normalized = cleaned.toUpperCase(Locale.ROOT);
+        if ("1".equals(normalized) || "NOT_DUE".equals(normalized) || "UNDUE".equals(normalized)) {
+            return "NOT_DUE";
+        }
+        if ("2".equals(normalized) || "REVIEWED".equals(normalized) || "APPROVED".equals(normalized)) {
+            return "REVIEWED";
         }
         return "PENDING";
     }

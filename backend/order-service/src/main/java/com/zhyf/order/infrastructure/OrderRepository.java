@@ -69,6 +69,9 @@ import com.zhyf.order.application.AdminOrderReceiptQuery;
 import com.zhyf.order.application.AdminOrderRecheckItem;
 import com.zhyf.order.application.AdminOrderRecheckPage;
 import com.zhyf.order.application.AdminOrderRecheckQuery;
+import com.zhyf.order.application.AdminOrderReviewItem;
+import com.zhyf.order.application.AdminOrderReviewPage;
+import com.zhyf.order.application.AdminOrderReviewQuery;
 import com.zhyf.order.application.AdminOrderWarehouseItem;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
@@ -2711,6 +2714,99 @@ public class OrderRepository {
         );
     }
 
+    public AdminOrderReviewPage searchAdminOrderReviews(AdminOrderReviewQuery query) {
+        QueryParts filters = adminOrderReviewFilters(query);
+        QueryParts countQuery = new QueryParts("""
+                select count(distinct o.id)
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                where 1 = 1
+                """);
+        countQuery.append(filters.sql());
+        countQuery.addAll(filters.argsList());
+        Long totalValue = jdbcTemplate.queryForObject(countQuery.sql(), Long.class, countQuery.args());
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts listQuery = new QueryParts("""
+                select
+                    o.id as order_id,
+                    o.tenant_id,
+                    o.institution_id,
+                    i.institution_name,
+                    i.storage_type,
+                    o.order_no,
+                    o.external_order_no,
+                    o.status as order_status,
+                    o.receiver_name,
+                    o.receiver_phone,
+                    o.receiver_province,
+                    o.receiver_city,
+                    o.receiver_zone,
+                    o.receiver_address,
+                    o.address_type,
+                    o.delivery_time,
+                    o.created_at as order_created_at,
+                    string_agg(distinct nullif(p.prescription_no, ''), ',') as prescription_nos,
+                    string_agg(distinct nullif(p.external_prescription_no, ''), ',') as external_prescription_nos,
+                    string_agg(distinct nullif(p.hospital_type, ''), ',') as hospital_types,
+                    o.patient_name,
+                    o.patient_phone,
+                    string_agg(distinct nullif(p.prescription_type, ''), ',') as prescription_types,
+                    string_agg(p.dose_count::text, ',' order by p.prescription_no)
+                        filter (where p.dose_count is not null) as dose_counts,
+                    count(distinct p.id)::int as prescription_count,
+                    o.order_remark,
+                    review_task.task_id as review_task_id,
+                    review_task.task_status as review_task_status,
+                    review_task.assigned_to as reviewer,
+                    review_task.review_comment,
+                    review_task.task_created_at,
+                    review_task.task_completed_at,
+                    o.updated_at
+                from order_main o
+                join prescription p on p.order_id = o.id
+                join institution i on i.id = o.institution_id
+                left join lateral (
+                    select
+                        t.id as task_id,
+                        t.task_status,
+                        t.assigned_to,
+                        t.review_comment,
+                        t.created_at as task_created_at,
+                        t.completed_at as task_completed_at
+                    from workflow_task t
+                    where t.order_id = o.id
+                      and t.task_type = 'ORDER_REVIEW'
+                    order by t.created_at desc, t.id desc
+                    limit 1
+                ) review_task on true
+                where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append("""
+                 group by o.id, o.tenant_id, o.institution_id, i.institution_name, i.storage_type,
+                          o.order_no, o.external_order_no, o.status, o.receiver_name, o.receiver_phone,
+                          o.receiver_province, o.receiver_city, o.receiver_zone, o.receiver_address,
+                          o.address_type, o.delivery_time, o.created_at, o.patient_name, o.patient_phone,
+                          o.order_remark, review_task.task_id, review_task.task_status,
+                          review_task.assigned_to, review_task.review_comment, review_task.task_created_at,
+                          review_task.task_completed_at, o.updated_at
+                 order by o.delivery_time asc nulls first, o.created_at asc, o.order_no asc
+                 limit ? offset ?
+                """);
+        listQuery.add(query.pageSize());
+        listQuery.add((query.page() - 1) * query.pageSize());
+
+        return new AdminOrderReviewPage(
+                jdbcTemplate.query(listQuery.sql(), this::mapAdminOrderReviewItem, listQuery.args()),
+                total,
+                query.page(),
+                query.pageSize()
+        );
+    }
+
     public AdminOrderWarehousePage searchAdminOrderWarehouses(AdminOrderWarehouseQuery query) {
         QueryParts filters = adminOrderWarehouseFilters(query);
         QueryParts countQuery = new QueryParts("""
@@ -3790,6 +3886,41 @@ public class OrderRepository {
                         where r.order_id = o.id
                     )
                     """);
+        }
+        return filters;
+    }
+
+    private QueryParts adminOrderReviewFilters(AdminOrderReviewQuery query) {
+        QueryParts filters = new QueryParts("");
+        filters.addRangeFilter("o.created_at", query.startTime(), query.endTime());
+        filters.addLikeFilter("i.institution_name", query.institution());
+        filters.addEqualsFilter("p.prescription_type", query.prescriptionType());
+        filters.addEqualsFilter("p.hospital_type", query.hospitalType());
+        filters.addEqualsFilter("o.address_type", query.deliveryType());
+        filters.addLikeFilter("o.order_no", query.orderNo());
+        filters.addLikeFilter("p.prescription_no", query.prescriptionNo());
+        filters.addLikeFilter("p.external_prescription_no", query.hospitalPrescriptionNo());
+        filters.addLikeFilter("o.patient_name", query.patientName());
+        if (query.isWithin() != null) {
+            filters.append(" and p.is_within = ?");
+            filters.add(query.isWithin());
+        }
+        if ("NOT_DUE".equals(query.reviewStatus())) {
+            filters.append(" and o.status = 'CREATED' and o.delivery_time is not null and o.delivery_time > now()");
+        } else if ("REVIEWED".equals(query.reviewStatus())) {
+            filters.append("""
+                     and o.status in (
+                        'AUDIT_PASSED', 'RECHECKED', 'DECOCTING', 'DECOCTED', 'PACKED',
+                        'SHIPPED', 'IN_TRANSIT', 'SIGNED'
+                    )
+                    """);
+        } else {
+            filters.append(" and o.status = 'CREATED' and (o.delivery_time is null or o.delivery_time <= now())");
+        }
+        if ("LOW".equals(query.doseRange()) || "1".equals(query.doseRange())) {
+            filters.append(" and p.dose_count < 3");
+        } else if ("HIGH".equals(query.doseRange()) || "2".equals(query.doseRange())) {
+            filters.append(" and p.dose_count >= 3");
         }
         return filters;
     }
@@ -4932,6 +5063,44 @@ public class OrderRepository {
                 rs.getString("rechecker"),
                 rs.getString("pail_nos"),
                 rs.getString("order_remark"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private AdminOrderReviewItem mapAdminOrderReviewItem(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminOrderReviewItem(
+                rs.getObject("order_id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("institution_id", UUID.class),
+                rs.getString("institution_name"),
+                rs.getString("storage_type"),
+                rs.getString("order_no"),
+                rs.getString("external_order_no"),
+                rs.getString("order_status"),
+                rs.getString("receiver_name"),
+                rs.getString("receiver_phone"),
+                rs.getString("receiver_province"),
+                rs.getString("receiver_city"),
+                rs.getString("receiver_zone"),
+                rs.getString("receiver_address"),
+                rs.getString("address_type"),
+                instant(rs, "delivery_time"),
+                instant(rs, "order_created_at"),
+                rs.getString("prescription_nos"),
+                rs.getString("external_prescription_nos"),
+                rs.getString("hospital_types"),
+                rs.getString("patient_name"),
+                rs.getString("patient_phone"),
+                rs.getString("prescription_types"),
+                rs.getString("dose_counts"),
+                rs.getInt("prescription_count"),
+                rs.getString("order_remark"),
+                rs.getObject("review_task_id", UUID.class),
+                rs.getString("review_task_status"),
+                rs.getString("reviewer"),
+                rs.getString("review_comment"),
+                instant(rs, "task_created_at"),
+                instant(rs, "task_completed_at"),
                 instant(rs, "updated_at")
         );
     }

@@ -1053,6 +1053,67 @@ export interface AdminOrderRecheckPage {
   pageSize: number;
 }
 
+export interface AdminOrderReviewQueryParams {
+  startTime?: string;
+  endTime?: string;
+  institution?: string;
+  prescriptionType?: string;
+  hospitalType?: string;
+  isWithin?: number | string;
+  deliveryType?: string;
+  reviewStatus?: string;
+  orderNo?: string;
+  prescriptionNo?: string;
+  hospitalPrescriptionNo?: string;
+  patientName?: string;
+  doseRange?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminOrderReviewItem {
+  orderId: string;
+  tenantId: string;
+  institutionId: string;
+  institutionName: string;
+  storageType: string | null;
+  orderNo: string;
+  externalOrderNo: string;
+  orderStatus: string;
+  receiverName: string | null;
+  receiverPhone: string | null;
+  receiverProvince: string | null;
+  receiverCity: string | null;
+  receiverZone: string | null;
+  receiverAddress: string | null;
+  addressType: string | null;
+  deliveryTime: string | null;
+  orderCreatedAt: string;
+  prescriptionNos: string | null;
+  externalPrescriptionNos: string | null;
+  hospitalTypes: string | null;
+  patientName: string | null;
+  patientPhone: string | null;
+  prescriptionTypes: string | null;
+  doseCounts: string | null;
+  prescriptionCount: number;
+  orderRemark: string | null;
+  reviewTaskId: string | null;
+  reviewTaskStatus: string | null;
+  reviewer: string | null;
+  reviewComment: string | null;
+  taskCreatedAt: string | null;
+  taskCompletedAt: string | null;
+  updatedAt: string;
+}
+
+export interface AdminOrderReviewPage {
+  records: AdminOrderReviewItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AdminOrderWarehouseQueryParams {
   startTime?: string;
   endTime?: string;

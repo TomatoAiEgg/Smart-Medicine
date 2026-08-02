@@ -93,6 +93,8 @@ import com.zhyf.order.application.AdminOrderRecheckPage;
 import com.zhyf.order.application.AdminOrderRecheckQuery;
 import com.zhyf.order.application.AdminOrderRemarkUpdateCommand;
 import com.zhyf.order.application.AdminOrderRemarkUpdateResult;
+import com.zhyf.order.application.AdminOrderReviewPage;
+import com.zhyf.order.application.AdminOrderReviewQuery;
 import com.zhyf.order.application.AdminOrderWarehousePage;
 import com.zhyf.order.application.AdminOrderWarehouseQuery;
 import com.zhyf.order.application.AdminOrderSearchQuery;
@@ -416,6 +418,43 @@ public class InstitutionOrderController {
             @RequestBody(required = false) AdminManualProcessCommand command
     ) {
         return ApiResponse.ok(orderService.manualProcessAdminOrder(orderNo, command));
+    }
+
+    @GetMapping("/admin/review-records")
+    public ApiResponse<AdminOrderReviewPage> listReviewRecords(
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) String institution,
+            @RequestParam(required = false) String prescriptionType,
+            @RequestParam(required = false) String hospitalType,
+            @RequestParam(required = false) Integer isWithin,
+            @RequestParam(required = false) String deliveryType,
+            @RequestParam(required = false) String reviewStatus,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(required = false) String prescriptionNo,
+            @RequestParam(required = false) String hospitalPrescriptionNo,
+            @RequestParam(required = false) String patientName,
+            @RequestParam(required = false) String doseRange,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminOrderReviews(new AdminOrderReviewQuery(
+                parseQueryTime(startTime),
+                parseQueryTime(endTime),
+                institution,
+                prescriptionType,
+                hospitalType,
+                isWithin,
+                deliveryType,
+                reviewStatus,
+                orderNo,
+                prescriptionNo,
+                hospitalPrescriptionNo,
+                patientName,
+                doseRange,
+                page,
+                pageSize
+        )));
     }
 
     @GetMapping("/admin/recheck-records")

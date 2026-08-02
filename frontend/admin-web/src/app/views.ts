@@ -4,6 +4,7 @@ export type ImplementedViewKey =
   | 'dashboard'
   | 'orders'
   | 'reviews'
+  | 'orderReviewRecords'
   | 'dispensePrint'
   | 'rechecks'
   | 'recheckRecords'
@@ -465,9 +466,9 @@ export const menuItems = [
     priority: 'P1',
     implemented: true,
     subtitle: '处理待审核订单',
-    componentKey: 'reviews',
+    componentKey: 'orderReviewRecords',
     showCount: true,
-    plannedComponent: 'features/workflow/WorkflowTasks.vue',
+    plannedComponent: 'features/orders/OrderReviewRecords.vue',
     coreActions: ['审核任务', '通过', '驳回', '拆单预览', '地址修改', '备注修改', '导出'],
     apiDependencies: ['审核任务', '通过/驳回', '订单地址修改', '订单备注修改'],
   },

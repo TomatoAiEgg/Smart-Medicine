@@ -115,6 +115,8 @@ import type {
   AdminOrderReceiptResult,
   AdminOrderRecheckPage,
   AdminOrderRecheckQueryParams,
+  AdminOrderReviewPage,
+  AdminOrderReviewQueryParams,
   AdminPrescriptionActionCommand,
   AdminPrescriptionActionResult,
   AdminPrescriptionPrintPayload,
@@ -596,6 +598,12 @@ export function listAdminOrderRechecks(params: AdminOrderRecheckQueryParams = {}
   const query = buildOrderQuery(params);
   const url = query ? `/order-api/api/admin/recheck-records?${query}` : '/order-api/api/admin/recheck-records';
   return request<AdminOrderRecheckPage>(url);
+}
+
+export function listAdminOrderReviews(params: AdminOrderReviewQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/review-records?${query}` : '/order-api/api/admin/review-records';
+  return request<AdminOrderReviewPage>(url);
 }
 
 export function manualProcessAdminOrder(orderNo: string, command: AdminManualProcessCommand) {
