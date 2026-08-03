@@ -7,8 +7,8 @@
 | 模块 | 类型 | 核心职责 | 旧系统来源 |
 | --- | --- | --- | --- |
 | `zhyf-common` | Java 公共库 | 通用枚举、异常、签名、响应模型、状态机基础类型、审计字段 | `zhyf-common` 中可保留的公共能力 |
-| `gateway` | Spring Cloud Gateway | 统一入口、路由、机构签名校验、IP 白名单、限流、访问日志 | `zhyf-gateway` |
-| `auth-institution` | Spring Boot 服务 | 租户、机构、应用密钥、回调配置、白名单、用户权限 | `zhyf_institutions`、`zhyf_api_permission`、`zhyf_white_ip` |
+| `gateway` | Spring Boot MVC 服务 | 旧协议适配、机构签名校验、IP 白名单、代理和访问日志；限流仍待补齐 | `zhyf-gateway` |
+| `auth-institution` | Spring Boot 服务 | 机构应用、白名单和 API 权限内部查询；完整租户和后台权限仍待补齐 | `zhyf_institutions`、`zhyf_api_permission`、`zhyf_white_ip` |
 | `order-service` | Spring Boot 服务 | 订单创建、订单状态机、后台订单查询、订单履约进度、订单状态日志、人工修正入口 | `zhyf_order`、后台订单 Controller |
 | `message-service` | Spring Boot 服务 | Outbox 扫描、RocketMQ 生产、消费幂等、消息补偿、短信事件 | `zhyf-async` ActiveMQ 消费者 |
 | `workflow-service` | Spring Boot 服务 | 后台审核、调剂、复核、订单锁、人工流程控制、状态推进 | 后台审核、调剂、复核、流程控制能力 |
@@ -18,12 +18,12 @@
 
 | 模块 | 技术 | 核心职责 |
 | --- | --- | --- |
-| `prescription-service` | Spring Boot 服务 | 处方、处方明细、处方修改、审方摘要、处方状态机 |
+| `prescription-service` | Spring Boot 骨架 | 目标承接处方、处方明细、处方修改、审方摘要和处方状态机；当前业务仍在 `order-service` |
 | `decoction-service` | Spring Boot 服务 | PDA 登录、扫码绑定、水桶/设备、加水、煎煮、MES 适配、设备模拟 |
 | `logistics-service` | Spring Boot 服务 | 打包出库、面单、物流轨迹、签收、自提、顺丰/EMS 适配；当前已落地最小物流单、轨迹和回调入口 |
 | `callback-service` | Spring Boot 服务 | 机构状态回调、社康回写、地址补录回推、失败重试、死信、人工重放；当前已落地回调记录、真实 HTTP 发送、失败重试、`DEAD` 终态和人工补偿入口 |
 | `integration-service` | Spring Boot 服务 | 社康、医院、地址补录等外围适配；当前已落地社康消息、社康状态回写、地址回推记录、医院处方查单、`integration_retry_task` 重试派发和后台消息/任务列表 |
-| `device-service` | Spring Boot 服务 | 设备档案、设备占用、关系管理 |
+| `device-service` | 目标模块，尚未创建 | 设备档案、设备占用、关系管理；当前由煎煮域过渡承接 |
 | `portal-service` | Spring Boot 服务 | 医院查单、地址补录申请；当前已落地最小查单和补录申请入口 |
 | `report-service` | Spring Boot 服务 | 报表、统计、导出；当前已落地订单、处方、物流、回调、地址补录、状态分布最小只读统计和 CSV 导出 |
 
@@ -39,11 +39,11 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| `infra/docker-compose` | 本地或云端开发用 PostgreSQL、Redis、RocketMQ、监控组件编排 |
-| `infra/flyway` | PostgreSQL 表结构、索引、分区、初始化字典数据 |
-| `infra/rocketmq` | Topic、ConsumerGroup、Dashboard、Broker 配置 |
-| `test/performance` | JMeter / k6 压测脚本与报告模板 |
+| `infra/docker-compose*.yml` | 本地可选中间件和云端镜像部署编排 |
+| `backend/order-service/src/main/resources/db/migration` | 当前全部 PostgreSQL Flyway migration；后续按表所有权拆分 |
+| `infra/nginx`、`infra/prometheus` | Nginx 路由和 Prometheus 采集配置 |
 | `test/integration` | 机构、PDA、MES、物流、回调端到端联调用例 |
+| `test/performance` | 规划中的 JMeter / k6 压测脚本与报告目录，当前尚未创建 |
 
 ## 5. 调用方向
 

@@ -6,16 +6,19 @@
 ## 技术栈
 - Java 21
 - Spring Boot 3.x
-- Spring Cloud Gateway
+- Spring Boot MVC 网关兼容服务
+- Spring JDBC
 - PostgreSQL
 - Redis
 - RocketMQ
 - Vue3 + TypeScript
 - Flyway
-- OpenTelemetry / Prometheus / Grafana
+- SkyWalking / Prometheus / Grafana
 - JMeter / k6
 
 ## 模块规划
+
+以下清单同时包含已创建模块和目标模块，实际状态以 `modules.md` 为准。
 - gateway
 - auth-institution
 - order-service
@@ -53,7 +56,9 @@
 ## 文档入口
 
 - 项目上下文：`docs/00_项目总览/项目上下文.md`
-- 老项目审查：`docs/老项目审查报告.md`
+- 文档目录与审查说明：`docs/00_项目总览/文档目录与审查说明.md`
+- 老项目审查：`docs/00_项目总览/老项目审查报告.md`
+- 新项目后端审查：`docs/00_项目总览/新项目后端代码审查报告.md`
 - 功能方案：`docs/功能方案`
 - 数据设计：`docs/数据设计`
 - 架构设计：`docs/03_架构设计`
@@ -61,7 +66,7 @@
 - 监控说明：`docs/监控说明`
 - 开发规范：`docs/04_开发规范`
 - 测试压测：`docs/05_测试压测`
-- 部署运维：`docs/06_部署运维`、`docs/部署说明`
+- 部署运维：`docs/06_部署运维`
 - 4C8G 单机试点部署参考：`docs/06_部署运维/云服务器环境.md`
 - 项目记录：`docs/99_项目记录`
 

@@ -148,7 +148,7 @@
 | worker | 写入范围 | 目标 |
 | --- | --- | --- |
 | 数据/MQ worker | migration、中间件配置 | Outbox、消费日志、死信、Topic |
-| 监控 worker | monitoring、tests/performance | 指标、k6、演练脚本 |
+| 监控 worker | monitoring、test/performance | 指标、k6、演练脚本 |
 
 每个 worker 返回后，主控必须检查：
 
@@ -226,7 +226,7 @@ monitoring/
 prometheus/
 grafana/
 skywalking/
-tests/performance/
+test/performance/
 docs/监控说明/
 ```
 
@@ -284,7 +284,7 @@ MQ 事件变更 -> 通知后端、数据/MQ、监控。
 实现或补齐订单创建、处方落库、状态日志、event_outbox、RocketMQ 发布、审方/调剂/复核任务、message_consume_log 幂等。
 
 要求：
-- 使用 MyBatis-Plus + MyBatis XML，不手写原始 JDBC。
+- 遵循当前 Spring JDBC Repository 规范，SQL 不进入 Service；如需更换持久化框架，必须按独立业务域专项迁移。
 - 单服务内用 Spring @Transactional。
 - 跨服务用 Outbox + MQ + 幂等 + 重试 + 补偿。
 - 状态推进使用条件更新或乐观锁。
@@ -350,7 +350,7 @@ MQ 事件变更 -> 通知后端、数据/MQ、监控。
 你是监控压测 worker，只负责可观测性、压测和故障演练。
 
 写入范围：
-只允许修改 monitoring、tests/performance、监控说明文档和必要的指标配置。不要改前端主页面、后端核心业务和数据库核心结构。
+只允许修改 monitoring、test/performance、监控说明文档和必要的指标配置。不要改前端主页面、后端核心业务和数据库核心结构。
 
 目标：
 补齐 SkyWalking、Prometheus、Grafana、SQL 慢查询、RocketMQ 积压、Outbox、消费失败、死信、k6 压测和故障演练。
@@ -383,7 +383,7 @@ mvn test
 mvn clean package
 npm run type-check
 npm run build
-k6 run tests/performance/scripts/order-full-chain.js
+k6 run test/performance/scripts/order-full-chain.js
 docker compose config
 ```
 
