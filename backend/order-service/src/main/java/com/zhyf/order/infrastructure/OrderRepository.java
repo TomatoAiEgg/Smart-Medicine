@@ -4173,6 +4173,25 @@ public class OrderRepository {
             String callbackUrl,
             BigDecimal logisticsFee,
             BigDecimal discountAmount,
+            String legacyCompanyNum,
+            String storageType,
+            String createIp,
+            Instant orderTime,
+            String classes,
+            BigDecimal orderPkgWeight,
+            Integer orderPkgNum,
+            BigDecimal logisticsReceivablesMoney,
+            String logisticsPayMethod,
+            String logisticsType,
+            String logisticsMode,
+            String spOrderId,
+            String logisId,
+            String areaLevel,
+            String routeCode,
+            String baseProductNo,
+            Instant packageTime,
+            Instant outboundTime,
+            Instant signTime,
             String rawPayload
     ) {
         String sql = """
@@ -4180,13 +4199,20 @@ public class OrderRepository {
                     id, tenant_id, institution_id, order_no, external_order_no, status,
                     patient_name, patient_phone, receiver_name, receiver_phone, receiver_province,
                     receiver_city, receiver_zone, receiver_address, address_type, delivery_time,
-                    batch_no, order_remark, callback_url, logistics_fee, discount_amount, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    batch_no, order_remark, callback_url, logistics_fee, discount_amount,
+                    legacy_company_num, storage_type, create_ip, order_time, classes,
+                    order_pkg_weight, order_pkg_num, logistics_receivables_money, logistics_pay_method,
+                    logistics_type, logistics_mode, sp_order_id, logis_id, area_level, route_code,
+                    base_product_no, package_time, outbound_time, sign_time, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderNo, externalOrderNo, status,
                 patientName, patientPhone, receiverName, receiverPhone, receiverProvince, receiverCity, receiverZone,
                 receiverAddress, addressType, offsetDateTime(deliveryTime), batchNo, orderRemark, callbackUrl,
-                logisticsFee, discountAmount, rawPayload);
+                logisticsFee, discountAmount, legacyCompanyNum, storageType, createIp, offsetDateTime(orderTime),
+                classes, orderPkgWeight, orderPkgNum, logisticsReceivablesMoney, logisticsPayMethod,
+                logisticsType, logisticsMode, spOrderId, logisId, areaLevel, routeCode, baseProductNo,
+                offsetDateTime(packageTime), offsetDateTime(outboundTime), offsetDateTime(signTime), rawPayload);
     }
 
     public void insertOrderStatusLog(
@@ -4235,6 +4261,67 @@ public class OrderRepository {
             String prescriptionRemark,
             String rawPayload
     ) {
+        insertPrescription(id, tenantId, institutionId, orderId, prescriptionNo, externalPrescriptionNo,
+                prescriptionType, status, hospitalType, doseCount, decoctionCount, boilTimes, isWithin,
+                perPackNum, perPackDose, decoctionUnitPrice, decoctionTotalPrice, totalAmount, doctorName,
+                diagnosis, departmentName, wardName, bedNo, medicationMethod, medicationInstruction,
+                prescriptionRemark, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, rawPayload);
+    }
+
+    public void insertPrescription(
+            UUID id,
+            UUID tenantId,
+            UUID institutionId,
+            UUID orderId,
+            String prescriptionNo,
+            String externalPrescriptionNo,
+            String prescriptionType,
+            String status,
+            String hospitalType,
+            Integer doseCount,
+            Integer decoctionCount,
+            Integer boilTimes,
+            Integer isWithin,
+            Integer perPackNum,
+            Integer perPackDose,
+            BigDecimal decoctionUnitPrice,
+            BigDecimal decoctionTotalPrice,
+            BigDecimal totalAmount,
+            String doctorName,
+            String diagnosis,
+            String departmentName,
+            String wardName,
+            String bedNo,
+            String medicationMethod,
+            String medicationInstruction,
+            String prescriptionRemark,
+            String patientAge,
+            String patientMonthAge,
+            String patientDayAge,
+            String patientGender,
+            String patientCardNo,
+            String treatCard,
+            String patientTel,
+            String isPregnant,
+            String herbType,
+            String wjType,
+            String doctorTel,
+            String hospitalName,
+            String hospitalNum,
+            String orderHandleFloor,
+            String jyjDecoctionPlan,
+            String jyjDecoctionAdvice,
+            String labelSize,
+            String bindNo,
+            BigDecimal drugsMoney,
+            String auditFlowPicUrl,
+            String auditReason,
+            String auditResult,
+            String dispenseFlowPicUrl,
+            String recheckFlowPicUrl,
+            String rawPayload
+    ) {
         String sql = """
                 insert into prescription (
                     id, tenant_id, institution_id, order_id, prescription_no,
@@ -4242,14 +4329,23 @@ public class OrderRepository {
                     decoction_count, boil_times, is_within, per_pack_num, per_pack_dose,
                     decoction_unit_price, decoction_total_price, total_amount,
                     doctor_name, diagnosis, department_name, ward_name, bed_no, medication_method,
-                    medication_instruction, prescription_remark, raw_payload
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                    medication_instruction, prescription_remark, patient_age, patient_month_age,
+                    patient_day_age, patient_gender, patient_card_no, treat_card, patient_tel,
+                    is_pregnant, herb_type, wj_type, doctor_tel, hospital_name, hospital_num,
+                    order_handle_floor, jyj_decoction_plan, jyj_decoction_advice, label_size,
+                    bind_no, drugs_money, audit_flow_pic_url, audit_reason, audit_result,
+                    dispense_flow_pic_url, recheck_flow_pic_url, raw_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
                 """;
         jdbcTemplate.update(sql, id, tenantId, institutionId, orderId, prescriptionNo,
                 externalPrescriptionNo, prescriptionType, status, hospitalType, doseCount, decoctionCount,
                 boilTimes, isWithin, perPackNum, perPackDose, decoctionUnitPrice, decoctionTotalPrice,
                 totalAmount, doctorName, diagnosis, departmentName,
-                wardName, bedNo, medicationMethod, medicationInstruction, prescriptionRemark, rawPayload);
+                wardName, bedNo, medicationMethod, medicationInstruction, prescriptionRemark,
+                patientAge, patientMonthAge, patientDayAge, patientGender, patientCardNo, treatCard,
+                patientTel, isPregnant, herbType, wjType, doctorTel, hospitalName, hospitalNum,
+                orderHandleFloor, jyjDecoctionPlan, jyjDecoctionAdvice, labelSize, bindNo, drugsMoney,
+                auditFlowPicUrl, auditReason, auditResult, dispenseFlowPicUrl, recheckFlowPicUrl, rawPayload);
     }
 
     public void insertPrescriptionDetail(
@@ -4275,17 +4371,57 @@ public class OrderRepository {
             String validationTips,
             int sortNo
     ) {
+        insertPrescriptionDetail(id, tenantId, prescriptionId, drugCode, drugName, platformDrugCode,
+                platformDrugName, drugSpecs, drugOrigin, dose, unit, specialUsage, quantity, unitPrice,
+                settlementUnitPrice, totalPrice, settlementTotalPrice, batchNo, remark, validationTips,
+                platformDrugCode, platformDrugName, null, null, null, null, null, null, null, sortNo);
+    }
+
+    public void insertPrescriptionDetail(
+            UUID id,
+            UUID tenantId,
+            UUID prescriptionId,
+            String drugCode,
+            String drugName,
+            String platformDrugCode,
+            String platformDrugName,
+            String drugSpecs,
+            String drugOrigin,
+            String dose,
+            String unit,
+            String specialUsage,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal settlementUnitPrice,
+            BigDecimal totalPrice,
+            BigDecimal settlementTotalPrice,
+            String batchNo,
+            String remark,
+            String validationTips,
+            String dcGoodsNum,
+            String dcGoodsName,
+            String rootsGoodsName,
+            String supplierName,
+            BigDecimal medPerDose,
+            BigDecimal medPerDay,
+            String detailStatus,
+            String note,
+            BigDecimal waterAbsorbRatio,
+            int sortNo
+    ) {
         String sql = """
                 insert into prescription_detail (
                     id, tenant_id, prescription_id, drug_code, drug_name, platform_drug_code,
                     platform_drug_name, drug_specs, drug_origin, dose, unit, special_usage, quantity,
                     unit_price, settlement_unit_price, total_price, settlement_total_price,
-                    batch_no, remark, validation_tips, sort_no
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    batch_no, remark, validation_tips, dc_goods_num, dc_goods_name, roots_goods_name,
+                    supplier_name, med_per_dose, med_per_day, detail_status, note, water_absorb_ratio, sort_no
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.update(sql, id, tenantId, prescriptionId, drugCode, drugName, platformDrugCode, platformDrugName,
                 drugSpecs, drugOrigin, dose, unit, specialUsage, quantity, unitPrice, settlementUnitPrice, totalPrice,
-                settlementTotalPrice, batchNo, remark, validationTips, sortNo);
+                settlementTotalPrice, batchNo, remark, validationTips, dcGoodsNum, dcGoodsName, rootsGoodsName,
+                supplierName, medPerDose, medPerDay, detailStatus, note, waterAbsorbRatio, sortNo);
     }
 
     public int updateOrderStatus(UUID orderId, String status) {
@@ -4583,6 +4719,7 @@ public class OrderRepository {
             UUID recordId,
             UUID tenantId,
             UUID orderId,
+            UUID prescriptionId,
             UUID taskId,
             String dispenser,
             String comment,
@@ -4590,11 +4727,11 @@ public class OrderRepository {
     ) {
         String sql = """
                 insert into dispense_record (
-                    id, tenant_id, order_id, task_id, dispenser, dispense_comment, print_status, dispensed_at
-                ) values (?, ?, ?, ?, ?, ?, 'PRINTED', ?)
+                    id, tenant_id, order_id, prescription_id, task_id, dispenser, dispense_comment, print_status, dispensed_at
+                ) values (?, ?, ?, ?, ?, ?, ?, 'PRINTED', ?)
                 on conflict (task_id) do nothing
                 """;
-        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, dispenser, comment,
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, prescriptionId, taskId, dispenser, comment,
                 offsetDateTime(dispensedAt));
     }
 
@@ -4602,6 +4739,7 @@ public class OrderRepository {
             UUID recordId,
             UUID tenantId,
             UUID orderId,
+            UUID prescriptionId,
             UUID taskId,
             String auditor,
             String comment,
@@ -4609,11 +4747,11 @@ public class OrderRepository {
     ) {
         String sql = """
                 insert into prescription_audit_record (
-                    id, tenant_id, order_id, task_id, audit_result, auditor, audit_comment, audited_at
-                ) values (?, ?, ?, ?, 'PASSED', ?, ?, ?)
+                    id, tenant_id, order_id, prescription_id, task_id, audit_result, auditor, audit_comment, audited_at
+                ) values (?, ?, ?, ?, ?, 'PASSED', ?, ?, ?)
                 on conflict (task_id) do nothing
                 """;
-        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, auditor, comment,
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, prescriptionId, taskId, auditor, comment,
                 offsetDateTime(auditedAt));
     }
 
@@ -4621,6 +4759,7 @@ public class OrderRepository {
             UUID recordId,
             UUID tenantId,
             UUID orderId,
+            UUID prescriptionId,
             UUID taskId,
             String rechecker,
             String comment,
@@ -4628,12 +4767,59 @@ public class OrderRepository {
     ) {
         String sql = """
                 insert into prescription_recheck_record (
-                    id, tenant_id, order_id, task_id, recheck_result, rechecker, recheck_comment, rechecked_at
-                ) values (?, ?, ?, ?, 'PASSED', ?, ?, ?)
+                    id, tenant_id, order_id, prescription_id, task_id, recheck_result, rechecker, recheck_comment, rechecked_at
+                ) values (?, ?, ?, ?, ?, 'PASSED', ?, ?, ?)
                 on conflict (task_id) do nothing
                 """;
-        return jdbcTemplate.update(sql, recordId, tenantId, orderId, taskId, rechecker, comment,
+        return jdbcTemplate.update(sql, recordId, tenantId, orderId, prescriptionId, taskId, rechecker, comment,
                 offsetDateTime(recheckedAt));
+    }
+
+    public int upsertPrescriptionDecoctionProfile(
+            UUID id,
+            UUID tenantId,
+            UUID orderId,
+            UUID prescriptionId,
+            String realWater,
+            String soakOperator,
+            Instant soakTimeStart,
+            Instant boilTimeStart,
+            Instant boilTimeEnd,
+            String boilOperator,
+            Instant outMedTimeStart,
+            Instant outMedTimeEnd,
+            String outMedOperator,
+            Instant packTimeStart,
+            Instant packTimeEnd,
+            String packOperator,
+            String profilePayload
+    ) {
+        String sql = """
+                insert into prescription_decoction_profile (
+                    id, tenant_id, order_id, prescription_id, real_water, soak_operator, soak_time_start,
+                    boil_time_start, boil_time_end, boil_operator, out_med_time_start, out_med_time_end,
+                    out_med_operator, pack_time_start, pack_time_end, pack_operator, profile_payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)
+                on conflict (tenant_id, prescription_id) do update
+                set real_water = excluded.real_water,
+                    soak_operator = excluded.soak_operator,
+                    soak_time_start = excluded.soak_time_start,
+                    boil_time_start = excluded.boil_time_start,
+                    boil_time_end = excluded.boil_time_end,
+                    boil_operator = excluded.boil_operator,
+                    out_med_time_start = excluded.out_med_time_start,
+                    out_med_time_end = excluded.out_med_time_end,
+                    out_med_operator = excluded.out_med_operator,
+                    pack_time_start = excluded.pack_time_start,
+                    pack_time_end = excluded.pack_time_end,
+                    pack_operator = excluded.pack_operator,
+                    profile_payload = excluded.profile_payload,
+                    updated_at = now()
+                """;
+        return jdbcTemplate.update(sql, id, tenantId, orderId, prescriptionId, realWater, soakOperator,
+                offsetDateTime(soakTimeStart), offsetDateTime(boilTimeStart), offsetDateTime(boilTimeEnd),
+                boilOperator, offsetDateTime(outMedTimeStart), offsetDateTime(outMedTimeEnd), outMedOperator,
+                offsetDateTime(packTimeStart), offsetDateTime(packTimeEnd), packOperator, profilePayload);
     }
 
     public int insertCompletedDecoctionTask(

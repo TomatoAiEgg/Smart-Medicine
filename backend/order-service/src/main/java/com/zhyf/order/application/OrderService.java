@@ -103,7 +103,7 @@ public class OrderService {
                         existing.status(),
                         true
                 ))
-                .orElseGet(() -> createNewOrder(app, externalOrderNo, command.payload(), rawPayload));
+                .orElseGet(() -> createNewOrder(app, externalOrderNo, command.payload(), rawPayload, command.requestIp()));
     }
 
     public OrderCreateResult getOrder(String orderNo) {
@@ -1863,6 +1863,25 @@ public class OrderService {
                 null,
                 current.logisticsFee(),
                 current.discountAmount(),
+                null,
+                current.storageType(),
+                null,
+                null,
+                current.batchNo(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 writeJson(Map.of(
                         "source", "admin-order-split",
                         "originOrderNo", current.orderNo(),
@@ -2007,10 +2026,15 @@ public class OrderService {
                 context.recheckTime()
         );
 
+        UUID primaryPrescriptionId = current.prescriptions().stream()
+                .map(AdminOrderDetail.Prescription::prescriptionId)
+                .findFirst()
+                .orElse(null);
         orderRepository.insertPrescriptionAuditRecord(
                 UUID.randomUUID(),
                 current.tenantId(),
                 current.orderId(),
+                primaryPrescriptionId,
                 reviewTaskId,
                 context.auditor(),
                 context.remark(),
@@ -2020,6 +2044,7 @@ public class OrderService {
                 UUID.randomUUID(),
                 current.tenantId(),
                 current.orderId(),
+                primaryPrescriptionId,
                 dispenseTaskId,
                 context.dispenser(),
                 context.remark(),
@@ -2029,6 +2054,7 @@ public class OrderService {
                 UUID.randomUUID(),
                 current.tenantId(),
                 current.orderId(),
+                primaryPrescriptionId,
                 recheckTaskId,
                 context.rechecker(),
                 context.remark(),
@@ -2878,6 +2904,30 @@ public class OrderService {
                     context.boilTimeStart(),
                     context.outboundTime()
             );
+            orderRepository.upsertPrescriptionDecoctionProfile(
+                    UUID.randomUUID(),
+                    current.tenantId(),
+                    current.orderId(),
+                    prescription.prescriptionId(),
+                    null,
+                    context.operator(),
+                    context.soakTimeStart(),
+                    context.boilTimeStart(),
+                    context.outboundTime(),
+                    context.operator(),
+                    context.outboundTime(),
+                    context.outboundTime(),
+                    context.operator(),
+                    context.outboundTime(),
+                    context.outboundTime(),
+                    context.operator(),
+                    writeJson(Map.of(
+                            "source", MANUAL_PROCESS_SOURCE,
+                            "orderNo", current.orderNo(),
+                            "prescriptionNo", value(prescription.prescriptionNo()),
+                            "pailNo", context.pailNo()
+                    ))
+            );
         }
         return count;
     }
@@ -2945,7 +2995,8 @@ public class OrderService {
             InstitutionApp app,
             String externalOrderNo,
             JsonNode payload,
-            String rawPayload
+            String rawPayload,
+            String requestIp
     ) {
         UUID orderId = UUID.randomUUID();
         String orderNo = "ZHYF" + Instant.now().toEpochMilli();
@@ -2985,6 +3036,26 @@ public class OrderService {
                 readDecimal(payload, "discountAmount", "discount_amount", "discount", "couponAmount",
                         "coupon_amount", "preferentialAmount", "preferential_amount",
                         "reduceAmount", "reduce_amount", "promotionAmount", "promotion_amount"),
+                readText(payload, "companyNum", "company_num", "hospitalid", "hospitalId"),
+                readText(payload, "storageType", "storage_type"),
+                defaultText(readText(payload, "createIp", "create_ip"), requestIp),
+                readInstant(payload, "orderTime", "order_time", "createTime", "createtime"),
+                readText(payload, "classes"),
+                readDecimal(payload, "orderPkgWeight", "order_pkg_weight", "parcelWeighs"),
+                readInteger(payload, "orderPkgNum", "order_pkg_num", "packagesNo"),
+                readDecimal(payload, "logisticsReceivablesMoney", "logistics_receivables_money",
+                        "collectionMoney"),
+                readText(payload, "logisticsPayMethod", "logistics_pay_method"),
+                readText(payload, "logisticsType", "logistics_type"),
+                readText(payload, "logisticsMode", "logistics_mode"),
+                readText(payload, "spOrderid", "spOrderId", "sp_order_id"),
+                readText(payload, "logisId", "logis_id"),
+                readText(payload, "areaLevel", "area_level"),
+                readText(payload, "routeCode", "route_code"),
+                readText(payload, "baseProductNo", "base_product_no"),
+                readInstant(payload, "packageTime", "package_time"),
+                readInstant(payload, "outboundTime", "outbound_time"),
+                readInstant(payload, "signTime", "sign_time"),
                 rawPayload
         );
         orderRepository.insertOrderStatusLog(
@@ -3065,6 +3136,30 @@ public class OrderService {
                 readText(node, "medicationMethod", "medMethod", "med_method"),
                 readText(node, "medicationInstruction", "medGuide", "med_guide"),
                 readText(node, "prescriptionRemark", "prescriRemark", "prescri_remark"),
+                readText(node, "patientAge", "patient_age", "age"),
+                readText(node, "patientMonthAge", "patient_month_age"),
+                readText(node, "patientDayAge", "patient_day_age"),
+                readText(node, "patientGender", "patient_gender", "patientSex"),
+                readText(node, "patientCardNo", "patient_card_no"),
+                readText(node, "treatCard", "hospitalCardNo"),
+                readText(node, "patientTel", "patient_tel", "patientPhone", "patient_phone"),
+                readText(node, "isPregnant", "is_pregnant"),
+                readText(node, "herbType", "herb_type"),
+                readText(node, "wjType", "wj_type"),
+                readText(node, "doctorTel", "doctor_tel", "doctorphone"),
+                readText(node, "hospitalName", "hospital_name"),
+                readText(node, "hospitalNum", "hospital_num"),
+                readText(node, "orderHandleFloor", "order_handle_floor"),
+                readText(node, "jyjDecoctionPlan", "jyj_decoction_plan"),
+                readText(node, "jyjDecoctionAdvice", "jyj_decoction_advice"),
+                readText(node, "labelSize", "lableSize", "label_size"),
+                readText(node, "bindNo", "bind_no"),
+                readDecimal(node, "drugsMoney", "drugs_money"),
+                readText(node, "auditFlowPicUrl", "audit_flow_pic_url"),
+                readText(node, "auditReason", "audit_reason"),
+                readText(node, "auditResult", "audit_result"),
+                readText(node, "dispenseFlowPicUrl", "dispense_flow_pic_url"),
+                readText(node, "recheckFlowPicUrl", "recheck_flow_pic_url"),
                 writeJson(node)
         );
 
@@ -3096,6 +3191,15 @@ public class OrderService {
                         readText(detail, "batchNo", "batch_no"),
                         readText(detail, "remark"),
                         readText(detail, "validationTips", "validation_tips"),
+                        readText(detail, "dcGoodsNum", "dc_goods_num", "ptGoodsNum", "pt_goods_num"),
+                        readText(detail, "dcGoodsName", "dc_goods_name"),
+                        readText(detail, "rootsGoodsname", "rootsGoodsName", "roots_goods_name"),
+                        readText(detail, "supplierName", "supplier_name"),
+                        readDecimal(detail, "medPerDose", "med_per_dose"),
+                        readDecimal(detail, "medPerDay", "med_per_day"),
+                        readText(detail, "status"),
+                        readText(detail, "note"),
+                        readDecimal(detail, "waterAbsorbRatio", "water_absorb_ratio"),
                         detailSort++
                 );
             }
