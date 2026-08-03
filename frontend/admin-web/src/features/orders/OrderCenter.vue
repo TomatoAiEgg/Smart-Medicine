@@ -1606,6 +1606,22 @@ defineExpose({
               <strong>{{ displayValue(orderDetail?.institutionName) }}</strong>
             </div>
             <div>
+              <span>原机构编号</span>
+              <strong>{{ displayValue(orderDetail?.legacyCompanyNum) }}</strong>
+            </div>
+            <div>
+              <span>机构订单时间</span>
+              <strong>{{ formatDate(orderDetail?.orderTime) }}</strong>
+            </div>
+            <div>
+              <span>创建 IP</span>
+              <strong>{{ displayValue(orderDetail?.createIp) }}</strong>
+            </div>
+            <div>
+              <span>班次</span>
+              <strong>{{ displayValue(orderDetail?.classes) }}</strong>
+            </div>
+            <div>
               <span>患者信息</span>
               <strong>{{ detailPatientSummary() }}</strong>
             </div>
@@ -1632,6 +1648,58 @@ defineExpose({
             <div>
               <span>订单备注</span>
               <strong>{{ displayValue(orderDetail?.orderRemark) }}</strong>
+            </div>
+            <div>
+              <span>包裹数量</span>
+              <strong>{{ displayValue(orderDetail?.orderPkgNum) }}</strong>
+            </div>
+            <div>
+              <span>包裹重量</span>
+              <strong>{{ amountValue(orderDetail?.orderPkgWeight) }}</strong>
+            </div>
+            <div>
+              <span>物流代收金额</span>
+              <strong>{{ moneyValue(orderDetail?.logisticsReceivablesMoney) }}</strong>
+            </div>
+            <div>
+              <span>物流支付方式</span>
+              <strong>{{ displayValue(orderDetail?.logisticsPayMethod) }}</strong>
+            </div>
+            <div>
+              <span>物流类型 / 模式</span>
+              <strong>{{ joinDisplayParts([orderDetail?.logisticsType, orderDetail?.logisticsMode], ' / ') }}</strong>
+            </div>
+            <div>
+              <span>第三方订单号</span>
+              <strong>{{ displayValue(orderDetail?.spOrderId) }}</strong>
+            </div>
+            <div>
+              <span>原物流标识</span>
+              <strong>{{ displayValue(orderDetail?.logisId) }}</strong>
+            </div>
+            <div>
+              <span>区域级别</span>
+              <strong>{{ displayValue(orderDetail?.areaLevel) }}</strong>
+            </div>
+            <div>
+              <span>线路编码</span>
+              <strong>{{ displayValue(orderDetail?.routeCode) }}</strong>
+            </div>
+            <div>
+              <span>基础产品编号</span>
+              <strong>{{ displayValue(orderDetail?.baseProductNo) }}</strong>
+            </div>
+            <div>
+              <span>打包时间</span>
+              <strong>{{ formatDate(orderDetail?.packageTime) }}</strong>
+            </div>
+            <div>
+              <span>出库时间</span>
+              <strong>{{ formatDate(orderDetail?.outboundTime) }}</strong>
+            </div>
+            <div>
+              <span>签收时间</span>
+              <strong>{{ formatDate(orderDetail?.signTime) }}</strong>
             </div>
           </div>
         </section>
@@ -1695,6 +1763,68 @@ defineExpose({
               </tbody>
             </table>
           </div>
+          <h3 class="order-subsection-title">处方扩展信息</h3>
+          <div class="table-wrap">
+            <table class="order-detail-table prescription-extension-table">
+              <thead>
+                <tr>
+                  <th>平台处方号</th>
+                  <th>患者年龄</th>
+                  <th>月龄 / 日龄</th>
+                  <th>性别</th>
+                  <th>证件号</th>
+                  <th>就诊卡号</th>
+                  <th>患者电话</th>
+                  <th>是否孕期</th>
+                  <th>饮片类型</th>
+                  <th>外煎类型</th>
+                  <th>医生电话</th>
+                  <th>医院</th>
+                  <th>医院编号</th>
+                  <th>处理楼层</th>
+                  <th>煎药方案</th>
+                  <th>煎药医嘱</th>
+                  <th>标签规格</th>
+                  <th>绑定号</th>
+                  <th>药品金额</th>
+                  <th>审核结果 / 原因</th>
+                  <th>审核留痕</th>
+                  <th>调剂留痕</th>
+                  <th>复核留痕</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="detailPrescriptions.length === 0">
+                  <td colspan="23" class="empty">暂无处方扩展信息</td>
+                </tr>
+                <tr v-for="item in detailPrescriptions" :key="`extension-${item.prescriptionId}`">
+                  <td>{{ displayValue(item.prescriptionNo) }}</td>
+                  <td>{{ displayValue(item.patientAge) }}</td>
+                  <td>{{ joinDisplayParts([item.patientMonthAge, item.patientDayAge], ' / ') }}</td>
+                  <td>{{ displayValue(item.patientGender) }}</td>
+                  <td>{{ displayValue(item.patientCardNo) }}</td>
+                  <td>{{ displayValue(item.treatCard) }}</td>
+                  <td>{{ displayValue(item.patientTel) }}</td>
+                  <td>{{ displayValue(item.isPregnant) }}</td>
+                  <td>{{ displayValue(item.herbType) }}</td>
+                  <td>{{ displayValue(item.wjType) }}</td>
+                  <td>{{ displayValue(item.doctorTel) }}</td>
+                  <td class="legacy-left">{{ displayValue(item.hospitalName) }}</td>
+                  <td>{{ displayValue(item.hospitalNum) }}</td>
+                  <td>{{ displayValue(item.orderHandleFloor) }}</td>
+                  <td>{{ displayValue(item.jyjDecoctionPlan) }}</td>
+                  <td class="legacy-left">{{ displayValue(item.jyjDecoctionAdvice) }}</td>
+                  <td>{{ displayValue(item.labelSize) }}</td>
+                  <td>{{ displayValue(item.bindNo) }}</td>
+                  <td>{{ moneyValue(item.drugsMoney) }}</td>
+                  <td class="legacy-left">{{ joinDisplayParts([item.auditResult, item.auditReason], ' / ') }}</td>
+                  <td><a v-if="item.auditFlowPicUrl" :href="item.auditFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
+                  <td><a v-if="item.dispenseFlowPicUrl" :href="item.dispenseFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
+                  <td><a v-if="item.recheckFlowPicUrl" :href="item.recheckFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section class="order-detail-section">
@@ -1724,11 +1854,20 @@ defineExpose({
                   <th>批号</th>
                   <th>备注</th>
                   <th>审方提示</th>
+                  <th>调剂药品编码</th>
+                  <th>调剂药品名称</th>
+                  <th>原药品名称</th>
+                  <th>供应商</th>
+                  <th>每剂用量</th>
+                  <th>每日用量</th>
+                  <th>明细状态</th>
+                  <th>原明细备注</th>
+                  <th>吸水率</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="detailDrugRows.length === 0">
-                  <td colspan="19" class="empty">暂无药品明细</td>
+                  <td colspan="28" class="empty">暂无药品明细</td>
                 </tr>
                 <tr v-for="row in detailDrugRows" :key="row.detail.detailId">
                   <td>{{ displayValue(row.prescriptionNo) }}</td>
@@ -1750,6 +1889,15 @@ defineExpose({
                   <td>{{ displayValue(row.detail.batchNo) }}</td>
                   <td class="legacy-left">{{ displayValue(row.detail.remark) }}</td>
                   <td class="legacy-left">{{ displayValue(row.detail.validationTips) }}</td>
+                  <td>{{ displayValue(row.detail.dcGoodsNum) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.dcGoodsName) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.rootsGoodsName) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.supplierName) }}</td>
+                  <td>{{ amountValue(row.detail.medPerDose) }}</td>
+                  <td>{{ amountValue(row.detail.medPerDay) }}</td>
+                  <td>{{ displayValue(row.detail.detailStatus) }}</td>
+                  <td class="legacy-left">{{ displayValue(row.detail.note) }}</td>
+                  <td>{{ amountValue(row.detail.waterAbsorbRatio) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -2171,7 +2319,11 @@ defineExpose({
 }
 
 .drug-detail-table {
-  min-width: 1720px;
+  min-width: 2480px;
+}
+
+.prescription-extension-table {
+  min-width: 2180px;
 }
 
 .order-detail-table th,
