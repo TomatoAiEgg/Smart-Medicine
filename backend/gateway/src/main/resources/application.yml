@@ -16,6 +16,20 @@ zhyf:
     signature-timeout-seconds: ${GATEWAY_SIGNATURE_TIMEOUT_SECONDS:300}
     szlgzxyy-public-key: ${SZLGZXYY_PUBLIC_KEY:}
     szlgzxyy-private-key: ${SZLGZXYY_PRIVATE_KEY:}
+  admin-gateway:
+    jwt-secret: ${ZHYF_ADMIN_JWT_SECRET:}
+    issuer: ${ZHYF_ADMIN_JWT_ISSUER:zhyf-admin}
+    auth-institution-base-url: ${AUTH_INSTITUTION_BASE_URL:http://localhost:18081}
+    order-service-base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:18082}
+    workflow-service-base-url: ${WORKFLOW_SERVICE_BASE_URL:http://localhost:18085}
+    message-service-base-url: ${MESSAGE_SERVICE_BASE_URL:http://localhost:18083}
+    decoction-service-base-url: ${DECOCTION_SERVICE_BASE_URL:http://localhost:18087}
+    ops-service-base-url: ${OPS_SERVICE_BASE_URL:http://localhost:18086}
+    logistics-service-base-url: ${LOGISTICS_SERVICE_BASE_URL:http://localhost:18088}
+    callback-service-base-url: ${CALLBACK_SERVICE_BASE_URL:http://localhost:18089}
+    portal-service-base-url: ${PORTAL_SERVICE_BASE_URL:http://localhost:18090}
+    report-service-base-url: ${REPORT_SERVICE_BASE_URL:http://localhost:18091}
+    integration-service-base-url: ${INTEGRATION_SERVICE_BASE_URL:http://localhost:18092}
 
 management:
   endpoints:

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppLayout from './app/AppLayout.vue';
 import type { LayoutTab } from './app/AppLayout.vue';
+import { logoutAdmin, restoreAdminSession } from './api/auth';
+import type { AdminUserSession } from './api/adminSession';
 import {
   isViewKey,
   menuItems,
@@ -12,6 +14,7 @@ import {
   type ViewKey,
 } from './app/views';
 import DashboardHome from './features/dashboard/DashboardHome.vue';
+import LoginView from './features/auth/LoginView.vue';
 import DecoctionWorkspace from './features/decoction/DecoctionWorkspace.vue';
 import HerbAreaManage from './features/drug/HerbAreaManage.vue';
 import HerbImport from './features/drug/HerbImport.vue';
@@ -90,6 +93,8 @@ const route = useRoute();
 const router = useRouter();
 
 const operationOperator = ref('admin');
+const adminSession = ref<AdminUserSession | null>(null);
+const authRestoring = ref(true);
 const workflowCounts = ref<WorkflowCounts>({ reviews: 0, dispenses: 0, rechecks: 0 });
 const dashboardHomeRef = ref<InstanceType<typeof DashboardHome> | null>(null);
 const workflowTasksRef = ref<InstanceType<typeof WorkflowTasks> | null>(null);
@@ -278,6 +283,39 @@ const orderWarehouseActivationKey = ref(0);
 const orderReceiptActivationKey = ref(0);
 const notice = ref<{ tone: NoticeTone; text: string } | null>(null);
 const openTabs = ref<ViewKey[]>([]);
+
+function applyAdminSession(session: AdminUserSession) {
+  adminSession.value = session;
+  operationOperator.value = session.username;
+  authRestoring.value = false;
+}
+
+async function initializeAdminSession() {
+  authRestoring.value = true;
+  const session = await restoreAdminSession();
+  if (session) applyAdminSession(session);
+  authRestoring.value = false;
+}
+
+function handleAuthExpired() {
+  adminSession.value = null;
+  notice.value = null;
+  openTabs.value = [];
+}
+
+async function handleLogout() {
+  await logoutAdmin();
+  handleAuthExpired();
+}
+
+onMounted(() => {
+  window.addEventListener('admin-auth-expired', handleAuthExpired);
+  void initializeAdminSession();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('admin-auth-expired', handleAuthExpired);
+});
 
 function routeKeyFromMeta(value: unknown): ViewKey {
   return typeof value === 'string' && isViewKey(value) ? value : 'dashboard';
@@ -751,7 +789,13 @@ function closeTab(view: ViewKey) {
 </script>
 
 <template>
+  <LoginView
+    v-if="authRestoring || !adminSession"
+    :restoring="authRestoring"
+    @authenticated="applyAdminSession"
+  />
   <AppLayout
+    v-else
     :active-view="activeView"
     :title="currentViewTitle.title"
     :subtitle="currentViewTitle.subtitle"
@@ -760,7 +804,9 @@ function closeTab(view: ViewKey) {
     :counts="menuCounts"
     :notice="notice"
     :tabs="layoutTabs"
+    :admin-user="adminSession"
     @close-tab="closeTab"
+    @logout="handleLogout"
     @refresh="refreshCurrentTasks"
   >
     <ReportOverview

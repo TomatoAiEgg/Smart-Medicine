@@ -3,6 +3,7 @@ package com.zhyf.gateway.api;
 import com.zhyf.common.api.ApiResponse;
 import com.zhyf.common.exception.BusinessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -12,9 +13,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleBusinessException(BusinessException ex) {
-        return ApiResponse.fail(ex.code(), ex.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        HttpStatus status = switch (ex.code()) {
+            case "ADMIN_BACKEND_UNAVAILABLE", "ADMIN_BACKEND_INTERRUPTED" -> HttpStatus.BAD_GATEWAY;
+            case "ADMIN_BACKEND_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return ResponseEntity.status(status).body(ApiResponse.fail(ex.code(), ex.getMessage()));
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)

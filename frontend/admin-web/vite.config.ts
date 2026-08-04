@@ -9,54 +9,48 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/order-api': {
-          target: env.VITE_ORDER_SERVICE_URL || 'http://127.0.0.1:18082',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/order-api/, ''),
         },
         '/workflow-api': {
-          target: env.VITE_WORKFLOW_SERVICE_URL || 'http://127.0.0.1:18085',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/workflow-api/, ''),
         },
         '/message-api': {
-          target: env.VITE_MESSAGE_SERVICE_URL || 'http://127.0.0.1:18083',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/message-api/, ''),
         },
         '/decoction-api': {
-          target: env.VITE_DECOCTION_SERVICE_URL || 'http://127.0.0.1:18087',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/decoction-api/, ''),
         },
         '/ops-api': {
-          target: env.VITE_OPS_SERVICE_URL || 'http://127.0.0.1:18086',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/ops-api/, ''),
         },
         '/logistics-api': {
-          target: env.VITE_LOGISTICS_SERVICE_URL || 'http://127.0.0.1:18088',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/logistics-api/, ''),
         },
         '/callback-api': {
-          target: env.VITE_CALLBACK_SERVICE_URL || 'http://127.0.0.1:18089',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/callback-api/, ''),
         },
         '/portal-api': {
-          target: env.VITE_PORTAL_SERVICE_URL || 'http://127.0.0.1:18090',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/portal-api/, ''),
         },
         '/report-api': {
-          target: env.VITE_REPORT_SERVICE_URL || 'http://127.0.0.1:18091',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/report-api/, ''),
         },
         '/integration-api': {
-          target: env.VITE_INTEGRATION_SERVICE_URL || 'http://127.0.0.1:18092',
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/integration-api/, ''),
+        },
+        '/auth-api': {
+          target: env.VITE_GATEWAY_URL || 'http://127.0.0.1:18080',
+          changeOrigin: true,
         },
       },
     },

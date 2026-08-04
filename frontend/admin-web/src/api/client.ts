@@ -1,4 +1,5 @@
 import type { ApiResponse } from './types';
+import { adminAccessToken, clearAdminSession } from './adminSession';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -14,14 +15,16 @@ export class ApiError extends Error {
 
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response;
+  const token = adminAccessToken();
 
   try {
     response = await fetch(url, {
+      ...init,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init?.headers,
       },
-      ...init,
     });
   } catch (error) {
     throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
@@ -33,6 +36,7 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
     : null;
 
   if (!response.ok) {
+    expireSessionWhenUnauthorized(response.status, token);
     throw new ApiError(payload?.message || `HTTP ${response.status}`, payload?.code, response.status);
   }
 
@@ -49,9 +53,16 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export async function downloadBlob(url: string, init?: RequestInit): Promise<Blob> {
   let response: Response;
+  const token = adminAccessToken();
 
   try {
-    response = await fetch(url, init);
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
   } catch (error) {
     throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
   }
@@ -63,5 +74,12 @@ export async function downloadBlob(url: string, init?: RequestInit): Promise<Blo
     ? ((await response.json()) as ApiResponse<unknown>)
     : null;
 
+  expireSessionWhenUnauthorized(response.status, token);
   throw new ApiError(payload?.message || `导出失败：HTTP ${response.status}`, payload?.code, response.status);
+}
+
+function expireSessionWhenUnauthorized(status: number, token: string | null) {
+  if (status !== 401 || !token) return;
+  clearAdminSession();
+  window.dispatchEvent(new CustomEvent('admin-auth-expired'));
 }

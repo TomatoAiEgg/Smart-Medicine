@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import type { AdminUserSession } from '../api/adminSession';
 import type { AppRouteItem, ViewKey } from './views';
 
 export interface LayoutTab {
@@ -18,11 +19,13 @@ const props = defineProps<{
   counts: Partial<Record<ViewKey, number>>;
   notice: { tone: 'info' | 'success' | 'error'; text: string } | null;
   tabs: LayoutTab[];
+  adminUser: AdminUserSession;
 }>();
 
 defineEmits<{
   refresh: [];
   closeTab: [view: ViewKey];
+  logout: [];
 }>();
 
 const groupedMenuItems = computed(() => {
@@ -87,8 +90,10 @@ function toggleGroup(groupName: string) {
       </div>
 
       <div class="cloud-console-header-actions">
-        <t-tag theme="success" variant="light">生产环境</t-tag>
-        <span>admin</span>
+        <t-tag class="cloud-console-environment" theme="warning" variant="light">开发环境</t-tag>
+        <span class="cloud-console-tenant">{{ adminUser.tenantName }}</span>
+        <strong>{{ adminUser.displayName || adminUser.username }}</strong>
+        <button type="button" class="cloud-console-logout" @click="$emit('logout')">退出</button>
       </div>
     </header>
 

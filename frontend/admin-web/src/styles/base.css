@@ -4026,6 +4026,37 @@ select {
   font-size: 13px;
 }
 
+.cloud-console-header-actions strong {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.cloud-console-tenant {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-console-logout {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  color: #344054;
+  background: #ffffff;
+}
+
+.cloud-console-logout:hover {
+  color: var(--admin-primary);
+  border-color: var(--admin-primary);
+}
+
+.cloud-console-logout:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
 .cloud-console-sidebar {
   grid-area: sidebar;
   display: flex;
@@ -4823,8 +4854,13 @@ td small,
   }
 
   .cloud-console-brand small,
-  .cloud-console-header-actions {
+  .cloud-console-tenant,
+  .cloud-console-environment {
     display: none;
+  }
+
+  .cloud-console-header-actions {
+    gap: 8px;
   }
 
   .cloud-console-content {

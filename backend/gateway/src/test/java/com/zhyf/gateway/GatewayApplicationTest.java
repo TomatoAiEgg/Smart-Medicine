@@ -9,7 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
         "spring.datasource.password=test",
         "zhyf.gateway.auth-institution-base-url=http://localhost:18081",
         "zhyf.gateway.order-service-base-url=http://localhost:18082",
-        "zhyf.gateway.signature-timeout-seconds=300"
+        "zhyf.gateway.signature-timeout-seconds=300",
+        "zhyf.admin-gateway.jwt-secret=test-admin-jwt-secret-with-at-least-32-bytes"
 })
 class GatewayApplicationTest {
 
