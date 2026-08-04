@@ -29,7 +29,7 @@ public class IntegrationRepository {
             String externalMessageId
     ) {
         String sql = """
-                select id, source_type, source_system, external_message_id, message_type, business_key,
+                select id, tenant_id, source_type, source_system, external_message_id, message_type, business_key,
                        process_status, normalized_payload::text as normalized_payload, raw_payload, failure_reason,
                        created_at, updated_at, processed_at
                 from integration_message
@@ -40,8 +40,51 @@ public class IntegrationRepository {
                 .findFirst();
     }
 
+    public Optional<UUID> resolveTenantId(String sourceType, String sourceSystem, String businessKey) {
+        String sql = """
+                select tenant_id
+                from (
+                    select b.tenant_id, 1 as priority
+                    from integration_source_binding b
+                    where b.source_type = ?
+                      and b.source_system = ?
+                      and b.enabled = true
+                    union all
+                    select o.tenant_id, 2 as priority
+                    from order_main o
+                    where ? is not null
+                      and (o.order_no = ? or o.external_order_no = ?)
+                    union all
+                    select i.tenant_id, 3 as priority
+                    from institution i
+                    where i.institution_code = ?
+                      and i.status = 'ENABLED'
+                    union all
+                    select t.id, 4 as priority
+                    from tenant t
+                    where t.status = 'ENABLED'
+                      and (select count(*) from tenant where status = 'ENABLED') = 1
+                ) candidates
+                order by priority
+                limit 1
+                """;
+        return jdbcTemplate.queryForList(
+                        sql,
+                        UUID.class,
+                        sourceType,
+                        sourceSystem,
+                        businessKey,
+                        businessKey,
+                        businessKey,
+                        sourceSystem
+                )
+                .stream()
+                .findFirst();
+    }
+
     public IntegrationRecords.IntegrationMessageRecord createMessage(
             UUID messageId,
+            UUID tenantId,
             String sourceType,
             String sourceSystem,
             String externalMessageId,
@@ -53,13 +96,14 @@ public class IntegrationRepository {
         Instant now = Instant.now();
         String sql = """
                 insert into integration_message (
-                    id, source_type, source_system, external_message_id, message_type, business_key,
+                    id, tenant_id, source_type, source_system, external_message_id, message_type, business_key,
                     process_status, normalized_payload, raw_payload, failure_reason, created_at, updated_at, processed_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.update(
                 sql,
                 messageId,
+                tenantId,
                 sourceType,
                 sourceSystem,
                 externalMessageId,
@@ -76,6 +120,7 @@ public class IntegrationRepository {
         return findMessage(sourceType, sourceSystem, externalMessageId)
                 .orElse(new IntegrationRecords.IntegrationMessageRecord(
                         messageId,
+                        tenantId,
                         sourceType,
                         sourceSystem,
                         externalMessageId,
@@ -98,7 +143,7 @@ public class IntegrationRepository {
             int limit
     ) {
         QueryParts query = new QueryParts("""
-                select id, source_type, source_system, external_message_id, message_type, business_key,
+                select id, tenant_id, source_type, source_system, external_message_id, message_type, business_key,
                        process_status, normalized_payload::text as normalized_payload, raw_payload, failure_reason,
                        created_at, updated_at, processed_at
                 from integration_message
@@ -121,6 +166,7 @@ public class IntegrationRepository {
 
     public IntegrationRecords.IntegrationRetryTaskRecord createRetryTask(
             UUID taskId,
+            UUID tenantId,
             UUID messageId,
             String taskType,
             String targetSystem,
@@ -132,14 +178,15 @@ public class IntegrationRepository {
         Instant now = Instant.now();
         String sql = """
                 insert into integration_retry_task (
-                    id, message_id, task_type, target_system, business_key, request_url,
+                    id, tenant_id, message_id, task_type, target_system, business_key, request_url,
                     request_headers, request_body, response_body, task_status, retry_count,
                     next_retry_at, created_at, updated_at, processed_at
-                ) values (?, ?, ?, ?, ?, ?, '{}'::jsonb, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) values (?, ?, ?, ?, ?, ?, ?, '{}'::jsonb, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.update(
                 sql,
                 taskId,
+                tenantId,
                 messageId,
                 taskType,
                 targetSystem,
@@ -157,6 +204,7 @@ public class IntegrationRepository {
         return findRetryTask(messageId, taskType)
                 .orElse(new IntegrationRecords.IntegrationRetryTaskRecord(
                         taskId,
+                        tenantId,
                         messageId,
                         taskType,
                         targetSystem,
@@ -188,54 +236,123 @@ public class IntegrationRepository {
         return jdbcTemplate.query(query.sql(), this::mapRetryTask, query.args());
     }
 
-    public List<IntegrationRecords.IntegrationRetryTaskRecord> findDueRetryTasks(Instant now, int limit) {
-        String sql = retryTaskBaseQuery() + """
-                where task_status in ('PENDING', 'FAILED')
-                  and (next_retry_at is null or next_retry_at <= ?)
+    public List<IntegrationRecords.IntegrationRetryTaskRecord> claimDueRetryTasks(
+            String claimOwner,
+            Instant now,
+            Instant claimExpiresAt,
+            int limit
+    ) {
+        String sql = """
+                with due as (
+                    select id
+                    from integration_retry_task
+                    where (
+                        task_status in ('PENDING', 'FAILED')
+                        and (next_retry_at is null or next_retry_at <= ?)
+                    ) or (
+                        task_status = 'PROCESSING'
+                        and claim_expires_at <= ?
+                    )
+                    order by next_retry_at nulls first, created_at asc
+                    for update skip locked
+                    limit ?
+                ), claimed as (
+                    update integration_retry_task t
+                    set task_status = 'PROCESSING',
+                        claimed_by = ?,
+                        claimed_at = ?,
+                        claim_expires_at = ?,
+                        updated_at = now(),
+                        version = version + 1
+                    from due
+                    where t.id = due.id
+                    returning t.*
+                )
+                select id, tenant_id, message_id, task_type, target_system, business_key,
+                       request_url, request_body, response_body, task_status, retry_count,
+                       next_retry_at, created_at, updated_at, processed_at
+                from claimed
                 order by next_retry_at nulls first, created_at asc
-                limit ?
                 """;
-        return jdbcTemplate.query(sql, this::mapRetryTask, offsetDateTime(now), limit);
+        OffsetDateTime claimedAt = offsetDateTime(now);
+        return jdbcTemplate.query(
+                sql,
+                this::mapRetryTask,
+                claimedAt,
+                claimedAt,
+                limit,
+                claimOwner,
+                claimedAt,
+                offsetDateTime(claimExpiresAt)
+        );
     }
 
-    public int markRetryTaskSucceeded(UUID taskId, String responseBody) {
+    public int completeRetryTaskSucceeded(UUID taskId, String claimOwner, String responseBody) {
         String sql = """
                 update integration_retry_task
                 set task_status = 'SUCCESS',
                     response_body = ?,
+                    last_error = null,
                     next_retry_at = null,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
                     processed_at = now(),
-                    updated_at = now()
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
+                  and task_status = 'PROCESSING'
+                  and claimed_by = ?
                 """;
-        return jdbcTemplate.update(sql, responseBody, taskId);
+        return jdbcTemplate.update(sql, responseBody, taskId, claimOwner);
     }
 
-    public int markRetryTaskFailed(UUID taskId, String responseBody, Instant nextRetryAt) {
+    public int completeRetryTaskFailed(UUID taskId, String claimOwner, String responseBody, Instant nextRetryAt) {
         String sql = """
                 update integration_retry_task
                 set task_status = 'FAILED',
                     response_body = ?,
+                    last_error = ?,
                     retry_count = retry_count + 1,
                     next_retry_at = ?,
-                    updated_at = now()
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
+                  and task_status = 'PROCESSING'
+                  and claimed_by = ?
                 """;
-        return jdbcTemplate.update(sql, responseBody, offsetDateTime(nextRetryAt), taskId);
+        return jdbcTemplate.update(
+                sql,
+                responseBody,
+                responseBody,
+                offsetDateTime(nextRetryAt),
+                taskId,
+                claimOwner
+        );
     }
 
-    public int markRetryTaskDead(UUID taskId, String responseBody) {
+    public int completeRetryTaskDead(UUID taskId, String claimOwner, String responseBody) {
         String sql = """
                 update integration_retry_task
                 set task_status = 'DEAD',
                     response_body = ?,
+                    last_error = ?,
                     retry_count = retry_count + 1,
                     next_retry_at = null,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
                     processed_at = now(),
-                    updated_at = now()
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
+                  and task_status = 'PROCESSING'
+                  and claimed_by = ?
                 """;
-        return jdbcTemplate.update(sql, responseBody, taskId);
+        return jdbcTemplate.update(sql, responseBody, responseBody, taskId, claimOwner);
     }
 
     public int markMessageStatus(UUID messageId, String processStatus, String failureReason) {
@@ -244,7 +361,8 @@ public class IntegrationRepository {
                 set process_status = ?,
                     failure_reason = ?,
                     processed_at = case when ? in ('SUCCESS', 'DEAD') then now() else processed_at end,
-                    updated_at = now()
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
                 """;
         return jdbcTemplate.update(sql, processStatus, failureReason, processStatus, messageId);
@@ -282,6 +400,7 @@ public class IntegrationRepository {
     private IntegrationRecords.IntegrationMessageRecord mapMessage(ResultSet rs, int rowNum) throws SQLException {
         return new IntegrationRecords.IntegrationMessageRecord(
                 rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
                 rs.getString("source_type"),
                 rs.getString("source_system"),
                 rs.getString("external_message_id"),
@@ -321,6 +440,7 @@ public class IntegrationRepository {
     private IntegrationRecords.IntegrationRetryTaskRecord mapRetryTask(ResultSet rs, int rowNum) throws SQLException {
         return new IntegrationRecords.IntegrationRetryTaskRecord(
                 rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
                 rs.getObject("message_id", UUID.class),
                 rs.getString("task_type"),
                 rs.getString("target_system"),
@@ -339,7 +459,7 @@ public class IntegrationRepository {
 
     private String retryTaskBaseQuery() {
         return """
-                select id, message_id, task_type, target_system, business_key,
+                select id, tenant_id, message_id, task_type, target_system, business_key,
                        request_url, request_body, response_body, task_status, retry_count,
                        next_retry_at, created_at, updated_at, processed_at
                 from integration_retry_task

@@ -26,10 +26,13 @@ class CallbackRepositoryTest {
         Instant now = Instant.parse("2026-07-08T00:00:00Z");
         when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(java.util.List.of());
 
-        repository.findDueRecords(now, 10);
+        repository.claimDueRecords("worker:claim", now, now.plusSeconds(120), 10);
 
         Object[] args = capturedQueryArgs();
         assertThat(args[0]).isEqualTo(OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
+        assertThat(args[1]).isEqualTo(OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
+        assertThat(args[3]).isEqualTo("worker:claim");
+        assertThat(args[5]).isEqualTo(OffsetDateTime.ofInstant(now.plusSeconds(120), ZoneOffset.UTC));
     }
 
     @Test
@@ -40,7 +43,7 @@ class CallbackRepositoryTest {
         repository.markFailed(UUID.randomUUID(), "timeout", nextRetryAt);
 
         Object[] args = capturedUpdateArgs();
-        assertThat(args[1]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
+        assertThat(args[2]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
     }
 
     @Test

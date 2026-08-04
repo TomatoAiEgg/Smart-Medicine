@@ -25,3 +25,5 @@ zhyf:
     max-retries: ${ZHYF_INTEGRATION_MAX_RETRIES:5}
     initial-retry-delay-seconds: ${ZHYF_INTEGRATION_INITIAL_RETRY_DELAY_SECONDS:60}
     max-retry-delay-seconds: ${ZHYF_INTEGRATION_MAX_RETRY_DELAY_SECONDS:1800}
+    worker-id: ${ZHYF_INTEGRATION_WORKER_ID:${HOSTNAME:integration-service}}
+    claim-lease-seconds: ${ZHYF_INTEGRATION_CLAIM_LEASE_SECONDS:120}

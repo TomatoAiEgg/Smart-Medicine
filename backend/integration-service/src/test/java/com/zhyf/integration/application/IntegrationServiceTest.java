@@ -3,9 +3,11 @@ package com.zhyf.integration.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -28,6 +31,13 @@ class IntegrationServiceTest {
     private final IntegrationProperties properties = new IntegrationProperties();
     private final Clock clock = Clock.fixed(Instant.parse("2026-07-09T08:00:00Z"), ZoneOffset.UTC);
     private final IntegrationService service = new IntegrationService(repository, sender, properties, clock);
+    private final UUID tenantId = UUID.randomUUID();
+
+    @BeforeEach
+    void resolveTenant() {
+        when(repository.resolveTenantId(anyString(), anyString(), nullable(String.class)))
+                .thenReturn(Optional.of(tenantId));
+    }
 
     @Test
     void shouldRequireExternalMessageIdForCommunityMessage() {
@@ -63,14 +73,14 @@ class IntegrationServiceTest {
                 "CH-ORDER-1"
         );
         when(repository.findMessage("COMMUNITY_HOSPITAL", "CH-001", "MSG-001")).thenReturn(Optional.empty());
-        when(repository.createMessage(any(UUID.class), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-001"),
+        when(repository.createMessage(any(UUID.class), eq(tenantId), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-001"),
                 eq("ORDER_CREATED"), eq("CH-ORDER-1"), any(String.class), any(String.class))).thenReturn(created);
 
         IntegrationRecords.IntegrationMessageRecord result = service.recordCommunityMessage(command);
 
         assertThat(result.processStatus()).isEqualTo("PENDING");
         verify(repository).findMessage("COMMUNITY_HOSPITAL", "CH-001", "MSG-001");
-        verify(repository).createMessage(any(UUID.class), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-001"),
+        verify(repository).createMessage(any(UUID.class), eq(tenantId), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-001"),
                 eq("ORDER_CREATED"), eq("CH-ORDER-1"), any(String.class), any(String.class));
     }
 
@@ -92,7 +102,7 @@ class IntegrationServiceTest {
                 null
         );
         when(repository.findMessage("COMMUNITY_HOSPITAL", "CH-001", "MSG-002")).thenReturn(Optional.empty());
-        when(repository.createMessage(any(UUID.class), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-002"),
+        when(repository.createMessage(any(UUID.class), eq(tenantId), eq("COMMUNITY_HOSPITAL"), eq("CH-001"), eq("MSG-002"),
                 eq("ORDER_CREATED"), isNull(), argThat(payload -> payload.contains("communityCode")
                         && !payload.contains("areaCode") && !payload.contains("businessKey")), any(String.class)))
                 .thenReturn(created);
@@ -145,7 +155,7 @@ class IntegrationServiceTest {
                 "ZHYF1"
         );
         when(repository.findMessage("ADDRESS_PUSH", "HOSP-001", supplementId.toString())).thenReturn(Optional.empty());
-        when(repository.createMessage(any(UUID.class), eq("ADDRESS_PUSH"), eq("HOSP-001"), eq(supplementId.toString()),
+        when(repository.createMessage(any(UUID.class), eq(tenantId), eq("ADDRESS_PUSH"), eq("HOSP-001"), eq(supplementId.toString()),
                 eq("LGFY"), eq("ZHYF1"), any(String.class), any(String.class))).thenReturn(created);
 
         IntegrationRecords.IntegrationMessageRecord result = service.recordAddressPush(command);
@@ -183,17 +193,17 @@ class IntegrationServiceTest {
                 0
         );
         when(repository.findMessage("ADDRESS_PUSH", "HOSP-001", supplementId.toString())).thenReturn(Optional.empty());
-        when(repository.createMessage(any(UUID.class), eq("ADDRESS_PUSH"), eq("HOSP-001"), eq(supplementId.toString()),
+        when(repository.createMessage(any(UUID.class), eq(tenantId), eq("ADDRESS_PUSH"), eq("HOSP-001"), eq(supplementId.toString()),
                 eq("LGFY"), eq("ZHYF1"), any(String.class), any(String.class))).thenReturn(created);
         when(repository.findRetryTask(created.messageId(), "ADDRESS_PUSH")).thenReturn(Optional.empty());
-        when(repository.createRetryTask(any(UUID.class), eq(created.messageId()), eq("ADDRESS_PUSH"), eq("HOSP-001"),
+        when(repository.createRetryTask(any(UUID.class), eq(tenantId), eq(created.messageId()), eq("ADDRESS_PUSH"), eq("HOSP-001"),
                 eq("ZHYF1"), eq("http://127.0.0.1:19999/address"), eq("{\"receiver\":\"张三\"}"), any()))
                 .thenReturn(retryTask);
 
         IntegrationRecords.IntegrationMessageRecord result = service.recordAddressPush(command);
 
         assertThat(result.messageId()).isEqualTo(created.messageId());
-        verify(repository).createRetryTask(any(UUID.class), eq(created.messageId()), eq("ADDRESS_PUSH"), eq("HOSP-001"),
+        verify(repository).createRetryTask(any(UUID.class), eq(tenantId), eq(created.messageId()), eq("ADDRESS_PUSH"), eq("HOSP-001"),
                 eq("ZHYF1"), eq("http://127.0.0.1:19999/address"), eq("{\"receiver\":\"张三\"}"), any());
     }
 
@@ -214,10 +224,10 @@ class IntegrationServiceTest {
                 "ZHYF1"
         );
         when(repository.findMessage("COMMUNITY_STATUS_PUSH", "CH-001", "ZHYF1:SIGNED")).thenReturn(Optional.empty());
-        when(repository.createMessage(any(UUID.class), eq("COMMUNITY_STATUS_PUSH"), eq("CH-001"), eq("ZHYF1:SIGNED"),
+        when(repository.createMessage(any(UUID.class), eq(tenantId), eq("COMMUNITY_STATUS_PUSH"), eq("CH-001"), eq("ZHYF1:SIGNED"),
                 eq("SIGNED"), eq("ZHYF1"), any(String.class), any(String.class))).thenReturn(created);
         when(repository.findRetryTask(created.messageId(), "COMMUNITY_STATUS_PUSH")).thenReturn(Optional.empty());
-        when(repository.createRetryTask(any(UUID.class), eq(created.messageId()), eq("COMMUNITY_STATUS_PUSH"),
+        when(repository.createRetryTask(any(UUID.class), eq(tenantId), eq(created.messageId()), eq("COMMUNITY_STATUS_PUSH"),
                 eq("CH-001"), eq("ZHYF1"), eq("http://127.0.0.1:19999/community/status"),
                 eq("{\"orderNo\":\"ZHYF1\",\"status\":\"SIGNED\"}"), any()))
                 .thenReturn(retryTaskRecord(created.messageId(), "COMMUNITY_STATUS_PUSH", "CH-001", "ZHYF1",
@@ -226,7 +236,7 @@ class IntegrationServiceTest {
         IntegrationRecords.IntegrationMessageRecord result = service.createCommunityStatusPush(command);
 
         assertThat(result.sourceType()).isEqualTo("COMMUNITY_STATUS_PUSH");
-        verify(repository).createRetryTask(any(UUID.class), eq(created.messageId()), eq("COMMUNITY_STATUS_PUSH"),
+        verify(repository).createRetryTask(any(UUID.class), eq(tenantId), eq(created.messageId()), eq("COMMUNITY_STATUS_PUSH"),
                 eq("CH-001"), eq("ZHYF1"), eq("http://127.0.0.1:19999/community/status"),
                 eq("{\"orderNo\":\"ZHYF1\",\"status\":\"SIGNED\"}"), any());
     }
@@ -243,13 +253,15 @@ class IntegrationServiceTest {
                 "PENDING",
                 0
         );
-        when(repository.findDueRetryTasks(Instant.now(clock), 20)).thenReturn(List.of(task));
+        when(repository.claimDueRetryTasks(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(task));
         when(sender.send(task)).thenReturn(IntegrationSendResult.success("ok"));
+        when(repository.completeRetryTaskSucceeded(eq(task.taskId()), anyString(), eq("ok"))).thenReturn(1);
 
         int handled = service.dispatchDueRetryTasks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markRetryTaskSucceeded(task.taskId(), "ok");
+        verify(repository).completeRetryTaskSucceeded(eq(task.taskId()), anyString(), eq("ok"));
         verify(repository).markMessageStatus(task.messageId(), "SUCCESS", null);
     }
 
@@ -266,14 +278,17 @@ class IntegrationServiceTest {
                 "PENDING",
                 0
         );
-        when(repository.findDueRetryTasks(Instant.now(clock), 20)).thenReturn(List.of(task));
+        when(repository.claimDueRetryTasks(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(task));
         when(sender.send(task)).thenReturn(IntegrationSendResult.failure("http 500"));
+        when(repository.completeRetryTaskFailed(eq(task.taskId()), anyString(), eq("http 500"),
+                eq(Instant.now(clock).plus(60, ChronoUnit.SECONDS)))).thenReturn(1);
 
         int handled = service.dispatchDueRetryTasks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markRetryTaskFailed(task.taskId(), "http 500",
-                Instant.now(clock).plus(60, ChronoUnit.SECONDS));
+        verify(repository).completeRetryTaskFailed(eq(task.taskId()), anyString(), eq("http 500"),
+                eq(Instant.now(clock).plus(60, ChronoUnit.SECONDS)));
         verify(repository).markMessageStatus(task.messageId(), "FAILED", "http 500");
     }
 
@@ -290,13 +305,15 @@ class IntegrationServiceTest {
                 "FAILED",
                 2
         );
-        when(repository.findDueRetryTasks(Instant.now(clock), 20)).thenReturn(List.of(task));
+        when(repository.claimDueRetryTasks(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(task));
         when(sender.send(task)).thenReturn(IntegrationSendResult.failure("timeout"));
+        when(repository.completeRetryTaskDead(eq(task.taskId()), anyString(), eq("timeout"))).thenReturn(1);
 
         int handled = service.dispatchDueRetryTasks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markRetryTaskDead(task.taskId(), "timeout");
+        verify(repository).completeRetryTaskDead(eq(task.taskId()), anyString(), eq("timeout"));
         verify(repository).markMessageStatus(task.messageId(), "DEAD", "timeout");
     }
 
@@ -316,6 +333,7 @@ class IntegrationServiceTest {
     ) {
         return new IntegrationRecords.IntegrationMessageRecord(
                 UUID.randomUUID(),
+                tenantId,
                 sourceType,
                 sourceSystem,
                 externalMessageId,
@@ -343,6 +361,7 @@ class IntegrationServiceTest {
     ) {
         return new IntegrationRecords.IntegrationRetryTaskRecord(
                 UUID.randomUUID(),
+                tenantId,
                 messageId,
                 taskType,
                 targetSystem,

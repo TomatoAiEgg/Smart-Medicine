@@ -26,3 +26,5 @@ zhyf:
     max-retries: ${ZHYF_CALLBACK_MAX_RETRIES:5}
     initial-retry-delay-seconds: ${ZHYF_CALLBACK_INITIAL_RETRY_DELAY_SECONDS:60}
     max-retry-delay-seconds: ${ZHYF_CALLBACK_MAX_RETRY_DELAY_SECONDS:1800}
+    worker-id: ${ZHYF_CALLBACK_WORKER_ID:${HOSTNAME:callback-service}}
+    claim-lease-seconds: ${ZHYF_CALLBACK_CLAIM_LEASE_SECONDS:120}

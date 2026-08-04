@@ -28,6 +28,7 @@ class IntegrationRepositoryTest {
 
         repository.createMessage(
                 UUID.randomUUID(),
+                UUID.randomUUID(),
                 "COMMUNITY_HOSPITAL",
                 "CH-001",
                 "MSG-001",
@@ -38,8 +39,8 @@ class IntegrationRepositoryTest {
         );
 
         Object[] args = capturedUpdateArgs();
-        assertThat(args[10]).isInstanceOf(OffsetDateTime.class);
         assertThat(args[11]).isInstanceOf(OffsetDateTime.class);
+        assertThat(args[12]).isInstanceOf(OffsetDateTime.class);
     }
 
     @Test
@@ -64,6 +65,7 @@ class IntegrationRepositoryTest {
         repository.createRetryTask(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
+                UUID.randomUUID(),
                 "ADDRESS_PUSH",
                 "HOSP-001",
                 "ZHYF1",
@@ -73,9 +75,9 @@ class IntegrationRepositoryTest {
         );
 
         Object[] args = capturedUpdateArgs();
-        assertThat(args[10]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
-        assertThat(args[11]).isInstanceOf(OffsetDateTime.class);
+        assertThat(args[11]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
         assertThat(args[12]).isInstanceOf(OffsetDateTime.class);
+        assertThat(args[13]).isInstanceOf(OffsetDateTime.class);
     }
 
     @Test
@@ -83,10 +85,12 @@ class IntegrationRepositoryTest {
         Instant now = Instant.parse("2026-07-09T08:00:00Z");
         when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
-        repository.findDueRetryTasks(now, 10);
+        repository.claimDueRetryTasks("worker:claim", now, now.plusSeconds(120), 10);
 
         Object[] args = capturedQueryArgs();
         assertThat(args[0]).isEqualTo(OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
+        assertThat(args[3]).isEqualTo("worker:claim");
+        assertThat(args[5]).isEqualTo(OffsetDateTime.ofInstant(now.plusSeconds(120), ZoneOffset.UTC));
     }
 
     @Test
@@ -94,10 +98,10 @@ class IntegrationRepositoryTest {
         Instant nextRetryAt = Instant.parse("2026-07-09T08:10:00Z");
         when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(1);
 
-        repository.markRetryTaskFailed(UUID.randomUUID(), "timeout", nextRetryAt);
+        repository.completeRetryTaskFailed(UUID.randomUUID(), "worker:claim", "timeout", nextRetryAt);
 
         Object[] args = capturedUpdateArgs();
-        assertThat(args[1]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
+        assertThat(args[2]).isEqualTo(OffsetDateTime.ofInstant(nextRetryAt, ZoneOffset.UTC));
     }
 
     private Object[] capturedUpdateArgs() {

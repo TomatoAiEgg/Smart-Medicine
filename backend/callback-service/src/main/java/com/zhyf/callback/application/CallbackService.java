@@ -56,9 +56,16 @@ public class CallbackService {
     }
 
     public int dispatchDueCallbacks(int limit) {
-        List<CallbackRecords.CallbackRecord> records = repository.findDueRecords(Instant.now(clock), normalizeLimit(limit));
+        Instant now = Instant.now(clock);
+        String claimOwner = properties.getWorkerId() + ":" + UUID.randomUUID();
+        List<CallbackRecords.CallbackRecord> records = repository.claimDueRecords(
+                claimOwner,
+                now,
+                now.plusSeconds(properties.getClaimLeaseSeconds()),
+                normalizeLimit(limit)
+        );
         for (CallbackRecords.CallbackRecord record : records) {
-            dispatchRecord(record);
+            dispatchRecord(record, claimOwner);
         }
         return records.size();
     }
@@ -109,7 +116,7 @@ public class CallbackService {
                 .orElseThrow(() -> new BusinessException("CALLBACK_RECORD_CREATE_FAILED", "Callback record create failed"));
     }
 
-    private void dispatchRecord(CallbackRecords.CallbackRecord record) {
+    private void dispatchRecord(CallbackRecords.CallbackRecord record, String claimOwner) {
         CallbackSendResult result;
         try {
             result = sender.send(record);
@@ -118,20 +125,29 @@ public class CallbackService {
         }
         String responseBody = defaultValue(result.responseBody(), result.success() ? "callback success" : "callback failed");
         if (result.success()) {
-            repository.markSucceeded(record.id(), responseBody);
+            if (repository.completeClaimSucceeded(record.id(), claimOwner, responseBody) == 0) {
+                log.warn("callback claim lost before success update id={} claimOwner={}", record.id(), claimOwner);
+                return;
+            }
             log.info("callback dispatched id={} type={} businessId={} status=SUCCESS",
                     record.id(), record.callbackType(), record.businessId());
             return;
         }
         int nextRetryCount = record.retryCount() + 1;
         if (nextRetryCount >= properties.getMaxRetries()) {
-            repository.markDead(record.id(), responseBody);
+            if (repository.completeClaimDead(record.id(), claimOwner, responseBody) == 0) {
+                log.warn("callback claim lost before dead update id={} claimOwner={}", record.id(), claimOwner);
+                return;
+            }
             log.warn("callback dispatched id={} type={} businessId={} status=DEAD retryCount={} reason={}",
                     record.id(), record.callbackType(), record.businessId(), nextRetryCount, responseBody);
             return;
         }
         Instant nextRetryAt = nextRetryAt(nextRetryCount);
-        repository.markFailed(record.id(), responseBody, nextRetryAt);
+        if (repository.completeClaimFailed(record.id(), claimOwner, responseBody, nextRetryAt) == 0) {
+            log.warn("callback claim lost before failure update id={} claimOwner={}", record.id(), claimOwner);
+            return;
+        }
         log.warn("callback dispatched id={} type={} businessId={} status=FAILED retryCount={} nextRetryAt={} reason={}",
                 record.id(), record.callbackType(), record.businessId(), nextRetryCount, nextRetryAt, responseBody);
     }

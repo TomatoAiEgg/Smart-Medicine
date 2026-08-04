@@ -70,6 +70,7 @@ public class IntegrationService {
         return repository.findMessage(COMMUNITY_SOURCE_TYPE, communityCode, externalMessageId)
                 .orElseGet(() -> repository.createMessage(
                         UUID.randomUUID(),
+                        resolveTenantId(COMMUNITY_SOURCE_TYPE, communityCode, businessKey),
                         COMMUNITY_SOURCE_TYPE,
                         communityCode,
                         externalMessageId,
@@ -92,6 +93,7 @@ public class IntegrationService {
         IntegrationRecords.IntegrationMessageRecord message = repository.findMessage(ADDRESS_SOURCE_TYPE, hospitalCode, externalMessageId)
                 .orElseGet(() -> repository.createMessage(
                         UUID.randomUUID(),
+                        resolveTenantId(ADDRESS_SOURCE_TYPE, hospitalCode, orderNo),
                         ADDRESS_SOURCE_TYPE,
                         hospitalCode,
                         externalMessageId,
@@ -131,6 +133,7 @@ public class IntegrationService {
                 externalMessageId
         ).orElseGet(() -> repository.createMessage(
                 UUID.randomUUID(),
+                resolveTenantId(COMMUNITY_STATUS_SOURCE_TYPE, communityCode, orderNo),
                 COMMUNITY_STATUS_SOURCE_TYPE,
                 communityCode,
                 externalMessageId,
@@ -190,12 +193,16 @@ public class IntegrationService {
     }
 
     public int dispatchDueRetryTasks(int limit) {
-        List<IntegrationRecords.IntegrationRetryTaskRecord> tasks = repository.findDueRetryTasks(
-                Instant.now(clock),
+        Instant now = Instant.now(clock);
+        String claimOwner = properties.getWorkerId() + ":" + UUID.randomUUID();
+        List<IntegrationRecords.IntegrationRetryTaskRecord> tasks = repository.claimDueRetryTasks(
+                claimOwner,
+                now,
+                now.plusSeconds(properties.getClaimLeaseSeconds()),
                 normalizeLimit(limit)
         );
         for (IntegrationRecords.IntegrationRetryTaskRecord task : tasks) {
-            dispatchRetryTask(task);
+            dispatchRetryTask(task, claimOwner);
         }
         return tasks.size();
     }
@@ -237,6 +244,7 @@ public class IntegrationService {
         repository.findRetryTask(message.messageId(), taskType)
                 .orElseGet(() -> repository.createRetryTask(
                         UUID.randomUUID(),
+                        message.tenantId(),
                         message.messageId(),
                         taskType,
                         targetSystem,
@@ -247,7 +255,7 @@ public class IntegrationService {
                 ));
     }
 
-    private void dispatchRetryTask(IntegrationRecords.IntegrationRetryTaskRecord task) {
+    private void dispatchRetryTask(IntegrationRecords.IntegrationRetryTaskRecord task, String claimOwner) {
         IntegrationSendResult result;
         try {
             result = sender.send(task);
@@ -256,7 +264,11 @@ public class IntegrationService {
         }
         String responseBody = defaultValue(result.responseBody(), result.success() ? "integration send success" : "integration send failed");
         if (result.success()) {
-            repository.markRetryTaskSucceeded(task.taskId(), responseBody);
+            if (repository.completeRetryTaskSucceeded(task.taskId(), claimOwner, responseBody) == 0) {
+                log.warn("integration retry claim lost before success update taskId={} claimOwner={}",
+                        task.taskId(), claimOwner);
+                return;
+            }
             repository.markMessageStatus(task.messageId(), "SUCCESS", null);
             log.info("integration retry dispatched taskId={} type={} businessKey={} status=SUCCESS",
                     task.taskId(), task.taskType(), task.businessKey());
@@ -264,14 +276,22 @@ public class IntegrationService {
         }
         int nextRetryCount = task.retryCount() + 1;
         if (nextRetryCount >= properties.getMaxRetries()) {
-            repository.markRetryTaskDead(task.taskId(), responseBody);
+            if (repository.completeRetryTaskDead(task.taskId(), claimOwner, responseBody) == 0) {
+                log.warn("integration retry claim lost before dead update taskId={} claimOwner={}",
+                        task.taskId(), claimOwner);
+                return;
+            }
             repository.markMessageStatus(task.messageId(), "DEAD", responseBody);
             log.warn("integration retry dispatched taskId={} type={} businessKey={} status=DEAD retryCount={} reason={}",
                     task.taskId(), task.taskType(), task.businessKey(), nextRetryCount, responseBody);
             return;
         }
         Instant nextRetryAt = nextRetryAt(nextRetryCount);
-        repository.markRetryTaskFailed(task.taskId(), responseBody, nextRetryAt);
+        if (repository.completeRetryTaskFailed(task.taskId(), claimOwner, responseBody, nextRetryAt) == 0) {
+            log.warn("integration retry claim lost before failure update taskId={} claimOwner={}",
+                    task.taskId(), claimOwner);
+            return;
+        }
         repository.markMessageStatus(task.messageId(), "FAILED", responseBody);
         log.warn("integration retry dispatched taskId={} type={} businessKey={} status=FAILED retryCount={} nextRetryAt={} reason={}",
                 task.taskId(), task.taskType(), task.businessKey(), nextRetryCount, nextRetryAt, responseBody);
@@ -285,6 +305,14 @@ public class IntegrationService {
 
     private String defaultValue(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private UUID resolveTenantId(String sourceType, String sourceSystem, String businessKey) {
+        return repository.resolveTenantId(sourceType, sourceSystem, businessKey)
+                .orElseThrow(() -> new BusinessException(
+                        "INTEGRATION_TENANT_NOT_RESOLVED",
+                        "Integration source is not bound to a tenant"
+                ));
     }
 
     private Map<String, String> communityPayload(String areaCode, String communityCode, String businessKey) {

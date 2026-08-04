@@ -10,6 +10,7 @@ public final class IntegrationRecords {
 
     public record IntegrationMessageRecord(
             UUID messageId,
+            UUID tenantId,
             String sourceType,
             String sourceSystem,
             String externalMessageId,
@@ -47,6 +48,7 @@ public final class IntegrationRecords {
 
     public record IntegrationRetryTaskRecord(
             UUID taskId,
+            UUID tenantId,
             UUID messageId,
             String taskType,
             String targetSystem,

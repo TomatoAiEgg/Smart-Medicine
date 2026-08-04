@@ -30,6 +30,7 @@ public class HttpCallbackSender implements CallbackSender {
             return restClient.post()
                     .uri(record.requestUrl())
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", record.id().toString())
                     .body(record.requestBody())
                     .exchange((request, response) -> {
                         String body = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);

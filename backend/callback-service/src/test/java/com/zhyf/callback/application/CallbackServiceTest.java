@@ -2,6 +2,7 @@ package com.zhyf.callback.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,13 +70,15 @@ class CallbackServiceTest {
     @Test
     void shouldMarkCallbackSucceededWhenSenderReturnsSuccess() {
         CallbackRecords.CallbackRecord record = record(UUID.randomUUID(), UUID.randomUUID());
-        when(repository.findDueRecords(Instant.now(clock), 20)).thenReturn(List.of(record));
+        when(repository.claimDueRecords(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(record));
         when(sender.send(record)).thenReturn(CallbackSendResult.success("ok"));
+        when(repository.completeClaimSucceeded(eq(record.id()), anyString(), eq("ok"))).thenReturn(1);
 
         int handled = service.dispatchDueCallbacks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markSucceeded(record.id(), "ok");
+        verify(repository).completeClaimSucceeded(eq(record.id()), anyString(), eq("ok"));
     }
 
     @Test
@@ -83,26 +86,32 @@ class CallbackServiceTest {
         properties.setMaxRetries(3);
         properties.setInitialRetryDelaySeconds(60);
         CallbackRecords.CallbackRecord record = record(UUID.randomUUID(), UUID.randomUUID());
-        when(repository.findDueRecords(Instant.now(clock), 20)).thenReturn(List.of(record));
+        when(repository.claimDueRecords(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(record));
         when(sender.send(record)).thenReturn(CallbackSendResult.failure("http 500"));
+        when(repository.completeClaimFailed(eq(record.id()), anyString(), eq("http 500"),
+                eq(Instant.now(clock).plus(60, ChronoUnit.SECONDS)))).thenReturn(1);
 
         int handled = service.dispatchDueCallbacks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markFailed(record.id(), "http 500", Instant.now(clock).plus(60, ChronoUnit.SECONDS));
+        verify(repository).completeClaimFailed(eq(record.id()), anyString(), eq("http 500"),
+                eq(Instant.now(clock).plus(60, ChronoUnit.SECONDS)));
     }
 
     @Test
     void shouldMarkDeadWhenSenderFailsAtMaxRetries() {
         properties.setMaxRetries(3);
         CallbackRecords.CallbackRecord record = record(UUID.randomUUID(), UUID.randomUUID(), 2);
-        when(repository.findDueRecords(Instant.now(clock), 20)).thenReturn(List.of(record));
+        when(repository.claimDueRecords(anyString(), eq(Instant.now(clock)),
+                eq(Instant.now(clock).plusSeconds(120)), eq(20))).thenReturn(List.of(record));
         when(sender.send(record)).thenReturn(CallbackSendResult.failure("timeout"));
+        when(repository.completeClaimDead(eq(record.id()), anyString(), eq("timeout"))).thenReturn(1);
 
         int handled = service.dispatchDueCallbacks(20);
 
         assertThat(handled).isEqualTo(1);
-        verify(repository).markDead(record.id(), "timeout");
+        verify(repository).completeClaimDead(eq(record.id()), anyString(), eq("timeout"));
     }
 
     private CallbackRecords.CallbackRecord record(UUID orderId, UUID tenantId) {

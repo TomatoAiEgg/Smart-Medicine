@@ -10,6 +10,8 @@ public class CallbackProperties {
     private int maxRetries = 5;
     private long initialRetryDelaySeconds = 60;
     private long maxRetryDelaySeconds = 1800;
+    private String workerId = "callback-service";
+    private long claimLeaseSeconds = 120;
 
     public boolean isDispatchEnabled() {
         return dispatchEnabled;
@@ -49,5 +51,21 @@ public class CallbackProperties {
 
     public void setMaxRetryDelaySeconds(long maxRetryDelaySeconds) {
         this.maxRetryDelaySeconds = Math.max(1, maxRetryDelaySeconds);
+    }
+
+    public String getWorkerId() {
+        return workerId;
+    }
+
+    public void setWorkerId(String workerId) {
+        this.workerId = workerId == null || workerId.isBlank() ? "callback-service" : workerId.trim();
+    }
+
+    public long getClaimLeaseSeconds() {
+        return claimLeaseSeconds;
+    }
+
+    public void setClaimLeaseSeconds(long claimLeaseSeconds) {
+        this.claimLeaseSeconds = Math.max(30, claimLeaseSeconds);
     }
 }

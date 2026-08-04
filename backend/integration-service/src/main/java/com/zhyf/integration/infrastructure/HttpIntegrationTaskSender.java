@@ -29,6 +29,7 @@ public class HttpIntegrationTaskSender implements IntegrationTaskSender {
             ResponseEntity<String> response = restClient.post()
                     .uri(task.requestUrl())
                     .contentType(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", task.taskId().toString())
                     .body(task.requestBody() == null ? "" : task.requestBody())
                     .retrieve()
                     .toEntity(String.class);

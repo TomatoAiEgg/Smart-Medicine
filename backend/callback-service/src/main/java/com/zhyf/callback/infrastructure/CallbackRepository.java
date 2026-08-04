@@ -60,14 +60,68 @@ public class CallbackRepository {
         return jdbcTemplate.query(query.sql(), this::mapCallbackRecord, query.args());
     }
 
-    public List<CallbackRecords.CallbackRecord> findDueRecords(Instant now, int limit) {
-        String sql = baseQuery() + """
-                where c.status in ('PENDING', 'FAILED')
-                  and (c.next_retry_at is null or c.next_retry_at <= ?)
+    public List<CallbackRecords.CallbackRecord> claimDueRecords(
+            String claimOwner,
+            Instant now,
+            Instant claimExpiresAt,
+            int limit
+    ) {
+        String sql = """
+                with due as (
+                    select id
+                    from callback_record
+                    where (
+                        status in ('PENDING', 'FAILED')
+                        and (next_retry_at is null or next_retry_at <= ?)
+                    ) or (
+                        status = 'SENDING'
+                        and claim_expires_at <= ?
+                    )
+                    order by next_retry_at nulls first, created_at asc
+                    for update skip locked
+                    limit ?
+                ), claimed as (
+                    update callback_record c
+                    set status = 'SENDING',
+                        claimed_by = ?,
+                        claimed_at = ?,
+                        claim_expires_at = ?,
+                        updated_at = now(),
+                        version = version + 1
+                    from due
+                    where c.id = due.id
+                    returning c.*
+                )
+                select
+                    c.id,
+                    c.tenant_id,
+                    c.order_id,
+                    o.order_no,
+                    c.callback_type,
+                    c.business_id,
+                    c.request_url,
+                    c.request_body::text as request_body,
+                    c.response_body,
+                    c.status,
+                    c.retry_count,
+                    c.next_retry_at,
+                    c.created_at,
+                    c.updated_at
+                from claimed c
+                left join order_main o on o.id = c.order_id
                 order by c.next_retry_at nulls first, c.created_at asc
-                limit ?
                 """;
-        return jdbcTemplate.query(sql, this::mapCallbackRecord, offsetDateTime(now), limit);
+        OffsetDateTime claimedAt = offsetDateTime(now);
+        return jdbcTemplate.query(
+                sql,
+                this::mapCallbackRecord,
+                claimedAt,
+                claimedAt,
+                limit,
+                claimOwner,
+                claimedAt,
+                offsetDateTime(claimExpiresAt)
+        );
     }
 
     public int createRecord(
@@ -94,8 +148,13 @@ public class CallbackRepository {
                 update callback_record
                 set status = 'SUCCESS',
                     response_body = ?,
+                    last_error = null,
                     next_retry_at = null,
-                    updated_at = now()
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
                 """;
         return jdbcTemplate.update(sql, responseBody, id);
@@ -106,12 +165,17 @@ public class CallbackRepository {
                 update callback_record
                 set status = 'FAILED',
                     response_body = ?,
+                    last_error = ?,
                     retry_count = retry_count + 1,
                     next_retry_at = ?,
-                    updated_at = now()
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
                 """;
-        return jdbcTemplate.update(sql, responseBody, offsetDateTime(nextRetryAt), id);
+        return jdbcTemplate.update(sql, responseBody, responseBody, offsetDateTime(nextRetryAt), id);
     }
 
     public int markDead(UUID id, String responseBody) {
@@ -119,12 +183,83 @@ public class CallbackRepository {
                 update callback_record
                 set status = 'DEAD',
                     response_body = ?,
+                    last_error = ?,
                     retry_count = retry_count + 1,
                     next_retry_at = null,
-                    updated_at = now()
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
                 """;
-        return jdbcTemplate.update(sql, responseBody, id);
+        return jdbcTemplate.update(sql, responseBody, responseBody, id);
+    }
+
+    public int completeClaimSucceeded(UUID id, String claimOwner, String responseBody) {
+        String sql = """
+                update callback_record
+                set status = 'SUCCESS',
+                    response_body = ?,
+                    last_error = null,
+                    next_retry_at = null,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
+                where id = ?
+                  and status = 'SENDING'
+                  and claimed_by = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, id, claimOwner);
+    }
+
+    public int completeClaimFailed(UUID id, String claimOwner, String responseBody, Instant nextRetryAt) {
+        String sql = """
+                update callback_record
+                set status = 'FAILED',
+                    response_body = ?,
+                    last_error = ?,
+                    retry_count = retry_count + 1,
+                    next_retry_at = ?,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
+                where id = ?
+                  and status = 'SENDING'
+                  and claimed_by = ?
+                """;
+        return jdbcTemplate.update(
+                sql,
+                responseBody,
+                responseBody,
+                offsetDateTime(nextRetryAt),
+                id,
+                claimOwner
+        );
+    }
+
+    public int completeClaimDead(UUID id, String claimOwner, String responseBody) {
+        String sql = """
+                update callback_record
+                set status = 'DEAD',
+                    response_body = ?,
+                    last_error = ?,
+                    retry_count = retry_count + 1,
+                    next_retry_at = null,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
+                where id = ?
+                  and status = 'SENDING'
+                  and claimed_by = ?
+                """;
+        return jdbcTemplate.update(sql, responseBody, responseBody, id, claimOwner);
     }
 
     public int replay(UUID id, Instant nextRetryAt) {
@@ -133,7 +268,12 @@ public class CallbackRepository {
                 set status = 'PENDING',
                     retry_count = retry_count + 1,
                     next_retry_at = ?,
-                    updated_at = now()
+                    last_error = null,
+                    claimed_by = null,
+                    claimed_at = null,
+                    claim_expires_at = null,
+                    updated_at = now(),
+                    version = version + 1
                 where id = ?
                 """;
         return jdbcTemplate.update(sql, offsetDateTime(nextRetryAt), id);
