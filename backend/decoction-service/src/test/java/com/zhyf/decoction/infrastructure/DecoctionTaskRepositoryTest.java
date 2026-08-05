@@ -10,11 +10,13 @@ import com.zhyf.decoction.domain.DecoctionTaskSnapshot;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 class DecoctionTaskRepositoryTest {
 
@@ -63,6 +65,27 @@ class DecoctionTaskRepositoryTest {
 
         Object[] args = capturedUpdateArgs();
         assertThat(args[16]).isEqualTo(OffsetDateTime.ofInstant(actionTime, ZoneOffset.UTC));
+    }
+
+    @Test
+    void shouldAvoidJsonbQuestionOperatorInParameterizedTaskQuery() {
+        when(jdbcTemplate.query(
+                anyString(),
+                Mockito.<RowMapper<DecoctionTaskSnapshot>>any(),
+                any(Object[].class)
+        )).thenReturn(List.of());
+
+        repository.findTasksByStatus("BOUND");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(
+                sqlCaptor.capture(),
+                Mockito.<RowMapper<DecoctionTaskSnapshot>>any(),
+                any(Object[].class)
+        );
+        assertThat(sqlCaptor.getValue())
+                .contains("jsonb_exists(e.event_payload, 'waterVolumeMl')")
+                .doesNotContain("e.event_payload ? 'waterVolumeMl'");
     }
 
     private Object[] capturedUpdateArgs() {

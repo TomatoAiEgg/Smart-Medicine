@@ -616,7 +616,7 @@ public class DecoctionTaskRepository {
                     from decoction_task_event e
                     where e.task_id = t.id
                       and e.event_type = 'WATER_FINISHED'
-                      and e.event_payload ? 'waterVolumeMl'
+                      and jsonb_exists(e.event_payload, 'waterVolumeMl')
                     order by e.event_time desc, e.created_at desc
                     limit 1
                 ) water on true
