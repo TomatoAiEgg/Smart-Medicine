@@ -65,6 +65,10 @@ public class AdminDataScopeFilter extends OncePerRequestFilter {
                 applyDatabaseScope(context);
                 try {
                     filterChain.doFilter(request, response);
+                    // 内层事务异常可能已由全局异常处理器转换为业务响应，外层必须显式回滚以保留该响应。
+                    if (response.getStatus() >= HttpServletResponse.SC_BAD_REQUEST || status.isRollbackOnly()) {
+                        status.setRollbackOnly();
+                    }
                 } catch (IOException | ServletException ex) {
                     throw new FilterChainException(ex);
                 }
