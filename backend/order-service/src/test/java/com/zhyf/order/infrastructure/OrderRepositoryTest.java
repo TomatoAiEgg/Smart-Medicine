@@ -223,10 +223,11 @@ class OrderRepositoryTest {
 
     @Test
     void shouldBuildOperatorQueryWithKeywordStatusAndPagination() {
+        UUID tenantId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
-        repository.searchAdminOperators(new AdminOperatorQuery("disp", null, true, 2, 10));
+        repository.searchAdminOperators(tenantId, new AdminOperatorQuery("disp", null, true, 2, 10));
 
         ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -239,7 +240,7 @@ class OrderRepositoryTest {
                 .contains("from operator_user u")
                 .contains("u.username ilike ?")
                 .contains("u.enabled = ?");
-        assertThat(countArgsCaptor.getValue()).containsExactly("%disp%", "%disp%", "%disp%", true);
+        assertThat(countArgsCaptor.getValue()).containsExactly(tenantId, "%disp%", "%disp%", "%disp%", true);
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -247,15 +248,24 @@ class OrderRepositoryTest {
         assertThat(listSqlCaptor.getValue())
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
-        assertThat(listArgsCaptor.getValue()).containsExactly("%disp%", "%disp%", "%disp%", true, 10, 10);
+        assertThat(listArgsCaptor.getValue()).containsExactly(
+                tenantId,
+                "%disp%",
+                "%disp%",
+                "%disp%",
+                true,
+                10,
+                10
+        );
     }
 
     @Test
     void shouldBuildOperatorQueryWithExactRoleCode() {
+        UUID tenantId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
-        repository.searchAdminOperators(new AdminOperatorQuery(null, "AUDITOR", null, 1, 20));
+        repository.searchAdminOperators(tenantId, new AdminOperatorQuery(null, "AUDITOR", null, 1, 20));
 
         ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -266,8 +276,9 @@ class OrderRepositoryTest {
         );
         assertThat(countSqlCaptor.getValue())
                 .contains("from operator_user u")
+                .contains("u.tenant_id = ?")
                 .contains("u.role_code = ?");
-        assertThat(countArgsCaptor.getValue()).containsExactly("AUDITOR");
+        assertThat(countArgsCaptor.getValue()).containsExactly(tenantId, "AUDITOR");
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -275,15 +286,16 @@ class OrderRepositoryTest {
         assertThat(listSqlCaptor.getValue())
                 .contains("from operator_user u")
                 .contains("order by enabled desc, username asc limit ? offset ?");
-        assertThat(listArgsCaptor.getValue()).containsExactly("AUDITOR", 20, 0);
+        assertThat(listArgsCaptor.getValue()).containsExactly(tenantId, "AUDITOR", 20, 0);
     }
 
     @Test
     void shouldBuildOperatorRoleQueryWithKeywordAndPagination() {
+        UUID tenantId = UUID.randomUUID();
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
         when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
 
-        repository.searchAdminOperatorRoles(new AdminOperatorRoleQuery("AUD", 2, 10));
+        repository.searchAdminOperatorRoles(tenantId, new AdminOperatorRoleQuery("AUD", 2, 10));
 
         ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -295,9 +307,10 @@ class OrderRepositoryTest {
         assertThat(countSqlCaptor.getValue())
                 .contains("from operator_user u")
                 .contains("u.role_code is not null")
+                .contains("u.tenant_id = ?")
                 .contains("u.role_code ilike ?")
                 .contains("group by u.role_code");
-        assertThat(countArgsCaptor.getValue()).containsExactly("%AUD%");
+        assertThat(countArgsCaptor.getValue()).containsExactly(tenantId, "%AUD%");
 
         ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
@@ -305,7 +318,64 @@ class OrderRepositoryTest {
         assertThat(listSqlCaptor.getValue())
                 .contains("count(*) filter (where u.enabled) as enabled_count")
                 .contains("group by u.role_code order by u.role_code asc limit ? offset ?");
-        assertThat(listArgsCaptor.getValue()).containsExactly("%AUD%", 10, 10);
+        assertThat(listArgsCaptor.getValue()).containsExactly(tenantId, "%AUD%", 10, 10);
+    }
+
+    @Test
+    void shouldBuildTenantScopedRbacRoleQuery() {
+        UUID tenantId = UUID.randomUUID();
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminRbacRoles(tenantId, "审核", 2, 10);
+
+        ArgumentCaptor<String> countSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).queryForObject(
+                countSqlCaptor.capture(),
+                eq(Long.class),
+                countArgsCaptor.capture()
+        );
+        assertThat(countSqlCaptor.getValue())
+                .contains("from admin_role r")
+                .contains("r.tenant_id = ?")
+                .contains("concat(r.role_code, ' ', r.role_name) ilike ?");
+        assertThat(countArgsCaptor.getValue()).containsExactly(tenantId, "%审核%");
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("from admin_role r")
+                .contains("array_agg(p.permission_code")
+                .contains("array_agg(s.institution_id")
+                .contains("limit ? offset ?");
+        assertThat(listArgsCaptor.getValue()).containsExactly(tenantId, "%审核%", 10, 10);
+    }
+
+    @Test
+    void shouldReplaceSingleAdminUserRoleWithinTenant() {
+        UUID tenantId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID roleId = UUID.randomUUID();
+
+        repository.replaceAdminUserRole(tenantId, userId, roleId, "admin");
+
+        verify(jdbcTemplate).update(
+                eq("delete from admin_user_role where tenant_id = ? and user_id = ?"),
+                eq(tenantId),
+                eq(userId)
+        );
+        ArgumentCaptor<String> insertSqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).update(
+                insertSqlCaptor.capture(),
+                any(UUID.class),
+                eq(tenantId),
+                eq(userId),
+                eq(roleId),
+                eq("admin")
+        );
+        assertThat(insertSqlCaptor.getValue()).contains("insert into admin_user_role");
     }
 
     @Test

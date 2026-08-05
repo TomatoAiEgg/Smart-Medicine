@@ -12,11 +12,16 @@ const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
 }>();
 
+const props = defineProps<{
+  canViewHealth: boolean;
+}>();
+
 const healthLoading = ref(false);
 const healthError = ref('');
 const health = ref<OpsHealthOverview | null>(null);
 
 async function refreshDashboard() {
+  if (!props.canViewHealth) return;
   if (healthLoading.value) return;
   healthLoading.value = true;
   healthError.value = '';
@@ -54,7 +59,7 @@ function downloadHealthCsv() {
 }
 
 onMounted(() => {
-  void refreshDashboard();
+  if (props.canViewHealth) void refreshDashboard();
 });
 
 defineExpose({
@@ -64,7 +69,7 @@ defineExpose({
 
 <template>
   <section class="legacy-page dashboard-home-page">
-    <div class="legacy-search-panel dashboard-action-panel">
+    <div v-if="canViewHealth" class="legacy-search-panel dashboard-action-panel">
       <button class="primary" type="button" :disabled="healthLoading" @click="refreshDashboard">
         {{ healthLoading ? '刷新中' : '刷新' }}
       </button>
@@ -73,6 +78,7 @@ defineExpose({
       </button>
     </div>
 
+    <p v-if="!canViewHealth" class="dashboard-permission-note">当前账号无运维概览权限，请从左侧菜单进入已授权功能。</p>
     <p v-if="healthError" class="error-line">{{ healthError }}</p>
 
     <div v-if="health" class="legacy-detail-grid dashboard-health-summary">
@@ -108,3 +114,12 @@ defineExpose({
     </div>
   </section>
 </template>
+
+<style scoped>
+.dashboard-permission-note {
+  border: 1px solid #d8e1ec;
+  color: #4a5568;
+  margin: 0;
+  padding: 14px;
+}
+</style>

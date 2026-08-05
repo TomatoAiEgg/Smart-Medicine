@@ -1,0 +1,36 @@
+update admin_permission p
+set permission_name = v.permission_name,
+    resource_pattern = v.resource_pattern,
+    updated_at = now()
+from (values
+    ('order:read', '订单查询', '/order-api/api/admin/**'),
+    ('order:write', '订单操作', '/order-api/api/admin/**'),
+    ('order:export', '订单导出', '/order-api/api/admin/export-tasks/**'),
+    ('system:read', '系统配置查询', '/order-api/api/admin/{operators,operator-roles,rbac,dict,system}/**'),
+    ('system:write', '系统配置维护', '/order-api/api/admin/{operators,operator-roles,rbac,dict,system}/**'),
+    ('drug:read', '药品资料查询', '/order-api/api/admin/{herbs,herb-*}/**'),
+    ('drug:write', '药品资料维护', '/order-api/api/admin/{herbs,herb-*}/**'),
+    ('institution:read', '机构资料查询', '/order-api/api/admin/{institutions,institution-*}/**'),
+    ('institution:write', '机构资料维护', '/order-api/api/admin/{institutions,institution-*}/**'),
+    ('workflow:read', '工作流任务查询', '/workflow-api/api/admin/workflow/**'),
+    ('workflow:write', '工作流任务处理', '/workflow-api/api/admin/workflow/**'),
+    ('sms:read', '短信记录查询', '/message-api/api/admin/sms/**'),
+    ('sms:write', '短信模板维护', '/message-api/api/admin/sms/templates/**'),
+    ('sms:send', '短信发送', '/message-api/api/admin/sms/send-single'),
+    ('decoction:read', '煎药配置查询', '/decoction-api/{admin/decoction,simulator}/**'),
+    ('decoction:write', '煎药配置维护', '/decoction-api/{admin/decoction,simulator}/**'),
+    ('ops:read', '运维数据查询', '/ops-api/api/admin/ops/**'),
+    ('ops:write', '运维任务处理', '/ops-api/api/admin/ops/**'),
+    ('logistics:read', '物流数据查询', '/logistics-api/api/admin/logistics/**'),
+    ('logistics:write', '物流任务处理', '/logistics-api/api/admin/logistics/**'),
+    ('callback:read', '回调记录查询', '/callback-api/api/admin/callback-records/**'),
+    ('callback:replay', '回调重放', '/callback-api/api/admin/callback-records/**'),
+    ('portal:read', '门户订单查询', '/portal-api/api/portal/**'),
+    ('portal:write', '门户地址补录', '/portal-api/api/portal/**'),
+    ('report:read', '报表查询', '/report-api/api/admin/reports/**'),
+    ('report:export', '报表导出', '/report-api/api/admin/reports/*.csv'),
+    ('integration:read', '集成记录查询', '/integration-api/api/admin/integration/**'),
+    ('integration:write', '集成模拟操作', '/integration-api/api/integration/**'),
+    ('integration:retry', '集成任务重试', '/integration-api/api/admin/integration/retry-tasks/**')
+) as v(permission_code, permission_name, resource_pattern)
+where p.permission_code = v.permission_code;

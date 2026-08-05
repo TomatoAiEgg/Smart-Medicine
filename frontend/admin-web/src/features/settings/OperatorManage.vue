@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { errorMessage } from '../../domain/errors';
-import { createAdminOperator, listAdminOperators, updateAdminOperator } from '../../api/order';
-import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord } from '../../api/types';
+import { createAdminOperator, listAdminOperators, listAdminRbacRoles, updateAdminOperator } from '../../api/order';
+import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord, AdminRbacRoleRecord } from '../../api/types';
 import { downloadCsv } from '../../domain/csv';
 import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
@@ -20,6 +20,7 @@ interface OperatorForm {
 const props = defineProps<{
   active: boolean;
   activationKey: number;
+  canManage: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +37,7 @@ const loading = ref(false);
 const saving = ref(false);
 const loaded = ref(false);
 const errorLine = ref('');
+const roleOptions = ref<AdminRbacRoleRecord[]>([]);
 const form = ref<OperatorForm>({
   id: null,
   username: '',
@@ -51,6 +53,7 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
+const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName])));
 
 function downloadOperatorCsv() {
   downloadCsv(
@@ -86,13 +89,17 @@ async function refreshOperators() {
   errorLine.value = '';
   try {
     pageSize.value = normalizePageSize();
-    const nextPage = await listAdminOperators({
-      keyword: keyword.value,
-      enabled: enabledStringParam(enabledFilter.value),
-      page: page.value,
-      pageSize: pageSize.value,
-    });
+    const [nextPage, roles] = await Promise.all([
+      listAdminOperators({
+        keyword: keyword.value,
+        enabled: enabledStringParam(enabledFilter.value),
+        page: page.value,
+        pageSize: pageSize.value,
+      }),
+      listAdminRbacRoles({ page: 1, pageSize: 100 }),
+    ]);
     operatorPage.value = nextPage;
+    roleOptions.value = roles.records;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
     loaded.value = true;
@@ -134,6 +141,7 @@ function editOperator(row: AdminOperatorRecord) {
 }
 
 async function saveOperator() {
+  if (!props.canManage) return;
   if (!form.value.username.trim() || !form.value.displayName.trim()) {
     errorLine.value = '工号和姓名不能为空';
     return;
@@ -158,6 +166,7 @@ async function saveOperator() {
 }
 
 async function toggleOperator(row: AdminOperatorRecord) {
+  if (!props.canManage) return;
   saving.value = true;
   errorLine.value = '';
   try {
@@ -250,22 +259,27 @@ defineExpose({
       <div class="operator-form-grid">
         <label>
           工号
-          <input v-model="form.username" class="legacy-input" :disabled="editing" placeholder="operator01" />
+          <input v-model="form.username" class="legacy-input" :disabled="editing || !canManage" placeholder="operator01" />
         </label>
         <label>
           姓名
-          <input v-model="form.displayName" class="legacy-input" placeholder="操作员姓名" />
+          <input v-model="form.displayName" class="legacy-input" :disabled="!canManage" placeholder="操作员姓名" />
         </label>
         <label>
           角色
-          <input v-model="form.roleCode" class="legacy-input" placeholder="AUDITOR / DISPENSER" />
+          <select v-model="form.roleCode" class="legacy-input" :disabled="!canManage">
+            <option value="">未分配角色</option>
+            <option v-for="role in roleOptions" :key="role.id" :value="role.roleCode" :disabled="!role.enabled">
+              {{ role.roleName }}（{{ role.roleCode }}）
+            </option>
+          </select>
         </label>
         <label class="operator-enabled">
-          <input v-model="form.enabled" type="checkbox" />
+          <input v-model="form.enabled" type="checkbox" :disabled="!canManage" />
           启用
         </label>
         <div class="operator-actions">
-          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="saving" @click="saveOperator">
+          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="saving || !canManage" @click="saveOperator">
             {{ saving ? '保存中' : editing ? '保存修改' : '新增工号' }}
           </button>
           <button class="legacy-btn" type="button" :disabled="saving" @click="resetForm">清空</button>
@@ -296,13 +310,13 @@ defineExpose({
           <tr v-for="row in rows" :key="row.id" class="legacy-main-info">
             <td><strong>{{ displayValue(row.username) }}</strong></td>
             <td>{{ displayValue(row.displayName) }}</td>
-            <td>{{ displayValue(row.roleCode) }}</td>
+            <td>{{ row.roleCode ? `${roleNameByCode.get(row.roleCode) ?? row.roleCode}（${row.roleCode}）` : '-' }}</td>
             <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
             <td>
-              <button class="legacy-btn" type="button" :disabled="saving" @click="editOperator(row)">编辑</button>
-              <button class="legacy-btn" type="button" :disabled="saving" @click="toggleOperator(row)">
+              <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="editOperator(row)">编辑</button>
+              <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="toggleOperator(row)">
                 {{ row.enabled ? '停用' : '启用' }}
               </button>
             </td>

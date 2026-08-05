@@ -108,6 +108,10 @@ import com.zhyf.order.application.AdminOperatorRolePage;
 import com.zhyf.order.application.AdminOperatorRoleQuery;
 import com.zhyf.order.application.AdminOperatorRoleRecord;
 import com.zhyf.order.application.AdminOperatorRoleRenameCommand;
+import com.zhyf.order.application.AdminRbacCatalog;
+import com.zhyf.order.application.AdminRbacRoleCommand;
+import com.zhyf.order.application.AdminRbacRolePage;
+import com.zhyf.order.application.AdminRbacRoleRecord;
 import com.zhyf.order.application.AdminBatchOrderReceiptCommand;
 import com.zhyf.order.application.AdminBatchOrderReceiptResult;
 import com.zhyf.order.application.AdminManualProcessCommand;
@@ -144,9 +148,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -650,6 +656,39 @@ public class InstitutionOrderController {
             @RequestBody AdminOperatorRoleRenameCommand command
     ) {
         return ApiResponse.ok(orderService.renameAdminOperatorRole(roleCode, command));
+    }
+
+    @GetMapping("/admin/rbac/roles")
+    public ApiResponse<AdminRbacRolePage> listRbacRoles(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return ApiResponse.ok(orderService.listAdminRbacRoles(keyword, page, pageSize));
+    }
+
+    @GetMapping("/admin/rbac/catalog")
+    public ApiResponse<AdminRbacCatalog> getRbacCatalog() {
+        return ApiResponse.ok(orderService.getAdminRbacCatalog());
+    }
+
+    @PostMapping("/admin/rbac/roles")
+    public ApiResponse<AdminRbacRoleRecord> createRbacRole(@RequestBody AdminRbacRoleCommand command) {
+        return ApiResponse.ok(orderService.createAdminRbacRole(command));
+    }
+
+    @PutMapping("/admin/rbac/roles/{roleId}")
+    public ApiResponse<AdminRbacRoleRecord> updateRbacRole(
+            @PathVariable UUID roleId,
+            @RequestBody AdminRbacRoleCommand command
+    ) {
+        return ApiResponse.ok(orderService.updateAdminRbacRole(roleId, command));
+    }
+
+    @DeleteMapping("/admin/rbac/roles/{roleId}")
+    public ApiResponse<Void> deleteRbacRole(@PathVariable UUID roleId) {
+        orderService.deleteAdminRbacRole(roleId);
+        return ApiResponse.ok(null);
     }
 
     @GetMapping("/admin/dict-types")

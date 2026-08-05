@@ -138,7 +138,7 @@ public class OrderService {
     public AdminOperatorPage listAdminOperators(AdminOperatorQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
-        return orderRepository.searchAdminOperators(new AdminOperatorQuery(
+        return orderRepository.searchAdminOperators(adminTenantId(), new AdminOperatorQuery(
                 cleanText(query.keyword()),
                 cleanText(query.roleCode()),
                 query.enabled(),
@@ -150,57 +150,168 @@ public class OrderService {
     public AdminOperatorRolePage listAdminOperatorRoles(AdminOperatorRoleQuery query) {
         int page = Math.max(query.page(), 1);
         int pageSize = Math.min(Math.max(query.pageSize(), 1), 100);
-        return orderRepository.searchAdminOperatorRoles(new AdminOperatorRoleQuery(
+        return orderRepository.searchAdminOperatorRoles(adminTenantId(), new AdminOperatorRoleQuery(
                 cleanText(query.keyword()),
                 page,
                 pageSize
         ));
     }
 
+    public AdminRbacRolePage listAdminRbacRoles(String keyword, int page, int pageSize) {
+        int normalizedPage = Math.max(page, 1);
+        int normalizedPageSize = Math.min(Math.max(pageSize, 1), 100);
+        return orderRepository.searchAdminRbacRoles(
+                adminTenantId(),
+                cleanText(keyword),
+                normalizedPage,
+                normalizedPageSize
+        );
+    }
+
+    public AdminRbacCatalog getAdminRbacCatalog() {
+        return new AdminRbacCatalog(
+                orderRepository.listAdminRbacPermissions(),
+                orderRepository.listAdminRbacInstitutions(adminTenantId())
+        );
+    }
+
+    @Transactional
+    public AdminRbacRoleRecord createAdminRbacRole(AdminRbacRoleCommand command) {
+        requireTenantWideAdmin();
+        NormalizedRbacRole normalized = normalizeRbacRole(command);
+        UUID tenantId = adminTenantId();
+        if (orderRepository.existsAdminRoleCode(tenantId, normalized.roleCode(), null)) {
+            throw new BusinessException("RBAC_ROLE_CODE_DUPLICATED", "角色标识已存在");
+        }
+        validateRbacGrants(tenantId, normalized);
+        UUID roleId = UUID.randomUUID();
+        String operator = adminOperator();
+        orderRepository.insertAdminRbacRole(
+                roleId,
+                tenantId,
+                normalized.roleCode(),
+                normalized.roleName(),
+                normalized.dataScopeType(),
+                normalized.enabled(),
+                operator
+        );
+        replaceRbacGrants(tenantId, roleId, normalized);
+        writeRbacAudit(tenantId, operator, "RBAC_ROLE_CREATE", roleId, normalized);
+        return orderRepository.findAdminRbacRole(tenantId, roleId).orElseThrow();
+    }
+
+    @Transactional
+    public AdminRbacRoleRecord updateAdminRbacRole(UUID roleId, AdminRbacRoleCommand command) {
+        requireTenantWideAdmin();
+        UUID tenantId = adminTenantId();
+        AdminRbacRoleRecord existing = orderRepository.findAdminRbacRole(tenantId, roleId)
+                .orElseThrow(() -> new BusinessException("RBAC_ROLE_NOT_FOUND", "角色不存在"));
+        if (existing.builtIn()) {
+            throw new BusinessException("RBAC_BUILT_IN_ROLE_READ_ONLY", "内置角色不允许修改");
+        }
+        NormalizedRbacRole normalized = normalizeRbacRole(command);
+        if (command.version() == null || command.version() < 0) {
+            throw new BusinessException("RBAC_ROLE_VERSION_REQUIRED", "角色版本不能为空");
+        }
+        if (orderRepository.existsAdminRoleCode(tenantId, normalized.roleCode(), roleId)) {
+            throw new BusinessException("RBAC_ROLE_CODE_DUPLICATED", "角色标识已存在");
+        }
+        validateRbacGrants(tenantId, normalized);
+        int updated = orderRepository.updateAdminRbacRole(
+                roleId,
+                tenantId,
+                command.version(),
+                normalized.roleCode(),
+                normalized.roleName(),
+                normalized.dataScopeType(),
+                normalized.enabled(),
+                adminOperator()
+        );
+        if (updated == 0) {
+            throw new BusinessException("RBAC_ROLE_VERSION_CONFLICT", "角色已被其他操作更新，请刷新后重试");
+        }
+        replaceRbacGrants(tenantId, roleId, normalized);
+        orderRepository.renameAdminOperatorRole(tenantId, existing.roleCode(), normalized.roleCode());
+        writeRbacAudit(tenantId, adminOperator(), "RBAC_ROLE_UPDATE", roleId, normalized);
+        return orderRepository.findAdminRbacRole(tenantId, roleId).orElseThrow();
+    }
+
+    @Transactional
+    public void deleteAdminRbacRole(UUID roleId) {
+        requireTenantWideAdmin();
+        UUID tenantId = adminTenantId();
+        AdminRbacRoleRecord existing = orderRepository.findAdminRbacRole(tenantId, roleId)
+                .orElseThrow(() -> new BusinessException("RBAC_ROLE_NOT_FOUND", "角色不存在"));
+        if (existing.builtIn()) {
+            throw new BusinessException("RBAC_BUILT_IN_ROLE_READ_ONLY", "内置角色不允许删除");
+        }
+        if (existing.operatorCount() > 0) {
+            throw new BusinessException("RBAC_ROLE_IN_USE", "角色仍有关联用户，不能删除");
+        }
+        if (orderRepository.deleteAdminRbacRole(tenantId, roleId) == 0) {
+            throw new BusinessException("RBAC_ROLE_NOT_FOUND", "角色不存在");
+        }
+        writeRbacAudit(tenantId, adminOperator(), "RBAC_ROLE_DELETE", roleId, existing);
+    }
+
     @Transactional
     public AdminOperatorRoleRecord renameAdminOperatorRole(String roleCode, AdminOperatorRoleRenameCommand command) {
+        requireTenantWideAdmin();
+        UUID tenantId = adminTenantId();
         String oldRoleCode = requireText(roleCode, "OPERATOR_ROLE_CODE_REQUIRED", "Operator role code is required");
         String newRoleCode = requireText(command.roleCode(), "OPERATOR_ROLE_CODE_REQUIRED", "Operator role code is required");
         if (oldRoleCode.equals(newRoleCode)) {
-            return orderRepository.findAdminOperatorRole(newRoleCode)
+            return orderRepository.findAdminOperatorRole(tenantId, newRoleCode)
                     .orElseThrow(() -> new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found"));
         }
-        int updated = orderRepository.renameAdminOperatorRole(oldRoleCode, newRoleCode);
+        int updated = orderRepository.renameAdminOperatorRole(tenantId, oldRoleCode, newRoleCode);
         if (updated == 0) {
             throw new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found");
         }
-        return orderRepository.findAdminOperatorRole(newRoleCode)
+        return orderRepository.findAdminOperatorRole(tenantId, newRoleCode)
                 .orElseThrow(() -> new BusinessException("OPERATOR_ROLE_NOT_FOUND", "Operator role not found"));
     }
 
     @Transactional
     public AdminOperatorRecord createAdminOperator(AdminOperatorCommand command) {
+        requireTenantWideAdmin();
         String username = requireText(command.username(), "OPERATOR_USERNAME_REQUIRED", "Operator username is required");
         String displayName = requireText(command.displayName(), "OPERATOR_DISPLAY_NAME_REQUIRED", "Operator display name is required");
         if (orderRepository.findAdminOperatorByUsername(adminTenantId(), username).isPresent()) {
             throw new BusinessException("OPERATOR_USERNAME_DUPLICATED", "Operator username already exists");
         }
-        return orderRepository.insertAdminOperator(
+        String roleCode = cleanText(command.roleCode());
+        UUID roleId = enabledRoleId(roleCode);
+        AdminOperatorRecord created = orderRepository.insertAdminOperator(
                 UUID.randomUUID(),
                 adminTenantId(),
                 username,
                 displayName,
-                cleanText(command.roleCode()),
+                roleCode,
                 command.enabled() == null || command.enabled()
         );
+        orderRepository.replaceAdminUserRole(adminTenantId(), created.id(), roleId, adminOperator());
+        return created;
     }
 
     @Transactional
     public AdminOperatorRecord updateAdminOperator(UUID operatorId, AdminOperatorCommand command) {
-        AdminOperatorRecord existing = orderRepository.findAdminOperatorById(operatorId)
+        requireTenantWideAdmin();
+        UUID tenantId = adminTenantId();
+        AdminOperatorRecord existing = orderRepository.findAdminOperatorById(tenantId, operatorId)
                 .orElseThrow(() -> new BusinessException("OPERATOR_NOT_FOUND", "Operator not found"));
         String displayName = requireText(command.displayName(), "OPERATOR_DISPLAY_NAME_REQUIRED", "Operator display name is required");
-        return orderRepository.updateAdminOperator(
+        String roleCode = cleanText(command.roleCode());
+        UUID roleId = enabledRoleId(roleCode);
+        AdminOperatorRecord updated = orderRepository.updateAdminOperator(
+                tenantId,
                 existing.id(),
                 displayName,
-                cleanText(command.roleCode()),
+                roleCode,
                 command.enabled() == null || command.enabled()
         );
+        orderRepository.replaceAdminUserRole(existing.tenantId(), existing.id(), roleId, adminOperator());
+        return updated;
     }
 
     public AdminDictTypePage listAdminDictTypes(AdminDictTypeQuery query) {
@@ -3647,6 +3758,117 @@ public class OrderService {
         }
     }
 
+    private NormalizedRbacRole normalizeRbacRole(AdminRbacRoleCommand command) {
+        if (command == null) {
+            throw new BusinessException("RBAC_ROLE_COMMAND_REQUIRED", "角色参数不能为空");
+        }
+        String roleCode = requireText(command.roleCode(), "RBAC_ROLE_CODE_REQUIRED", "角色标识不能为空")
+                .toUpperCase(Locale.ROOT);
+        if (!roleCode.matches("[A-Z][A-Z0-9_]{1,63}")) {
+            throw new BusinessException("RBAC_ROLE_CODE_INVALID", "角色标识必须以字母开头，且只能包含大写字母、数字和下划线");
+        }
+        String roleName = requireText(command.roleName(), "RBAC_ROLE_NAME_REQUIRED", "角色名称不能为空");
+        if (roleName.length() > 128) {
+            throw new BusinessException("RBAC_ROLE_NAME_TOO_LONG", "角色名称不能超过 128 个字符");
+        }
+        String dataScopeType = requireText(
+                command.dataScopeType(),
+                "RBAC_DATA_SCOPE_REQUIRED",
+                "数据范围不能为空"
+        ).toUpperCase(Locale.ROOT);
+        if (!Set.of("TENANT", "INSTITUTION").contains(dataScopeType)) {
+            throw new BusinessException("RBAC_DATA_SCOPE_INVALID", "数据范围仅支持租户全域或指定机构");
+        }
+        List<String> permissionCodes = normalizeTexts(command.permissionCodes());
+        List<UUID> institutionIds = "TENANT".equals(dataScopeType)
+                ? List.of()
+                : distinctValues(command.institutionIds());
+        if (permissionCodes.isEmpty()) {
+            throw new BusinessException("RBAC_PERMISSION_REQUIRED", "角色至少需要一个权限");
+        }
+        if ("INSTITUTION".equals(dataScopeType) && institutionIds.isEmpty()) {
+            throw new BusinessException("RBAC_INSTITUTION_REQUIRED", "机构范围角色至少需要选择一家机构");
+        }
+        return new NormalizedRbacRole(
+                roleCode,
+                roleName,
+                dataScopeType,
+                command.enabled() == null || command.enabled(),
+                permissionCodes,
+                institutionIds
+        );
+    }
+
+    private void validateRbacGrants(UUID tenantId, NormalizedRbacRole role) {
+        if (orderRepository.countEnabledAdminPermissions(role.permissionCodes()) != role.permissionCodes().size()) {
+            throw new BusinessException("RBAC_PERMISSION_INVALID", "权限列表包含不存在或已停用的权限");
+        }
+        if (orderRepository.countAdminInstitutions(tenantId, role.institutionIds()) != role.institutionIds().size()) {
+            throw new BusinessException("RBAC_INSTITUTION_INVALID", "机构范围包含不存在或无权访问的机构");
+        }
+    }
+
+    private void replaceRbacGrants(UUID tenantId, UUID roleId, NormalizedRbacRole role) {
+        orderRepository.replaceAdminRbacRolePermissions(tenantId, roleId, role.permissionCodes());
+        orderRepository.replaceAdminRbacRoleInstitutions(tenantId, roleId, role.institutionIds());
+    }
+
+    private UUID enabledRoleId(String roleCode) {
+        if (!StringUtils.hasText(roleCode)) {
+            return null;
+        }
+        return orderRepository.findEnabledAdminRoleIdByCode(adminTenantId(), roleCode)
+                .orElseThrow(() -> new BusinessException("RBAC_ROLE_NOT_FOUND", "指定角色不存在或已停用"));
+    }
+
+    private List<String> normalizeTexts(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    private <T> List<T> distinctValues(List<T> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream().filter(value -> value != null).distinct().toList();
+    }
+
+    private void writeRbacAudit(UUID tenantId, String operator, String action, UUID roleId, Object detail) {
+        orderRepository.insertOperationLog(
+                UUID.randomUUID(),
+                tenantId,
+                null,
+                null,
+                operator,
+                action,
+                "SUCCESS",
+                null,
+                writeJson(Map.of("roleId", roleId, "detail", detail))
+        );
+    }
+
+    private String adminOperator() {
+        return AdminRequestContextHolder.current()
+                .map(context -> context.username())
+                .orElse("system");
+    }
+
+    private void requireTenantWideAdmin() {
+        boolean tenantWide = AdminRequestContextHolder.current()
+                .map(context -> context.tenantWide())
+                .orElse(true);
+        if (!tenantWide) {
+            throw new BusinessException("RBAC_TENANT_ADMIN_REQUIRED", "仅租户全域管理员可以维护角色和用户授权");
+        }
+    }
+
     private String writeJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -3675,6 +3897,16 @@ public class OrderService {
             Instant boilTimeStart,
             Instant outboundTime,
             Instant signTime
+    ) {
+    }
+
+    private record NormalizedRbacRole(
+            String roleCode,
+            String roleName,
+            String dataScopeType,
+            boolean enabled,
+            List<String> permissionCodes,
+            List<UUID> institutionIds
     ) {
     }
 }

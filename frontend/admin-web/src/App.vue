@@ -6,6 +6,7 @@ import type { LayoutTab } from './app/AppLayout.vue';
 import { logoutAdmin, restoreAdminSession } from './api/auth';
 import type { AdminUserSession } from './api/adminSession';
 import {
+  canAccessRoute,
   isViewKey,
   menuItems,
   routeByKey,
@@ -335,10 +336,12 @@ const workflowRouteKey = computed<WorkflowViewKey | null>(() => {
 });
 const recheckScanMode = computed<RecheckScanMode>(() => (activeView.value === 'orderRechecksMulti' ? 'multi' : 'single'));
 const homePath = routeByKey.dashboard.path;
+const sessionPermissions = computed(() => new Set(adminSession.value?.permissions ?? []));
+const canManageSystem = computed(() => Boolean(adminSession.value?.tenantWide) && sessionPermissions.value.has('system:write'));
 
 const layoutTabs = computed<LayoutTab[]>(() => [
   { key: 'dashboard', label: '首页', closable: false, path: routeByKey.dashboard.path },
-  ...openTabs.value.map((key) => ({
+  ...openTabs.value.filter((key) => canAccessRoute(routeByKey[key], sessionPermissions.value)).map((key) => ({
     key,
     label: routeByKey[key].label,
     closable: true,
@@ -346,7 +349,7 @@ const layoutTabs = computed<LayoutTab[]>(() => [
   })),
 ]);
 const navigationItems = computed<readonly AppRouteItem[]>(() => [
-  ...menuItems.filter((item) => item.key !== 'institutionApps'),
+  ...menuItems.filter((item) => item.key !== 'institutionApps' && canAccessRoute(item, sessionPermissions.value)),
 ]);
 const menuCounts = computed<Partial<Record<ViewKey, number>>>(() => ({
   reviews: orderReviewRecordsCount.value,
@@ -425,13 +428,19 @@ function updateDispenseCount(count: number) {
 }
 
 function ensureOpenTab(view: ViewKey) {
-  if (view !== 'dashboard' && !openTabs.value.includes(view)) {
+  if (view !== 'dashboard' && canAccessRoute(routeByKey[view], sessionPermissions.value) && !openTabs.value.includes(view)) {
     openTabs.value = [...openTabs.value, view];
   }
 }
 
 watch(activeView, (view) => {
   ensureOpenTab(view);
+}, { immediate: true });
+
+watch([adminSession, activeView], ([session, view]) => {
+  if (!session || canAccessRoute(routeByKey[view], new Set(session.permissions))) return;
+  openTabs.value = openTabs.value.filter((key) => canAccessRoute(routeByKey[key], new Set(session.permissions)));
+  void router.replace(routeByKey.dashboard.path);
 }, { immediate: true });
 
 watch(currentComponentKey, (componentKey) => {
@@ -958,6 +967,7 @@ function closeTab(view: ViewKey) {
       ref="operatorManageRef"
       :active="currentComponentKey === 'operatorManage'"
       :activation-key="operatorManageActivationKey"
+      :can-manage="canManageSystem"
       @count-changed="operatorManageCount = $event"
       @notice="showNotice"
     />
@@ -976,6 +986,7 @@ function closeTab(view: ViewKey) {
       ref="roleManageRef"
       :active="currentComponentKey === 'roleManage'"
       :activation-key="roleManageActivationKey"
+      :can-manage="canManageSystem"
       @count-changed="roleManageCount = $event"
       @notice="showNotice"
     />
@@ -1155,6 +1166,7 @@ function closeTab(view: ViewKey) {
     <DashboardHome
       v-if="currentComponentKey === 'dashboard'"
       ref="dashboardHomeRef"
+      :can-view-health="sessionPermissions.has('ops:read')"
       @notice="showNotice"
     />
 

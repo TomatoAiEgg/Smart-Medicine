@@ -1203,3 +1203,34 @@ export const viewTitles = routeItems.reduce((map, item) => {
 export function isViewKey(value: string): value is ViewKey {
   return Object.prototype.hasOwnProperty.call(routeByKey, value);
 }
+
+const workflowMenuKeys = new Set([
+  'reviews',
+  'dispenses',
+  'rechecks',
+  'orderRechecksMulti',
+]);
+
+export function requiredPermissionForRoute(item: AppRouteItem): string | null {
+  if (item.key === 'dashboard') return null;
+  if (item.key === 'portal') return 'portal:read';
+  if (item.key === 'integration') return 'integration:read';
+  if (item.key === 'exportTasks') return 'order:export';
+  if (item.path.startsWith('/system/') || item.path.startsWith('/settings/')) return 'system:read';
+  if (item.path.startsWith('/institutions')) return 'institution:read';
+  if (item.path.startsWith('/logistics/')) return 'logistics:read';
+  if (item.path.startsWith('/orders/')) return workflowMenuKeys.has(item.key) ? 'workflow:read' : 'order:read';
+  if (item.path.startsWith('/maintenance/')) return 'ops:read';
+  if (item.path.startsWith('/labels/')) return 'order:read';
+  if (item.path.startsWith('/sms/')) return item.key === 'smsSendSingle' ? 'sms:send' : 'sms:read';
+  if (item.path.startsWith('/drugs/')) return 'drug:read';
+  if (item.path.startsWith('/reports/')) return 'report:read';
+  if (item.path.startsWith('/decoction/')) return 'decoction:read';
+  return null;
+}
+
+export function canAccessRoute(item: AppRouteItem, permissions: ReadonlySet<string>): boolean {
+  if (item.key === 'dashboard') return true;
+  const permission = requiredPermissionForRoute(item);
+  return permission !== null && permissions.has(permission);
+}

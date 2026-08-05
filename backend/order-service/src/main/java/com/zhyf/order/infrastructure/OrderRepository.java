@@ -81,6 +81,10 @@ import com.zhyf.order.application.AdminOperatorRecord;
 import com.zhyf.order.application.AdminOperatorRolePage;
 import com.zhyf.order.application.AdminOperatorRoleQuery;
 import com.zhyf.order.application.AdminOperatorRoleRecord;
+import com.zhyf.order.application.AdminRbacInstitutionOption;
+import com.zhyf.order.application.AdminRbacPermissionOption;
+import com.zhyf.order.application.AdminRbacRolePage;
+import com.zhyf.order.application.AdminRbacRoleRecord;
 import com.zhyf.order.application.AdminOrderDetail;
 import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminPrescriptionReprintItem;
@@ -98,6 +102,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Array;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -519,8 +525,8 @@ public class OrderRepository {
         return jdbcTemplate.query(sql, this::mapAdminOrderDetailDrugDetail, prescriptionId);
     }
 
-    public AdminOperatorPage searchAdminOperators(AdminOperatorQuery query) {
-        QueryParts filters = adminOperatorFilters(query);
+    public AdminOperatorPage searchAdminOperators(UUID tenantId, AdminOperatorQuery query) {
+        QueryParts filters = adminOperatorFilters(tenantId, query);
         QueryParts countQuery = new QueryParts("""
                 select count(*)
                 from operator_user u
@@ -549,8 +555,8 @@ public class OrderRepository {
         );
     }
 
-    public AdminOperatorRolePage searchAdminOperatorRoles(AdminOperatorRoleQuery query) {
-        QueryParts filters = adminOperatorRoleFilters(query);
+    public AdminOperatorRolePage searchAdminOperatorRoles(UUID tenantId, AdminOperatorRoleQuery query) {
+        QueryParts filters = adminOperatorRoleFilters(tenantId, query);
         QueryParts countQuery = new QueryParts("""
                 select count(*)
                 from (
@@ -587,7 +593,7 @@ public class OrderRepository {
         );
     }
 
-    public Optional<AdminOperatorRoleRecord> findAdminOperatorRole(String roleCode) {
+    public Optional<AdminOperatorRoleRecord> findAdminOperatorRole(UUID tenantId, String roleCode) {
         String sql = """
                 select u.role_code,
                        count(*) as operator_count,
@@ -596,29 +602,284 @@ public class OrderRepository {
                        min(u.created_at) as created_at,
                        max(u.updated_at) as updated_at
                 from operator_user u
-                where u.role_code = ?
+                where u.tenant_id = ? and u.role_code = ?
                 group by u.role_code
                 """;
-        return jdbcTemplate.query(sql, this::mapAdminOperatorRoleRecord, roleCode).stream().findFirst();
+        return jdbcTemplate.query(sql, this::mapAdminOperatorRoleRecord, tenantId, roleCode).stream().findFirst();
     }
 
-    public int renameAdminOperatorRole(String oldRoleCode, String newRoleCode) {
+    public int renameAdminOperatorRole(UUID tenantId, String oldRoleCode, String newRoleCode) {
         String sql = """
                 update operator_user
                 set role_code = ?,
                     updated_at = now()
-                where role_code = ?
+                where tenant_id = ? and role_code = ?
                 """;
-        return jdbcTemplate.update(sql, newRoleCode, oldRoleCode);
+        return jdbcTemplate.update(sql, newRoleCode, tenantId, oldRoleCode);
     }
 
-    public Optional<AdminOperatorRecord> findAdminOperatorById(UUID id) {
+    public AdminRbacRolePage searchAdminRbacRoles(
+            UUID tenantId,
+            String keyword,
+            int page,
+            int pageSize
+    ) {
+        QueryParts filters = new QueryParts(" where r.tenant_id = ?");
+        filters.add(tenantId);
+        filters.addLikeFilter("concat(r.role_code, ' ', r.role_name)", keyword);
+        Long totalValue = jdbcTemplate.queryForObject(
+                "select count(*) from admin_role r" + filters.sql(),
+                Long.class,
+                filters.args()
+        );
+        long total = totalValue == null ? 0 : totalValue;
+
+        QueryParts query = new QueryParts("""
+                select r.id, r.tenant_id, r.role_code, r.role_name, r.data_scope_type,
+                       r.built_in, r.enabled, r.version,
+                       (select count(*) from admin_user_role ur
+                        where ur.tenant_id = r.tenant_id and ur.role_id = r.id) as operator_count,
+                       coalesce((select array_agg(p.permission_code order by p.permission_code)
+                                 from admin_role_permission rp
+                                 join admin_permission p on p.id = rp.permission_id and p.enabled = true
+                                 where rp.tenant_id = r.tenant_id and rp.role_id = r.id),
+                                array[]::varchar[]) as permission_codes,
+                       coalesce((select array_agg(s.institution_id order by s.institution_id)
+                                 from admin_role_institution_scope s
+                                 where s.tenant_id = r.tenant_id and s.role_id = r.id),
+                                array[]::uuid[]) as institution_ids,
+                       r.created_at, r.updated_at
+                from admin_role r
+                """);
+        query.append(filters.sql());
+        query.addAll(filters.argsList());
+        query.append(" order by r.built_in desc, r.enabled desc, r.role_code asc limit ? offset ?");
+        query.add(pageSize);
+        query.add((page - 1) * pageSize);
+        return new AdminRbacRolePage(
+                jdbcTemplate.query(query.sql(), this::mapAdminRbacRoleRecord, query.args()),
+                total,
+                page,
+                pageSize
+        );
+    }
+
+    public Optional<AdminRbacRoleRecord> findAdminRbacRole(UUID tenantId, UUID roleId) {
+        String sql = """
+                select r.id, r.tenant_id, r.role_code, r.role_name, r.data_scope_type,
+                       r.built_in, r.enabled, r.version,
+                       (select count(*) from admin_user_role ur
+                        where ur.tenant_id = r.tenant_id and ur.role_id = r.id) as operator_count,
+                       coalesce((select array_agg(p.permission_code order by p.permission_code)
+                                 from admin_role_permission rp
+                                 join admin_permission p on p.id = rp.permission_id and p.enabled = true
+                                 where rp.tenant_id = r.tenant_id and rp.role_id = r.id),
+                                array[]::varchar[]) as permission_codes,
+                       coalesce((select array_agg(s.institution_id order by s.institution_id)
+                                 from admin_role_institution_scope s
+                                 where s.tenant_id = r.tenant_id and s.role_id = r.id),
+                                array[]::uuid[]) as institution_ids,
+                       r.created_at, r.updated_at
+                from admin_role r
+                where r.tenant_id = ? and r.id = ?
+                """;
+        return jdbcTemplate.query(sql, this::mapAdminRbacRoleRecord, tenantId, roleId)
+                .stream()
+                .findFirst();
+    }
+
+    public Optional<UUID> findEnabledAdminRoleIdByCode(UUID tenantId, String roleCode) {
+        String sql = """
+                select id
+                from admin_role
+                where tenant_id = ? and role_code = ? and enabled = true
+                """;
+        return jdbcTemplate.queryForList(sql, UUID.class, tenantId, roleCode).stream().findFirst();
+    }
+
+    public boolean existsAdminRoleCode(UUID tenantId, String roleCode, UUID excludedRoleId) {
+        String sql = """
+                select exists (
+                    select 1 from admin_role
+                    where tenant_id = ? and role_code = ? and (?::uuid is null or id <> ?::uuid)
+                )
+                """;
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                sql,
+                Boolean.class,
+                tenantId,
+                roleCode,
+                excludedRoleId,
+                excludedRoleId
+        ));
+    }
+
+    public List<AdminRbacPermissionOption> listAdminRbacPermissions() {
+        String sql = """
+                select permission_code, permission_name, resource_type, http_method, resource_pattern
+                from admin_permission
+                where enabled = true
+                order by permission_code
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new AdminRbacPermissionOption(
+                rs.getString("permission_code"),
+                rs.getString("permission_name"),
+                rs.getString("resource_type"),
+                rs.getString("http_method"),
+                rs.getString("resource_pattern")
+        ));
+    }
+
+    public List<AdminRbacInstitutionOption> listAdminRbacInstitutions(UUID tenantId) {
+        String sql = """
+                select id, institution_code, institution_name, status
+                from institution
+                where tenant_id = ?
+                order by institution_name, institution_code
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new AdminRbacInstitutionOption(
+                rs.getObject("id", UUID.class),
+                rs.getString("institution_code"),
+                rs.getString("institution_name"),
+                rs.getString("status")
+        ), tenantId);
+    }
+
+    public int countEnabledAdminPermissions(List<String> permissionCodes) {
+        if (permissionCodes.isEmpty()) {
+            return 0;
+        }
+        QueryParts query = new QueryParts("select count(*) from admin_permission where enabled = true");
+        query.addInFilter("permission_code", permissionCodes);
+        Integer count = jdbcTemplate.queryForObject(query.sql(), Integer.class, query.args());
+        return count == null ? 0 : count;
+    }
+
+    public int countAdminInstitutions(UUID tenantId, List<UUID> institutionIds) {
+        if (institutionIds.isEmpty()) {
+            return 0;
+        }
+        QueryParts query = new QueryParts("select count(*) from institution where tenant_id = ?");
+        query.add(tenantId);
+        query.addInFilter("id", institutionIds);
+        Integer count = jdbcTemplate.queryForObject(query.sql(), Integer.class, query.args());
+        return count == null ? 0 : count;
+    }
+
+    public void insertAdminRbacRole(
+            UUID roleId,
+            UUID tenantId,
+            String roleCode,
+            String roleName,
+            String dataScopeType,
+            boolean enabled,
+            String operator
+    ) {
+        String sql = """
+                insert into admin_role (
+                    id, tenant_id, role_code, role_name, data_scope_type, built_in,
+                    enabled, created_by, updated_by
+                ) values (?, ?, ?, ?, ?, false, ?, ?, ?)
+                """;
+        jdbcTemplate.update(sql, roleId, tenantId, roleCode, roleName, dataScopeType, enabled, operator, operator);
+    }
+
+    public int updateAdminRbacRole(
+            UUID roleId,
+            UUID tenantId,
+            int version,
+            String roleCode,
+            String roleName,
+            String dataScopeType,
+            boolean enabled,
+            String operator
+    ) {
+        String sql = """
+                update admin_role
+                set role_code = ?, role_name = ?, data_scope_type = ?, enabled = ?,
+                    updated_by = ?, updated_at = now(), version = version + 1
+                where id = ? and tenant_id = ? and version = ? and built_in = false
+                """;
+        return jdbcTemplate.update(
+                sql,
+                roleCode,
+                roleName,
+                dataScopeType,
+                enabled,
+                operator,
+                roleId,
+                tenantId,
+                version
+        );
+    }
+
+    public void replaceAdminRbacRolePermissions(UUID tenantId, UUID roleId, List<String> permissionCodes) {
+        jdbcTemplate.update(
+                "delete from admin_role_permission where tenant_id = ? and role_id = ?",
+                tenantId,
+                roleId
+        );
+        String sql = """
+                insert into admin_role_permission (id, tenant_id, role_id, permission_id)
+                select ?, ?, ?, id from admin_permission
+                where permission_code = ? and enabled = true
+                """;
+        for (String permissionCode : permissionCodes) {
+            jdbcTemplate.update(sql, UUID.randomUUID(), tenantId, roleId, permissionCode);
+        }
+    }
+
+    public void replaceAdminRbacRoleInstitutions(UUID tenantId, UUID roleId, List<UUID> institutionIds) {
+        jdbcTemplate.update(
+                "delete from admin_role_institution_scope where tenant_id = ? and role_id = ?",
+                tenantId,
+                roleId
+        );
+        String sql = """
+                insert into admin_role_institution_scope (id, tenant_id, role_id, institution_id)
+                values (?, ?, ?, ?)
+                """;
+        for (UUID institutionId : institutionIds) {
+            jdbcTemplate.update(sql, UUID.randomUUID(), tenantId, roleId, institutionId);
+        }
+    }
+
+    public int deleteAdminRbacRole(UUID tenantId, UUID roleId) {
+        return jdbcTemplate.update(
+                "delete from admin_role where tenant_id = ? and id = ? and built_in = false",
+                tenantId,
+                roleId
+        );
+    }
+
+    public void replaceAdminUserRole(UUID tenantId, UUID userId, UUID roleId, String operator) {
+        jdbcTemplate.update(
+                "delete from admin_user_role where tenant_id = ? and user_id = ?",
+                tenantId,
+                userId
+        );
+        if (roleId != null) {
+            jdbcTemplate.update(
+                    """
+                    insert into admin_user_role (id, tenant_id, user_id, role_id, created_by)
+                    values (?, ?, ?, ?, ?)
+                    """,
+                    UUID.randomUUID(),
+                    tenantId,
+                    userId,
+                    roleId,
+                    operator
+            );
+        }
+    }
+
+    public Optional<AdminOperatorRecord> findAdminOperatorById(UUID tenantId, UUID id) {
         String sql = """
                 select id, tenant_id, username, display_name, role_code, enabled, created_at, updated_at
                 from operator_user
-                where id = ?
+                where tenant_id = ? and id = ?
                 """;
-        return jdbcTemplate.query(sql, this::mapAdminOperatorRecord, id).stream().findFirst();
+        return jdbcTemplate.query(sql, this::mapAdminOperatorRecord, tenantId, id).stream().findFirst();
     }
 
     public Optional<AdminOperatorRecord> findAdminOperatorByUsername(UUID tenantId, String username) {
@@ -643,10 +904,11 @@ public class OrderRepository {
                 values (?, ?, ?, ?, ?, ?)
                 """;
         jdbcTemplate.update(sql, id, tenantId, username, displayName, roleCode, enabled);
-        return findAdminOperatorById(id).orElseThrow();
+        return findAdminOperatorById(tenantId, id).orElseThrow();
     }
 
     public AdminOperatorRecord updateAdminOperator(
+            UUID tenantId,
             UUID id,
             String displayName,
             String roleCode,
@@ -658,10 +920,10 @@ public class OrderRepository {
                     role_code = ?,
                     enabled = ?,
                     updated_at = now()
-                where id = ?
+                where tenant_id = ? and id = ?
                 """;
-        jdbcTemplate.update(sql, displayName, roleCode, enabled, id);
-        return findAdminOperatorById(id).orElseThrow();
+        jdbcTemplate.update(sql, displayName, roleCode, enabled, tenantId, id);
+        return findAdminOperatorById(tenantId, id).orElseThrow();
     }
 
     public AdminDictTypePage searchAdminDictTypes(AdminDictTypeQuery query) {
@@ -3305,8 +3567,9 @@ public class OrderRepository {
                 .findFirst();
     }
 
-    private QueryParts adminOperatorFilters(AdminOperatorQuery query) {
-        QueryParts filters = new QueryParts("");
+    private QueryParts adminOperatorFilters(UUID tenantId, AdminOperatorQuery query) {
+        QueryParts filters = new QueryParts(" and u.tenant_id = ?");
+        filters.add(tenantId);
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
         if (keyword != null) {
             filters.append("""
@@ -3333,8 +3596,9 @@ public class OrderRepository {
         return filters;
     }
 
-    private QueryParts adminOperatorRoleFilters(AdminOperatorRoleQuery query) {
-        QueryParts filters = new QueryParts("");
+    private QueryParts adminOperatorRoleFilters(UUID tenantId, AdminOperatorRoleQuery query) {
+        QueryParts filters = new QueryParts(" and u.tenant_id = ?");
+        filters.add(tenantId);
         String keyword = query.keyword() == null || query.keyword().isBlank() ? null : query.keyword().trim();
         if (keyword != null) {
             filters.append(" and u.role_code ilike ?");
@@ -5415,6 +5679,40 @@ public class OrderRepository {
         );
     }
 
+    private AdminRbacRoleRecord mapAdminRbacRoleRecord(ResultSet rs, int rowNum) throws SQLException {
+        return new AdminRbacRoleRecord(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getString("role_code"),
+                rs.getString("role_name"),
+                rs.getString("data_scope_type"),
+                rs.getBoolean("built_in"),
+                rs.getBoolean("enabled"),
+                rs.getInt("version"),
+                rs.getLong("operator_count"),
+                stringArray(rs, "permission_codes"),
+                uuidArray(rs, "institution_ids"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at")
+        );
+    }
+
+    private List<String> stringArray(ResultSet rs, String column) throws SQLException {
+        Array value = rs.getArray(column);
+        if (value == null) {
+            return List.of();
+        }
+        return List.copyOf(Arrays.asList((String[]) value.getArray()));
+    }
+
+    private List<UUID> uuidArray(ResultSet rs, String column) throws SQLException {
+        Array value = rs.getArray(column);
+        if (value == null) {
+            return List.of();
+        }
+        return List.copyOf(Arrays.asList((UUID[]) value.getArray()));
+    }
+
     private AdminDictTypeRecord mapAdminDictTypeRecord(ResultSet rs, int rowNum) throws SQLException {
         return new AdminDictTypeRecord(
                 rs.getObject("id", UUID.class),
@@ -6132,7 +6430,7 @@ public class OrderRepository {
             }
         }
 
-        private void addInFilter(String column, List<String> values) {
+        private void addInFilter(String column, List<?> values) {
             if (values == null || values.isEmpty()) {
                 return;
             }

@@ -109,6 +109,11 @@ import type {
   AdminOperatorRoleQueryParams,
   AdminOperatorRoleRecord,
   AdminOperatorRoleRenameCommand,
+  AdminRbacCatalog,
+  AdminRbacRoleCommand,
+  AdminRbacRolePage,
+  AdminRbacRoleQueryParams,
+  AdminRbacRoleRecord,
   AdminOrderReceiptCommand,
   AdminOrderReceiptPage,
   AdminOrderReceiptQueryParams,
@@ -427,6 +432,36 @@ export function renameAdminOperatorRole(roleCode: string, command: AdminOperator
   return request<AdminOperatorRoleRecord>(`/order-api/api/admin/operator-roles/${encodeURIComponent(roleCode)}`, {
     method: 'PATCH',
     body: JSON.stringify(command),
+  });
+}
+
+export function listAdminRbacRoles(params: AdminRbacRoleQueryParams = {}) {
+  const query = buildOrderQuery(params);
+  const url = query ? `/order-api/api/admin/rbac/roles?${query}` : '/order-api/api/admin/rbac/roles';
+  return request<AdminRbacRolePage>(url);
+}
+
+export function getAdminRbacCatalog() {
+  return request<AdminRbacCatalog>('/order-api/api/admin/rbac/catalog');
+}
+
+export function createAdminRbacRole(command: AdminRbacRoleCommand) {
+  return request<AdminRbacRoleRecord>('/order-api/api/admin/rbac/roles', {
+    method: 'POST',
+    body: JSON.stringify(command),
+  });
+}
+
+export function updateAdminRbacRole(roleId: string, command: AdminRbacRoleCommand) {
+  return request<AdminRbacRoleRecord>(`/order-api/api/admin/rbac/roles/${encodeURIComponent(roleId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(command),
+  });
+}
+
+export function deleteAdminRbacRole(roleId: string) {
+  return request<void>(`/order-api/api/admin/rbac/roles/${encodeURIComponent(roleId)}`, {
+    method: 'DELETE',
   });
 }
 

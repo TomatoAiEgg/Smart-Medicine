@@ -268,6 +268,67 @@ export interface AdminOperatorRoleRenameCommand {
   roleCode: string;
 }
 
+export type AdminRbacDataScopeType = 'TENANT' | 'INSTITUTION';
+
+export interface AdminRbacRoleQueryParams {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminRbacRoleRecord {
+  id: string;
+  tenantId: string;
+  roleCode: string;
+  roleName: string;
+  dataScopeType: AdminRbacDataScopeType;
+  builtIn: boolean;
+  enabled: boolean;
+  version: number;
+  operatorCount: number;
+  permissionCodes: string[];
+  institutionIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminRbacRolePage {
+  records: AdminRbacRoleRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminRbacPermissionOption {
+  permissionCode: string;
+  permissionName: string;
+  resourceType: string;
+  httpMethod: string | null;
+  resourcePattern: string | null;
+}
+
+export interface AdminRbacInstitutionOption {
+  institutionId: string;
+  institutionCode: string;
+  institutionName: string;
+  status: string;
+}
+
+export interface AdminRbacCatalog {
+  permissions: AdminRbacPermissionOption[];
+  institutions: AdminRbacInstitutionOption[];
+}
+
+export interface AdminRbacRoleCommand {
+  roleCode: string;
+  roleName: string;
+  dataScopeType: AdminRbacDataScopeType;
+  enabled: boolean;
+  version?: number;
+  permissionCodes: string[];
+  institutionIds: string[];
+}
+
 export interface AdminDictTypeQueryParams {
   keyword?: string;
   enabled?: boolean | string;

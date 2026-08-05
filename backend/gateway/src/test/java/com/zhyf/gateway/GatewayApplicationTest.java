@@ -29,6 +29,8 @@ class GatewayApplicationTest {
                 .contains("order:read");
         assertThat(policy.requiredPermission("PATCH", "/order-api/api/admin/operators/1"))
                 .contains("system:write");
+        assertThat(policy.requiredPermission("PUT", "/order-api/api/admin/rbac/roles/1"))
+                .contains("system:write");
         assertThat(policy.requiredPermission("GET", "/report-api/api/admin/reports/overview.csv"))
                 .contains("report:export");
         assertThat(policy.requiredPermission("POST", "/decoction-api/simulator/mes/tasks/T1/start"))

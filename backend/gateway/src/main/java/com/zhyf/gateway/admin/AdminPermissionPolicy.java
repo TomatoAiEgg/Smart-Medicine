@@ -14,6 +14,7 @@ public class AdminPermissionPolicy {
             new RouteGroup("system", path -> startsWithAny(path,
                     "/order-api/api/admin/operators",
                     "/order-api/api/admin/operator-roles",
+                    "/order-api/api/admin/rbac",
                     "/order-api/api/admin/dict-",
                     "/order-api/api/admin/system-configs",
                     "/order-api/api/admin/decoct-centers")),
