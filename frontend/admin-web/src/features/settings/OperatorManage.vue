@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { revokeAdminUserSessions } from '../../api/auth';
 import { errorMessage } from '../../domain/errors';
 import { createAdminOperator, listAdminOperators, listAdminRbacRoles, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord, AdminRbacRoleRecord } from '../../api/types';
@@ -21,6 +22,7 @@ const props = defineProps<{
   active: boolean;
   activationKey: number;
   canManage: boolean;
+  currentUserId: string;
 }>();
 
 const emit = defineEmits<{
@@ -35,6 +37,7 @@ const pageSize = ref(20);
 const operatorPage = ref<AdminOperatorPage | null>(null);
 const loading = ref(false);
 const saving = ref(false);
+const revokingUserId = ref('');
 const loaded = ref(false);
 const errorLine = ref('');
 const roleOptions = ref<AdminRbacRoleRecord[]>([]);
@@ -184,6 +187,27 @@ async function toggleOperator(row: AdminOperatorRecord) {
   }
 }
 
+async function forceLogout(row: AdminOperatorRecord) {
+  if (!props.canManage || row.id === props.currentUserId) return;
+  if (!window.confirm(`确认强制下线工号“${row.username}”的全部登录会话吗？`)) return;
+  revokingUserId.value = row.id;
+  errorLine.value = '';
+  try {
+    const result = await revokeAdminUserSessions(row.id);
+    emit(
+      'notice',
+      'success',
+      result.revokedSessions > 0
+        ? `工号 ${row.username} 已强制下线 ${formatNumber(result.revokedSessions)} 个会话`
+        : `工号 ${row.username} 当前没有活跃会话`,
+    );
+  } catch (error) {
+    errorLine.value = errorMessage(error);
+  } finally {
+    revokingUserId.value = '';
+  }
+}
+
 async function previousPage() {
   if (!hasPreviousPage.value) return;
   page.value -= 1;
@@ -314,10 +338,19 @@ defineExpose({
             <td>{{ enabledText(row.enabled) }}</td>
             <td>{{ formatDate(row.createdAt) }}</td>
             <td>{{ formatDate(row.updatedAt) }}</td>
-            <td>
+            <td class="operator-row-actions">
               <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="editOperator(row)">编辑</button>
               <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="toggleOperator(row)">
                 {{ row.enabled ? '停用' : '启用' }}
+              </button>
+              <button
+                class="legacy-btn danger"
+                type="button"
+                :disabled="saving || Boolean(revokingUserId) || !canManage || row.id === currentUserId"
+                :title="row.id === currentUserId ? '当前账号请使用退出登录' : '立即撤销该账号的全部登录会话'"
+                @click="forceLogout(row)"
+              >
+                {{ revokingUserId === row.id ? '下线中' : '强制下线' }}
               </button>
             </td>
           </tr>
@@ -374,7 +407,11 @@ defineExpose({
 }
 
 .operator-table {
-  min-width: 960px;
+  min-width: 1060px;
+}
+
+.operator-row-actions {
+  white-space: nowrap;
 }
 
 .operator-table th,

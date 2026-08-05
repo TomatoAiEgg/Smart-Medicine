@@ -17,6 +17,7 @@ public class GlobalExceptionHandler {
         HttpStatus status = switch (ex.code()) {
             case "ADMIN_BACKEND_UNAVAILABLE", "ADMIN_BACKEND_INTERRUPTED" -> HttpStatus.BAD_GATEWAY;
             case "ADMIN_BACKEND_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            case "ADMIN_TENANT_WIDE_REQUIRED", "ADMIN_SELF_REVOKE_FORBIDDEN" -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status).body(ApiResponse.fail(ex.code(), ex.getMessage()));

@@ -33,6 +33,18 @@ public class AdminAuthController {
         )));
     }
 
+    @PostMapping("/refresh")
+    public ApiResponse<AdminAuthRecords.LoginResult> refresh(
+            @RequestBody RefreshRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.ok(authService.refresh(new AdminAuthRecords.RefreshCommand(
+                request.refreshToken(),
+                servletRequest.getHeader("X-Request-Id"),
+                clientIp(servletRequest)
+        )));
+    }
+
     private String clientIp(HttpServletRequest request) {
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
@@ -43,5 +55,8 @@ public class AdminAuthController {
     }
 
     public record LoginRequest(String tenantCode, String username, String password) {
+    }
+
+    public record RefreshRequest(String refreshToken) {
     }
 }

@@ -21,6 +21,7 @@ zhyf:
   admin-auth:
     jwt-secret: ${ZHYF_ADMIN_JWT_SECRET:}
     issuer: ${ZHYF_ADMIN_JWT_ISSUER:zhyf-admin}
-    access-token-seconds: ${ZHYF_ADMIN_ACCESS_TOKEN_SECONDS:28800}
+    access-token-seconds: ${ZHYF_ADMIN_ACCESS_TOKEN_SECONDS:900}
+    refresh-token-seconds: ${ZHYF_ADMIN_REFRESH_TOKEN_SECONDS:604800}
     max-login-failures: ${ZHYF_ADMIN_MAX_LOGIN_FAILURES:5}
     lock-seconds: ${ZHYF_ADMIN_LOCK_SECONDS:900}

@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -21,7 +22,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String PRINCIPAL_ATTRIBUTE = AdminAuthenticationFilter.class.getName() + ".principal";
-    private static final String LOGIN_PATH = "/auth-api/api/admin/auth/login";
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/auth-api/api/admin/auth/login",
+            "/auth-api/api/admin/auth/refresh"
+    );
     private static final List<String> PROTECTED_PREFIXES = List.of(
             "/auth-api/",
             "/order-api/",
@@ -39,22 +43,25 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
     private final AdminJwtCodec jwtCodec;
     private final ObjectMapper objectMapper;
     private final AdminPermissionPolicy permissionPolicy;
+    private final AdminSessionRepository sessionRepository;
 
     public AdminAuthenticationFilter(
             AdminJwtCodec jwtCodec,
             ObjectMapper objectMapper,
-            AdminPermissionPolicy permissionPolicy
+            AdminPermissionPolicy permissionPolicy,
+            AdminSessionRepository sessionRepository
     ) {
         this.jwtCodec = jwtCodec;
         this.objectMapper = objectMapper;
         this.permissionPolicy = permissionPolicy;
+        this.sessionRepository = sessionRepository;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
-                || LOGIN_PATH.equals(path)
+                || PUBLIC_PATHS.contains(path)
                 || PROTECTED_PREFIXES.stream().noneMatch(path::startsWith);
     }
 
@@ -71,6 +78,10 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
         }
         try {
             AdminPrincipal principal = jwtCodec.verify(authorization.substring(7).trim());
+            if (!sessionRepository.isActive(principal)) {
+                writeUnauthorized(response, "ADMIN_SESSION_REVOKED", "登录会话已失效，请重新登录");
+                return;
+            }
             String requiredPermission = permissionPolicy
                     .requiredPermission(request.getMethod(), request.getRequestURI())
                     .orElse(null);
@@ -89,6 +100,9 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } catch (AdminTokenException ex) {
             writeUnauthorized(response, "ADMIN_TOKEN_INVALID", ex.getMessage());
+        } catch (DataAccessException ex) {
+            writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "ADMIN_SESSION_CHECK_UNAVAILABLE", "登录会话暂时无法校验，请稍后重试");
         }
     }
 

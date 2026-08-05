@@ -12,8 +12,10 @@ export interface AdminUserSession {
   expiresAt: string;
 }
 
-interface StoredAdminSession {
+export interface StoredAdminSession {
   accessToken: string;
+  refreshToken: string;
+  refreshExpiresAt: string;
   user: AdminUserSession;
 }
 
@@ -24,11 +26,11 @@ export function readAdminSession(): StoredAdminSession | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredAdminSession>;
-    if (!parsed.accessToken || !parsed.user?.userId || !parsed.user.expiresAt) {
+    if (!parsed.accessToken || !parsed.refreshToken || !parsed.refreshExpiresAt || !parsed.user?.userId || !parsed.user.expiresAt) {
       clearAdminSession();
       return null;
     }
-    if (Date.parse(parsed.user.expiresAt) <= Date.now()) {
+    if (Date.parse(parsed.refreshExpiresAt) <= Date.now()) {
       clearAdminSession();
       return null;
     }
@@ -43,8 +45,16 @@ export function adminAccessToken() {
   return readAdminSession()?.accessToken ?? null;
 }
 
-export function storeAdminSession(accessToken: string, user: AdminUserSession) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken, user } satisfies StoredAdminSession));
+export function storeAdminSession(
+  accessToken: string,
+  refreshToken: string,
+  refreshExpiresAt: string,
+  user: AdminUserSession,
+) {
+  sessionStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ accessToken, refreshToken, refreshExpiresAt, user } satisfies StoredAdminSession),
+  );
 }
 
 export function clearAdminSession() {

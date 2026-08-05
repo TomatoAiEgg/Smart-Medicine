@@ -56,10 +56,14 @@ public final class AdminJwtCodec {
             List<UUID> institutionIds,
             List<String> permissions,
             boolean tenantWide,
+            UUID sessionId,
             Duration ttl
     ) {
         if (ttl == null || ttl.isNegative() || ttl.isZero()) {
             throw new IllegalArgumentException("管理员令牌有效期必须大于 0");
+        }
+        if (sessionId == null) {
+            throw new IllegalArgumentException("管理员会话 ID 不能为空");
         }
         Instant issuedAt = Instant.now(clock);
         Instant expiresAt = issuedAt.plus(ttl);
@@ -76,6 +80,7 @@ public final class AdminJwtCodec {
                 tenantWide,
                 issuedAt,
                 expiresAt,
+                sessionId,
                 UUID.randomUUID().toString()
         );
         Map<String, Object> header = Map.of("alg", "HS256", "typ", "JWT");
@@ -93,6 +98,7 @@ public final class AdminJwtCodec {
         payload.put("tenantWide", principal.tenantWide());
         payload.put("iat", principal.issuedAt().getEpochSecond());
         payload.put("exp", principal.expiresAt().getEpochSecond());
+        payload.put("sid", principal.sessionId().toString());
         payload.put("jti", principal.tokenId());
         String signingInput = encode(header) + "." + encode(payload);
         return new IssuedAdminToken(signingInput + "." + sign(signingInput), principal);
@@ -134,6 +140,7 @@ public final class AdminJwtCodec {
                     bool(payload, "tenantWide"),
                     Instant.ofEpochSecond(number(payload, "iat")),
                     expiresAt,
+                    UUID.fromString(text(payload, "sid")),
                     text(payload, "jti")
             );
         } catch (AdminTokenException ex) {

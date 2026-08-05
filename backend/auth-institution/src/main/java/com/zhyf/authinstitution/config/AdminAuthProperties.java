@@ -7,7 +7,8 @@ public class AdminAuthProperties {
 
     private String jwtSecret;
     private String issuer = "zhyf-admin";
-    private long accessTokenSeconds = 28800;
+    private long accessTokenSeconds = 900;
+    private long refreshTokenSeconds = 604800;
     private int maxLoginFailures = 5;
     private long lockSeconds = 900;
 
@@ -33,6 +34,14 @@ public class AdminAuthProperties {
 
     public void setAccessTokenSeconds(long accessTokenSeconds) {
         this.accessTokenSeconds = Math.max(300, accessTokenSeconds);
+    }
+
+    public long getRefreshTokenSeconds() {
+        return refreshTokenSeconds;
+    }
+
+    public void setRefreshTokenSeconds(long refreshTokenSeconds) {
+        this.refreshTokenSeconds = Math.max(3600, refreshTokenSeconds);
     }
 
     public int getMaxLoginFailures() {

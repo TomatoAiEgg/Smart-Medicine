@@ -23,6 +23,7 @@ class SignatureUtilsTest {
     void adminTokenShouldKeepPermissionsAndTenantScope() {
         UUID userId = UUID.randomUUID();
         UUID tenantId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
         AdminJwtCodec codec = new AdminJwtCodec(
                 "test-admin-jwt-secret-with-at-least-32-bytes",
                 "test-admin",
@@ -40,11 +41,13 @@ class SignatureUtilsTest {
                 List.of(),
                 List.of("order:read", "order:write"),
                 true,
+                sessionId,
                 Duration.ofMinutes(10)
         );
 
         AdminPrincipal principal = codec.verify(issued.token());
         assertThat(principal.tenantId()).isEqualTo(tenantId);
+        assertThat(principal.sessionId()).isEqualTo(sessionId);
         assertThat(principal.permissions()).containsExactly("order:read", "order:write");
         assertThat(principal.tenantWide()).isTrue();
     }

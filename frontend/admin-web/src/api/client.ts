@@ -1,5 +1,22 @@
 import type { ApiResponse } from './types';
-import { adminAccessToken, clearAdminSession } from './adminSession';
+import {
+  adminAccessToken,
+  clearAdminSession,
+  readAdminSession,
+  storeAdminSession,
+  type AdminUserSession,
+} from './adminSession';
+
+interface AdminRefreshResult {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: 'Bearer';
+  expiresAt: string;
+  refreshExpiresAt: string;
+  user: Omit<AdminUserSession, 'expiresAt'>;
+}
+
+let refreshPromise: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   readonly code: string;
@@ -14,21 +31,7 @@ export class ApiError extends Error {
 }
 
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  let response: Response;
-  const token = adminAccessToken();
-
-  try {
-    response = await fetch(url, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init?.headers,
-      },
-    });
-  } catch (error) {
-    throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
-  }
+  const { response, token } = await fetchWithAdminSession(url, init, true);
 
   const contentType = response.headers.get('content-type') || '';
   const payload = contentType.includes('application/json')
@@ -52,20 +55,7 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function downloadBlob(url: string, init?: RequestInit): Promise<Blob> {
-  let response: Response;
-  const token = adminAccessToken();
-
-  try {
-    response = await fetch(url, {
-      ...init,
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init?.headers,
-      },
-    });
-  } catch (error) {
-    throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
-  }
+  const { response, token } = await fetchWithAdminSession(url, init, false);
 
   if (response.ok) return response.blob();
 
@@ -80,6 +70,81 @@ export async function downloadBlob(url: string, init?: RequestInit): Promise<Blo
 
 function expireSessionWhenUnauthorized(status: number, token: string | null) {
   if (status !== 401 || !token) return;
+  expireAdminSession();
+}
+
+async function fetchWithAdminSession(url: string, init: RequestInit | undefined, jsonBody: boolean) {
+  let token = adminAccessToken();
+  let response = await fetchRequest(url, init, token, jsonBody);
+  if (response.status === 401 && token && shouldRefresh(url) && await refreshAdminSession()) {
+    token = adminAccessToken();
+    response = await fetchRequest(url, init, token, jsonBody);
+  }
+  return { response, token };
+}
+
+async function fetchRequest(
+  url: string,
+  init: RequestInit | undefined,
+  token: string | null,
+  jsonBody: boolean,
+) {
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: {
+        ...(jsonBody ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
+    });
+  } catch (error) {
+    throw new ApiError(error instanceof Error ? error.message : '服务连接失败');
+  }
+}
+
+function shouldRefresh(url: string) {
+  return url !== '/auth-api/api/admin/auth/login' && url !== '/auth-api/api/admin/auth/refresh';
+}
+
+async function refreshAdminSession() {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function performRefresh() {
+  const stored = readAdminSession();
+  if (!stored) return false;
+  try {
+    const response = await fetch('/auth-api/api/admin/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: stored.refreshToken }),
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+      ? ((await response.json()) as ApiResponse<AdminRefreshResult>)
+      : null;
+    if (!response.ok || !payload || (payload.code !== 'SUCCESS' && payload.code !== '0')) {
+      expireAdminSession();
+      return false;
+    }
+    const result = payload.data;
+    const user = { ...result.user, expiresAt: result.expiresAt };
+    storeAdminSession(result.accessToken, result.refreshToken, result.refreshExpiresAt, user);
+    window.dispatchEvent(new CustomEvent<AdminUserSession>('admin-auth-refreshed', { detail: user }));
+    return true;
+  } catch {
+    expireAdminSession();
+    return false;
+  }
+}
+
+function expireAdminSession() {
   clearAdminSession();
   window.dispatchEvent(new CustomEvent('admin-auth-expired'));
 }

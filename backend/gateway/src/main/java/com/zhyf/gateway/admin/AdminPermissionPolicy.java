@@ -35,6 +35,9 @@ public class AdminPermissionPolicy {
         if (requestPath == null || requestPath.isBlank()) {
             return Optional.empty();
         }
+        if (requestPath.matches("/auth-api/api/admin/auth/users/[^/]+/revoke-sessions")) {
+            return Optional.of("system:write");
+        }
         if (requestPath.startsWith("/auth-api/api/admin/auth/")) {
             return Optional.of("authenticated");
         }

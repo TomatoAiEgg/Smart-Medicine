@@ -304,6 +304,11 @@ function handleAuthExpired() {
   openTabs.value = [];
 }
 
+function handleAuthRefreshed(event: Event) {
+  const session = (event as CustomEvent<AdminUserSession>).detail;
+  if (session) applyAdminSession(session);
+}
+
 async function handleLogout() {
   await logoutAdmin();
   handleAuthExpired();
@@ -311,11 +316,13 @@ async function handleLogout() {
 
 onMounted(() => {
   window.addEventListener('admin-auth-expired', handleAuthExpired);
+  window.addEventListener('admin-auth-refreshed', handleAuthRefreshed);
   void initializeAdminSession();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('admin-auth-expired', handleAuthExpired);
+  window.removeEventListener('admin-auth-refreshed', handleAuthRefreshed);
 });
 
 function routeKeyFromMeta(value: unknown): ViewKey {
@@ -968,6 +975,7 @@ function closeTab(view: ViewKey) {
       :active="currentComponentKey === 'operatorManage'"
       :activation-key="operatorManageActivationKey"
       :can-manage="canManageSystem"
+      :current-user-id="adminSession?.userId ?? ''"
       @count-changed="operatorManageCount = $event"
       @notice="showNotice"
     />

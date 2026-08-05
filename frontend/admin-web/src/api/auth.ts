@@ -14,8 +14,10 @@ export interface AdminLoginCommand {
 
 interface AdminLoginResult {
   accessToken: string;
+  refreshToken: string;
   tokenType: 'Bearer';
   expiresAt: string;
+  refreshExpiresAt: string;
   user: Omit<AdminUserSession, 'expiresAt'>;
 }
 
@@ -25,7 +27,7 @@ export async function loginAdmin(command: AdminLoginCommand): Promise<AdminUserS
     body: JSON.stringify(command),
   });
   const user = { ...result.user, expiresAt: result.expiresAt };
-  storeAdminSession(result.accessToken, user);
+  storeAdminSession(result.accessToken, result.refreshToken, result.refreshExpiresAt, user);
   return user;
 }
 
@@ -35,7 +37,7 @@ export async function restoreAdminSession(): Promise<AdminUserSession | null> {
     const user = await request<AdminUserSession>('/auth-api/api/admin/auth/me');
     const stored = readAdminSession();
     if (!stored) return null;
-    storeAdminSession(stored.accessToken, user);
+    storeAdminSession(stored.accessToken, stored.refreshToken, stored.refreshExpiresAt, user);
     return user;
   } catch {
     clearAdminSession();
@@ -49,4 +51,16 @@ export async function logoutAdmin() {
   } finally {
     clearAdminSession();
   }
+}
+
+export interface AdminSessionRevocationResult {
+  userId: string;
+  revokedSessions: number;
+}
+
+export function revokeAdminUserSessions(userId: string) {
+  return request<AdminSessionRevocationResult>(
+    `/auth-api/api/admin/auth/users/${encodeURIComponent(userId)}/revoke-sessions`,
+    { method: 'POST' },
+  );
 }

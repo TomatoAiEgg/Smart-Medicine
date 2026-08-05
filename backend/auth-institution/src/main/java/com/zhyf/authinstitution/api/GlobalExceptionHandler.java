@@ -13,7 +13,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         HttpStatus status = switch (ex.code()) {
-            case "ADMIN_LOGIN_FAILED" -> HttpStatus.UNAUTHORIZED;
+            case "ADMIN_LOGIN_FAILED", "ADMIN_REFRESH_TOKEN_INVALID", "ADMIN_REFRESH_TOKEN_EXPIRED",
+                    "ADMIN_SESSION_REVOKED" -> HttpStatus.UNAUTHORIZED;
             case "ADMIN_ACCOUNT_LOCKED" -> HttpStatus.LOCKED;
             case "ADMIN_ACCOUNT_DISABLED", "ADMIN_CREDENTIAL_NOT_READY", "ADMIN_ROLE_REQUIRED" -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.BAD_REQUEST;

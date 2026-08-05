@@ -17,6 +17,7 @@ public record AdminPrincipal(
         boolean tenantWide,
         Instant issuedAt,
         Instant expiresAt,
+        UUID sessionId,
         String tokenId
 ) {
 

@@ -12,6 +12,9 @@ public final class AdminAuthRecords {
     public record LoginCommand(String tenantCode, String username, String password, String requestId, String clientIp) {
     }
 
+    public record RefreshCommand(String refreshToken, String requestId, String clientIp) {
+    }
+
     public record AdminUserView(
             UUID userId,
             UUID tenantId,
@@ -26,6 +29,13 @@ public final class AdminAuthRecords {
     ) {
     }
 
-    public record LoginResult(String accessToken, String tokenType, Instant expiresAt, AdminUserView user) {
+    public record LoginResult(
+            String accessToken,
+            String refreshToken,
+            String tokenType,
+            Instant expiresAt,
+            Instant refreshExpiresAt,
+            AdminUserView user
+    ) {
     }
 }

@@ -33,6 +33,20 @@ public class AdminAuthRepository {
         return jdbcTemplate.query(sql, this::mapAccount, tenantCode, username).stream().findFirst();
     }
 
+    public Optional<AdminAccount> findAccount(UUID tenantId, UUID userId) {
+        String sql = """
+                select u.id, u.tenant_id, t.tenant_code, t.tenant_name, u.username, u.display_name,
+                       u.password_hash, u.password_algorithm, u.credential_status, u.enabled,
+                       u.login_failed_count, u.locked_until
+                from operator_user u
+                join tenant t on t.id = u.tenant_id
+                where u.tenant_id = ?
+                  and u.id = ?
+                  and t.status = 'ENABLED'
+                """;
+        return jdbcTemplate.query(sql, this::mapAccount, tenantId, userId).stream().findFirst();
+    }
+
     public List<String> findRoleCodes(UUID tenantId, UUID userId) {
         String sql = """
                 select r.role_code
@@ -147,6 +161,111 @@ public class AdminAuthRepository {
         );
     }
 
+    public void createSession(
+            UUID sessionId,
+            UUID tenantId,
+            UUID userId,
+            String refreshTokenHash,
+            Instant accessExpiresAt,
+            Instant refreshExpiresAt
+    ) {
+        String sql = """
+                insert into admin_auth_session (
+                    id, tenant_id, user_id, refresh_token_hash, status,
+                    access_expires_at, refresh_expires_at, last_rotated_at
+                ) values (?, ?, ?, ?, 'ACTIVE', ?, ?, now())
+                """;
+        jdbcTemplate.update(
+                sql,
+                sessionId,
+                tenantId,
+                userId,
+                refreshTokenHash,
+                OffsetDateTime.ofInstant(accessExpiresAt, java.time.ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(refreshExpiresAt, java.time.ZoneOffset.UTC)
+        );
+    }
+
+    public Optional<AdminSession> findSessionForUpdate(UUID sessionId) {
+        String sql = """
+                select id, tenant_id, user_id, refresh_token_hash, status,
+                       access_expires_at, refresh_expires_at, revoked_at, revoke_reason
+                from admin_auth_session
+                where id = ?
+                for update
+                """;
+        return jdbcTemplate.query(sql, this::mapSession, sessionId).stream().findFirst();
+    }
+
+    public int rotateSession(
+            UUID sessionId,
+            String expectedRefreshTokenHash,
+            String nextRefreshTokenHash,
+            Instant accessExpiresAt
+    ) {
+        String sql = """
+                update admin_auth_session
+                set refresh_token_hash = ?,
+                    access_expires_at = ?,
+                    last_rotated_at = now(),
+                    updated_at = now(),
+                    version = version + 1
+                where id = ?
+                  and status = 'ACTIVE'
+                  and refresh_token_hash = ?
+                  and refresh_expires_at > now()
+                """;
+        return jdbcTemplate.update(
+                sql,
+                nextRefreshTokenHash,
+                OffsetDateTime.ofInstant(accessExpiresAt, java.time.ZoneOffset.UTC),
+                sessionId,
+                expectedRefreshTokenHash
+        );
+    }
+
+    public int revokeSession(UUID sessionId, String reason) {
+        String sql = """
+                update admin_auth_session
+                set status = 'REVOKED',
+                    revoked_at = coalesce(revoked_at, now()),
+                    revoke_reason = ?,
+                    updated_at = now(),
+                    version = version + 1
+                where id = ? and status = 'ACTIVE'
+                """;
+        return jdbcTemplate.update(sql, reason, sessionId);
+    }
+
+    public void writeSessionAudit(
+            UUID tenantId,
+            String username,
+            String action,
+            String result,
+            String reason,
+            UUID sessionId,
+            String requestId,
+            String clientIp
+    ) {
+        String sql = """
+                insert into operation_log (
+                    id, tenant_id, operator, action, result, reason, request_id, client_ip, payload
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, jsonb_build_object('sessionId', ?::text))
+                """;
+        jdbcTemplate.update(
+                sql,
+                UUID.randomUUID(),
+                tenantId,
+                username,
+                action,
+                result,
+                reason,
+                requestId,
+                clientIp,
+                sessionId
+        );
+    }
+
     private AdminAccount mapAccount(ResultSet rs, int rowNum) throws SQLException {
         OffsetDateTime lockedUntil = rs.getObject("locked_until", OffsetDateTime.class);
         return new AdminAccount(
@@ -165,6 +284,23 @@ public class AdminAuthRepository {
         );
     }
 
+    private AdminSession mapSession(ResultSet rs, int rowNum) throws SQLException {
+        OffsetDateTime accessExpiresAt = rs.getObject("access_expires_at", OffsetDateTime.class);
+        OffsetDateTime refreshExpiresAt = rs.getObject("refresh_expires_at", OffsetDateTime.class);
+        OffsetDateTime revokedAt = rs.getObject("revoked_at", OffsetDateTime.class);
+        return new AdminSession(
+                rs.getObject("id", UUID.class),
+                rs.getObject("tenant_id", UUID.class),
+                rs.getObject("user_id", UUID.class),
+                rs.getString("refresh_token_hash"),
+                rs.getString("status"),
+                accessExpiresAt.toInstant(),
+                refreshExpiresAt.toInstant(),
+                revokedAt == null ? null : revokedAt.toInstant(),
+                rs.getString("revoke_reason")
+        );
+    }
+
     public record AdminAccount(
             UUID userId,
             UUID tenantId,
@@ -178,6 +314,19 @@ public class AdminAuthRepository {
             boolean enabled,
             int loginFailedCount,
             Instant lockedUntil
+    ) {
+    }
+
+    public record AdminSession(
+            UUID sessionId,
+            UUID tenantId,
+            UUID userId,
+            String refreshTokenHash,
+            String status,
+            Instant accessExpiresAt,
+            Instant refreshExpiresAt,
+            Instant revokedAt,
+            String revokeReason
     ) {
     }
 }
