@@ -55,6 +55,7 @@ public final class AdminJwtCodec {
             List<String> roleCodes,
             List<UUID> institutionIds,
             List<String> permissions,
+            boolean tenantWide,
             Duration ttl
     ) {
         if (ttl == null || ttl.isNegative() || ttl.isZero()) {
@@ -72,6 +73,7 @@ public final class AdminJwtCodec {
                 roleCodes,
                 institutionIds,
                 permissions,
+                tenantWide,
                 issuedAt,
                 expiresAt,
                 UUID.randomUUID().toString()
@@ -88,6 +90,7 @@ public final class AdminJwtCodec {
         payload.put("roles", principal.roleCodes());
         payload.put("institutionIds", principal.institutionIds().stream().map(UUID::toString).toList());
         payload.put("permissions", principal.permissions());
+        payload.put("tenantWide", principal.tenantWide());
         payload.put("iat", principal.issuedAt().getEpochSecond());
         payload.put("exp", principal.expiresAt().getEpochSecond());
         payload.put("jti", principal.tokenId());
@@ -128,6 +131,7 @@ public final class AdminJwtCodec {
                     textList(payload, "roles"),
                     textList(payload, "institutionIds").stream().map(UUID::fromString).toList(),
                     textList(payload, "permissions"),
+                    bool(payload, "tenantWide"),
                     Instant.ofEpochSecond(number(payload, "iat")),
                     expiresAt,
                     text(payload, "jti")
@@ -187,6 +191,14 @@ public final class AdminJwtCodec {
             return List.of();
         }
         return list.stream().filter(String.class::isInstance).map(String.class::cast).toList();
+    }
+
+    private boolean bool(Map<String, Object> values, String key) {
+        Object value = values.get(key);
+        if (!(value instanceof Boolean bool)) {
+            throw new AdminTokenException("管理端令牌缺少字段: " + key);
+        }
+        return bool;
     }
 
     public record IssuedAdminToken(String token, AdminPrincipal principal) {

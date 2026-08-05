@@ -76,6 +76,22 @@ public class AdminAuthRepository {
         return jdbcTemplate.queryForList(sql, String.class, tenantId, userId);
     }
 
+    public boolean hasTenantWideDataScope(UUID tenantId, UUID userId) {
+        String sql = """
+                select exists (
+                    select 1
+                    from admin_user_role ur
+                    join admin_role r
+                      on r.tenant_id = ur.tenant_id and r.id = ur.role_id
+                    where ur.tenant_id = ?
+                      and ur.user_id = ?
+                      and r.enabled = true
+                      and r.data_scope_type = 'TENANT'
+                )
+                """;
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(sql, Boolean.class, tenantId, userId));
+    }
+
     public int recordLoginFailure(UUID userId, int maxFailures, long lockSeconds) {
         String sql = """
                 update operator_user

@@ -16,6 +16,8 @@ management:
         include: health,info,prometheus
 
 zhyf:
+  admin-data-scope:
+    enabled: false
   admin-auth:
     jwt-secret: ${ZHYF_ADMIN_JWT_SECRET:}
     issuer: ${ZHYF_ADMIN_JWT_ISSUER:zhyf-admin}

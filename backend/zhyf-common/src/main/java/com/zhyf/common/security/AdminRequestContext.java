@@ -1,26 +1,19 @@
 package com.zhyf.common.security;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record AdminPrincipal(
+public record AdminRequestContext(
         UUID userId,
-        UUID tenantId,
-        String tenantCode,
-        String tenantName,
         String username,
-        String displayName,
+        UUID tenantId,
         List<String> roleCodes,
         List<UUID> institutionIds,
         List<String> permissions,
-        boolean tenantWide,
-        Instant issuedAt,
-        Instant expiresAt,
-        String tokenId
+        boolean tenantWide
 ) {
 
-    public AdminPrincipal {
+    public AdminRequestContext {
         roleCodes = List.copyOf(roleCodes == null ? List.of() : roleCodes);
         institutionIds = List.copyOf(institutionIds == null ? List.of() : institutionIds);
         permissions = List.copyOf(permissions == null ? List.of() : permissions);

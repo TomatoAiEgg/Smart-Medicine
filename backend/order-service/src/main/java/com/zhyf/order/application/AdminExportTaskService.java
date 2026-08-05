@@ -3,6 +3,7 @@ package com.zhyf.order.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.common.security.AdminRequestContextHolder;
 import com.zhyf.order.infrastructure.AdminExportTaskRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -54,7 +55,7 @@ public class AdminExportTaskService {
                 Math.max(query.page(), 1),
                 Math.min(Math.max(query.pageSize(), 1), 100)
         );
-        return exportTaskRepository.searchTasks(DEFAULT_TENANT_ID, normalized);
+        return exportTaskRepository.searchTasks(adminTenantId(), normalized);
     }
 
     @Transactional
@@ -99,11 +100,11 @@ public class AdminExportTaskService {
     public AdminExportTaskRecord runTask(UUID taskId) {
         AdminExportTaskRecord task = findTask(taskId);
         boolean retry = "FAILED".equals(task.taskStatus());
-        exportTaskRepository.markRunning(DEFAULT_TENANT_ID, taskId, retry);
+        exportTaskRepository.markRunning(adminTenantId(), taskId, retry);
         try {
             ExportContent content = exportContent(task);
             exportTaskRepository.markSuccess(
-                    DEFAULT_TENANT_ID,
+                    adminTenantId(),
                     taskId,
                     content.fileName(),
                     CSV_CONTENT_TYPE,
@@ -111,14 +112,17 @@ public class AdminExportTaskService {
                     content.rowCount()
             );
         } catch (RuntimeException ex) {
-            exportTaskRepository.markFailed(DEFAULT_TENANT_ID, taskId, failureMessage(ex));
+            exportTaskRepository.markFailed(adminTenantId(), taskId, failureMessage(ex));
         }
         return findTask(taskId);
     }
 
     @Transactional
     public AdminExportTaskBatchRunResult runPendingTasks(int limit) {
-        List<UUID> taskIds = exportTaskRepository.findPendingTaskIds(DEFAULT_TENANT_ID, Math.min(Math.max(limit, 1), 50));
+        List<UUID> taskIds = exportTaskRepository.findPendingTaskIds(
+                adminTenantId(),
+                Math.min(Math.max(limit, 1), 50)
+        );
         List<AdminExportTaskRecord> records = new ArrayList<>();
         int successCount = 0;
         int failCount = 0;
@@ -136,7 +140,7 @@ public class AdminExportTaskService {
 
     public AdminExportTaskFile getTaskFile(UUID taskId) {
         findTask(taskId);
-        return exportTaskRepository.findTaskFile(DEFAULT_TENANT_ID, taskId)
+        return exportTaskRepository.findTaskFile(adminTenantId(), taskId)
                 .orElseThrow(() -> new BusinessException("EXPORT_TASK_FILE_NOT_READY", "导出文件尚未生成"));
     }
 
@@ -148,7 +152,7 @@ public class AdminExportTaskService {
     ) {
         AdminExportTaskRecord task = new AdminExportTaskRecord(
                 UUID.randomUUID(),
-                DEFAULT_TENANT_ID,
+                adminTenantId(),
                 taskType,
                 taskName,
                 "PENDING",
@@ -236,8 +240,14 @@ public class AdminExportTaskService {
     }
 
     private AdminExportTaskRecord findTask(UUID taskId) {
-        return exportTaskRepository.findTask(DEFAULT_TENANT_ID, taskId)
+        return exportTaskRepository.findTask(adminTenantId(), taskId)
                 .orElseThrow(() -> new BusinessException("EXPORT_TASK_NOT_FOUND", "导出任务不存在"));
+    }
+
+    private UUID adminTenantId() {
+        return AdminRequestContextHolder.current()
+                .map(context -> context.tenantId())
+                .orElse(DEFAULT_TENANT_ID);
     }
 
     private String json(Map<String, String> queryParam) {

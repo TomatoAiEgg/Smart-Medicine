@@ -28,14 +28,16 @@ public class MessageConsumeRepository {
     ) {
         String sql = """
                 insert into message_consume_log (
-                    id, consumer_group, message_id, event_id, topic, tag, aggregate_id,
+                    id, tenant_id, consumer_group, message_id, event_id, topic, tag, aggregate_id,
                     status, consume_started_at, updated_at
-                ) values (?, ?, ?, ?, ?, ?, ?, 'PROCESSING', now(), now())
+                ) values (?, (select tenant_id from event_outbox where event_id = ?), ?, ?, ?, ?, ?, ?,
+                          'PROCESSING', now(), now())
                 on conflict (consumer_group, event_id) do nothing
                 """;
         return jdbcTemplate.update(
                 sql,
                 UUID.randomUUID(),
+                eventId,
                 consumerGroup,
                 messageId,
                 eventId,
@@ -131,21 +133,23 @@ public class MessageConsumeRepository {
                         consume_finished_at = now(),
                         updated_at = now()
                     where consumer_group = ? and event_id = ?
-                    returning event_id, topic, tag, consumer_group, aggregate_id, retry_count, last_error, status
+                    returning tenant_id, event_id, topic, tag, consumer_group, aggregate_id,
+                              retry_count, last_error, status
                 ),
                 inserted as (
                     insert into dead_letter_record (
-                        id, event_id, topic, tag, consumer_group, aggregate_id,
+                        id, tenant_id, event_id, topic, tag, consumer_group, aggregate_id,
                         payload_snapshot, error_message, retry_count, status
                     )
-                    select ?, event_id, topic, tag, consumer_group, aggregate_id,
+                    select ?, tenant_id, event_id, topic, tag, consumer_group, aggregate_id,
                            coalesce(?::jsonb, '{}'::jsonb), last_error, retry_count, 'OPEN'
                     from failed
                     where status = 'DEAD'
                       and not exists (
                         select 1
                         from dead_letter_record d
-                        where d.event_id = failed.event_id
+                        where d.tenant_id = failed.tenant_id
+                          and d.event_id = failed.event_id
                           and d.consumer_group = failed.consumer_group
                           and d.status = 'OPEN'
                       )

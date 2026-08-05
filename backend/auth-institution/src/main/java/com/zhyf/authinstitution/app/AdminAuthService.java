@@ -66,6 +66,7 @@ public class AdminAuthService {
         }
         List<java.util.UUID> institutionIds = repository.findInstitutionIds(account.tenantId(), account.userId());
         List<String> permissions = repository.findPermissions(account.tenantId(), account.userId());
+        boolean tenantWide = repository.hasTenantWideDataScope(account.tenantId(), account.userId());
         IssuedAdminToken issued = jwtCodec.issue(
                 account.userId(),
                 account.tenantId(),
@@ -76,6 +77,7 @@ public class AdminAuthService {
                 roleCodes,
                 institutionIds,
                 permissions,
+                tenantWide,
                 Duration.ofSeconds(properties.getAccessTokenSeconds())
         );
         repository.recordLoginSuccess(account.userId());
@@ -100,7 +102,8 @@ public class AdminAuthService {
                         account.displayName(),
                         roleCodes,
                         institutionIds,
-                        permissions
+                        permissions,
+                        tenantWide
                 )
         );
     }

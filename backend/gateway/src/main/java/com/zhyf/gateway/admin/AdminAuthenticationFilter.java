@@ -38,10 +38,16 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private final AdminJwtCodec jwtCodec;
     private final ObjectMapper objectMapper;
+    private final AdminPermissionPolicy permissionPolicy;
 
-    public AdminAuthenticationFilter(AdminJwtCodec jwtCodec, ObjectMapper objectMapper) {
+    public AdminAuthenticationFilter(
+            AdminJwtCodec jwtCodec,
+            ObjectMapper objectMapper,
+            AdminPermissionPolicy permissionPolicy
+    ) {
         this.jwtCodec = jwtCodec;
         this.objectMapper = objectMapper;
+        this.permissionPolicy = permissionPolicy;
     }
 
     @Override
@@ -65,9 +71,18 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
         }
         try {
             AdminPrincipal principal = jwtCodec.verify(authorization.substring(7).trim());
-            if (requiresTenantAdmin(request) && !principal.roleCodes().contains("TENANT_ADMIN")) {
+            String requiredPermission = permissionPolicy
+                    .requiredPermission(request.getMethod(), request.getRequestURI())
+                    .orElse(null);
+            if (requiredPermission == null) {
                 writeError(response, HttpServletResponse.SC_FORBIDDEN,
-                        "ADMIN_PERMISSION_REQUIRED", "当前角色尚未开放后台 API 权限");
+                        "ADMIN_ROUTE_FORBIDDEN", "当前管理端路由未开放访问");
+                return;
+            }
+            if (!"authenticated".equals(requiredPermission)
+                    && !principal.permissions().contains(requiredPermission)) {
+                writeError(response, HttpServletResponse.SC_FORBIDDEN,
+                        "ADMIN_PERMISSION_REQUIRED", "当前账号缺少操作权限: " + requiredPermission);
                 return;
             }
             request.setAttribute(PRINCIPAL_ATTRIBUTE, principal);
@@ -79,10 +94,6 @@ public class AdminAuthenticationFilter extends OncePerRequestFilter {
 
     private void writeUnauthorized(HttpServletResponse response, String code, String message) throws IOException {
         writeError(response, HttpServletResponse.SC_UNAUTHORIZED, code, message);
-    }
-
-    private boolean requiresTenantAdmin(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/auth-api/api/admin/auth/");
     }
 
     private void writeError(HttpServletResponse response, int status, String code, String message) throws IOException {

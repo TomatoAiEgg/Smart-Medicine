@@ -107,6 +107,8 @@ services:
     environment:
       <<: *backend-env
       AUTH_INSTITUTION_PORT: 18081
+      ZHYF_ADMIN_JWT_SECRET: ${ZHYF_ADMIN_JWT_SECRET:-}
+      ZHYF_ADMIN_JWT_ISSUER: ${ZHYF_ADMIN_JWT_ISSUER:-zhyf-admin}
       JAVA_OPTS: ${ZHYF_AUTH_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
     ports:
       - "127.0.0.1:18081:18081"
@@ -367,8 +369,19 @@ services:
     environment:
       <<: *backend-env
       GATEWAY_PORT: 18080
+      ZHYF_ADMIN_JWT_SECRET: ${ZHYF_ADMIN_JWT_SECRET:-}
+      ZHYF_ADMIN_JWT_ISSUER: ${ZHYF_ADMIN_JWT_ISSUER:-zhyf-admin}
       AUTH_INSTITUTION_BASE_URL: http://zhyf-auth-institution:18081
       ORDER_SERVICE_BASE_URL: http://zhyf-order-service:18082
+      WORKFLOW_SERVICE_BASE_URL: http://zhyf-workflow-service:18085
+      MESSAGE_SERVICE_BASE_URL: http://zhyf-message-service:18083
+      DECOCTION_SERVICE_BASE_URL: http://zhyf-decoction-service:18087
+      OPS_SERVICE_BASE_URL: http://zhyf-ops-service:18086
+      LOGISTICS_SERVICE_BASE_URL: http://zhyf-logistics-service:18088
+      CALLBACK_SERVICE_BASE_URL: http://zhyf-callback-service:18089
+      PORTAL_SERVICE_BASE_URL: http://zhyf-portal-service:18090
+      REPORT_SERVICE_BASE_URL: http://zhyf-report-service:18091
+      INTEGRATION_SERVICE_BASE_URL: http://zhyf-integration-service:18092
       JAVA_OPTS: ${ZHYF_GATEWAY_JAVA_OPTS:--XX:InitialRAMPercentage=35 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError}
     ports:
       - "127.0.0.1:18080:18080"

@@ -21,7 +21,8 @@ public final class AdminAuthRecords {
             String displayName,
             List<String> roleCodes,
             List<UUID> institutionIds,
-            List<String> permissions
+            List<String> permissions,
+            boolean tenantWide
     ) {
     }
 

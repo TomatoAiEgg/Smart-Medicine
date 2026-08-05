@@ -67,20 +67,22 @@ public class OutboxRepository {
                         last_error = ?,
                         updated_at = now()
                     where id = ? and status = 'PUBLISHING'
-                    returning event_id, topic, tag, aggregate_id, payload, last_error, retry_count, status
+                    returning tenant_id, event_id, topic, tag, aggregate_id,
+                              payload, last_error, retry_count, status
                 )
                 insert into dead_letter_record (
-                    id, event_id, topic, tag, aggregate_id, payload_snapshot,
+                    id, tenant_id, event_id, topic, tag, aggregate_id, payload_snapshot,
                     error_message, retry_count, status
                 )
-                select ?, event_id, topic, tag, aggregate_id, payload,
+                select ?, tenant_id, event_id, topic, tag, aggregate_id, payload,
                        last_error, retry_count, 'OPEN'
                 from failed
                 where status = 'DEAD'
                   and not exists (
                     select 1
                     from dead_letter_record d
-                    where d.event_id = failed.event_id
+                    where d.tenant_id = failed.tenant_id
+                      and d.event_id = failed.event_id
                       and d.consumer_group is null
                       and d.status = 'OPEN'
                   )

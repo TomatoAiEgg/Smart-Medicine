@@ -8,6 +8,7 @@ export interface AdminUserSession {
   roleCodes: string[];
   institutionIds: string[];
   permissions: string[];
+  tenantWide: boolean;
   expiresAt: string;
 }
 

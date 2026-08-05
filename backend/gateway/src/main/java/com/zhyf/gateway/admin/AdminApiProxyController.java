@@ -2,6 +2,7 @@ package com.zhyf.gateway.admin;
 
 import com.zhyf.common.exception.BusinessException;
 import com.zhyf.common.security.AdminPrincipal;
+import com.zhyf.common.security.AdminSecurityHeaders;
 import com.zhyf.gateway.config.AdminGatewayProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -78,11 +79,13 @@ public class AdminApiProxyController {
             builder.header("X-Real-IP", clientIp(request));
             AdminPrincipal principal = principal(request);
             if (principal != null) {
-                builder.header("X-Admin-User-Id", principal.userId().toString());
-                builder.header("X-Admin-Username", principal.username());
-                builder.header("X-Admin-Tenant-Id", principal.tenantId().toString());
-                builder.header("X-Admin-Role-Codes", String.join(",", principal.roleCodes()));
-                builder.header("X-Admin-Institution-Ids", joinUuids(principal.institutionIds()));
+                builder.header(AdminSecurityHeaders.USER_ID, principal.userId().toString());
+                builder.header(AdminSecurityHeaders.USERNAME, principal.username());
+                builder.header(AdminSecurityHeaders.TENANT_ID, principal.tenantId().toString());
+                builder.header(AdminSecurityHeaders.ROLE_CODES, String.join(",", principal.roleCodes()));
+                builder.header(AdminSecurityHeaders.INSTITUTION_IDS, joinUuids(principal.institutionIds()));
+                builder.header(AdminSecurityHeaders.PERMISSIONS, String.join(",", principal.permissions()));
+                builder.header(AdminSecurityHeaders.TENANT_WIDE, Boolean.toString(principal.tenantWide()));
             }
             HttpResponse<byte[]> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
             HttpHeaders responseHeaders = new HttpHeaders();

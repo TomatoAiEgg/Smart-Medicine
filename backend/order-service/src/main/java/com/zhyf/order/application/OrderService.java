@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhyf.common.exception.BusinessException;
+import com.zhyf.common.security.AdminRequestContextHolder;
 import com.zhyf.common.security.SignatureUtils;
 import com.zhyf.common.status.OrderStatus;
 import com.zhyf.common.status.PrescriptionStatus;
@@ -176,12 +177,12 @@ public class OrderService {
     public AdminOperatorRecord createAdminOperator(AdminOperatorCommand command) {
         String username = requireText(command.username(), "OPERATOR_USERNAME_REQUIRED", "Operator username is required");
         String displayName = requireText(command.displayName(), "OPERATOR_DISPLAY_NAME_REQUIRED", "Operator display name is required");
-        if (orderRepository.findAdminOperatorByUsername(DEFAULT_ADMIN_TENANT_ID, username).isPresent()) {
+        if (orderRepository.findAdminOperatorByUsername(adminTenantId(), username).isPresent()) {
             throw new BusinessException("OPERATOR_USERNAME_DUPLICATED", "Operator username already exists");
         }
         return orderRepository.insertAdminOperator(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 username,
                 displayName,
                 cleanText(command.roleCode()),
@@ -217,12 +218,12 @@ public class OrderService {
     public AdminDictTypeRecord createAdminDictType(AdminDictTypeCommand command) {
         String typeCode = requireText(command.typeCode(), "DICT_TYPE_CODE_REQUIRED", "Dict type code is required");
         String typeName = requireText(command.typeName(), "DICT_TYPE_NAME_REQUIRED", "Dict type name is required");
-        if (orderRepository.findAdminDictTypeByCode(DEFAULT_ADMIN_TENANT_ID, typeCode).isPresent()) {
+        if (orderRepository.findAdminDictTypeByCode(adminTenantId(), typeCode).isPresent()) {
             throw new BusinessException("DICT_TYPE_CODE_DUPLICATED", "Dict type code already exists");
         }
         return orderRepository.insertAdminDictType(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 typeCode,
                 typeName,
                 command.enabled() == null || command.enabled()
@@ -265,7 +266,7 @@ public class OrderService {
         }
         return orderRepository.insertAdminDictItem(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 type.id(),
                 itemCode,
                 itemName,
@@ -308,12 +309,12 @@ public class OrderService {
         String configKey = requireText(command.configKey(), "SYSTEM_CONFIG_KEY_REQUIRED", "Config key is required");
         String configName = requireText(command.configName(), "SYSTEM_CONFIG_NAME_REQUIRED", "Config name is required");
         String configValue = requireText(command.configValue(), "SYSTEM_CONFIG_VALUE_REQUIRED", "Config value is required");
-        if (orderRepository.findAdminSystemConfigByKey(DEFAULT_ADMIN_TENANT_ID, configKey).isPresent()) {
+        if (orderRepository.findAdminSystemConfigByKey(adminTenantId(), configKey).isPresent()) {
             throw new BusinessException("SYSTEM_CONFIG_KEY_DUPLICATED", "Config key already exists");
         }
         return orderRepository.insertAdminSystemConfig(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 configKey,
                 configName,
                 configValue,
@@ -354,12 +355,12 @@ public class OrderService {
     public AdminDecoctCenterRecord createAdminDecoctCenter(AdminDecoctCenterCommand command) {
         String centerCode = requireText(command.centerCode(), "DECOCT_CENTER_CODE_REQUIRED", "Center code is required");
         String centerName = requireText(command.centerName(), "DECOCT_CENTER_NAME_REQUIRED", "Center name is required");
-        if (orderRepository.findAdminDecoctCenterByCode(DEFAULT_ADMIN_TENANT_ID, centerCode).isPresent()) {
+        if (orderRepository.findAdminDecoctCenterByCode(adminTenantId(), centerCode).isPresent()) {
             throw new BusinessException("DECOCT_CENTER_CODE_DUPLICATED", "Center code already exists");
         }
         return orderRepository.insertAdminDecoctCenter(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 centerCode,
                 centerName,
                 cleanText(command.contactName()),
@@ -401,12 +402,12 @@ public class OrderService {
     public AdminHerbRecord createAdminHerb(AdminHerbCommand command) {
         String herbCode = requireText(command.herbCode(), "HERB_CODE_REQUIRED", "Herb code is required");
         String herbName = requireText(command.herbName(), "HERB_NAME_REQUIRED", "Herb name is required");
-        if (orderRepository.findAdminHerbByCode(DEFAULT_ADMIN_TENANT_ID, herbCode).isPresent()) {
+        if (orderRepository.findAdminHerbByCode(adminTenantId(), herbCode).isPresent()) {
             throw new BusinessException("HERB_CODE_DUPLICATED", "Herb code already exists");
         }
         return orderRepository.insertAdminHerb(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 herbCode,
                 herbName,
                 cleanText(command.drugSpecs()),
@@ -474,12 +475,12 @@ public class OrderService {
     public AdminHerbAreaRecord createAdminHerbArea(AdminHerbAreaCommand command) {
         String areaCode = requireText(command.areaCode(), "HERB_AREA_CODE_REQUIRED", "Area code is required");
         String areaName = requireText(command.areaName(), "HERB_AREA_NAME_REQUIRED", "Area name is required");
-        if (orderRepository.findAdminHerbAreaByCode(DEFAULT_ADMIN_TENANT_ID, areaCode).isPresent()) {
+        if (orderRepository.findAdminHerbAreaByCode(adminTenantId(), areaCode).isPresent()) {
             throw new BusinessException("HERB_AREA_CODE_DUPLICATED", "Area code already exists");
         }
         return orderRepository.insertAdminHerbArea(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 areaCode,
                 areaName,
                 command.enabled() == null || command.enabled(),
@@ -519,7 +520,7 @@ public class OrderService {
         orderRepository.findAdminHerbById(herbId)
                 .orElseThrow(() -> new BusinessException("HERB_NOT_FOUND", "Herb not found"));
         if (orderRepository.findAdminHerbIndexByExternalCode(
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 institutionId,
                 externalHerbCode
         ).isPresent()) {
@@ -527,7 +528,7 @@ public class OrderService {
         }
         AdminHerbIndexRecord created = orderRepository.insertAdminHerbIndex(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 institutionId,
                 externalHerbCode,
                 externalHerbName,
@@ -588,12 +589,12 @@ public class OrderService {
                 "INSTITUTION_NAME_REQUIRED",
                 "Institution name is required"
         );
-        if (orderRepository.findAdminInstitutionByCode(DEFAULT_ADMIN_TENANT_ID, institutionCode).isPresent()) {
+        if (orderRepository.findAdminInstitutionByCode(adminTenantId(), institutionCode).isPresent()) {
             throw new BusinessException("INSTITUTION_CODE_DUPLICATED", "Institution code already exists");
         }
         return orderRepository.insertAdminInstitution(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 institutionCode,
                 institutionName,
                 defaultText(command.institutionType(), "HOSPITAL"),
@@ -1119,12 +1120,12 @@ public class OrderService {
     @Transactional
     public AdminOrderInterceptRuleRecord createAdminOrderInterceptRule(AdminOrderInterceptRuleCommand command) {
         String ruleCode = requireText(command.ruleCode(), "INTERCEPT_RULE_CODE_REQUIRED", "Rule code is required");
-        if (orderRepository.findAdminOrderInterceptRuleByCode(DEFAULT_ADMIN_TENANT_ID, ruleCode).isPresent()) {
+        if (orderRepository.findAdminOrderInterceptRuleByCode(adminTenantId(), ruleCode).isPresent()) {
             throw new BusinessException("INTERCEPT_RULE_CODE_DUPLICATED", "Rule code already exists");
         }
         return orderRepository.insertAdminOrderInterceptRule(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 ruleCode,
                 requireText(command.ruleName(), "INTERCEPT_RULE_NAME_REQUIRED", "Rule name is required"),
                 defaultText(command.interceptStage(), "CREATE_ORDER"),
@@ -1176,13 +1177,13 @@ public class OrderService {
     @Transactional
     public AdminLabelTemplateRecord createAdminLabelTemplate(AdminLabelTemplateCommand command) {
         String templateCode = requireText(command.templateCode(), "LABEL_TEMPLATE_CODE_REQUIRED", "Template code is required");
-        if (orderRepository.findAdminLabelTemplateByCode(DEFAULT_ADMIN_TENANT_ID, templateCode).isPresent()) {
+        if (orderRepository.findAdminLabelTemplateByCode(adminTenantId(), templateCode).isPresent()) {
             throw new BusinessException("LABEL_TEMPLATE_CODE_DUPLICATED", "Template code already exists");
         }
         UUID institutionId = verifiedTemplateInstitutionId(command.scopeType(), command.institutionId());
         return orderRepository.insertAdminLabelTemplate(
                 UUID.randomUUID(),
-                DEFAULT_ADMIN_TENANT_ID,
+                adminTenantId(),
                 templateCode,
                 requireText(command.templateName(), "LABEL_TEMPLATE_NAME_REQUIRED", "Template name is required"),
                 defaultText(command.scopeType(), "GLOBAL"),
@@ -3653,6 +3654,13 @@ public class OrderService {
             throw new BusinessException("JSON_WRITE_FAILED", "JSON 序列化失败");
         }
     }
+
+    private UUID adminTenantId() {
+        return AdminRequestContextHolder.current()
+                .map(context -> context.tenantId())
+                .orElse(DEFAULT_ADMIN_TENANT_ID);
+    }
+
     private record ManualProcessContext(
             String operator,
             String auditor,

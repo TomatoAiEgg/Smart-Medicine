@@ -10,6 +10,8 @@ spring:
     password: ${ZHYF_DB_PASSWORD:}
 
 zhyf:
+  admin-data-scope:
+    enabled: false
   gateway:
     auth-institution-base-url: ${AUTH_INSTITUTION_BASE_URL:http://localhost:18081}
     order-service-base-url: ${ORDER_SERVICE_BASE_URL:http://localhost:18082}

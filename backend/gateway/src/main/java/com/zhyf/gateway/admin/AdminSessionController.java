@@ -28,6 +28,7 @@ public class AdminSessionController {
                 principal.roleCodes(),
                 principal.institutionIds(),
                 principal.permissions(),
+                principal.tenantWide(),
                 principal.expiresAt()
         ));
     }
@@ -52,6 +53,7 @@ public class AdminSessionController {
             List<String> roleCodes,
             List<UUID> institutionIds,
             List<String> permissions,
+            boolean tenantWide,
             Instant expiresAt
     ) {
     }
