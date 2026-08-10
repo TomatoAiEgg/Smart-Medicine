@@ -3978,6 +3978,37 @@ select {
   z-index: 20;
 }
 
+.cloud-console-brand-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cloud-console-menu-trigger {
+  display: none;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  color: #344054;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cloud-console-menu-trigger:hover {
+  color: var(--admin-primary);
+  border-color: #b5cfff;
+  background: var(--admin-primary-soft);
+}
+
+.cloud-console-menu-trigger:focus-visible,
+.cloud-console-sidebar-close:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
 .cloud-console-brand {
   display: flex;
   align-items: center;
@@ -4064,6 +4095,10 @@ select {
   flex-direction: column;
   border-right: 1px solid var(--admin-line);
   background: var(--admin-sidebar);
+}
+
+.cloud-console-sidebar-head {
+  display: none;
 }
 
 .cloud-console-home {
@@ -4208,30 +4243,6 @@ select {
   color: var(--admin-primary);
   background: var(--admin-primary-soft);
   font-weight: 700;
-}
-
-.cloud-console-service-targets {
-  display: grid;
-  gap: 4px;
-  margin: auto 14px 14px;
-  padding: 12px;
-  border: 1px solid var(--admin-line);
-  border-radius: 10px;
-  color: #475467;
-  background: #f8fafc;
-}
-
-.cloud-console-service-targets span {
-  color: #344054;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.cloud-console-service-targets code {
-  color: #667085;
-  font-size: 11px;
-  line-height: 18px;
-  white-space: nowrap;
 }
 
 .cloud-console-main {
@@ -4837,20 +4848,91 @@ td small,
   .cloud-console-shell {
     grid-template-areas:
       "header"
-      "sidebar"
       "main";
     grid-template-columns: 1fr;
-    grid-template-rows: 56px auto minmax(0, 1fr);
+    grid-template-rows: 56px minmax(0, 1fr);
     min-width: 0;
-    overflow: auto;
+    overflow: hidden;
   }
 
   .cloud-console-sidebar {
-    max-height: 300px;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    width: min(320px, calc(100vw - 48px));
+    max-height: none;
+    border-right: 1px solid rgba(15, 23, 42, 0.16);
+    box-shadow: 16px 0 40px rgba(15, 23, 42, 0.22);
+    transform: translateX(-104%);
+    transition: transform 0.18s ease;
+  }
+
+  .cloud-console-shell.mobile-nav-open .cloud-console-sidebar {
+    transform: translateX(0);
+  }
+
+  .cloud-console-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    border: 0;
+    background: rgba(15, 23, 42, 0.48);
+  }
+
+  .cloud-console-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 58px;
+    padding: 0 12px 0 16px;
+    border-bottom: 1px solid var(--admin-line);
+    background: #ffffff;
+  }
+
+  .cloud-console-sidebar-head span,
+  .cloud-console-sidebar-head strong {
+    display: block;
+  }
+
+  .cloud-console-sidebar-head span {
+    color: var(--admin-muted);
+    font-size: 12px;
+  }
+
+  .cloud-console-sidebar-head strong {
+    margin-top: 1px;
+    color: #111827;
+    font-size: 14px;
+  }
+
+  .cloud-console-sidebar-close {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--admin-line);
+    border-radius: 7px;
+    color: #344054;
+    background: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .cloud-console-menu-trigger {
+    display: inline-flex;
+    align-items: center;
   }
 
   .cloud-console-header {
     padding: 0 14px;
+  }
+
+  .cloud-console-brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    font-size: 12px;
   }
 
   .cloud-console-brand small,
@@ -4861,6 +4943,28 @@ td small,
 
   .cloud-console-header-actions {
     gap: 8px;
+    min-width: 0;
+  }
+
+  .cloud-console-header-actions strong {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cloud-console-main {
+    min-height: 0;
+  }
+
+  .cloud-console-tabs {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .cloud-console-tab {
+    height: 38px;
   }
 
   .cloud-console-content {
@@ -4870,6 +4974,12 @@ td small,
   .cloud-console-page-header {
     align-items: stretch;
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .cloud-console-page-header h1 {
+    font-size: 20px;
+    line-height: 28px;
   }
 
   .legacy-search,

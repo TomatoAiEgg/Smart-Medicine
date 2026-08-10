@@ -40,18 +40,42 @@ async function submit() {
 
 <template>
   <main class="admin-login-shell">
-    <header class="admin-login-brand">
-      <span class="cloud-console-brand-mark">YF</span>
-      <div>
-        <strong>智能药房 SaaS 平台</strong>
-        <small>运营控制台</small>
+    <section class="admin-login-visual" aria-label="智能药房运营控制台">
+      <div class="admin-login-brand">
+        <span class="admin-login-brand-mark">YF</span>
+        <div>
+          <strong>智能药房 SaaS 平台</strong>
+          <small>处方履约 · 煎煮作业 · 物流回调</small>
+        </div>
       </div>
-    </header>
+
+      <div class="admin-login-visual-copy">
+        <p>开发测试环境</p>
+        <h1>面向药房履约链路的运营控制台</h1>
+        <span>订单、审方、调剂、复核、煎煮、物流和补偿任务统一在后台闭环。</span>
+      </div>
+
+      <dl class="admin-login-capabilities">
+        <div>
+          <dt>多租户</dt>
+          <dd>按租户与机构范围进入后台</dd>
+        </div>
+        <div>
+          <dt>可追踪</dt>
+          <dd>订单状态、任务和回调留痕</dd>
+        </div>
+        <div>
+          <dt>可补偿</dt>
+          <dd>失败消息和回调集中处理</dd>
+        </div>
+      </dl>
+    </section>
 
     <form class="admin-login-form" @submit.prevent="submit">
       <div class="admin-login-heading">
-        <p>开发环境</p>
+        <p>管理员登录</p>
         <h1>登录运营控制台</h1>
+        <span>会话令牌只保存在当前浏览器标签页，退出或失效后需重新登录。</span>
       </div>
 
       <label>
@@ -80,6 +104,8 @@ async function submit() {
       <button class="admin-login-submit" type="submit" :disabled="restoring || submitting">
         {{ restoring ? '正在恢复会话' : submitting ? '正在登录' : '登录' }}
       </button>
+
+      <p class="admin-login-footnote">权限、菜单和数据范围以后端会话为准。</p>
     </form>
   </main>
 </template>
@@ -87,19 +113,23 @@ async function submit() {
 <style scoped>
 .admin-login-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 430px;
+  gap: 44px;
+  align-items: center;
   min-height: 100vh;
-  grid-template-rows: 56px 1fr;
+  padding: 48px clamp(32px, 7vw, 96px);
   color: var(--admin-text);
-  background: var(--admin-bg);
+  background:
+    linear-gradient(135deg, rgba(20, 39, 61, 0.96), rgba(31, 53, 79, 0.92)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 82px),
+    #1b3142;
 }
 
 .admin-login-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--admin-line);
-  background: var(--admin-surface);
+  color: #ffffff;
 }
 
 .admin-login-brand strong,
@@ -108,26 +138,109 @@ async function submit() {
 }
 
 .admin-login-brand strong {
-  color: #111827;
-  font-size: 15px;
+  color: #ffffff;
+  font-size: 18px;
 }
 
 .admin-login-brand small {
-  margin-top: 1px;
-  color: var(--admin-muted);
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 13px;
+}
+
+.admin-login-brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  color: #ffffff;
+  background: #0052d9;
+  font-weight: 800;
+}
+
+.admin-login-visual {
+  display: grid;
+  gap: 46px;
+  min-height: 560px;
+  align-content: space-between;
+}
+
+.admin-login-visual-copy {
+  max-width: 720px;
+}
+
+.admin-login-visual-copy p,
+.admin-login-visual-copy h1,
+.admin-login-visual-copy span {
+  margin: 0;
+}
+
+.admin-login-visual-copy p {
+  color: #9fc3ff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-login-visual-copy h1 {
+  margin-top: 12px;
+  max-width: 680px;
+  color: #ffffff;
+  font-size: clamp(36px, 5vw, 58px);
+  font-weight: 760;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.admin-login-visual-copy span {
+  display: block;
+  margin-top: 18px;
+  max-width: 580px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.admin-login-capabilities {
+  display: grid;
+  max-width: 720px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.admin-login-capabilities div {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-login-capabilities dt {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.admin-login-capabilities dd {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.66);
   font-size: 12px;
+  line-height: 1.6;
 }
 
 .admin-login-form {
   display: grid;
   align-content: start;
-  width: min(400px, calc(100% - 32px));
-  margin: 12vh auto 0;
-  gap: 18px;
-  padding: 28px;
-  border: 1px solid var(--admin-line);
+  width: 100%;
+  gap: 17px;
+  padding: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 8px;
   background: var(--admin-surface);
+  box-shadow: 0 24px 70px rgba(8, 20, 36, 0.28);
 }
 
 .admin-login-heading p,
@@ -148,7 +261,28 @@ async function submit() {
   letter-spacing: 0;
 }
 
+.admin-login-heading span,
+.admin-login-footnote {
+  display: block;
+  margin-top: 8px;
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .admin-login-form label {
+  min-width: 0;
+}
+
+.admin-login-form label span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.admin-login-form input {
+  width: 100%;
   min-width: 0;
 }
 
@@ -182,14 +316,39 @@ async function submit() {
   background: #0046b8;
 }
 
-@media (max-width: 640px) {
-  .admin-login-brand {
-    padding: 0 14px;
+@media (max-width: 900px) {
+  .admin-login-shell {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    align-content: start;
+    padding: 28px 18px;
+  }
+
+  .admin-login-visual {
+    min-height: 0;
+    gap: 24px;
+  }
+
+  .admin-login-visual-copy h1 {
+    font-size: 30px;
+  }
+
+  .admin-login-capabilities {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .admin-login-form {
-    margin-top: 8vh;
-    padding: 22px 18px;
+    max-width: 430px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-login-visual-copy,
+  .admin-login-capabilities {
+    display: none;
   }
 }
 </style>

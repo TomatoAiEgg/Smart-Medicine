@@ -10,6 +10,8 @@ export interface LayoutTab {
   path: string;
 }
 
+type RouteNavigate = (event?: MouseEvent) => Promise<unknown> | unknown;
+
 const props = defineProps<{
   activeView: ViewKey;
   title: string;
@@ -50,6 +52,7 @@ const activeGroupNames = computed(() => {
 });
 
 const expandedGroupNames = ref<Set<string>>(new Set(['订单管理']));
+const mobileNavigationOpen = ref(false);
 
 const groupIndexMap = computed(() => {
   const entries: Array<[string, string]> = [];
@@ -76,16 +79,40 @@ function toggleGroup(groupName: string) {
   }
   expandedGroupNames.value = nextGroupNames;
 }
+
+function openMobileNavigation() {
+  mobileNavigationOpen.value = true;
+}
+
+function closeMobileNavigation() {
+  mobileNavigationOpen.value = false;
+}
+
+function navigateAndClose(navigate: RouteNavigate) {
+  void navigate();
+  closeMobileNavigation();
+}
 </script>
 
 <template>
-  <div class="cloud-console-shell">
+  <div class="cloud-console-shell" :class="{ 'mobile-nav-open': mobileNavigationOpen }">
     <header class="cloud-console-header">
-      <div class="cloud-console-brand">
-        <span class="cloud-console-brand-mark">YF</span>
-        <div>
-          <strong>智能药房 SaaS 平台</strong>
-          <small>运营控制台</small>
+      <div class="cloud-console-brand-block">
+        <button
+          type="button"
+          class="cloud-console-menu-trigger"
+          :aria-expanded="mobileNavigationOpen"
+          aria-controls="admin-sidebar-navigation"
+          @click="openMobileNavigation"
+        >
+          菜单
+        </button>
+        <div class="cloud-console-brand">
+          <span class="cloud-console-brand-mark">YF</span>
+          <div>
+            <strong>智能药房 SaaS 平台</strong>
+            <small>运营控制台</small>
+          </div>
         </div>
       </div>
 
@@ -97,13 +124,29 @@ function toggleGroup(groupName: string) {
       </div>
     </header>
 
-    <aside class="cloud-console-sidebar">
+    <button
+      v-if="mobileNavigationOpen"
+      type="button"
+      class="cloud-console-nav-backdrop"
+      aria-label="关闭导航菜单"
+      @click="closeMobileNavigation"
+    />
+
+    <aside id="admin-sidebar-navigation" class="cloud-console-sidebar">
+      <div class="cloud-console-sidebar-head">
+        <div>
+          <span>功能导航</span>
+          <strong>按业务分组进入页面</strong>
+        </div>
+        <button type="button" class="cloud-console-sidebar-close" @click="closeMobileNavigation">关闭</button>
+      </div>
+
       <RouterLink v-slot="{ navigate }" :to="homePath" custom>
         <button
           type="button"
           class="cloud-console-home"
           :class="{ active: activeView === 'dashboard' }"
-          @click="navigate"
+          @click="navigateAndClose(navigate)"
         >
           <span>首页</span>
           <b>HOME</b>
@@ -134,7 +177,7 @@ function toggleGroup(groupName: string) {
               <button
                 type="button"
                 :class="{ active: activeView === item.key }"
-                @click="navigate"
+                @click="navigateAndClose(navigate)"
               >
                 <span>{{ item.label }}</span>
                 <t-tag v-if="item.showCount" theme="primary" variant="light" size="small">
@@ -145,7 +188,6 @@ function toggleGroup(groupName: string) {
           </div>
         </section>
       </nav>
-
     </aside>
 
     <main class="cloud-console-main">
