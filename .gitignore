@@ -18,6 +18,7 @@ dist/
 .env.*
 !.env.example
 .codex-tmp/
+.worktrees/
 docs/error
 
 # Logs
