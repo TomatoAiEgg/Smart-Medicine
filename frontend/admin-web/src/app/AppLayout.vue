@@ -146,14 +146,6 @@ function toggleGroup(groupName: string) {
         </section>
       </nav>
 
-      <div class="cloud-console-service-targets">
-        <span>服务目标</span>
-        <code>order-service :18082</code>
-        <code>workflow-service :18085</code>
-        <code>decoction-service :18087</code>
-        <code>ops-service :18086</code>
-        <code>logistics-service :18088</code>
-      </div>
     </aside>
 
     <main class="cloud-console-main">

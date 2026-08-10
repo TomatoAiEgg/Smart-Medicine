@@ -1,18 +1,11 @@
-import { defineComponent } from 'vue';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import AdminRouteHost from './AdminRouteHost.vue';
 import { routeItems } from './views';
-
-const RouteMarker = defineComponent({
-  name: 'RouteMarker',
-  setup() {
-    return () => null;
-  },
-});
 
 const staticRoutes: RouteRecordRaw[] = routeItems.map((item) => ({
   path: item.path,
   name: item.key,
-  component: RouteMarker,
+  component: AdminRouteHost,
   meta: {
     routeKey: item.key,
     title: item.label,
