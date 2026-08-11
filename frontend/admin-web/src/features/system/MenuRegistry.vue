@@ -48,10 +48,10 @@ const groupedRows = computed<GroupedMenuRows[]>(() => {
     const matchesKeyword = term
       ? [
           item.label,
+          item.subtitle,
           item.group,
           item.path,
           item.key,
-          item.subtitle,
           item.legacyRoute ?? '',
           item.plannedComponent,
           item.priority,
@@ -98,9 +98,11 @@ function downloadMenuCsv() {
   if (filteredCount.value === 0) return;
   downloadCsv(
     'menu-registry.csv',
-    ['菜单', '分组', '路径', '旧系统路由', '优先级', '状态', '组件', '核心动作', '接口依赖'],
+    ['菜单', '副标题', '键值', '分组', '路径', '旧系统路由', '优先级', '状态', '组件', '核心动作', '接口依赖'],
     exportRows.value.map((row) => [
       row.label,
+      row.subtitle,
+      row.key,
       row.group,
       row.path,
       row.legacyRoute ?? '',
@@ -176,12 +178,7 @@ defineExpose({
         </select>
       </label>
       <template #actions>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          @click="resetFilters"
-        >
+        <t-button theme="default" variant="outline" size="small" @click="resetFilters">
           清空
         </t-button>
         <t-button
@@ -197,11 +194,7 @@ defineExpose({
     </AdminToolbar>
 
     <div class="menu-stats" aria-label="菜单统计">
-      <article
-        v-for="stat in stats"
-        :key="stat.label"
-        class="menu-stat"
-      >
+      <article v-for="stat in stats" :key="stat.label" class="menu-stat">
         <strong>{{ stat.value }}</strong>
         <span>{{ stat.label }}</span>
       </article>
@@ -247,15 +240,12 @@ defineExpose({
                     <span>{{ formatNumber(entry.rows.length) }} 项</span>
                   </td>
                 </tr>
-                <tr
-                  v-for="row in entry.rows"
-                  :key="row.key"
-                >
+                <tr v-for="row in entry.rows" :key="row.key">
                   <td>
                     <div class="menu-primary-cell">
                       <strong>{{ row.label }}</strong>
                       <small>{{ row.subtitle }}</small>
-                      <small>键值：{{ row.key }}</small>
+                      <small class="menu-break-text">键值：{{ row.key }}</small>
                     </div>
                   </td>
                   <td>
@@ -266,9 +256,9 @@ defineExpose({
                   </td>
                   <td>
                     <div class="menu-secondary-cell">
-                      <strong>{{ row.path }}</strong>
-                      <small>旧路由：{{ displayValue(row.legacyRoute) }}</small>
-                      <small>计划组件：{{ row.plannedComponent }}</small>
+                      <strong class="menu-break-text">{{ row.path }}</strong>
+                      <small class="menu-break-text">旧路由：{{ displayValue(row.legacyRoute) }}</small>
+                      <small class="menu-break-text">计划组件：{{ row.plannedComponent }}</small>
                     </div>
                   </td>
                   <td>
@@ -287,6 +277,7 @@ defineExpose({
                       <span
                         v-for="action in row.coreActions"
                         :key="`${row.key}-${action}`"
+                        class="menu-break-text"
                       >
                         {{ action }}
                       </span>
@@ -297,6 +288,7 @@ defineExpose({
                       <span
                         v-for="dependency in row.apiDependencies"
                         :key="`${row.key}-${dependency}`"
+                        class="menu-break-text"
                       >
                         {{ dependency }}
                       </span>
@@ -429,5 +421,10 @@ defineExpose({
 
 .menu-list-cell {
   gap: 6px;
+}
+
+.menu-break-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>

@@ -52,6 +52,8 @@ interface PermissionGroup {
   permissions: AdminRbacPermissionOption[];
 }
 
+const editorFormId = 'role-editor-form';
+
 const props = defineProps<{
   active: boolean;
   activationKey: number;
@@ -107,7 +109,9 @@ const editorInputDisabled = computed(() => filtersDisabled.value || formReadOnly
 const rowActionsDisabled = computed(() => loading.value || saving.value || deleting.value);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-const canExportRoles = computed(() => !loading.value && !exporting.value && rows.value.length > 0);
+const canExportRoles = computed(
+  () => !loading.value && !saving.value && !deleting.value && !exporting.value && rows.value.length > 0,
+);
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
   if (listError.value && rolePage.value === null) return 'error';
@@ -226,6 +230,12 @@ function toggleInstitution(institutionId: string) {
   form.value.institutionIds = [...selected];
 }
 
+function deleteDisabledReason(role: AdminRbacRoleRecord) {
+  if (role.builtIn) return '内置角色不允许删除。';
+  if (role.operatorCount > 0) return '存在关联用户的角色不允许删除。';
+  return '';
+}
+
 function commandFromForm(): AdminRbacRoleCommand {
   return {
     roleCode: form.value.roleCode.trim().toUpperCase(),
@@ -338,7 +348,7 @@ async function listRoleMembers(roleCode: string) {
 }
 
 async function downloadRoleMemberCsv(role: AdminRbacRoleRecord) {
-  if (loading.value || memberExportingRole.value) return;
+  if (rowActionsDisabled.value || memberExportingRole.value || role.operatorCount === 0) return;
   memberExportingRole.value = role.id;
   actionError.value = '';
   try {
@@ -364,7 +374,7 @@ async function downloadRoleMemberCsv(role: AdminRbacRoleRecord) {
 }
 
 function downloadRoleCsv() {
-  if (!canExportRoles.value) return;
+  if (!canExportRoles.value || saving.value || deleting.value) return;
   exporting.value = true;
   try {
     downloadCsv(
@@ -467,11 +477,7 @@ defineExpose({
     </AdminToolbar>
 
     <div class="role-stats" aria-label="角色统计">
-      <article
-        v-for="stat in stats"
-        :key="stat.label"
-        class="role-stat"
-      >
+      <article v-for="stat in stats" :key="stat.label" class="role-stat">
         <strong>{{ stat.value }}</strong>
         <span>{{ stat.label }}</span>
       </article>
@@ -551,34 +557,41 @@ defineExpose({
                   </div>
                 </td>
                 <td class="role-row-actions">
-                  <t-button
-                    theme="default"
-                    variant="outline"
-                    size="small"
-                    :disabled="rowActionsDisabled"
-                    @click="editRole(role)"
-                  >
-                    {{ canManage && !role.builtIn ? '编辑' : '查看' }}
-                  </t-button>
-                  <t-button
-                    theme="default"
-                    variant="outline"
-                    size="small"
-                    :disabled="loading || Boolean(memberExportingRole) || role.operatorCount === 0"
-                    @click="downloadRoleMemberCsv(role)"
-                  >
-                    {{ memberExportingRole === role.id ? '导出中' : '导出成员' }}
-                  </t-button>
-                  <t-button
-                    theme="danger"
-                    variant="outline"
-                    size="small"
-                    :disabled="!canManage || rowActionsDisabled || role.builtIn || role.operatorCount > 0"
-                    :title="role.builtIn ? '内置角色不允许删除' : role.operatorCount > 0 ? '存在关联用户的角色不允许删除' : '删除角色'"
-                    @click="removeRole(role)"
-                  >
-                    {{ deleting ? '删除中' : '删除' }}
-                  </t-button>
+                  <div>
+                    <div class="role-row-actions__buttons">
+                      <t-button
+                        theme="default"
+                        variant="outline"
+                        size="small"
+                        :disabled="rowActionsDisabled"
+                        @click="editRole(role)"
+                      >
+                        {{ canManage && !role.builtIn ? '编辑' : '查看' }}
+                      </t-button>
+                      <t-button
+                        theme="default"
+                        variant="outline"
+                        size="small"
+                        :disabled="rowActionsDisabled || Boolean(memberExportingRole) || role.operatorCount === 0"
+                        @click="downloadRoleMemberCsv(role)"
+                      >
+                        {{ memberExportingRole === role.id ? '导出中' : '导出成员' }}
+                      </t-button>
+                      <t-button
+                        theme="danger"
+                        variant="outline"
+                        size="small"
+                        :disabled="!canManage || rowActionsDisabled || role.builtIn || role.operatorCount > 0"
+                        :title="deleteDisabledReason(role) || '删除角色'"
+                        @click="removeRole(role)"
+                      >
+                        {{ deleting ? '删除中' : '删除' }}
+                      </t-button>
+                    </div>
+                    <small v-if="deleteDisabledReason(role)" class="role-action-help">
+                      {{ deleteDisabledReason(role) }}
+                    </small>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -605,7 +618,8 @@ defineExpose({
           variant="outline"
           size="small"
           :disabled="editorInputDisabled || saving"
-          @click="saveRole"
+          :form="editorFormId"
+          type="submit"
         >
           {{ saving ? '保存中' : editing ? '保存修改' : '创建角色' }}
         </t-button>
@@ -614,154 +628,157 @@ defineExpose({
           variant="outline"
           size="small"
           :disabled="saving || deleting"
+          type="button"
           @click="resetForm"
         >
           重置
         </t-button>
       </template>
 
-      <div class="role-editor-summary">
-        <div class="role-editor-summary__main">
-          <strong>{{ editing ? form.roleName || '未命名角色' : '待创建角色' }}</strong>
-          <span>{{ editing ? (form.roleCode || '未设置标识') : '填写基本信息后即可创建角色。' }}</span>
-        </div>
-        <div class="role-editor-summary__meta">
-          <t-tag v-if="form.builtIn" theme="warning" variant="light" size="small">内置只读</t-tag>
-          <t-tag v-if="!canManage" theme="default" variant="light" size="small">当前只读</t-tag>
-          <AdminStatusTag :enabled="form.enabled" />
-        </div>
-      </div>
-
-      <p class="role-note role-note--subtle">{{ roleSummaryText }}</p>
-
-      <div class="role-basic-grid">
-        <label class="role-field">
-          <span>角色名称</span>
-          <input
-            v-model="form.roleName"
-            class="role-input"
-            :disabled="editorInputDisabled"
-            placeholder="审核员"
-          >
-        </label>
-        <label class="role-field">
-          <span>角色标识</span>
-          <input
-            v-model="form.roleCode"
-            class="role-input"
-            :disabled="editorInputDisabled"
-            placeholder="AUDITOR"
-          >
-        </label>
-        <label class="role-field">
-          <span>数据范围</span>
-          <select
-            v-model="form.dataScopeType"
-            class="role-input"
-            :disabled="editorInputDisabled"
-          >
-            <option value="TENANT">租户全域</option>
-            <option value="INSTITUTION">指定机构</option>
-          </select>
-        </label>
-        <label class="role-check">
-          <input
-            v-model="form.enabled"
-            type="checkbox"
-            :disabled="editorInputDisabled"
-          >
-          <span>启用角色</span>
-        </label>
-      </div>
-
-      <section class="role-section">
-        <header class="role-section__header">
-          <div>
-            <h3>权限范围</h3>
-            <p>按业务域分组，名称优先，权限编码作为辅助信息保留。</p>
+      <form :id="editorFormId" class="role-editor-form" @submit.prevent="saveRole">
+        <div class="role-editor-summary">
+          <div class="role-editor-summary__main">
+            <strong>{{ editing ? form.roleName || '未命名角色' : '待创建角色' }}</strong>
+            <span>{{ editing ? (form.roleCode || '未设置标识') : '填写基本信息后即可创建角色。' }}</span>
           </div>
-          <strong>{{ formatNumber(form.permissionCodes.length) }} 项</strong>
-        </header>
-
-        <div class="permission-groups">
-          <fieldset
-            v-for="group in permissionGroups"
-            :key="group.domain"
-            class="permission-group"
-            :disabled="editorInputDisabled"
-          >
-            <legend>
-              <label class="permission-group__toggle">
-                <input
-                  type="checkbox"
-                  :checked="permissionGroupSelected(group.permissions)"
-                  @change="togglePermissionGroup(group.permissions)"
-                >
-                <span>{{ group.name }}</span>
-              </label>
-            </legend>
-            <div class="permission-group__options">
-              <label
-                v-for="permission in group.permissions"
-                :key="permission.permissionCode"
-                class="permission-option"
-              >
-                <input
-                  type="checkbox"
-                  :checked="form.permissionCodes.includes(permission.permissionCode)"
-                  @change="togglePermission(permission.permissionCode)"
-                >
-                <span>
-                  <strong>{{ permission.permissionName }}</strong>
-                  <small>{{ permission.permissionCode }}</small>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-        </div>
-      </section>
-
-      <section class="role-section">
-        <header class="role-section__header">
-          <div>
-            <h3>机构范围</h3>
-            <p>{{ form.dataScopeType === 'TENANT' ? '租户全域角色不需要额外选择机构。' : '仅在指定机构范围下启用机构选择。' }}</p>
+          <div class="role-editor-summary__meta">
+            <t-tag v-if="form.builtIn" theme="warning" variant="light" size="small">内置只读</t-tag>
+            <t-tag v-if="!canManage" theme="default" variant="light" size="small">当前只读</t-tag>
+            <AdminStatusTag :enabled="form.enabled" />
           </div>
-          <strong>{{ formatNumber(form.institutionIds.length) }} 家</strong>
-        </header>
-
-        <AdminPageState
-          v-if="!catalog && loading"
-          state="loading"
-          message="正在加载机构目录。"
-        />
-        <div v-else-if="form.dataScopeType === 'TENANT'" class="role-inline-state">
-          当前角色已设置为租户全域，机构范围自动清空。
         </div>
-        <AdminPageState
-          v-else-if="(catalog?.institutions.length ?? 0) === 0"
-          state="empty"
-          message="当前租户没有可授权机构。"
-        />
-        <div v-else class="institution-options">
-          <label
-            v-for="institution in catalog?.institutions ?? []"
-            :key="institution.institutionId"
-            class="institution-option"
-          >
+
+        <p class="role-note role-note--subtle">{{ roleSummaryText }}</p>
+
+        <div class="role-basic-grid">
+          <label class="role-field">
+            <span>角色名称</span>
             <input
+              v-model="form.roleName"
+              class="role-input"
+              :disabled="editorInputDisabled"
+              placeholder="审核员"
+            >
+          </label>
+          <label class="role-field">
+            <span>角色标识</span>
+            <input
+              v-model="form.roleCode"
+              class="role-input"
+              :disabled="editorInputDisabled"
+              placeholder="AUDITOR"
+            >
+          </label>
+          <label class="role-field">
+            <span>数据范围</span>
+            <select
+              v-model="form.dataScopeType"
+              class="role-input"
+              :disabled="editorInputDisabled"
+            >
+              <option value="TENANT">租户全域</option>
+              <option value="INSTITUTION">指定机构</option>
+            </select>
+          </label>
+          <label class="role-check">
+            <input
+              v-model="form.enabled"
               type="checkbox"
               :disabled="editorInputDisabled"
-              :checked="form.institutionIds.includes(institution.institutionId)"
-              @change="toggleInstitution(institution.institutionId)"
             >
-            <span>
-              <strong>{{ institution.institutionName }}</strong>
-              <small>{{ institution.institutionCode }}</small>
-            </span>
+            <span>启用角色</span>
           </label>
         </div>
-      </section>
+
+        <section class="role-section">
+          <header class="role-section__header">
+            <div>
+              <h3>权限范围</h3>
+              <p>按业务域分组，名称优先，权限编码作为辅助信息保留。</p>
+            </div>
+            <strong>{{ formatNumber(form.permissionCodes.length) }} 项</strong>
+          </header>
+
+          <div class="permission-groups">
+            <fieldset
+              v-for="group in permissionGroups"
+              :key="group.domain"
+              class="permission-group"
+              :disabled="editorInputDisabled"
+            >
+              <legend>
+                <label class="permission-group__toggle">
+                  <input
+                    type="checkbox"
+                    :checked="permissionGroupSelected(group.permissions)"
+                    @change="togglePermissionGroup(group.permissions)"
+                  >
+                  <span>{{ group.name }}</span>
+                </label>
+              </legend>
+              <div class="permission-group__options">
+                <label
+                  v-for="permission in group.permissions"
+                  :key="permission.permissionCode"
+                  class="permission-option"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="form.permissionCodes.includes(permission.permissionCode)"
+                    @change="togglePermission(permission.permissionCode)"
+                  >
+                  <span>
+                    <strong>{{ permission.permissionName }}</strong>
+                    <small class="role-break-text">{{ permission.permissionCode }}</small>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+        </section>
+
+        <section class="role-section">
+          <header class="role-section__header">
+            <div>
+              <h3>机构范围</h3>
+              <p>{{ form.dataScopeType === 'TENANT' ? '租户全域角色不需要额外选择机构。' : '仅在指定机构范围下启用机构选择。' }}</p>
+            </div>
+            <strong>{{ formatNumber(form.institutionIds.length) }} 家</strong>
+          </header>
+
+          <AdminPageState
+            v-if="!catalog && loading"
+            state="loading"
+            message="正在加载机构目录。"
+          />
+          <div v-else-if="form.dataScopeType === 'TENANT'" class="role-inline-state">
+            当前角色已设置为租户全域，机构范围自动清空。
+          </div>
+          <AdminPageState
+            v-else-if="(catalog?.institutions.length ?? 0) === 0"
+            state="empty"
+            message="当前租户没有可授权机构。"
+          />
+          <div v-else class="institution-options">
+            <label
+              v-for="institution in catalog?.institutions ?? []"
+              :key="institution.institutionId"
+              class="institution-option"
+            >
+              <input
+                type="checkbox"
+                :disabled="editorInputDisabled"
+                :checked="form.institutionIds.includes(institution.institutionId)"
+                @change="toggleInstitution(institution.institutionId)"
+              >
+              <span>
+                <strong>{{ institution.institutionName }}</strong>
+                <small class="role-break-text">{{ institution.institutionCode }}</small>
+              </span>
+            </label>
+          </div>
+        </section>
+      </form>
     </AdminPanel>
   </section>
 </template>
@@ -898,15 +915,30 @@ defineExpose({
   white-space: nowrap;
 }
 
-.role-row-actions :deep(.t-button) {
-  margin-right: 8px;
+.role-row-actions > div {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
 }
 
-.role-row-actions :deep(.t-button:last-child) {
-  margin-right: 0;
+.role-row-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-action-help {
+  display: block;
+  max-width: 180px;
+  white-space: normal;
 }
 
 .role-editor-panel :deep(.admin-panel__content) {
+  display: grid;
+  gap: 14px;
+}
+
+.role-editor-form {
   display: grid;
   gap: 14px;
 }
@@ -1041,6 +1073,11 @@ defineExpose({
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+.role-break-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .institution-options {
