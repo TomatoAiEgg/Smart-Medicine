@@ -117,7 +117,7 @@ function downloadInstitutionCsv() {
   if (loading.value || rows.value.length === 0) return;
   downloadCsv(
     `机构列表-${currentIsoDate()}.csv`,
-    ['机构编码', '机构名称', '类型', '状态', '仓储标识', '创建时间', '更新时间'],
+    ['机构编码', '机构名称', '类型', '状态', '煎煮中心', '创建时间', '更新时间'],
     rows.value.map((row) => [
       row.institutionCode,
       row.institutionName,
@@ -290,7 +290,7 @@ defineExpose({
           v-model="keyword"
           class="institution-input"
           :disabled="loading"
-          placeholder="机构编码 / 名称 / 仓储标识"
+          placeholder="机构编码 / 名称 / 煎煮中心"
           @keyup.enter="searchFirstPage"
         >
       </label>
@@ -352,7 +352,7 @@ defineExpose({
 
     <AdminPanel class="institution-edit-panel">
       <template #title>{{ editing ? '编辑机构' : '新增机构' }}</template>
-      <template #description>维护机构名称、类型、状态与仓储标识。</template>
+      <template #description>维护机构名称、类型、状态与煎煮中心。</template>
       <template #actions>
         <t-button
           theme="primary"
@@ -410,11 +410,11 @@ defineExpose({
           </select>
         </label>
         <label class="institution-field">
-          <span>仓储标识</span>
+          <span>煎煮中心</span>
           <input
             v-model="form.storageType"
             class="institution-input"
-            placeholder="中心 / 仓储标识"
+            placeholder="中心/仓储标识"
           >
         </label>
       </div>
@@ -453,7 +453,7 @@ defineExpose({
                 <th>机构</th>
                 <th>类型</th>
                 <th>状态</th>
-                <th>仓储标识</th>
+                <th>煎煮中心</th>
                 <th>创建时间</th>
                 <th>更新时间</th>
                 <th>操作</th>
