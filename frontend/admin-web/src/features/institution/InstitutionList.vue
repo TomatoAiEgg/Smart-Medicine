@@ -78,7 +78,7 @@ const canExport = computed(() => !loading.value && rows.value.length > 0);
 const rowActionsDisabled = computed(() => loading.value || saving.value);
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
-  if (listError.value && institutionPage.value === null) return 'error';
+  if (listError.value && rows.value.length === 0) return 'error';
   if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
   return null;
 });
@@ -151,6 +151,12 @@ async function refreshInstitutions() {
       pageSize: pageSize.value,
     });
     if (requestId !== activeRefreshRequest.value) return;
+    const lastPage = Math.max(1, Math.ceil(nextPage.total / nextPage.pageSize));
+    if (nextPage.records.length === 0 && page.value > lastPage) {
+      page.value = lastPage;
+      await refreshInstitutions();
+      return;
+    }
     institutionPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
