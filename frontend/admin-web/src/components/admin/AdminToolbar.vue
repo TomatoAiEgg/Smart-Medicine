@@ -60,6 +60,10 @@ defineSlots<{
     width: 100%;
   }
 
+  .admin-toolbar__filters {
+    flex: 0 1 auto;
+  }
+
   .admin-toolbar__actions {
     justify-content: flex-start;
     margin-left: 0;
