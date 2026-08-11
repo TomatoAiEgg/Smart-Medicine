@@ -50,8 +50,11 @@ const loading = ref(false);
 const saving = ref(false);
 const revokingUserId = ref('');
 const loaded = ref(false);
-const errorLine = ref('');
+const listError = ref('');
+const actionError = ref('');
 const roleOptions = ref<AdminRbacRoleRecord[]>([]);
+const refreshRequestSequence = ref(0);
+const activeRefreshRequest = ref(0);
 const form = ref<OperatorForm>({
   id: null,
   username: '',
@@ -69,9 +72,10 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const editing = computed(() => form.value.id !== null);
 const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName] as const)));
 const canExport = computed(() => !loading.value && rows.value.length > 0);
+const rowActionsDisabled = computed(() => loading.value || saving.value || !props.canManage);
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
-  if (errorLine.value && operatorPage.value === null) return 'error';
+  if (listError.value && operatorPage.value === null) return 'error';
   if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
   return null;
 });
@@ -84,10 +88,11 @@ const stats = computed<OperatorStat[]>(() => [
 function downloadOperatorCsv() {
   downloadCsv(
     `后台工号-第${page.value}页.csv`,
-    ['工号', '姓名', '角色', '状态', '创建时间', '更新时间'],
+    ['工号', '姓名', '角色名称', '角色编码', '状态', '创建时间', '更新时间'],
     rows.value.map((row) => [
       row.username,
       row.displayName,
+      rolePrimaryText(row),
       row.roleCode,
       enabledText(row.enabled),
       formatDate(row.createdAt),
@@ -116,8 +121,11 @@ function rolePrimaryText(row: AdminOperatorRecord) {
 }
 
 async function refreshOperators() {
+  const requestId = refreshRequestSequence.value + 1;
+  refreshRequestSequence.value = requestId;
+  activeRefreshRequest.value = requestId;
   loading.value = true;
-  errorLine.value = '';
+  listError.value = '';
   try {
     pageSize.value = normalizePageSize();
     const [nextPage, roles] = await Promise.all([
@@ -129,6 +137,7 @@ async function refreshOperators() {
       }),
       listAdminRbacRoles({ page: 1, pageSize: 100 }),
     ]);
+    if (requestId !== activeRefreshRequest.value) return;
     operatorPage.value = nextPage;
     roleOptions.value = roles.records;
     page.value = nextPage.page;
@@ -137,16 +146,20 @@ async function refreshOperators() {
     emit('countChanged', nextPage.total);
     emit('notice', 'success', `已查询 ${formatNumber(nextPage.total)} 个工号`);
   } catch (error) {
+    if (requestId !== activeRefreshRequest.value) return;
     operatorPage.value = null;
     loaded.value = false;
-    errorLine.value = errorMessage(error);
+    listError.value = errorMessage(error);
     emit('countChanged', 0);
   } finally {
-    loading.value = false;
+    if (requestId === activeRefreshRequest.value) {
+      loading.value = false;
+    }
   }
 }
 
 async function searchFirstPage() {
+  if (loading.value) return;
   page.value = 1;
   await refreshOperators();
 }
@@ -174,11 +187,11 @@ function editOperator(row: AdminOperatorRecord) {
 async function saveOperator() {
   if (!props.canManage) return;
   if (!form.value.username.trim() || !form.value.displayName.trim()) {
-    errorLine.value = '工号和姓名不能为空';
+    actionError.value = '工号和姓名不能为空';
     return;
   }
   saving.value = true;
-  errorLine.value = '';
+  actionError.value = '';
   try {
     if (form.value.id) {
       await updateAdminOperator(form.value.id, commandFromForm());
@@ -190,7 +203,7 @@ async function saveOperator() {
     resetForm();
     await refreshOperators();
   } catch (error) {
-    errorLine.value = errorMessage(error);
+    actionError.value = errorMessage(error);
   } finally {
     saving.value = false;
   }
@@ -199,7 +212,7 @@ async function saveOperator() {
 async function toggleOperator(row: AdminOperatorRecord) {
   if (!props.canManage) return;
   saving.value = true;
-  errorLine.value = '';
+  actionError.value = '';
   try {
     await updateAdminOperator(row.id, {
       displayName: row.displayName,
@@ -209,7 +222,7 @@ async function toggleOperator(row: AdminOperatorRecord) {
     emit('notice', 'success', `工号 ${row.username} 已${row.enabled ? '停用' : '启用'}`);
     await refreshOperators();
   } catch (error) {
-    errorLine.value = errorMessage(error);
+    actionError.value = errorMessage(error);
   } finally {
     saving.value = false;
   }
@@ -219,7 +232,7 @@ async function forceLogout(row: AdminOperatorRecord) {
   if (!props.canManage || row.id === props.currentUserId) return;
   if (!window.confirm(`确认强制下线工号“${row.username}”的全部登录会话吗？`)) return;
   revokingUserId.value = row.id;
-  errorLine.value = '';
+  actionError.value = '';
   try {
     const result = await revokeAdminUserSessions(row.id);
     emit(
@@ -230,19 +243,21 @@ async function forceLogout(row: AdminOperatorRecord) {
         : `工号 ${row.username} 当前没有活跃会话`,
     );
   } catch (error) {
-    errorLine.value = errorMessage(error);
+    actionError.value = errorMessage(error);
   } finally {
     revokingUserId.value = '';
   }
 }
 
 async function previousPage() {
+  if (loading.value) return;
   if (!hasPreviousPage.value) return;
   page.value -= 1;
   await refreshOperators();
 }
 
 async function nextPage() {
+  if (loading.value) return;
   if (!hasNextPage.value) return;
   page.value += 1;
   await refreshOperators();
@@ -271,6 +286,7 @@ defineExpose({
         <input
           v-model="keyword"
           class="operator-input"
+          :disabled="loading"
           placeholder="工号 / 姓名 / 角色"
           @keyup.enter="searchFirstPage"
         >
@@ -280,6 +296,7 @@ defineExpose({
         <select
           v-model="enabledFilter"
           class="operator-input"
+          :disabled="loading"
           @change="searchFirstPage"
         >
           <option value="">全部</option>
@@ -346,7 +363,7 @@ defineExpose({
         </t-button>
       </template>
 
-      <p v-if="errorLine" class="error-line" role="alert">{{ errorLine }}</p>
+      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
 
       <div class="operator-form-grid">
         <label class="operator-field">
@@ -354,7 +371,7 @@ defineExpose({
           <input
             v-model="form.username"
             class="operator-input"
-            :disabled="editing || !canManage"
+            :disabled="loading || editing || !canManage"
             placeholder="operator01"
           >
         </label>
@@ -363,7 +380,7 @@ defineExpose({
           <input
             v-model="form.displayName"
             class="operator-input"
-            :disabled="!canManage"
+            :disabled="loading || !canManage"
             placeholder="操作员姓名"
           >
         </label>
@@ -372,7 +389,7 @@ defineExpose({
           <select
             v-model="form.roleCode"
             class="operator-input"
-            :disabled="!canManage"
+            :disabled="loading || !canManage"
           >
             <option value="">未分配角色</option>
             <option
@@ -389,7 +406,7 @@ defineExpose({
           <input
             v-model="form.enabled"
             type="checkbox"
-            :disabled="!canManage"
+            :disabled="loading || !canManage"
           >
           <span>启用</span>
         </label>
@@ -413,7 +430,7 @@ defineExpose({
       <AdminPageState
         v-else-if="listState === 'error'"
         state="error"
-        :message="errorLine"
+        :message="listError"
       />
       <AdminPageState
         v-else-if="listState === 'empty'"
@@ -456,7 +473,7 @@ defineExpose({
                     theme="default"
                     variant="outline"
                     size="small"
-                    :disabled="saving || !canManage"
+                    :disabled="rowActionsDisabled"
                     @click="editOperator(row)"
                   >
                     编辑
@@ -465,7 +482,7 @@ defineExpose({
                     theme="default"
                     variant="outline"
                     size="small"
-                    :disabled="saving || !canManage"
+                    :disabled="rowActionsDisabled"
                     @click="toggleOperator(row)"
                   >
                     {{ row.enabled ? '停用' : '启用' }}
@@ -474,7 +491,7 @@ defineExpose({
                     theme="danger"
                     variant="outline"
                     size="small"
-                    :disabled="saving || Boolean(revokingUserId) || !canManage || row.id === currentUserId"
+                    :disabled="loading || saving || Boolean(revokingUserId) || !canManage || row.id === currentUserId"
                     :title="row.id === currentUserId ? '当前账号请使用退出登录' : '立即撤销该账号的全部登录会话'"
                     @click="forceLogout(row)"
                   >
