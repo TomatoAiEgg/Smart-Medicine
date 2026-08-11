@@ -125,6 +125,9 @@ const hasNextItemPage = computed(
 );
 const canExportTypes = computed(() => !loadingTypes.value && typeRows.value.length > 0);
 const canExportItems = computed(() => !loadingItems.value && itemRows.value.length > 0);
+const pageBusy = computed(
+  () => loadingTypes.value || loadingItems.value || mutatingType.value || mutatingItem.value,
+);
 const typeListState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loadingTypes.value && !loadedTypes.value) return 'loading';
   if (typeListError.value && typePage.value === null) return 'error';
@@ -332,18 +335,19 @@ async function refreshDictItems() {
 }
 
 async function searchTypesFirstPage() {
-  if (loadingTypes.value || mutatingType.value) return;
+  if (pageBusy.value) return;
   typePageNo.value = 1;
   await refreshDictTypes();
 }
 
 async function searchItemsFirstPage() {
-  if (loadingItems.value || mutatingItem.value) return;
+  if (pageBusy.value) return;
   itemPageNo.value = 1;
   await refreshDictItems();
 }
 
 function selectType(row: AdminDictTypeRecord) {
+  if (pageBusy.value) return;
   selectedTypeId.value = row.id;
   itemPageNo.value = 1;
   resetItemForm(row.id);
@@ -351,6 +355,7 @@ function selectType(row: AdminDictTypeRecord) {
 }
 
 async function saveType() {
+  if (pageBusy.value || mutatingType.value) return;
   mutatingType.value = true;
   typeFormError.value = '';
   try {
@@ -374,6 +379,7 @@ async function saveType() {
 }
 
 async function saveItem() {
+  if (pageBusy.value || mutatingItem.value) return;
   if (!selectedTypeId.value && !itemForm.value.typeId) {
     itemFormError.value = '请先选择字典类型';
     return;
@@ -404,6 +410,7 @@ async function saveItem() {
 }
 
 async function toggleType(row: AdminDictTypeRecord) {
+  if (pageBusy.value || mutatingType.value) return;
   mutatingType.value = true;
   typeFormError.value = '';
   try {
@@ -421,6 +428,7 @@ async function toggleType(row: AdminDictTypeRecord) {
 }
 
 async function toggleItem(row: AdminDictItemRecord) {
+  if (pageBusy.value || mutatingItem.value) return;
   mutatingItem.value = true;
   itemFormError.value = '';
   try {
@@ -441,25 +449,25 @@ async function toggleItem(row: AdminDictItemRecord) {
 }
 
 async function previousTypePage() {
-  if (loadingTypes.value || !hasPreviousTypePage.value) return;
+  if (pageBusy.value || !hasPreviousTypePage.value) return;
   typePageNo.value -= 1;
   await refreshDictTypes();
 }
 
 async function nextTypePage() {
-  if (loadingTypes.value || !hasNextTypePage.value) return;
+  if (pageBusy.value || !hasNextTypePage.value) return;
   typePageNo.value += 1;
   await refreshDictTypes();
 }
 
 async function previousItemPage() {
-  if (loadingItems.value || !hasPreviousItemPage.value) return;
+  if (pageBusy.value || !hasPreviousItemPage.value) return;
   itemPageNo.value -= 1;
   await refreshDictItems();
 }
 
 async function nextItemPage() {
-  if (loadingItems.value || !hasNextItemPage.value) return;
+  if (pageBusy.value || !hasNextItemPage.value) return;
   itemPageNo.value += 1;
   await refreshDictItems();
 }
@@ -494,7 +502,7 @@ defineExpose({
             <input
               v-model="typeKeyword"
               class="dict-input"
-              :disabled="loadingTypes || mutatingType"
+              :disabled="pageBusy"
               placeholder="类型名称 / 类型编码"
               @keyup.enter="searchTypesFirstPage"
             >
@@ -504,7 +512,7 @@ defineExpose({
             <select
               v-model="typeEnabledFilter"
               class="dict-input"
-              :disabled="loadingTypes || mutatingType"
+              :disabled="pageBusy"
               @change="searchTypesFirstPage"
             >
               <option value="">全部</option>
@@ -517,7 +525,7 @@ defineExpose({
               theme="primary"
               variant="outline"
               size="small"
-              :disabled="loadingTypes || mutatingType"
+              :disabled="pageBusy"
               @click="searchTypesFirstPage"
             >
               {{ loadingTypes ? '查询中' : '查询' }}
@@ -526,7 +534,7 @@ defineExpose({
               theme="default"
               variant="outline"
               size="small"
-              :disabled="!canExportTypes"
+              :disabled="pageBusy || !canExportTypes"
               @click="downloadTypeCsv"
             >
               导出当前页
@@ -542,7 +550,8 @@ defineExpose({
               <input
                 v-model="typeForm.typeCode"
                 class="dict-input"
-                :disabled="editingType || loadingTypes || mutatingType"
+                :disabled="editingType || pageBusy"
+                required
                 placeholder="DICT_TYPE"
               >
             </label>
@@ -551,7 +560,8 @@ defineExpose({
               <input
                 v-model="typeForm.typeName"
                 class="dict-input"
-                :disabled="loadingTypes || mutatingType"
+                :disabled="pageBusy"
+                required
                 placeholder="字典类型名称"
               >
             </label>
@@ -559,7 +569,7 @@ defineExpose({
               <input
                 v-model="typeForm.enabled"
                 type="checkbox"
-                :disabled="loadingTypes || mutatingType"
+                :disabled="pageBusy"
               >
               <span>启用</span>
             </label>
@@ -570,7 +580,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="submit"
-              :disabled="loadingTypes || mutatingType"
+              :disabled="pageBusy"
             >
               {{ mutatingType ? '保存中' : editingType ? '保存类型' : '新增类型' }}
             </t-button>
@@ -579,7 +589,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="button"
-              :disabled="loadingTypes || mutatingType"
+              :disabled="pageBusy"
               @click="resetTypeForm"
             >
               清空
@@ -634,7 +644,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="loadingTypes || mutatingType"
+                      :disabled="pageBusy"
                       @click="selectType(row)"
                     >
                       {{ row.id === selectedTypeId ? '已选中' : '选择' }}
@@ -643,7 +653,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="loadingTypes || mutatingType"
+                      :disabled="pageBusy"
                       @click="editType(row)"
                     >
                       编辑
@@ -652,7 +662,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="loadingTypes || mutatingType"
+                      :disabled="pageBusy"
                       @click="toggleType(row)"
                     >
                       {{ row.enabled ? '停用' : '启用' }}
@@ -680,7 +690,7 @@ defineExpose({
                 type="number"
                 min="1"
                 max="100"
-                :disabled="loadingTypes || mutatingType"
+                :disabled="pageBusy"
                 @keyup.enter="searchTypesFirstPage"
               >
             </label>
@@ -704,7 +714,7 @@ defineExpose({
             <input
               v-model="itemKeyword"
               class="dict-input"
-              :disabled="loadingItems || mutatingItem"
+              :disabled="pageBusy"
               placeholder="项名称 / 项编码 / 项值"
               @keyup.enter="searchItemsFirstPage"
             >
@@ -714,7 +724,7 @@ defineExpose({
             <select
               v-model="itemEnabledFilter"
               class="dict-input"
-              :disabled="loadingItems || mutatingItem"
+              :disabled="pageBusy"
               @change="searchItemsFirstPage"
             >
               <option value="">全部</option>
@@ -727,7 +737,7 @@ defineExpose({
               theme="primary"
               variant="outline"
               size="small"
-              :disabled="loadingItems || mutatingItem"
+              :disabled="pageBusy"
               @click="searchItemsFirstPage"
             >
               {{ loadingItems ? '查询中' : '查询' }}
@@ -736,7 +746,7 @@ defineExpose({
               theme="default"
               variant="outline"
               size="small"
-              :disabled="!canExportItems"
+              :disabled="pageBusy || !canExportItems"
               @click="downloadItemCsv"
             >
               导出当前页
@@ -752,7 +762,7 @@ defineExpose({
               <select
                 v-model="itemForm.typeId"
                 class="dict-input"
-                :disabled="editingItem || loadingTypes || loadingItems || mutatingItem"
+                :disabled="editingItem || pageBusy"
               >
                 <option value="">当前选中类型</option>
                 <option v-for="row in typeRows" :key="row.id" :value="row.id">
@@ -765,7 +775,8 @@ defineExpose({
               <input
                 v-model="itemForm.itemCode"
                 class="dict-input"
-                :disabled="editingItem || loadingTypes || loadingItems || mutatingItem"
+                :disabled="editingItem || pageBusy"
+                required
                 placeholder="ITEM_CODE"
               >
             </label>
@@ -774,7 +785,8 @@ defineExpose({
               <input
                 v-model="itemForm.itemName"
                 class="dict-input"
-                :disabled="loadingTypes || loadingItems || mutatingItem"
+                :disabled="pageBusy"
+                required
                 placeholder="字典项名称"
               >
             </label>
@@ -783,7 +795,7 @@ defineExpose({
               <input
                 v-model="itemForm.itemValue"
                 class="dict-input"
-                :disabled="loadingTypes || loadingItems || mutatingItem"
+                :disabled="pageBusy"
                 placeholder="字典项值"
               >
             </label>
@@ -794,14 +806,14 @@ defineExpose({
                 class="dict-input"
                 type="number"
                 min="0"
-                :disabled="loadingTypes || loadingItems || mutatingItem"
+                :disabled="pageBusy"
               >
             </label>
             <label class="dict-check">
               <input
                 v-model="itemForm.enabled"
                 type="checkbox"
-                :disabled="loadingTypes || loadingItems || mutatingItem"
+                :disabled="pageBusy"
               >
               <span>启用</span>
             </label>
@@ -810,7 +822,7 @@ defineExpose({
               <input
                 v-model="itemForm.remark"
                 class="dict-input"
-                :disabled="loadingTypes || loadingItems || mutatingItem"
+                :disabled="pageBusy"
                 placeholder="备注"
               >
             </label>
@@ -821,7 +833,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="submit"
-              :disabled="loadingTypes || loadingItems || mutatingItem"
+              :disabled="pageBusy"
             >
               {{ mutatingItem ? '保存中' : editingItem ? '保存字典项' : '新增字典项' }}
             </t-button>
@@ -830,7 +842,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="button"
-              :disabled="loadingTypes || loadingItems || mutatingItem"
+              :disabled="pageBusy"
               @click="resetItemForm(selectedTypeId)"
             >
               清空
@@ -896,7 +908,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="loadingItems || mutatingItem"
+                      :disabled="pageBusy"
                       @click="editItem(row)"
                     >
                       编辑
@@ -905,7 +917,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="loadingItems || mutatingItem"
+                      :disabled="pageBusy"
                       @click="toggleItem(row)"
                     >
                       {{ row.enabled ? '停用' : '启用' }}
@@ -933,7 +945,7 @@ defineExpose({
                 type="number"
                 min="1"
                 max="100"
-                :disabled="loadingItems || mutatingItem"
+                :disabled="pageBusy"
                 @keyup.enter="searchItemsFirstPage"
               >
             </label>

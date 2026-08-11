@@ -196,6 +196,7 @@ async function searchFirstPage() {
 }
 
 async function saveCenter() {
+  if (loading.value || mutating.value) return;
   mutating.value = true;
   actionError.value = '';
   try {
@@ -222,6 +223,7 @@ async function saveCenter() {
 }
 
 async function toggleCenter(row: AdminDecoctCenterRecord) {
+  if (loading.value || mutating.value) return;
   mutating.value = true;
   actionError.value = '';
   try {
@@ -337,6 +339,7 @@ defineExpose({
               v-model="form.centerCode"
               class="center-input"
               :disabled="editing || loading || mutating"
+              required
               placeholder="CENTER_CODE"
             >
           </label>
@@ -346,6 +349,7 @@ defineExpose({
               v-model="form.centerName"
               class="center-input"
               :disabled="loading || mutating"
+              required
               placeholder="煎煮中心名称"
             >
           </label>

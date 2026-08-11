@@ -213,6 +213,7 @@ async function searchFirstPage() {
 }
 
 async function saveConfig() {
+  if (loading.value || mutating.value) return;
   mutating.value = true;
   actionError.value = '';
   try {
@@ -238,6 +239,7 @@ async function saveConfig() {
 }
 
 async function toggleConfig(row: AdminSystemConfigRecord) {
+  if (loading.value || mutating.value) return;
   mutating.value = true;
   actionError.value = '';
   try {
@@ -365,6 +367,7 @@ defineExpose({
               v-model="form.configKey"
               class="config-input"
               :disabled="editing || loading || mutating"
+              required
               placeholder="system.config.key"
             >
           </label>
@@ -374,6 +377,7 @@ defineExpose({
               v-model="form.configName"
               class="config-input"
               :disabled="loading || mutating"
+              required
               placeholder="系统参数名称"
             >
           </label>
@@ -404,6 +408,7 @@ defineExpose({
               class="config-input config-textarea"
               rows="3"
               :disabled="loading || mutating"
+              required
             />
           </label>
           <label class="config-field config-field--full">
