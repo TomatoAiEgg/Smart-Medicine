@@ -113,21 +113,30 @@ const totalItems = computed(() => itemPage.value?.total ?? 0);
 const selectedType = computed(
   () => typeRows.value.find((row) => row.id === selectedTypeId.value) ?? null,
 );
+const hasSelectedType = computed(() => selectedTypeId.value !== '');
 const editingType = computed(() => typeForm.value.id !== '');
 const editingItem = computed(() => itemForm.value.id !== '');
 const hasPreviousTypePage = computed(() => typePageNo.value > 1 && !loadingTypes.value);
 const hasNextTypePage = computed(
   () => !loadingTypes.value && typePageNo.value * typePageSize.value < totalTypes.value,
 );
-const hasPreviousItemPage = computed(() => itemPageNo.value > 1 && !loadingItems.value);
+const hasPreviousItemPage = computed(
+  () => hasSelectedType.value && itemPageNo.value > 1 && !loadingItems.value,
+);
 const hasNextItemPage = computed(
-  () => !loadingItems.value && itemPageNo.value * itemPageSize.value < totalItems.value,
+  () =>
+    hasSelectedType.value &&
+    !loadingItems.value &&
+    itemPageNo.value * itemPageSize.value < totalItems.value,
 );
 const canExportTypes = computed(() => !loadingTypes.value && typeRows.value.length > 0);
-const canExportItems = computed(() => !loadingItems.value && itemRows.value.length > 0);
+const canExportItems = computed(
+  () => hasSelectedType.value && !loadingItems.value && itemRows.value.length > 0,
+);
 const pageBusy = computed(
   () => loadingTypes.value || loadingItems.value || mutatingType.value || mutatingItem.value,
 );
+const itemControlsDisabled = computed(() => pageBusy.value || !hasSelectedType.value);
 const typeListState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loadingTypes.value && !loadedTypes.value) return 'loading';
   if (typeListError.value && typePage.value === null) return 'error';
@@ -139,6 +148,18 @@ const itemListState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (itemListError.value && itemPage.value === null) return 'error';
   if (loadedItems.value && !loadingItems.value && itemRows.value.length === 0) return 'empty';
   return null;
+});
+const itemEmptyStateMessage = computed(() =>
+  hasSelectedType.value ? '没有相关字典项。' : '当前没有可联动的字典类型',
+);
+const itemPanelDescription = computed(() => {
+  if (!loadedItems.value) {
+    return '按关键字、状态和当前类型联动检索。';
+  }
+  if (!hasSelectedType.value || selectedType.value === null) {
+    return '当前没有可联动的字典类型。';
+  }
+  return `当前类型：${selectedType.value.typeName}，第 ${itemPageNo.value} 页，共 ${formatNumber(totalItems.value)} 个字典项。`;
 });
 
 function normalizePageSize(value: number) {
@@ -180,6 +201,15 @@ function invalidateItemRequests() {
   itemRequestSequence.value = requestId;
   activeItemRequest.value = requestId;
   loadingItems.value = false;
+}
+
+function setEmptyItemPage(page: number, pageSize: number) {
+  itemPage.value = {
+    records: [],
+    total: 0,
+    page,
+    pageSize,
+  };
 }
 
 function downloadTypeCsv() {
@@ -306,7 +336,18 @@ async function refreshDictItems() {
   loadingItems.value = true;
   itemListError.value = '';
   try {
+    itemPageNo.value = boundedPositiveInteger(itemPageNo.value, 1, Number.MAX_SAFE_INTEGER);
     itemPageSize.value = normalizePageSize(itemPageSize.value);
+    if (!hasSelectedType.value) {
+      invalidateItemRequests();
+      setEmptyItemPage(itemPageNo.value, itemPageSize.value);
+      loadedItems.value = true;
+      itemListError.value = '';
+      if (!editingItem.value && itemForm.value.typeId !== '') {
+        itemForm.value.typeId = '';
+      }
+      return;
+    }
     const nextPage = await listAdminDictItems({
       keyword: itemKeyword.value,
       typeId: selectedTypeId.value,
@@ -701,11 +742,7 @@ defineExpose({
       <AdminPanel class="dict-panel">
         <template #title>字典项</template>
         <template #description>
-          {{
-            loadedItems
-              ? `当前类型：${selectedType ? selectedType.typeName : '全部类型'}，第 ${itemPageNo} 页，共 ${formatNumber(totalItems)} 个字典项。`
-              : '按关键字、状态和当前类型联动检索。'
-          }}
+          {{ itemPanelDescription }}
         </template>
 
         <AdminToolbar>
@@ -714,7 +751,7 @@ defineExpose({
             <input
               v-model="itemKeyword"
               class="dict-input"
-              :disabled="pageBusy"
+              :disabled="itemControlsDisabled"
               placeholder="项名称 / 项编码 / 项值"
               @keyup.enter="searchItemsFirstPage"
             >
@@ -724,7 +761,7 @@ defineExpose({
             <select
               v-model="itemEnabledFilter"
               class="dict-input"
-              :disabled="pageBusy"
+              :disabled="itemControlsDisabled"
               @change="searchItemsFirstPage"
             >
               <option value="">全部</option>
@@ -737,7 +774,7 @@ defineExpose({
               theme="primary"
               variant="outline"
               size="small"
-              :disabled="pageBusy"
+              :disabled="itemControlsDisabled"
               @click="searchItemsFirstPage"
             >
               {{ loadingItems ? '查询中' : '查询' }}
@@ -746,7 +783,7 @@ defineExpose({
               theme="default"
               variant="outline"
               size="small"
-              :disabled="pageBusy || !canExportItems"
+              :disabled="itemControlsDisabled || !canExportItems"
               @click="downloadItemCsv"
             >
               导出当前页
@@ -762,7 +799,7 @@ defineExpose({
               <select
                 v-model="itemForm.typeId"
                 class="dict-input"
-                :disabled="editingItem || pageBusy"
+                :disabled="editingItem || itemControlsDisabled"
               >
                 <option value="">当前选中类型</option>
                 <option v-for="row in typeRows" :key="row.id" :value="row.id">
@@ -775,7 +812,7 @@ defineExpose({
               <input
                 v-model="itemForm.itemCode"
                 class="dict-input"
-                :disabled="editingItem || pageBusy"
+                :disabled="editingItem || itemControlsDisabled"
                 required
                 placeholder="ITEM_CODE"
               >
@@ -785,7 +822,7 @@ defineExpose({
               <input
                 v-model="itemForm.itemName"
                 class="dict-input"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
                 required
                 placeholder="字典项名称"
               >
@@ -795,7 +832,7 @@ defineExpose({
               <input
                 v-model="itemForm.itemValue"
                 class="dict-input"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
                 placeholder="字典项值"
               >
             </label>
@@ -806,14 +843,14 @@ defineExpose({
                 class="dict-input"
                 type="number"
                 min="0"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
               >
             </label>
             <label class="dict-check">
               <input
                 v-model="itemForm.enabled"
                 type="checkbox"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
               >
               <span>启用</span>
             </label>
@@ -822,7 +859,7 @@ defineExpose({
               <input
                 v-model="itemForm.remark"
                 class="dict-input"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
                 placeholder="备注"
               >
             </label>
@@ -833,7 +870,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="submit"
-              :disabled="pageBusy"
+              :disabled="itemControlsDisabled"
             >
               {{ mutatingItem ? '保存中' : editingItem ? '保存字典项' : '新增字典项' }}
             </t-button>
@@ -842,7 +879,7 @@ defineExpose({
               variant="outline"
               size="small"
               type="button"
-              :disabled="pageBusy"
+              :disabled="itemControlsDisabled"
               @click="resetItemForm(selectedTypeId)"
             >
               清空
@@ -863,7 +900,7 @@ defineExpose({
         <AdminPageState
           v-else-if="itemListState === 'empty'"
           state="empty"
-          message="没有相关字典项。"
+          :message="itemEmptyStateMessage"
         />
         <template v-else>
           <AdminTableShell>
@@ -908,7 +945,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="pageBusy"
+                      :disabled="itemControlsDisabled"
                       @click="editItem(row)"
                     >
                       编辑
@@ -917,7 +954,7 @@ defineExpose({
                       theme="default"
                       variant="outline"
                       size="small"
-                      :disabled="pageBusy"
+                      :disabled="itemControlsDisabled"
                       @click="toggleItem(row)"
                     >
                       {{ row.enabled ? '停用' : '启用' }}
@@ -945,7 +982,7 @@ defineExpose({
                 type="number"
                 min="1"
                 max="100"
-                :disabled="pageBusy"
+                :disabled="itemControlsDisabled"
                 @keyup.enter="searchItemsFirstPage"
               >
             </label>
