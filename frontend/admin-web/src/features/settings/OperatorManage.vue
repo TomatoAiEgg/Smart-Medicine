@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { revokeAdminUserSessions } from '../../api/auth';
-import { errorMessage } from '../../domain/errors';
 import { createAdminOperator, listAdminOperators, listAdminRbacRoles, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord, AdminRbacRoleRecord } from '../../api/types';
+import AdminPageState from '../../components/admin/AdminPageState.vue';
+import AdminPagination from '../../components/admin/AdminPagination.vue';
+import AdminPanel from '../../components/admin/AdminPanel.vue';
+import AdminStatusTag from '../../components/admin/AdminStatusTag.vue';
+import AdminTableShell from '../../components/admin/AdminTableShell.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
 import { downloadCsv } from '../../domain/csv';
+import { errorMessage } from '../../domain/errors';
 import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -16,6 +22,11 @@ interface OperatorForm {
   displayName: string;
   roleCode: string;
   enabled: boolean;
+}
+
+interface OperatorStat {
+  label: string;
+  value: string;
 }
 
 const props = defineProps<{
@@ -56,7 +67,19 @@ const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).le
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
-const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName])));
+const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName] as const)));
+const canExport = computed(() => !loading.value && rows.value.length > 0);
+const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
+  if (loading.value && !loaded.value) return 'loading';
+  if (errorLine.value && operatorPage.value === null) return 'error';
+  if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
+  return null;
+});
+const stats = computed<OperatorStat[]>(() => [
+  { label: '工号总数', value: formatNumber(total.value) },
+  { label: '本页启用', value: formatNumber(enabledCount.value) },
+  { label: '本页停用', value: formatNumber(disabledCount.value) },
+]);
 
 function downloadOperatorCsv() {
   downloadCsv(
@@ -85,6 +108,11 @@ function commandFromForm(): AdminOperatorCommand {
 
 function normalizePageSize() {
   return boundedPositiveInteger(pageSize.value, 20, 100);
+}
+
+function rolePrimaryText(row: AdminOperatorRecord) {
+  if (!row.roleCode) return '未分配角色';
+  return roleNameByCode.value.get(row.roleCode) ?? '未知角色';
 }
 
 async function refreshOperators() {
@@ -236,187 +264,367 @@ defineExpose({
 </script>
 
 <template>
-  <section class="legacy-page operator-page">
-    <ul class="legacy-search operator-search">
-      <li>
-        关键字：
-        <input v-model="keyword" class="legacy-input input-medium" placeholder="工号 / 姓名 / 角色" @keyup.enter="searchFirstPage" />
-      </li>
-      <li>
-        状态：
-        <select v-model="enabledFilter" class="legacy-input input-small" @change="searchFirstPage">
+  <section class="operator-page">
+    <AdminToolbar>
+      <label class="operator-field operator-field--keyword">
+        <span>关键字</span>
+        <input
+          v-model="keyword"
+          class="operator-input"
+          placeholder="工号 / 姓名 / 角色"
+          @keyup.enter="searchFirstPage"
+        >
+      </label>
+      <label class="operator-field operator-field--status">
+        <span>状态</span>
+        <select
+          v-model="enabledFilter"
+          class="operator-input"
+          @change="searchFirstPage"
+        >
           <option value="">全部</option>
           <option value="true">启用</option>
           <option value="false">停用</option>
         </select>
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
+      </label>
+      <template #actions>
+        <t-button
+          theme="primary"
+          variant="outline"
+          size="small"
+          :disabled="loading"
+          @click="searchFirstPage"
+        >
           {{ loading ? '查询中' : '查询' }}
-        </button>
-      </li>
-      <li>
-        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadOperatorCsv">
+        </t-button>
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="!canExport"
+          @click="downloadOperatorCsv"
+        >
           导出当前页
-        </button>
-      </li>
-    </ul>
+        </t-button>
+      </template>
+    </AdminToolbar>
 
-    <p v-if="errorLine" class="error-line">{{ errorLine }}</p>
+    <div class="operator-stats" aria-label="工号统计">
+      <article
+        v-for="stat in stats"
+        :key="stat.label"
+        class="operator-stat"
+      >
+        <strong>{{ stat.value }}</strong>
+        <span>{{ stat.label }}</span>
+      </article>
+    </div>
 
-    <ul class="legacy-stats operator-stats">
-      <li>
-        <strong>{{ formatNumber(total) }}</strong>
-        <span>工号总数</span>
-      </li>
-      <li>
-        <strong>{{ formatNumber(enabledCount) }}</strong>
-        <span>本页启用</span>
-      </li>
-      <li>
-        <strong>{{ formatNumber(disabledCount) }}</strong>
-        <span>本页停用</span>
-      </li>
-    </ul>
+    <AdminPanel class="operator-edit-panel">
+      <template #title>{{ editing ? '编辑工号' : '新增工号' }}</template>
+      <template #description>
+        {{ canManage ? '维护工号名称、角色与状态。' : '当前账号仅可查看，编辑与状态变更按钮已禁用。' }}
+      </template>
+      <template #actions>
+        <t-button
+          theme="primary"
+          variant="outline"
+          size="small"
+          :disabled="saving || !canManage"
+          @click="saveOperator"
+        >
+          {{ saving ? '保存中' : editing ? '保存修改' : '新增工号' }}
+        </t-button>
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="saving"
+          @click="resetForm"
+        >
+          清空
+        </t-button>
+      </template>
 
-    <div class="operator-edit legacy-panel">
+      <p v-if="errorLine" class="error-line" role="alert">{{ errorLine }}</p>
+
       <div class="operator-form-grid">
-        <label>
-          工号
-          <input v-model="form.username" class="legacy-input" :disabled="editing || !canManage" placeholder="operator01" />
+        <label class="operator-field">
+          <span>工号</span>
+          <input
+            v-model="form.username"
+            class="operator-input"
+            :disabled="editing || !canManage"
+            placeholder="operator01"
+          >
         </label>
-        <label>
-          姓名
-          <input v-model="form.displayName" class="legacy-input" :disabled="!canManage" placeholder="操作员姓名" />
+        <label class="operator-field">
+          <span>姓名</span>
+          <input
+            v-model="form.displayName"
+            class="operator-input"
+            :disabled="!canManage"
+            placeholder="操作员姓名"
+          >
         </label>
-        <label>
-          角色
-          <select v-model="form.roleCode" class="legacy-input" :disabled="!canManage">
+        <label class="operator-field">
+          <span>角色</span>
+          <select
+            v-model="form.roleCode"
+            class="operator-input"
+            :disabled="!canManage"
+          >
             <option value="">未分配角色</option>
-            <option v-for="role in roleOptions" :key="role.id" :value="role.roleCode" :disabled="!role.enabled">
+            <option
+              v-for="role in roleOptions"
+              :key="role.id"
+              :value="role.roleCode"
+              :disabled="!role.enabled"
+            >
               {{ role.roleName }}（{{ role.roleCode }}）
             </option>
           </select>
         </label>
-        <label class="operator-enabled">
-          <input v-model="form.enabled" type="checkbox" :disabled="!canManage" />
-          启用
+        <label class="operator-check">
+          <input
+            v-model="form.enabled"
+            type="checkbox"
+            :disabled="!canManage"
+          >
+          <span>启用</span>
         </label>
-        <div class="operator-actions">
-          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="saving || !canManage" @click="saveOperator">
-            {{ saving ? '保存中' : editing ? '保存修改' : '新增工号' }}
-          </button>
-          <button class="legacy-btn" type="button" :disabled="saving" @click="resetForm">清空</button>
-        </div>
       </div>
-    </div>
+    </AdminPanel>
 
-    <div class="legacy-panel">
-      <table class="legacy-main-table operator-table">
-        <thead>
-          <tr class="legacy-main-head">
-            <th>工号</th>
-            <th>姓名</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th>创建时间</th>
-            <th>更新时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading" class="legacy-main-info">
-            <td colspan="7" class="legacy-empty">正在查询工号</td>
-          </tr>
-          <tr v-else-if="rows.length === 0" class="legacy-main-info">
-            <td colspan="7" class="legacy-empty">没有相关工号</td>
-          </tr>
-          <tr v-for="row in rows" :key="row.id" class="legacy-main-info">
-            <td><strong>{{ displayValue(row.username) }}</strong></td>
-            <td>{{ displayValue(row.displayName) }}</td>
-            <td>{{ row.roleCode ? `${roleNameByCode.get(row.roleCode) ?? row.roleCode}（${row.roleCode}）` : '-' }}</td>
-            <td>{{ enabledText(row.enabled) }}</td>
-            <td>{{ formatDate(row.createdAt) }}</td>
-            <td>{{ formatDate(row.updatedAt) }}</td>
-            <td class="operator-row-actions">
-              <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="editOperator(row)">编辑</button>
-              <button class="legacy-btn" type="button" :disabled="saving || !canManage" @click="toggleOperator(row)">
-                {{ row.enabled ? '停用' : '启用' }}
-              </button>
-              <button
-                class="legacy-btn danger"
-                type="button"
-                :disabled="saving || Boolean(revokingUserId) || !canManage || row.id === currentUserId"
-                :title="row.id === currentUserId ? '当前账号请使用退出登录' : '立即撤销该账号的全部登录会话'"
-                @click="forceLogout(row)"
-              >
-                {{ revokingUserId === row.id ? '下线中' : '强制下线' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <AdminPanel class="operator-list-panel">
+      <template #title>工号列表</template>
+      <template #description>
+        {{ loaded ? `当前第 ${page} 页，共 ${formatNumber(total)} 条记录。` : '按条件检索工号列表。' }}
+      </template>
+      <template #actions>
+        <span class="operator-list-note">角色主值显示名称，附带编码。</span>
+      </template>
 
-    <div class="legacy-pagination">
-      <button class="legacy-btn" type="button" :disabled="!hasPreviousPage" @click="previousPage">上一页</button>
-      <span>第 {{ page }} 页 / 共 {{ formatNumber(total) }} 条</span>
-      <button class="legacy-btn" type="button" :disabled="!hasNextPage" @click="nextPage">下一页</button>
-    </div>
+      <AdminPageState
+        v-if="listState === 'loading'"
+        state="loading"
+        message="正在查询工号。"
+      />
+      <AdminPageState
+        v-else-if="listState === 'error'"
+        state="error"
+        :message="errorLine"
+      />
+      <AdminPageState
+        v-else-if="listState === 'empty'"
+        state="empty"
+        message="没有相关工号。"
+      />
+      <template v-else>
+        <AdminTableShell>
+          <table class="operator-table">
+            <thead>
+              <tr>
+                <th>工号</th>
+                <th>姓名</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in rows" :key="row.id">
+                <td>
+                  <strong class="operator-primary-text">{{ displayValue(row.username) }}</strong>
+                </td>
+                <td>{{ displayValue(row.displayName) }}</td>
+                <td>
+                  <div class="operator-role-cell">
+                    <strong>{{ rolePrimaryText(row) }}</strong>
+                    <small v-if="row.roleCode">{{ row.roleCode }}</small>
+                  </div>
+                </td>
+                <td>
+                  <AdminStatusTag :enabled="row.enabled" />
+                </td>
+                <td>{{ formatDate(row.createdAt) }}</td>
+                <td>{{ formatDate(row.updatedAt) }}</td>
+                <td class="operator-row-actions">
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    size="small"
+                    :disabled="saving || !canManage"
+                    @click="editOperator(row)"
+                  >
+                    编辑
+                  </t-button>
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    size="small"
+                    :disabled="saving || !canManage"
+                    @click="toggleOperator(row)"
+                  >
+                    {{ row.enabled ? '停用' : '启用' }}
+                  </t-button>
+                  <t-button
+                    theme="danger"
+                    variant="outline"
+                    size="small"
+                    :disabled="saving || Boolean(revokingUserId) || !canManage || row.id === currentUserId"
+                    :title="row.id === currentUserId ? '当前账号请使用退出登录' : '立即撤销该账号的全部登录会话'"
+                    @click="forceLogout(row)"
+                  >
+                    {{ revokingUserId === row.id ? '下线中' : '强制下线' }}
+                  </t-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AdminTableShell>
+
+        <AdminPagination
+          :page="page"
+          :page-size="pageSize"
+          :total="total"
+          :loading="loading"
+          @previous="previousPage"
+          @next="nextPage"
+        />
+      </template>
+    </AdminPanel>
   </section>
 </template>
 
 <style scoped>
-.operator-search {
-  row-gap: 10px;
+.operator-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .operator-stats {
-  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+  min-width: 0;
 }
 
-.operator-edit {
-  margin-bottom: 10px;
-  padding: 12px;
+.operator-stat {
+  display: grid;
+  gap: 4px;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.operator-stat strong {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.operator-stat span,
+.operator-list-note {
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .operator-form-grid {
-  align-items: end;
   display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) 86px auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(96px, auto);
+  gap: 12px;
+  min-width: 0;
 }
 
-.operator-form-grid label {
+.operator-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.operator-field span,
+.operator-check span {
   color: #4b5563;
-  display: grid;
-  gap: 4px;
   font-size: 13px;
+  line-height: 20px;
 }
 
-.operator-enabled {
-  align-items: center;
-  display: flex !important;
-  gap: 6px !important;
+.operator-field--keyword {
+  flex: 1 1 280px;
+}
+
+.operator-field--status {
+  flex: 0 0 160px;
+}
+
+.operator-input {
+  width: 100%;
   min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d7deea;
+  border-radius: 6px;
+  color: #1f2937;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 20px;
 }
 
-.operator-actions {
-  display: flex;
+.operator-input:disabled {
+  color: #98a2b3;
+  background: #f8fafc;
+}
+
+.operator-check {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  min-height: 34px;
+  padding-top: 24px;
 }
 
 .operator-table {
-  min-width: 1060px;
+  min-width: 960px;
+}
+
+.operator-primary-text,
+.operator-role-cell strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.operator-role-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.operator-role-cell small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .operator-row-actions {
   white-space: nowrap;
 }
 
-.operator-table th,
-.operator-table td {
-  min-width: 110px;
+.operator-row-actions :deep(.t-button) {
+  margin-right: 8px;
+}
+
+.operator-row-actions :deep(.t-button:last-child) {
+  margin-right: 0;
 }
 
 @media (max-width: 980px) {
@@ -424,8 +632,8 @@ defineExpose({
     grid-template-columns: 1fr;
   }
 
-  .operator-actions {
-    flex-wrap: wrap;
+  .operator-check {
+    padding-top: 0;
   }
 }
 </style>
