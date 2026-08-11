@@ -1,18 +1,48 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { errorMessage } from '../../domain/errors';
 import {
   createAdminSystemConfig,
   listAdminSystemConfigs,
   updateAdminSystemConfig,
 } from '../../api/order';
-import type { AdminSystemConfigPage, AdminSystemConfigRecord } from '../../api/types';
+import type {
+  AdminSystemConfigCommand,
+  AdminSystemConfigPage,
+  AdminSystemConfigRecord,
+} from '../../api/types';
+import AdminPageState from '../../components/admin/AdminPageState.vue';
+import AdminPagination from '../../components/admin/AdminPagination.vue';
+import AdminPanel from '../../components/admin/AdminPanel.vue';
+import AdminStatusTag from '../../components/admin/AdminStatusTag.vue';
+import AdminTableShell from '../../components/admin/AdminTableShell.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
 import { downloadCsv } from '../../domain/csv';
-import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, formatDate, formatNumber } from '../../domain/formatters';
+import { errorMessage } from '../../domain/errors';
+import {
+  boundedPositiveInteger,
+  enabledStringParam,
+  formatDate,
+  formatNumber,
+} from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
 type ValueType = 'STRING' | 'BOOLEAN' | 'NUMBER' | 'JSON';
+
+interface SystemConfigForm {
+  id: string;
+  configKey: string;
+  configName: string;
+  configValue: string;
+  valueType: ValueType;
+  enabled: boolean;
+  remark: string;
+}
+
+interface ConfigStat {
+  label: string;
+  value: string;
+}
 
 const props = defineProps<{
   active: boolean;
@@ -32,7 +62,12 @@ const valueTypes = [
   { value: 'JSON', label: 'JSON' },
 ] as const;
 
-const formValueTypes = valueTypes.filter((option) => option.value !== '');
+const formValueTypes: ReadonlyArray<{ value: ValueType; label: string }> = [
+  { value: 'STRING', label: '文本' },
+  { value: 'BOOLEAN', label: '布尔' },
+  { value: 'NUMBER', label: '数字' },
+  { value: 'JSON', label: 'JSON' },
+];
 
 const keyword = ref('');
 const valueType = ref('');
@@ -41,15 +76,19 @@ const page = ref(1);
 const pageSize = ref(20);
 const configPage = ref<AdminSystemConfigPage | null>(null);
 const loading = ref(false);
-const saving = ref(false);
+const mutating = ref(false);
 const loaded = ref(false);
-const errorLine = ref('');
-const form = ref({
+const listError = ref('');
+const actionError = ref('');
+const refreshRequestSequence = ref(0);
+const activeRefreshRequest = ref(0);
+
+const form = ref<SystemConfigForm>({
   id: '',
   configKey: '',
   configName: '',
   configValue: '',
-  valueType: 'STRING' as ValueType,
+  valueType: 'STRING',
   enabled: true,
   remark: '',
 });
@@ -58,37 +97,38 @@ const rows = computed(() => configPage.value?.records ?? []);
 const total = computed(() => configPage.value?.total ?? 0);
 const enabledCount = computed(() => rows.value.filter((row) => row.enabled).length);
 const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).length);
+const editing = computed(() => form.value.id !== '');
+const canExport = computed(() => !loading.value && rows.value.length > 0);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
-const editing = computed(() => form.value.id !== '');
-
-function valueTypeText(value: string) {
-  return valueTypes.find((option) => option.value === value)?.label ?? value;
-}
-
-function downloadConfigCsv() {
-  downloadCsv(
-    `系统参数-第${page.value}页.csv`,
-    ['参数键', '参数名称', '类型', '参数值', '状态', '备注', '创建时间', '更新时间'],
-    rows.value.map((row) => [
-      row.configKey,
-      row.configName,
-      valueTypeText(row.valueType),
-      row.configValue,
-      enabledText(row.enabled),
-      row.remark,
-      formatDate(row.createdAt),
-      formatDate(row.updatedAt),
-    ]),
-  );
-  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条系统参数`);
-}
+const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
+  if (loading.value && !loaded.value) return 'loading';
+  if (listError.value && configPage.value === null) return 'error';
+  if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
+  return null;
+});
+const stats = computed<ConfigStat[]>(() => [
+  { label: '参数总数', value: formatNumber(total.value) },
+  { label: '本页启用', value: formatNumber(enabledCount.value) },
+  { label: '本页停用', value: formatNumber(disabledCount.value) },
+]);
 
 function normalizePageSize() {
   return boundedPositiveInteger(pageSize.value, 20, 100);
 }
 
+function displayText(value: string | null | undefined) {
+  if (value === null || value === undefined) return '--';
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed : '--';
+}
+
+function valueTypeText(value: string) {
+  return valueTypes.find((option) => option.value === value)?.label ?? value;
+}
+
 function resetForm() {
+  actionError.value = '';
   form.value = {
     id: '',
     configKey: '',
@@ -101,6 +141,7 @@ function resetForm() {
 }
 
 function editConfig(row: AdminSystemConfigRecord) {
+  actionError.value = '';
   form.value = {
     id: row.id,
     configKey: row.configKey,
@@ -112,11 +153,32 @@ function editConfig(row: AdminSystemConfigRecord) {
   };
 }
 
+function downloadConfigCsv() {
+  downloadCsv(
+    `系统参数-第${page.value}页.csv`,
+    ['参数键', '参数名称', '类型', '参数值', '状态', '备注', '创建时间', '更新时间'],
+    rows.value.map((row) => [
+      row.configKey,
+      row.configName,
+      valueTypeText(row.valueType),
+      row.configValue,
+      row.enabled ? '启用' : '停用',
+      row.remark ?? '',
+      formatDate(row.createdAt),
+      formatDate(row.updatedAt),
+    ]),
+  );
+  emit('notice', 'success', `已导出本页 ${formatNumber(rows.value.length)} 条系统参数`);
+}
+
 async function refreshSystemConfigs() {
+  const requestId = refreshRequestSequence.value + 1;
+  refreshRequestSequence.value = requestId;
+  activeRefreshRequest.value = requestId;
   loading.value = true;
-  errorLine.value = '';
-  pageSize.value = normalizePageSize();
+  listError.value = '';
   try {
+    pageSize.value = normalizePageSize();
     const nextPage = await listAdminSystemConfigs({
       keyword: keyword.value,
       valueType: valueType.value,
@@ -124,6 +186,7 @@ async function refreshSystemConfigs() {
       page: page.value,
       pageSize: pageSize.value,
     });
+    if (requestId !== activeRefreshRequest.value) return;
     configPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
@@ -131,25 +194,29 @@ async function refreshSystemConfigs() {
     emit('countChanged', nextPage.total);
     emit('notice', 'info', `已刷新系统参数：${formatNumber(nextPage.total)} 条`);
   } catch (error) {
+    if (requestId !== activeRefreshRequest.value) return;
     configPage.value = null;
     loaded.value = false;
+    listError.value = errorMessage(error);
     emit('countChanged', 0);
-    errorLine.value = errorMessage(error);
   } finally {
-    loading.value = false;
+    if (requestId === activeRefreshRequest.value) {
+      loading.value = false;
+    }
   }
 }
 
 async function searchFirstPage() {
+  if (loading.value || mutating.value) return;
   page.value = 1;
   await refreshSystemConfigs();
 }
 
 async function saveConfig() {
-  saving.value = true;
-  errorLine.value = '';
+  mutating.value = true;
+  actionError.value = '';
   try {
-    const command = {
+    const command: AdminSystemConfigCommand = {
       configKey: form.value.configKey.trim(),
       configName: form.value.configName.trim(),
       configValue: form.value.configValue.trim(),
@@ -164,15 +231,15 @@ async function saveConfig() {
     resetForm();
     await refreshSystemConfigs();
   } catch (error) {
-    errorLine.value = errorMessage(error);
+    actionError.value = errorMessage(error);
   } finally {
-    saving.value = false;
+    mutating.value = false;
   }
 }
 
 async function toggleConfig(row: AdminSystemConfigRecord) {
-  saving.value = true;
-  errorLine.value = '';
+  mutating.value = true;
+  actionError.value = '';
   try {
     await updateAdminSystemConfig(row.id, {
       configName: row.configName,
@@ -184,20 +251,20 @@ async function toggleConfig(row: AdminSystemConfigRecord) {
     emit('notice', 'success', `${row.configName} 已${row.enabled ? '停用' : '启用'}`);
     await refreshSystemConfigs();
   } catch (error) {
-    errorLine.value = errorMessage(error);
+    actionError.value = errorMessage(error);
   } finally {
-    saving.value = false;
+    mutating.value = false;
   }
 }
 
 async function previousPage() {
-  if (!hasPreviousPage.value) return;
+  if (loading.value || !hasPreviousPage.value) return;
   page.value -= 1;
   await refreshSystemConfigs();
 }
 
 async function nextPage() {
-  if (!hasNextPage.value) return;
+  if (loading.value || !hasNextPage.value) return;
   page.value += 1;
   await refreshSystemConfigs();
 }
@@ -218,218 +285,458 @@ defineExpose({
 </script>
 
 <template>
-  <section class="legacy-page system-config-page">
-    <ul class="legacy-search config-search">
-      <li>
-        关键字：
-        <input v-model="keyword" class="legacy-input input-large" @keyup.enter="searchFirstPage" />
-      </li>
-      <li>
-        类型：
-        <select v-model="valueType" class="legacy-input input-medium" @change="searchFirstPage">
+  <section class="system-config-page">
+    <AdminToolbar>
+      <label class="config-field config-field--keyword">
+        <span>关键字</span>
+        <input
+          v-model="keyword"
+          class="config-input"
+          :disabled="loading || mutating"
+          placeholder="参数名称 / 参数键 / 参数值"
+          @keyup.enter="searchFirstPage"
+        >
+      </label>
+      <label class="config-field config-field--type">
+        <span>值类型</span>
+        <select
+          v-model="valueType"
+          class="config-input"
+          :disabled="loading || mutating"
+          @change="searchFirstPage"
+        >
           <option v-for="option in valueTypes" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>
-      </li>
-      <li>
-        状态：
-        <select v-model="enabledFilter" class="legacy-input input-small" @change="searchFirstPage">
+      </label>
+      <label class="config-field config-field--status">
+        <span>状态</span>
+        <select
+          v-model="enabledFilter"
+          class="config-input"
+          :disabled="loading || mutating"
+          @change="searchFirstPage"
+        >
           <option value="">全部</option>
           <option value="true">启用</option>
           <option value="false">停用</option>
         </select>
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="loading" @click="searchFirstPage">
-          查询
-        </button>
-      </li>
-      <li>
-        <button class="legacy-btn" type="button" :disabled="loading || rows.length === 0" @click="downloadConfigCsv">
-          导出当前页
-        </button>
-      </li>
-    </ul>
-
-    <div v-if="errorLine" class="legacy-alert legacy-alert-error">{{ errorLine }}</div>
-
-    <ul class="legacy-stats config-stats">
-      <li>
-        <strong>{{ formatNumber(total) }}</strong>
-        <span>参数总数</span>
-      </li>
-      <li>
-        <strong>{{ formatNumber(enabledCount) }}</strong>
-        <span>本页启用</span>
-      </li>
-      <li>
-        <strong>{{ formatNumber(disabledCount) }}</strong>
-        <span>本页停用</span>
-      </li>
-    </ul>
-
-    <section class="legacy-panel config-form-panel">
-      <div class="legacy-panel-title">{{ editing ? '编辑系统参数' : '新增系统参数' }}</div>
-      <div class="config-form-grid">
-        <label>
-          参数键
-          <input v-model="form.configKey" class="legacy-input" :disabled="editing || saving" />
-        </label>
-        <label>
-          参数名称
-          <input v-model="form.configName" class="legacy-input" :disabled="saving" />
-        </label>
-        <label>
-          值类型
-          <select v-model="form.valueType" class="legacy-input" :disabled="saving">
-            <option v-for="option in formValueTypes" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="enabled-field">
-          <input v-model="form.enabled" type="checkbox" :disabled="saving" />
-          启用
-        </label>
-        <label class="value-field">
-          参数值
-          <textarea v-model="form.configValue" class="legacy-input config-value-input" rows="3" :disabled="saving" />
-        </label>
-        <label class="remark-field">
-          备注
-          <input v-model="form.remark" class="legacy-input" :disabled="saving" />
-        </label>
-      </div>
-      <div class="config-actions">
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="saving" @click="saveConfig">
-          {{ editing ? '保存参数' : '新增参数' }}
-        </button>
-        <button class="legacy-btn" type="button" :disabled="saving" @click="resetForm">清空</button>
-      </div>
-    </section>
-
-    <div class="legacy-table-wrap">
-      <table class="legacy-table">
-        <thead>
-          <tr>
-            <th>参数键</th>
-            <th>参数名称</th>
-            <th>类型</th>
-            <th>参数值</th>
-            <th>状态</th>
-            <th>更新时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="!loading && rows.length === 0">
-            <td colspan="7" class="empty-cell">暂无系统参数</td>
-          </tr>
-          <tr v-for="row in rows" :key="row.id">
-            <td>{{ row.configKey }}</td>
-            <td>{{ row.configName }}</td>
-            <td>{{ valueTypeText(row.valueType) }}</td>
-            <td class="value-cell">{{ displayValue(row.configValue) }}</td>
-            <td>{{ enabledText(row.enabled) }}</td>
-            <td>{{ formatDate(row.updatedAt) }}</td>
-            <td class="action-cell">
-              <button class="legacy-link-btn" type="button" @click="editConfig(row)">编辑</button>
-              <button class="legacy-link-btn" type="button" :disabled="saving" @click="toggleConfig(row)">
-                {{ row.enabled ? '停用' : '启用' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="legacy-pagination">
-      <button class="legacy-btn" type="button" :disabled="!hasPreviousPage" @click="previousPage">上一页</button>
-      <span>第 {{ page }} 页 / 共 {{ formatNumber(total) }} 条</span>
-      <button class="legacy-btn" type="button" :disabled="!hasNextPage" @click="nextPage">下一页</button>
-      <label>
-        每页
-        <input
-          v-model.number="pageSize"
-          class="legacy-input input-small"
-          type="number"
-          min="1"
-          max="100"
-          @keyup.enter="searchFirstPage"
-        />
       </label>
+      <template #actions>
+        <t-button
+          theme="primary"
+          variant="outline"
+          size="small"
+          :disabled="loading || mutating"
+          @click="searchFirstPage"
+        >
+          {{ loading ? '查询中' : '查询' }}
+        </t-button>
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :disabled="!canExport"
+          @click="downloadConfigCsv"
+        >
+          导出当前页
+        </t-button>
+      </template>
+    </AdminToolbar>
+
+    <div class="config-stats" aria-label="系统参数统计">
+      <article v-for="stat in stats" :key="stat.label" class="config-stat">
+        <strong>{{ stat.value }}</strong>
+        <span>{{ stat.label }}</span>
+      </article>
     </div>
+
+    <AdminPanel class="config-edit-panel">
+      <template #title>{{ editing ? '编辑系统参数' : '新增系统参数' }}</template>
+      <template #description>维护系统参数名称、键值、类型与启停状态。</template>
+
+      <form class="config-form" @submit.prevent="saveConfig">
+        <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
+        <div class="config-form-grid">
+          <label class="config-field">
+            <span>参数键</span>
+            <input
+              v-model="form.configKey"
+              class="config-input"
+              :disabled="editing || loading || mutating"
+              placeholder="system.config.key"
+            >
+          </label>
+          <label class="config-field">
+            <span>参数名称</span>
+            <input
+              v-model="form.configName"
+              class="config-input"
+              :disabled="loading || mutating"
+              placeholder="系统参数名称"
+            >
+          </label>
+          <label class="config-field">
+            <span>值类型</span>
+            <select
+              v-model="form.valueType"
+              class="config-input"
+              :disabled="loading || mutating"
+            >
+              <option v-for="option in formValueTypes" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="config-check">
+            <input
+              v-model="form.enabled"
+              type="checkbox"
+              :disabled="loading || mutating"
+            >
+            <span>启用</span>
+          </label>
+          <label class="config-field config-field--full">
+            <span>参数值</span>
+            <textarea
+              v-model="form.configValue"
+              class="config-input config-textarea"
+              rows="3"
+              :disabled="loading || mutating"
+            />
+          </label>
+          <label class="config-field config-field--full">
+            <span>备注</span>
+            <input
+              v-model="form.remark"
+              class="config-input"
+              :disabled="loading || mutating"
+              placeholder="备注"
+            >
+          </label>
+        </div>
+        <div class="config-form-actions">
+          <t-button
+            theme="primary"
+            variant="outline"
+            size="small"
+            type="submit"
+            :disabled="loading || mutating"
+          >
+            {{ mutating ? '保存中' : editing ? '保存参数' : '新增参数' }}
+          </t-button>
+          <t-button
+            theme="default"
+            variant="outline"
+            size="small"
+            type="button"
+            :disabled="loading || mutating"
+            @click="resetForm"
+          >
+            清空
+          </t-button>
+        </div>
+      </form>
+    </AdminPanel>
+
+    <AdminPanel class="config-list-panel">
+      <template #title>参数列表</template>
+      <template #description>
+        {{ loaded ? `当前第 ${page} 页，共 ${formatNumber(total)} 条记录。` : '按条件检索系统参数。' }}
+      </template>
+
+      <AdminPageState
+        v-if="listState === 'loading'"
+        state="loading"
+        message="正在查询系统参数。"
+      />
+      <AdminPageState
+        v-else-if="listState === 'error'"
+        state="error"
+        :message="listError"
+      />
+      <AdminPageState
+        v-else-if="listState === 'empty'"
+        state="empty"
+        message="没有相关系统参数。"
+      />
+      <template v-else>
+        <AdminTableShell>
+          <table class="config-table">
+            <thead>
+              <tr>
+                <th>参数</th>
+                <th>值类型</th>
+                <th>参数值</th>
+                <th>状态</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in rows" :key="row.id">
+                <td>
+                  <div class="primary-cell">
+                    <strong>{{ row.configName }}</strong>
+                    <small>{{ row.configKey }}</small>
+                  </div>
+                </td>
+                <td>{{ valueTypeText(row.valueType) }}</td>
+                <td>
+                  <div class="config-value" :title="row.configValue">
+                    {{ displayText(row.configValue) }}
+                  </div>
+                </td>
+                <td>
+                  <AdminStatusTag :enabled="row.enabled" />
+                </td>
+                <td>{{ formatDate(row.updatedAt) }}</td>
+                <td class="row-actions">
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    size="small"
+                    :disabled="loading || mutating"
+                    @click="editConfig(row)"
+                  >
+                    编辑
+                  </t-button>
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    size="small"
+                    :disabled="loading || mutating"
+                    @click="toggleConfig(row)"
+                  >
+                    {{ row.enabled ? '停用' : '启用' }}
+                  </t-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AdminTableShell>
+
+        <div class="pagination-row">
+          <AdminPagination
+            :page="page"
+            :page-size="pageSize"
+            :total="total"
+            :loading="loading"
+            @previous="previousPage"
+            @next="nextPage"
+          />
+          <label class="page-size-field">
+            <span>每页</span>
+            <input
+              v-model.number="pageSize"
+              class="config-input config-input--page-size"
+              type="number"
+              min="1"
+              max="100"
+              :disabled="loading || mutating"
+              @keyup.enter="searchFirstPage"
+            >
+          </label>
+        </div>
+      </template>
+    </AdminPanel>
   </section>
 </template>
 
 <style scoped>
-.config-search {
-  align-items: center;
+.system-config-page {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .config-stats {
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+  min-width: 0;
 }
 
-.config-form-panel {
-  margin-bottom: 16px;
+.config-stat {
+  display: grid;
+  gap: 4px;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid #e3e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.config-stat strong {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.config-stat span {
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.config-form {
+  display: grid;
+  gap: 12px;
 }
 
 .config-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(92px, auto);
   gap: 12px;
+  min-width: 0;
 }
 
-.config-form-grid label {
+.config-field {
   display: grid;
   gap: 6px;
-  color: #475569;
-  font-size: 13px;
+  min-width: 0;
 }
 
-.enabled-field {
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  align-content: end;
+.config-field--keyword {
+  flex: 1 1 280px;
 }
 
-.value-field,
-.remark-field {
+.config-field--type,
+.config-field--status {
+  flex: 0 0 150px;
+}
+
+.config-field--full {
   grid-column: 1 / -1;
 }
 
-.config-value-input {
-  font-family: Consolas, "Microsoft YaHei", monospace;
-  line-height: 1.5;
+.config-field span,
+.config-check span,
+.page-size-field span {
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 20px;
 }
 
-.config-actions {
-  display: flex;
+.config-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d7deea;
+  border-radius: 6px;
+  color: #1f2937;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.config-input:disabled {
+  color: #98a2b3;
+  background: #f8fafc;
+}
+
+.config-input--page-size {
+  width: 92px;
+}
+
+.config-textarea {
+  min-height: 92px;
+  padding: 8px 10px;
+  resize: vertical;
+  font-family: Consolas, 'Microsoft YaHei', monospace;
+}
+
+.config-check {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  min-height: 34px;
+  padding-top: 24px;
 }
 
-.value-cell {
-  max-width: 420px;
-  white-space: normal;
+.config-form-actions,
+.pagination-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+
+.page-size-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.config-table {
+  min-width: 980px;
+}
+
+.primary-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.primary-cell strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.primary-cell small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.config-value {
+  display: -webkit-box;
+  max-width: 360px;
+  overflow: hidden;
+  color: #374151;
+  line-height: 20px;
   word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.action-cell {
+.row-actions {
   white-space: nowrap;
 }
 
-.empty-cell {
-  padding: 22px;
-  text-align: center;
-  color: #64748b;
+.row-actions :deep(.t-button) {
+  margin-right: 8px;
 }
 
-@media (max-width: 920px) {
+.row-actions :deep(.t-button:last-child) {
+  margin-right: 0;
+}
+
+.error-line {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+@media (max-width: 980px) {
   .config-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .config-check {
+    padding-top: 0;
+  }
+
+  .page-size-field {
+    margin-left: 0;
   }
 }
 </style>
