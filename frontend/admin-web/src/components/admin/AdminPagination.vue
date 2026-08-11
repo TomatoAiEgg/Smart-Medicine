@@ -50,7 +50,7 @@ function handleNext() {
 <template>
   <nav class="admin-pagination" aria-label="分页">
     <span class="admin-pagination__summary">
-      第 {{ page }} 页 / 共 {{ totalPages }} 页，{{ total }} 条
+      第 {{ page }} 页 / 共 {{ total }} 条
     </span>
     <div class="admin-pagination__actions">
       <t-button

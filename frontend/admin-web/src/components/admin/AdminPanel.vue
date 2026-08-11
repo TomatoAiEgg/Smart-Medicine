@@ -1,21 +1,25 @@
 <script setup lang="ts">
-defineProps<{
-  title?: string;
-  description?: string;
-}>();
-
 defineSlots<{
-  default?: () => unknown;
+  title?: () => unknown;
+  description?: () => unknown;
   actions?: () => unknown;
+  default?: () => unknown;
 }>();
 </script>
 
 <template>
   <section class="admin-panel">
-    <header v-if="title || description || $slots.actions" class="admin-panel__header">
+    <header
+      v-if="$slots.title || $slots.description || $slots.actions"
+      class="admin-panel__header"
+    >
       <div class="admin-panel__heading">
-        <h2 v-if="title">{{ title }}</h2>
-        <p v-if="description">{{ description }}</p>
+        <h2 v-if="$slots.title">
+          <slot name="title" />
+        </h2>
+        <p v-if="$slots.description">
+          <slot name="description" />
+        </p>
       </div>
       <div v-if="$slots.actions" class="admin-panel__actions">
         <slot name="actions" />
