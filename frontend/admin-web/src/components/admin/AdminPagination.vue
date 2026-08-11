@@ -24,15 +24,18 @@ const totalPages = computed(() => {
   return Math.ceil(props.total / props.pageSize);
 });
 
+const hasValidPagination = computed(
+  () => props.total > 0 && props.pageSize > 0 && totalPages.value > 0,
+);
+
 const previousDisabled = computed(
-  () => props.loading || props.total <= 0 || props.page <= 1,
+  () => props.loading || !hasValidPagination.value || props.page <= 1,
 );
 
 const nextDisabled = computed(
   () =>
     props.loading ||
-    props.total <= 0 ||
-    props.pageSize <= 0 ||
+    !hasValidPagination.value ||
     props.page >= totalPages.value,
 );
 

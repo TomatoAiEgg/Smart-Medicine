@@ -36,7 +36,6 @@ defineSlots<{
   line-height: 20px;
   text-align: left;
   vertical-align: middle;
-  white-space: nowrap;
 }
 
 .admin-table-shell :deep(th) {
