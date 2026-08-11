@@ -17,7 +17,12 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
 });
 
-defineEmits<Emits>();
+const emit = defineEmits<Emits>();
+
+const totalPages = computed(() => {
+  if (props.total <= 0 || props.pageSize <= 0) return 0;
+  return Math.ceil(props.total / props.pageSize);
+});
 
 const previousDisabled = computed(
   () => props.loading || props.total <= 0 || props.page <= 1,
@@ -28,20 +33,32 @@ const nextDisabled = computed(
     props.loading ||
     props.total <= 0 ||
     props.pageSize <= 0 ||
-    props.page * props.pageSize >= props.total,
+    props.page >= totalPages.value,
 );
+
+function handlePrevious() {
+  if (previousDisabled.value) return;
+  emit('previous');
+}
+
+function handleNext() {
+  if (nextDisabled.value) return;
+  emit('next');
+}
 </script>
 
 <template>
   <nav class="admin-pagination" aria-label="分页">
-    <span class="admin-pagination__summary">第 {{ page }} 页 / 共 {{ total }} 条</span>
+    <span class="admin-pagination__summary">
+      第 {{ page }} 页 / 共 {{ totalPages }} 页，{{ total }} 条
+    </span>
     <div class="admin-pagination__actions">
       <t-button
         theme="default"
         variant="outline"
         size="small"
         :disabled="previousDisabled"
-        @click="$emit('previous')"
+        @click="handlePrevious"
       >
         上一页
       </t-button>
@@ -50,7 +67,7 @@ const nextDisabled = computed(
         variant="outline"
         size="small"
         :disabled="nextDisabled"
-        @click="$emit('next')"
+        @click="handleNext"
       >
         下一页
       </t-button>
@@ -61,6 +78,7 @@ const nextDisabled = computed(
 <style scoped>
 .admin-pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;

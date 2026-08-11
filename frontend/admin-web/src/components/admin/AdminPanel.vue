@@ -3,6 +3,11 @@ defineProps<{
   title?: string;
   description?: string;
 }>();
+
+defineSlots<{
+  default?: () => unknown;
+  actions?: () => unknown;
+}>();
 </script>
 
 <template>
@@ -31,11 +36,12 @@ defineProps<{
 
 .admin-panel__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
   min-width: 0;
-  padding: 0 0 10px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--admin-line, #e3e8f0);
 }
 
@@ -57,7 +63,7 @@ defineProps<{
 }
 
 .admin-panel__heading p {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--admin-muted, #667085);
   font-size: 13px;
   line-height: 20px;
@@ -65,11 +71,12 @@ defineProps<{
 
 .admin-panel__actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 .admin-panel__content {
@@ -80,7 +87,6 @@ defineProps<{
   .admin-panel__header {
     align-items: stretch;
     flex-direction: column;
-    gap: 10px;
   }
 
   .admin-panel__actions {

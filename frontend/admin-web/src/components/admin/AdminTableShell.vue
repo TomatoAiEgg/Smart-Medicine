@@ -1,3 +1,9 @@
+<script setup lang="ts">
+defineSlots<{
+  default?: () => unknown;
+}>();
+</script>
+
 <template>
   <div class="admin-table-shell">
     <slot />
@@ -10,12 +16,13 @@
   overflow-x: auto;
   border: 1px solid var(--admin-line, #e3e8f0);
   border-radius: 6px;
-  background: var(--admin-surface, #ffffff);
+  background: #ffffff;
   -webkit-overflow-scrolling: touch;
 }
 
 .admin-table-shell :deep(table) {
   width: 100%;
+  min-width: 100%;
   margin: 0;
   border: 0;
   border-collapse: collapse;
@@ -29,11 +36,12 @@
   line-height: 20px;
   text-align: left;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .admin-table-shell :deep(th) {
   color: var(--admin-muted, #667085);
-  background: #f7f7f8;
+  background: #fafafa;
   font-weight: 650;
 }
 

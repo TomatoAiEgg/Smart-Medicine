@@ -6,11 +6,12 @@ const props = defineProps<{
 }>();
 
 const theme = computed(() => (props.enabled ? 'success' : 'default'));
+const label = computed(() => (props.enabled ? '启用' : '停用'));
 </script>
 
 <template>
-  <t-tag class="admin-status-tag" :theme variant="light" size="small">
-    {{ enabled ? '启用' : '停用' }}
+  <t-tag class="admin-status-tag" :theme="theme" variant="light" size="small">
+    {{ label }}
   </t-tag>
 </template>
 
