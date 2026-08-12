@@ -495,7 +495,9 @@ defineExpose({
             <strong>{{ record.retryCount }}</strong>
             <small>{{ formatDate(record.nextRetryAt) }}</small>
           </td>
-          <td class="legacy-left exception-message">{{ displayValue(record.responseBody || record.requestUrl) }}</td>
+          <td class="legacy-left exception-message">
+            {{ record.responseBody ? '回调失败，响应内容已隐藏' : '回调请求未成功' }}
+          </td>
           <td>
             <strong>{{ displayValue(record.latestTraceStatus) }}</strong>
             <small>{{ displayValue(record.latestTraceContent) }}</small>
@@ -540,7 +542,7 @@ defineExpose({
             <strong>{{ record.retryCount }}</strong>
             <small>{{ formatDate(record.nextRetryAt) }}</small>
           </td>
-          <td class="legacy-left exception-message">{{ displayValue(record.responseBody || record.failureReason || record.requestUrl) }}</td>
+          <td class="legacy-left exception-message">{{ displayValue(record.failureReason) }}</td>
           <td>
             <StatusPill :value="record.processStatus" :tone="statusTone(record.processStatus)" />
             <small>{{ record.messageType }}</small>

@@ -43,11 +43,6 @@ interface AppForm {
   enabled: boolean;
 }
 
-interface AppStat {
-  label: string;
-  value: string;
-}
-
 const props = defineProps<{
   active: boolean;
   activationKey: number;
@@ -69,6 +64,7 @@ const institutionOptionsLoaded = ref(false);
 const loading = ref(false);
 const loadingInstitutions = ref(false);
 const saving = ref(false);
+const editorOpen = ref(false);
 const loaded = ref(false);
 const listError = ref('');
 const actionError = ref('');
@@ -87,8 +83,6 @@ const form = ref<AppForm>({
 
 const rows = computed(() => appPage.value?.records ?? []);
 const total = computed(() => appPage.value?.total ?? 0);
-const enabledCount = computed(() => rows.value.filter((row) => row.enabled).length);
-const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).length);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
@@ -105,12 +99,6 @@ const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
   return null;
 });
-const stats = computed<AppStat[]>(() => [
-  { label: '应用总数', value: formatNumber(total.value) },
-  { label: '本页启用', value: formatNumber(enabledCount.value) },
-  { label: '本页停用', value: formatNumber(disabledCount.value) },
-]);
-
 function secretLabel(row: AdminInstitutionAppRecord) {
   return row.appSecretConfigured ? '已配置' : '未配置';
 }
@@ -240,6 +228,16 @@ function resetForm() {
   };
 }
 
+function openCreateForm() {
+  resetForm();
+  editorOpen.value = true;
+}
+
+function closeEditor() {
+  resetForm();
+  editorOpen.value = false;
+}
+
 function editApp(row: AdminInstitutionAppRecord) {
   actionError.value = '';
   form.value = {
@@ -251,6 +249,7 @@ function editApp(row: AdminInstitutionAppRecord) {
     callbackUrl: row.callbackUrl ?? '',
     enabled: row.enabled,
   };
+  editorOpen.value = true;
 }
 
 async function saveApp() {
@@ -273,7 +272,7 @@ async function saveApp() {
       await createAdminInstitutionApp(commandFromForm());
       emit('notice', 'success', `应用 ${form.value.appKey} 已新增`);
     }
-    resetForm();
+    closeEditor();
     await refreshInstitutionApps();
   } catch (error) {
     actionError.value = errorMessage(error);
@@ -371,6 +370,9 @@ defineExpose({
         </select>
       </label>
       <template #actions>
+        <t-button theme="primary" size="small" :disabled="loading" @click="openCreateForm">
+          新增应用
+        </t-button>
         <t-button
           theme="primary"
           variant="outline"
@@ -391,95 +393,6 @@ defineExpose({
         </t-button>
       </template>
     </AdminToolbar>
-
-    <div class="app-stats" aria-label="应用统计">
-      <article v-for="stat in stats" :key="stat.label" class="app-stat">
-        <strong>{{ stat.value }}</strong>
-        <span>{{ stat.label }}</span>
-      </article>
-    </div>
-
-    <AdminPanel class="app-edit-panel">
-      <template #title>{{ editing ? '编辑应用' : '新增应用' }}</template>
-      <template #description>维护机构应用标识、签名方式、回调地址与启用状态。</template>
-      <template #actions>
-        <t-button
-          theme="primary"
-          variant="outline"
-          size="small"
-          :disabled="saving"
-          @click="saveApp"
-        >
-          {{ saveButtonLabel }}
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="saving"
-          @click="resetForm"
-        >
-          清空
-        </t-button>
-      </template>
-
-      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
-
-      <div class="app-form-grid">
-        <label class="app-field">
-          <span>机构</span>
-          <select
-            v-model="form.institutionId"
-            class="app-input"
-            :disabled="editing || loadingInstitutions"
-          >
-            <option value="">{{ loadingInstitutions ? '加载机构中' : '请选择机构' }}</option>
-            <option v-for="row in institutionOptions" :key="row.id" :value="row.id">
-              {{ optionText(row) }}
-            </option>
-          </select>
-        </label>
-        <label class="app-field">
-          <span>AppKey</span>
-          <input
-            v-model="form.appKey"
-            class="app-input"
-            :disabled="editing"
-            placeholder="his-demo-app"
-          >
-        </label>
-        <label class="app-field">
-          <span>AppSecret</span>
-          <input
-            v-model="form.appSecret"
-            class="app-input"
-            type="password"
-            :placeholder="editing ? '留空不修改' : '请输入密钥'"
-          >
-        </label>
-        <label class="app-field">
-          <span>签名类型</span>
-          <select v-model="form.signType" class="app-input">
-            <option value="HMAC_SHA256">HMAC_SHA256</option>
-          </select>
-        </label>
-        <label class="app-field app-field--callback">
-          <span>回调地址</span>
-          <input
-            v-model="form.callbackUrl"
-            class="app-input"
-            placeholder="https://example.com/callback"
-          >
-        </label>
-        <label class="app-field">
-          <span>状态</span>
-          <select v-model="form.enabled" class="app-input">
-            <option :value="true">启用</option>
-            <option :value="false">停用</option>
-          </select>
-        </label>
-      </div>
-    </AdminPanel>
 
     <AdminPanel class="app-list-panel">
       <template #title>应用列表</template>
@@ -570,6 +483,62 @@ defineExpose({
         />
       </template>
     </AdminPanel>
+
+    <div v-if="editorOpen" class="app-editor-layer">
+      <button class="app-editor-backdrop" type="button" aria-label="关闭应用编辑" @click="closeEditor" />
+      <AdminPanel class="app-edit-panel" role="dialog" aria-modal="true" :aria-label="editing ? '编辑应用' : '新增应用'">
+        <template #title>{{ editing ? '编辑应用' : '新增应用' }}</template>
+        <template #description>维护机构应用标识、签名方式、回调地址与启用状态。</template>
+        <template #actions>
+          <t-button theme="default" variant="outline" size="small" :disabled="saving" @click="closeEditor">
+            取消
+          </t-button>
+          <t-button theme="primary" size="small" :loading="saving" @click="saveApp">
+            {{ saveButtonLabel }}
+          </t-button>
+        </template>
+
+        <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
+
+        <div class="app-form-grid">
+          <label class="app-field">
+            <span>机构</span>
+            <select v-model="form.institutionId" class="app-input" :disabled="editing || loadingInstitutions">
+              <option value="">{{ loadingInstitutions ? '加载机构中' : '请选择机构' }}</option>
+              <option v-for="row in institutionOptions" :key="row.id" :value="row.id">
+                {{ optionText(row) }}
+              </option>
+            </select>
+          </label>
+          <label class="app-field">
+            <span>AppKey</span>
+            <input v-model="form.appKey" class="app-input" :disabled="editing" placeholder="请输入应用标识">
+          </label>
+          <label class="app-field">
+            <span>AppSecret</span>
+            <input v-model="form.appSecret" class="app-input" type="password" :placeholder="editing ? '留空不修改' : '请输入密钥'">
+            <small>{{ editing ? '填写新密钥将重置当前密钥。' : '密钥保存后不再显示明文。' }}</small>
+          </label>
+          <label class="app-field">
+            <span>签名类型</span>
+            <select v-model="form.signType" class="app-input">
+              <option value="HMAC_SHA256">HMAC_SHA256</option>
+            </select>
+          </label>
+          <label class="app-field">
+            <span>回调地址</span>
+            <input v-model="form.callbackUrl" class="app-input" placeholder="https://example.com/callback">
+          </label>
+          <label class="app-field">
+            <span>状态</span>
+            <select v-model="form.enabled" class="app-input">
+              <option :value="true">启用</option>
+              <option :value="false">停用</option>
+            </select>
+          </label>
+        </div>
+      </AdminPanel>
+    </div>
   </section>
 </template>
 
@@ -581,32 +550,6 @@ defineExpose({
   overflow-x: hidden;
 }
 
-.app-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 12px;
-  min-width: 0;
-}
-
-.app-stat {
-  display: grid;
-  gap: 4px;
-  min-height: 88px;
-  padding: 14px;
-  border: 1px solid #e3e8f0;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.app-stat strong {
-  color: #111827;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.app-stat span,
 .app-list-note {
   color: #667085;
   font-size: 12px;
@@ -615,7 +558,7 @@ defineExpose({
 
 .app-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
   min-width: 0;
 }
@@ -644,10 +587,6 @@ defineExpose({
   flex: 0 0 150px;
 }
 
-.app-field--callback {
-  grid-column: span 2;
-}
-
 .app-input {
   width: 100%;
   min-height: 34px;
@@ -663,6 +602,39 @@ defineExpose({
 .app-input:disabled {
   color: #98a2b3;
   background: #f8fafc;
+}
+
+.app-field small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.app-editor-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+
+.app-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.app-edit-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(520px, 100vw);
+  height: 100%;
+  align-content: start;
+  padding: 20px;
+  overflow-y: auto;
+  background: #ffffff;
+  box-shadow: -10px 0 28px rgba(15, 23, 42, 0.12);
 }
 
 .app-table {

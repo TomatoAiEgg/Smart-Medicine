@@ -24,6 +24,21 @@ export function displayValue(value: string | number | boolean | null | undefined
   return String(value);
 }
 
+export function maskPhone(value: string | null | undefined) {
+  if (!value) return EMPTY_VALUE;
+  const normalized = value.trim();
+  if (/^1\d{10}$/.test(normalized)) return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+  if (normalized.length >= 7) return `${normalized.slice(0, 3)}****${normalized.slice(-2)}`;
+  return normalized;
+}
+
+export function maskPersonName(value: string | null | undefined) {
+  if (!value) return EMPTY_VALUE;
+  const normalized = value.trim();
+  if (normalized.length <= 1) return normalized;
+  return `${normalized.slice(0, 1)}${'*'.repeat(Math.min(2, normalized.length - 1))}`;
+}
+
 export function labelFromMap(
   value: string | number | null | undefined,
   labels: Record<string, string>,

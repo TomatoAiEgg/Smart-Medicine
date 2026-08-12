@@ -5,7 +5,7 @@ import { listShipments } from '../../api/logistics';
 import type { ShipmentRecord } from '../../api/types';
 import StatusPill from '../../components/StatusPill.vue';
 import { downloadCsv } from '../../domain/csv';
-import { amountValue, boundedPositiveInteger, pageSummaryText, displayValue, currentIsoTimestamp, formatDate, formatNumber, labelFromMap, sumNumbers } from '../../domain/formatters';
+import { amountValue, boundedPositiveInteger, pageSummaryText, displayValue, currentIsoTimestamp, formatDate, formatNumber, labelFromMap, maskPersonName, maskPhone, sumNumbers } from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -181,9 +181,9 @@ function renderPrintRows() {
       <td>${escapeHtml(record.orderNo)}</td>
       <td>${escapeHtml(record.externalOrderNo)}</td>
       <td>${escapeHtml(record.institutionName)}</td>
-      <td>${escapeHtml(record.patientName)}</td>
-      <td>${escapeHtml(record.receiverName)}</td>
-      <td>${escapeHtml(record.receiverPhone)}</td>
+      <td>${escapeHtml(maskPersonName(record.patientName))}</td>
+      <td>${escapeHtml(maskPersonName(record.receiverName))}</td>
+      <td>${escapeHtml(maskPhone(record.receiverPhone))}</td>
       <td>${escapeHtml(record.receiverAddress)}</td>
       <td>${escapeHtml(record.logisticsCompany)}</td>
       <td>${escapeHtml(record.logisticsNo)}</td>
@@ -288,7 +288,7 @@ function renderWaybillHtml(record: ShipmentRecord, reprint: boolean) {
     <section class="block">
       <div class="block-title">收件信息</div>
       <div class="block-body">
-        <div class="receiver">${escapeHtml(record.receiverName)} / ${escapeHtml(record.receiverPhone)}</div>
+        <div class="receiver">${escapeHtml(maskPersonName(record.receiverName))} / ${escapeHtml(maskPhone(record.receiverPhone))}</div>
         <div>${escapeHtml(record.receiverAddress)}</div>
       </div>
     </section>
@@ -297,7 +297,7 @@ function renderWaybillHtml(record: ShipmentRecord, reprint: boolean) {
       <div class="block-body">
         <div>平台订单号：${escapeHtml(record.orderNo)}</div>
         <div>外部订单号：${escapeHtml(record.externalOrderNo)}</div>
-        <div>机构/患者：${escapeHtml(record.institutionName)} / ${escapeHtml(record.patientName)}</div>
+        <div>机构/患者：${escapeHtml(record.institutionName)} / ${escapeHtml(maskPersonName(record.patientName))}</div>
       </div>
     </section>
     <section class="grid">
@@ -472,10 +472,10 @@ defineExpose({
           <td>{{ record.externalOrderNo }}</td>
           <td>
             <strong>{{ displayValue(record.institutionName) }}</strong>
-            <small>{{ displayValue(record.patientName) }}</small>
+            <small>{{ maskPersonName(record.patientName) }}</small>
           </td>
           <td class="legacy-left">
-            <strong>{{ displayValue(record.receiverName) }} / {{ displayValue(record.receiverPhone) }}</strong>
+            <strong>{{ maskPersonName(record.receiverName) }} / {{ maskPhone(record.receiverPhone) }}</strong>
             <small>{{ displayValue(record.receiverAddress) }}</small>
           </td>
           <td>{{ deliveryTypeText(record.addressType) }}</td>

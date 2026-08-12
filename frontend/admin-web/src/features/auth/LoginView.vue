@@ -44,14 +44,14 @@ async function submit() {
       <div class="admin-login-brand">
         <span class="admin-login-brand-mark">YF</span>
         <div>
-          <strong>智能药房 SaaS 平台</strong>
+          <strong>智能药房 SaaS</strong>
           <small>处方履约 · 煎煮作业 · 物流回调</small>
         </div>
       </div>
 
       <div class="admin-login-visual-copy">
         <p>开发测试环境</p>
-        <h1>面向药房履约链路的运营控制台</h1>
+        <h1>药房履约运营控制台</h1>
         <span>订单、审方、调剂、复核、煎煮、物流和补偿任务统一在后台闭环。</span>
       </div>
 
@@ -119,10 +119,7 @@ async function submit() {
   min-height: 100vh;
   padding: 48px clamp(32px, 7vw, 96px);
   color: var(--admin-text);
-  background:
-    linear-gradient(135deg, rgba(20, 39, 61, 0.96), rgba(31, 53, 79, 0.92)),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 82px),
-    #1b3142;
+  background: #17263a;
 }
 
 .admin-login-brand {
@@ -187,7 +184,7 @@ async function submit() {
   margin-top: 12px;
   max-width: 680px;
   color: #ffffff;
-  font-size: clamp(36px, 5vw, 58px);
+  font-size: 36px;
   font-weight: 760;
   line-height: 1.12;
   letter-spacing: 0;
@@ -240,7 +237,7 @@ async function submit() {
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 8px;
   background: var(--admin-surface);
-  box-shadow: 0 24px 70px rgba(8, 20, 36, 0.28);
+  box-shadow: 0 12px 32px rgba(8, 20, 36, 0.22);
 }
 
 .admin-login-heading p,

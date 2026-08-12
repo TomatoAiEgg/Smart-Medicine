@@ -17,6 +17,8 @@ import {
   formatDate,
   joinDisplayParts,
   labelFromMap,
+  maskPersonName,
+  maskPhone,
   splitCommaValues,
 } from '../../domain/formatters';
 import { errorMessage } from '../../domain/errors';
@@ -151,13 +153,20 @@ function commaText(value: string | null | undefined, mapper?: (item: string) => 
 
 function receiverAddress(row: AdminOrderReviewItem) {
   return joinDisplayParts(
-    [row.receiverProvince, row.receiverCity, row.receiverZone, row.receiverAddress, row.receiverName, row.receiverPhone],
+    [
+      row.receiverProvince,
+      row.receiverCity,
+      row.receiverZone,
+      row.receiverAddress,
+      maskPersonName(row.receiverName),
+      maskPhone(row.receiverPhone),
+    ],
     ' ',
   );
 }
 
 function patientInfo(row: AdminOrderReviewItem) {
-  return joinDisplayParts([row.patientName, row.patientPhone], ' / ');
+  return joinDisplayParts([maskPersonName(row.patientName), maskPhone(row.patientPhone)], ' / ');
 }
 
 function queryParams(): AdminOrderReviewQueryParams {
