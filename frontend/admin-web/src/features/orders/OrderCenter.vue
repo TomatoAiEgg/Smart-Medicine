@@ -118,6 +118,11 @@ interface SignForm {
   remark: string;
 }
 type FormNumberValue = number | '' | null;
+type OrderMutationAction = 'flow' | 'address' | 'prescription' | 'cancel' | 'initialize' | 'sign';
+interface OrderQueryOptions {
+  showSuccess?: boolean;
+  resetDetail?: boolean;
+}
 type AdminOrderListPaymentFields = AdminOrderListItem & {
   payMethod?: string | null;
   payStatus?: string | null;
@@ -175,6 +180,7 @@ const signModalOpen = ref(false);
 const signSubmitting = ref(false);
 const signError = ref('');
 const flowSubmitting = ref(false);
+const activeMutation = ref<OrderMutationAction | null>(null);
 let orderRequestSequence = 0;
 let detailRequestSequence = 0;
 const addressForm = ref<AddressForm>({
@@ -273,25 +279,28 @@ const hasPreviousPage = computed(() => page.value > 1 && !orderLoading.value);
 const hasNextPage = computed(() => (
   !orderLoading.value && page.value * pageSize.value < resultCount.value
 ));
-const canEditAddress = computed(() => !!orderDetail.value && !detailLoading.value && !addressSubmitting.value);
+const mutationBusy = computed(() => activeMutation.value !== null);
+const canEditAddress = computed(() => (
+  !!orderDetail.value && !detailLoading.value && !mutationBusy.value
+));
 const canCancelOrder = computed(() => (
   !!orderDetail.value
   && !detailLoading.value
-  && !cancelSubmitting.value
+  && !mutationBusy.value
   && CANCELLABLE_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
 const canEditPrescription = computed(() => (
   !!orderDetail.value
   && editableDetailPrescriptions.value.length > 0
   && !detailLoading.value
-  && !prescriptionSubmitting.value
+  && !mutationBusy.value
   && EDITABLE_PRESCRIPTION_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
 const canInitializeOrder = computed(() => (
   !!orderDetail.value
   && orderDetail.value.orderStatus !== 'CREATED'
   && !detailLoading.value
-  && !initializeSubmitting.value
+  && !mutationBusy.value
 ));
 const signableShipment = computed<ShipmentProgress | null>(() => (
   shipments.value.find((shipment) => SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) ?? null
@@ -300,7 +309,7 @@ const canSignOrder = computed(() => (
   !!orderDetail.value
   && !!signableShipment.value
   && !detailLoading.value
-  && !signSubmitting.value
+  && !mutationBusy.value
 ));
 const hasAdvanceFlowAction = computed(() => (
   workflowTasks.value.some((task) => ADVANCE_FLOW_TASK_TYPES.has(task.taskType) && task.taskStatus === 'PENDING')
@@ -312,7 +321,7 @@ const canAdvanceFlow = computed(() => (
   && hasAdvanceFlowAction.value
   && !orderLoading.value
   && !detailLoading.value
-  && !flowSubmitting.value
+  && !mutationBusy.value
 ));
 const pageSummary = computed(() => {
   const total = resultCount.value;
@@ -572,42 +581,80 @@ function mesCommand(action: string): MesTaskOperationCommand {
   };
 }
 
-async function refreshSelectedOrder(targetOrderNo: string) {
-  const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
-  if (!refreshed) reportPostMutationRefreshFailure();
-  return refreshed;
+function beginMutation(action: OrderMutationAction) {
+  if (activeMutation.value) return false;
+  activeMutation.value = action;
+  return true;
 }
 
-async function refreshAfterSuccessfulMutation(targetOrderNo: string) {
-  const [detailResult, listResult] = await Promise.allSettled([
-    Promise.all([
-      getOrder(targetOrderNo),
-      getAdminOrderDetail(targetOrderNo),
-      getOrderProgress(targetOrderNo),
-    ]),
-    queryOrder(false),
-  ]);
-  if (detailResult.status === 'fulfilled') {
-    const [nextOrder, nextDetail, nextProgress] = detailResult.value;
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = targetOrderNo;
-  }
-  return detailResult.status === 'fulfilled'
-    && listResult.status === 'fulfilled'
-    && listResult.value;
+function endMutation(action: OrderMutationAction) {
+  if (activeMutation.value === action) activeMutation.value = null;
 }
 
-function reportPostMutationRefreshFailure() {
+function invalidateDetailSelection() {
+  detailRequestSequence += 1;
+  pendingDetailOrderNo.value = '';
+  detailLoading.value = false;
   order.value = null;
   orderDetail.value = null;
   orderProgress.value = null;
   selectedOrderNo.value = '';
+}
+
+async function fetchOrderDetailSnapshot(targetOrderNo: string) {
+  return Promise.all([
+    getOrder(targetOrderNo),
+    getAdminOrderDetail(targetOrderNo),
+    getOrderProgress(targetOrderNo),
+  ]);
+}
+
+function isCurrentDetailContext(targetOrderNo: string, generation: number) {
+  return generation === detailRequestSequence && selectedOrderNo.value === targetOrderNo;
+}
+
+function applyOrderDetailSnapshot(
+  targetOrderNo: string,
+  generation: number,
+  snapshot: Awaited<ReturnType<typeof fetchOrderDetailSnapshot>>,
+  requireSelected: boolean,
+) {
+  if (generation !== detailRequestSequence) return false;
+  if (requireSelected && selectedOrderNo.value !== targetOrderNo) return false;
+  const [nextOrder, nextDetail, nextProgress] = snapshot;
+  order.value = nextOrder;
+  orderDetail.value = nextDetail;
+  orderProgress.value = nextProgress;
+  selectedOrderNo.value = targetOrderNo;
+  return true;
+}
+
+async function refreshSelectedOrder(targetOrderNo: string, generation: number) {
+  const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
+  if (!refreshed) reportPostMutationRefreshFailure(targetOrderNo, generation);
+  return refreshed;
+}
+
+async function refreshAfterSuccessfulMutation(targetOrderNo: string, generation: number) {
+  const [detailResult, listResult] = await Promise.allSettled([
+    fetchOrderDetailSnapshot(targetOrderNo),
+    queryOrder({ showSuccess: false, resetDetail: false }),
+  ]);
+  const detailStillCurrent = isCurrentDetailContext(targetOrderNo, generation);
+  if (detailStillCurrent && detailResult.status === 'fulfilled') {
+    applyOrderDetailSnapshot(targetOrderNo, generation, detailResult.value, true);
+  }
+  return (!detailStillCurrent || detailResult.status === 'fulfilled')
+    && listResult.status === 'fulfilled'
+    && listResult.value;
+}
+
+function reportPostMutationRefreshFailure(targetOrderNo: string, generation: number) {
+  if (isCurrentDetailContext(targetOrderNo, generation)) invalidateDetailSelection();
   orderError.value = '操作已成功，但数据刷新失败，请重新查询';
 }
 
-async function bindNextDecoctionTask(targetOrderNo: string) {
+async function bindNextDecoctionTask(targetOrderNo: string, generation: number) {
   const prescriptionNo = firstActivePrescriptionNo();
   if (!prescriptionNo) {
     throw new Error('当前订单没有可绑定煎药任务的处方');
@@ -627,27 +674,27 @@ async function bindNextDecoctionTask(targetOrderNo: string) {
     sign: 'order-center-flow',
   };
   await bindPrescription(command);
-  if (!await refreshSelectedOrder(targetOrderNo)) return;
+  if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
   emit('notice', 'success', `订单 ${targetOrderNo} 已绑定煎药任务`);
 }
 
-async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgress) {
+async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgress, generation: number) {
   if (task.taskStatus === 'BOUND') {
     await startMesTask(task.taskNo, mesCommand('start'));
-    if (!await refreshSelectedOrder(targetOrderNo)) return;
+    if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已开始煎药`);
     return;
   }
   if (task.taskStatus === 'DECOCTING') {
     await finishMesTask(task.taskNo, mesCommand('finish'));
-    if (!await refreshSelectedOrder(targetOrderNo)) return;
+    if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已完成煎药`);
     return;
   }
   throw new Error('当前煎药任务状态不支持走流程');
 }
 
-async function advanceShipmentFlow(targetOrderNo: string) {
+async function advanceShipmentFlow(targetOrderNo: string, generation: number) {
   const shipment = latestShipment();
   if (!shipment) {
     const command: PackShipmentCommand = {
@@ -656,7 +703,7 @@ async function advanceShipmentFlow(targetOrderNo: string) {
       operator: 'admin',
     };
     await packShipment(command);
-    if (!await refreshSelectedOrder(targetOrderNo)) return;
+    if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已打包`);
     return;
   }
@@ -666,13 +713,13 @@ async function advanceShipmentFlow(targetOrderNo: string) {
   };
   if (shipment.logisticsStatus === 'PACKED') {
     await shipShipment(shipment.shipmentId, command);
-    if (!await refreshSelectedOrder(targetOrderNo)) return;
+    if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已发货`);
     return;
   }
   if (SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) {
     await signShipment(shipment.shipmentId, command);
-    if (!await refreshSelectedOrder(targetOrderNo)) return;
+    if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
     return;
   }
@@ -680,47 +727,50 @@ async function advanceShipmentFlow(targetOrderNo: string) {
 }
 
 async function advanceOrderFlow() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value || !orderProgress.value) {
     orderError.value = '请先查看一条订单详情后再走流程';
     return;
   }
   const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
   const orderStatus = orderProgress.value.orderStatus;
+  if (!beginMutation('flow')) return;
   flowSubmitting.value = true;
   orderError.value = '';
   try {
     const reviewTask = pendingWorkflowTask('ORDER_REVIEW') as WorkflowProgress | null;
     if (reviewTask) {
       await approveReviewTask(reviewTask.taskId, reviewCommand('审方通过'));
-      if (!await refreshSelectedOrder(targetOrderNo)) return;
+      if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已审方通过`);
       return;
     }
     const dispenseTask = pendingWorkflowTask('PRESCRIPTION_DISPENSE') as WorkflowProgress | null;
     if (dispenseTask) {
       await completeDispenseTask(dispenseTask.taskId, reviewCommand('完成调剂'));
-      if (!await refreshSelectedOrder(targetOrderNo)) return;
+      if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已完成调剂`);
       return;
     }
     const recheckTask = pendingWorkflowTask('PRESCRIPTION_RECHECK') as WorkflowProgress | null;
     if (recheckTask) {
       await completeRecheckTask(recheckTask.taskId, reviewCommand('完成复核'));
-      if (!await refreshSelectedOrder(targetOrderNo)) return;
+      if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已完成复核`);
       return;
     }
     if (orderStatus === 'RECHECKED' || orderStatus === 'DECOCTING') {
       const task = latestDecoctionTask();
       if (task) {
-        await advanceDecoctionTask(targetOrderNo, task);
+        await advanceDecoctionTask(targetOrderNo, task, generation);
       } else {
-        await bindNextDecoctionTask(targetOrderNo);
+        await bindNextDecoctionTask(targetOrderNo, generation);
       }
       return;
     }
     if (['DECOCTED', 'PACKED', 'SHIPPED', 'IN_TRANSIT'].includes(orderStatus)) {
-      await advanceShipmentFlow(targetOrderNo);
+      await advanceShipmentFlow(targetOrderNo, generation);
       return;
     }
     orderError.value = '当前订单没有可自动推进的下一步';
@@ -728,10 +778,12 @@ async function advanceOrderFlow() {
     orderError.value = errorMessage(error);
   } finally {
     flowSubmitting.value = false;
+    endMutation('flow');
   }
 }
 
 function openAddressModal() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再修改地址';
     return;
@@ -759,6 +811,7 @@ function closeAddressModal() {
 }
 
 async function submitAddressUpdate() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     addressError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -779,10 +832,12 @@ async function submitAddressUpdate() {
     addressError.value = '收货人、收货电话和详细地址不能为空';
     return;
   }
+  const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
+  if (!beginMutation('address')) return;
   addressSubmitting.value = true;
   addressError.value = '';
   try {
-    const targetOrderNo = orderDetail.value.orderNo;
     try {
       await updateAdminOrderAddress(targetOrderNo, command);
     } catch (error) {
@@ -790,14 +845,15 @@ async function submitAddressUpdate() {
       return;
     }
     addressModalOpen.value = false;
-    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
     if (!refreshed) {
-      reportPostMutationRefreshFailure();
+      reportPostMutationRefreshFailure(targetOrderNo, generation);
       return;
     }
     emit('notice', 'success', `订单 ${targetOrderNo} 地址已更新`);
   } finally {
     addressSubmitting.value = false;
+    endMutation('address');
   }
 }
 
@@ -825,6 +881,7 @@ function selectedPrescription() {
 }
 
 function openPrescriptionModal() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再修改处方';
     return;
@@ -858,6 +915,7 @@ function changePrescriptionForm() {
 }
 
 async function submitPrescriptionUpdate() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     prescriptionError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -892,10 +950,12 @@ async function submitPrescriptionUpdate() {
     prescriptionError.value = '代煎处方的几煎必须大于 0';
     return;
   }
+  const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
+  if (!beginMutation('prescription')) return;
   prescriptionSubmitting.value = true;
   prescriptionError.value = '';
   try {
-    const targetOrderNo = orderDetail.value.orderNo;
     try {
       await updateAdminPrescription(targetOrderNo, targetPrescription.prescriptionId, command);
     } catch (error) {
@@ -903,18 +963,20 @@ async function submitPrescriptionUpdate() {
       return;
     }
     prescriptionModalOpen.value = false;
-    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
     if (!refreshed) {
-      reportPostMutationRefreshFailure();
+      reportPostMutationRefreshFailure(targetOrderNo, generation);
       return;
     }
     emit('notice', 'success', `处方 ${targetPrescription.prescriptionNo} 已更新`);
   } finally {
     prescriptionSubmitting.value = false;
+    endMutation('prescription');
   }
 }
 
 function openCancelModal() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再取消订单';
     return;
@@ -934,6 +996,7 @@ function closeCancelModal() {
 }
 
 async function submitCancelOrder() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     cancelError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -946,10 +1009,12 @@ async function submitCancelOrder() {
     cancelError.value = '取消原因不能为空';
     return;
   }
+  const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
+  if (!beginMutation('cancel')) return;
   cancelSubmitting.value = true;
   cancelError.value = '';
   try {
-    const targetOrderNo = orderDetail.value.orderNo;
     try {
       await cancelAdminOrder(targetOrderNo, command);
     } catch (error) {
@@ -957,18 +1022,20 @@ async function submitCancelOrder() {
       return;
     }
     cancelModalOpen.value = false;
-    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
     if (!refreshed) {
-      reportPostMutationRefreshFailure();
+      reportPostMutationRefreshFailure(targetOrderNo, generation);
       return;
     }
     emit('notice', 'success', `订单 ${targetOrderNo} 已取消`);
   } finally {
     cancelSubmitting.value = false;
+    endMutation('cancel');
   }
 }
 
 function openInitializeModal() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再初始化';
     return;
@@ -988,6 +1055,7 @@ function closeInitializeModal() {
 }
 
 async function submitInitializeOrder() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     initializeError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -1000,10 +1068,12 @@ async function submitInitializeOrder() {
     initializeError.value = '初始化原因不能为空';
     return;
   }
+  const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
+  if (!beginMutation('initialize')) return;
   initializeSubmitting.value = true;
   initializeError.value = '';
   try {
-    const targetOrderNo = orderDetail.value.orderNo;
     let result: Awaited<ReturnType<typeof initializeAdminOrder>>;
     try {
       result = await initializeAdminOrder(targetOrderNo, command);
@@ -1012,9 +1082,9 @@ async function submitInitializeOrder() {
       return;
     }
     initializeModalOpen.value = false;
-    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
     if (!refreshed) {
-      reportPostMutationRefreshFailure();
+      reportPostMutationRefreshFailure(targetOrderNo, generation);
       return;
     }
     emit(
@@ -1024,10 +1094,12 @@ async function submitInitializeOrder() {
     );
   } finally {
     initializeSubmitting.value = false;
+    endMutation('initialize');
   }
 }
 
 function openSignModal() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再签收';
     return;
@@ -1051,16 +1123,19 @@ function closeSignModal() {
 }
 
 async function submitSignOrder() {
+  if (mutationBusy.value) return;
   if (!orderDetail.value || !signableShipment.value) {
     signError.value = '订单详情或可签收物流单已失效，请关闭弹窗后重新查看';
     return;
   }
   const targetOrderNo = orderDetail.value.orderNo;
+  const generation = detailRequestSequence;
   const targetShipment = signableShipment.value;
   const command: ShipmentActionCommand = {
     operator: signForm.value.operator.trim() || 'admin',
     remark: signForm.value.remark.trim() || '订单中心手动签收',
   };
+  if (!beginMutation('sign')) return;
   signSubmitting.value = true;
   signError.value = '';
   try {
@@ -1071,22 +1146,22 @@ async function submitSignOrder() {
       return;
     }
     signModalOpen.value = false;
-    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo, generation);
     if (!refreshed) {
-      reportPostMutationRefreshFailure();
+      reportPostMutationRefreshFailure(targetOrderNo, generation);
       return;
     }
     emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
   } finally {
     signSubmitting.value = false;
+    endMutation('sign');
   }
 }
 
-async function queryOrder(showSuccess = true) {
+async function queryOrder(options: OrderQueryOptions = {}) {
+  const { showSuccess = true, resetDetail = true } = options;
   const requestSequence = ++orderRequestSequence;
-  detailRequestSequence += 1;
-  pendingDetailOrderNo.value = '';
-  detailLoading.value = false;
+  if (resetDetail) invalidateDetailSelection();
   orderLoading.value = true;
   orderError.value = '';
   try {
@@ -1096,18 +1171,11 @@ async function queryOrder(showSuccess = true) {
     orderPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
-    order.value = null;
-    orderProgress.value = null;
-    orderDetail.value = null;
-    selectedOrderNo.value = '';
     if (showSuccess) emit('notice', 'success', `已查询到 ${nextPage.total} 条处方订单记录`);
     return true;
   } catch (error) {
     if (requestSequence !== orderRequestSequence) return true;
     orderPage.value = null;
-    order.value = null;
-    orderProgress.value = null;
-    orderDetail.value = null;
     orderError.value = errorMessage(error);
     return false;
   } finally {
@@ -1178,22 +1246,16 @@ async function resetOrderFilters() {
 }
 
 async function loadOrderDetail(row: AdminOrderListItem) {
+  if (orderLoading.value) return;
   const requestSequence = ++detailRequestSequence;
   pendingDetailOrderNo.value = row.orderNo;
   detailLoading.value = true;
   orderError.value = '';
   try {
-    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-      getOrder(row.orderNo),
-      getAdminOrderDetail(row.orderNo),
-      getOrderProgress(row.orderNo),
-    ]);
+    const snapshot = await fetchOrderDetailSnapshot(row.orderNo);
     if (requestSequence !== detailRequestSequence) return;
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = row.orderNo;
-    emit('notice', 'success', `已加载订单 ${nextOrder.orderNo} 详情`);
+    applyOrderDetailSnapshot(row.orderNo, requestSequence, snapshot, false);
+    emit('notice', 'success', `已加载订单 ${snapshot[0].orderNo} 详情`);
     scrollToOrderDetail();
   } catch (error) {
     if (requestSequence !== detailRequestSequence) return;
@@ -1223,7 +1285,7 @@ async function goNextPage() {
 }
 
 defineExpose({
-  refreshOrders: queryOrder,
+  refreshOrders: () => queryOrder(),
 });
 </script>
 
@@ -1448,7 +1510,7 @@ defineExpose({
                     variant="text"
                     size="small"
                     :loading="detailLoading && pendingDetailOrderNo === row.orderNo"
-                    :disabled="detailLoading && pendingDetailOrderNo === row.orderNo"
+                    :disabled="orderLoading || (detailLoading && pendingDetailOrderNo === row.orderNo)"
                     @click="loadOrderDetail(row)"
                   >
                     查看
@@ -1551,7 +1613,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="addressSubmitting" @click="closeAddressModal">取消</t-button>
-          <t-button theme="primary" :loading="addressSubmitting" @click="submitAddressUpdate">保存地址</t-button>
+          <t-button theme="primary" :loading="addressSubmitting" :disabled="mutationBusy && activeMutation !== 'address'" @click="submitAddressUpdate">保存地址</t-button>
         </div>
     </t-dialog>
 
@@ -1652,7 +1714,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">取消</t-button>
-          <t-button theme="primary" :loading="prescriptionSubmitting" @click="submitPrescriptionUpdate">保存处方</t-button>
+          <t-button theme="primary" :loading="prescriptionSubmitting" :disabled="mutationBusy && activeMutation !== 'prescription'" @click="submitPrescriptionUpdate">保存处方</t-button>
         </div>
     </t-dialog>
 
@@ -1688,7 +1750,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="cancelSubmitting" @click="closeCancelModal">返回</t-button>
-          <t-button theme="danger" :loading="cancelSubmitting" @click="submitCancelOrder">确认取消</t-button>
+          <t-button theme="danger" :loading="cancelSubmitting" :disabled="mutationBusy && activeMutation !== 'cancel'" @click="submitCancelOrder">确认取消</t-button>
         </div>
     </t-dialog>
 
@@ -1728,7 +1790,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="initializeSubmitting" @click="closeInitializeModal">返回</t-button>
-          <t-button theme="warning" :loading="initializeSubmitting" @click="submitInitializeOrder">确认初始化</t-button>
+          <t-button theme="warning" :loading="initializeSubmitting" :disabled="mutationBusy && activeMutation !== 'initialize'" @click="submitInitializeOrder">确认初始化</t-button>
         </div>
     </t-dialog>
 
@@ -1771,7 +1833,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="signSubmitting" @click="closeSignModal">返回</t-button>
-          <t-button theme="primary" :loading="signSubmitting" @click="submitSignOrder">确认签收</t-button>
+          <t-button theme="primary" :loading="signSubmitting" :disabled="mutationBusy && activeMutation !== 'sign'" @click="submitSignOrder">确认签收</t-button>
         </div>
     </t-dialog>
 
