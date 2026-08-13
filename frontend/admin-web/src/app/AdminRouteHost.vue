@@ -208,6 +208,19 @@ const routeComponentProps = computed<Record<string, unknown>>(() => {
       canManage: props.canManageSystem,
     };
   }
+  if (key === 'institutionList') {
+    return {
+      active: true,
+      activationKey: props.activationKey,
+      canManage: props.adminUser.permissions.includes('institution:write'),
+    };
+  }
+  if (key === 'orders') {
+    return {
+      permissions: props.adminUser.permissions,
+      currentOperator: props.adminUser.username,
+    };
+  }
   if (key === 'decoction') {
     return {
       active: true,

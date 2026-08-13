@@ -35,6 +35,7 @@ interface InstitutionForm {
 const props = defineProps<{
   active: boolean;
   activationKey: number;
+  canManage: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -72,8 +73,8 @@ const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 const canExport = computed(() => !loading.value && rows.value.length > 0);
-const rowActionsDisabled = computed(() => loading.value || saving.value);
-const editorDisabled = computed(() => saving.value);
+const rowActionsDisabled = computed(() => !props.canManage || loading.value || saving.value);
+const editorDisabled = computed(() => !props.canManage || saving.value);
 const formEnabled = computed({
   get: () => form.value.status === 'ENABLED',
   set: (enabled: boolean) => {
@@ -195,13 +196,13 @@ function resetForm() {
 }
 
 function openCreateForm() {
-  if (saving.value) return;
+  if (!props.canManage || saving.value) return;
   resetForm();
   editorOpen.value = true;
 }
 
 function openEditForm(row: AdminInstitutionRecord) {
-  if (saving.value) return;
+  if (!props.canManage || saving.value) return;
   actionError.value = '';
   actionErrorSource.value = null;
   form.value = {
@@ -237,7 +238,7 @@ function handleEnabledSwitchKeydown(event: KeyboardEvent) {
 }
 
 async function saveInstitution() {
-  if (saving.value) return;
+  if (!props.canManage || saving.value) return;
   if (!form.value.institutionCode.trim() || !form.value.institutionName.trim()) {
     actionError.value = '机构编码和机构名称不能为空';
     actionErrorSource.value = 'editor';
@@ -265,7 +266,7 @@ async function saveInstitution() {
 }
 
 async function toggleInstitution(row: AdminInstitutionRecord) {
-  if (saving.value) return;
+  if (!props.canManage || saving.value) return;
   saving.value = true;
   actionError.value = '';
   actionErrorSource.value = null;
@@ -361,7 +362,7 @@ defineExpose({
         <t-button
           theme="primary"
           size="small"
-          :disabled="loading || saving"
+          :disabled="!canManage || loading || saving"
           @click="openCreateForm"
         >
           <template #icon><t-icon name="add" /></template>
@@ -492,7 +493,7 @@ defineExpose({
       :open="editorOpen"
       :title="editing ? '编辑机构' : '新增机构'"
       description="配置机构名称、类型、状态和煎煮中心。"
-      :submitting="saving"
+      :submitting="saving || !canManage"
       :save-label="editing ? '保存修改' : '新增机构'"
       width="560px"
       @update:open="handleEditorOpenChange"
@@ -513,7 +514,7 @@ defineExpose({
             v-model="form.institutionCode"
             name="institution-code"
             size="small"
-            :disabled="saving || editing"
+            :disabled="editorDisabled || editing"
             placeholder="hospital-code"
             autofocus
           />

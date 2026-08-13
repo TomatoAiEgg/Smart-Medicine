@@ -138,6 +138,17 @@ const emit = defineEmits<{
   notice: [tone: NoticeTone, text: string];
 }>();
 
+const props = defineProps<{
+  permissions: string[];
+  currentOperator: string;
+}>();
+
+const canWriteOrder = computed(() => props.permissions.includes('order:write'));
+const canExportOrder = computed(() => props.permissions.includes('order:export'));
+const canWriteWorkflow = computed(() => props.permissions.includes('workflow:write'));
+const canWriteDecoction = computed(() => props.permissions.includes('decoction:write'));
+const canWriteLogistics = computed(() => props.permissions.includes('logistics:write'));
+
 const startTime = ref('');
 const endTime = ref('');
 const institution = ref('');
@@ -192,15 +203,15 @@ const addressForm = ref<AddressForm>({
   receiverAddress: '',
   addressType: '',
   deliveryTime: '',
-  operator: 'admin',
+  operator: props.currentOperator,
   reason: '',
 });
 const cancelForm = ref<CancelForm>({
-  operator: 'admin',
+  operator: props.currentOperator,
   reason: '',
 });
 const initializeForm = ref<InitializeForm>({
-  operator: 'admin',
+  operator: props.currentOperator,
   reason: '',
 });
 const prescriptionForm = ref<PrescriptionForm>({
@@ -216,11 +227,11 @@ const prescriptionForm = ref<PrescriptionForm>({
   medicationMethod: '',
   medicationInstruction: '',
   prescriptionRemark: '',
-  operator: 'admin',
+  operator: props.currentOperator,
   reason: '',
 });
 const signForm = ref<SignForm>({
-  operator: 'admin',
+  operator: props.currentOperator,
   remark: '',
 });
 
@@ -281,23 +292,26 @@ const hasNextPage = computed(() => (
 ));
 const mutationBusy = computed(() => activeMutation.value !== null);
 const canEditAddress = computed(() => (
-  !!orderDetail.value && !detailLoading.value && !mutationBusy.value
+  canWriteOrder.value && !!orderDetail.value && !detailLoading.value && !mutationBusy.value
 ));
 const canCancelOrder = computed(() => (
-  !!orderDetail.value
+  canWriteOrder.value
+  && !!orderDetail.value
   && !detailLoading.value
   && !mutationBusy.value
   && CANCELLABLE_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
 const canEditPrescription = computed(() => (
-  !!orderDetail.value
+  canWriteOrder.value
+  && !!orderDetail.value
   && editableDetailPrescriptions.value.length > 0
   && !detailLoading.value
   && !mutationBusy.value
   && EDITABLE_PRESCRIPTION_ORDER_STATUSES.has(orderDetail.value.orderStatus)
 ));
 const canInitializeOrder = computed(() => (
-  !!orderDetail.value
+  canWriteOrder.value
+  && !!orderDetail.value
   && orderDetail.value.orderStatus !== 'CREATED'
   && !detailLoading.value
   && !mutationBusy.value
@@ -306,7 +320,8 @@ const signableShipment = computed<ShipmentProgress | null>(() => (
   shipments.value.find((shipment) => SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) ?? null
 ));
 const canSignOrder = computed(() => (
-  !!orderDetail.value
+  canWriteLogistics.value
+  && !!orderDetail.value
   && !!signableShipment.value
   && !detailLoading.value
   && !mutationBusy.value
@@ -315,10 +330,29 @@ const hasAdvanceFlowAction = computed(() => (
   workflowTasks.value.some((task) => ADVANCE_FLOW_TASK_TYPES.has(task.taskType) && task.taskStatus === 'PENDING')
   || ADVANCE_FLOW_ORDER_STATUSES.has(primaryOrderStatus.value)
 ));
+const requiredFlowPermission = computed(() => {
+  if (workflowTasks.value.some((task) => ADVANCE_FLOW_TASK_TYPES.has(task.taskType) && task.taskStatus === 'PENDING')) {
+    return 'workflow:write';
+  }
+  if (primaryOrderStatus.value === 'RECHECKED' || primaryOrderStatus.value === 'DECOCTING') {
+    return 'decoction:write';
+  }
+  if (['DECOCTED', 'PACKED', 'SHIPPED', 'IN_TRANSIT'].includes(primaryOrderStatus.value)) {
+    return 'logistics:write';
+  }
+  return null;
+});
+const canWriteNextFlowStep = computed(() => {
+  if (requiredFlowPermission.value === 'workflow:write') return canWriteWorkflow.value;
+  if (requiredFlowPermission.value === 'decoction:write') return canWriteDecoction.value;
+  if (requiredFlowPermission.value === 'logistics:write') return canWriteLogistics.value;
+  return false;
+});
 const canAdvanceFlow = computed(() => (
   !!orderDetail.value
   && !!orderProgress.value
   && hasAdvanceFlowAction.value
+  && canWriteNextFlowStep.value
   && !orderLoading.value
   && !detailLoading.value
   && !mutationBusy.value
@@ -428,12 +462,18 @@ function detailPatientSummary() {
 
 function detailReceiverSummary() {
   if (!orderDetail.value) return EMPTY_VALUE;
+  const detailedAddress = orderDetail.value.receiverAddress?.trim();
+  const maskedDetailedAddress = detailedAddress
+    ? detailedAddress.length <= 2
+      ? `${detailedAddress.slice(0, 1)}*`
+      : `${detailedAddress.slice(0, 2)}${'*'.repeat(Math.min(6, detailedAddress.length - 2))}`
+    : EMPTY_VALUE;
   const address = [
     orderDetail.value.receiverProvince,
     orderDetail.value.receiverCity,
     orderDetail.value.receiverZone,
-    orderDetail.value.receiverAddress,
-  ].filter((item): item is string => !!item && item.trim().length > 0).join('');
+    maskedDetailedAddress,
+  ].filter((item): item is string => !!item && item !== EMPTY_VALUE && item.trim().length > 0).join('');
   return joinDisplayParts(
     [maskPersonName(orderDetail.value.receiverName), maskPhone(orderDetail.value.receiverPhone), address],
     ' / ',
@@ -567,7 +607,7 @@ function flowOperationId(action: string) {
 
 function reviewCommand(action: string) {
   return {
-    reviewer: 'admin',
+    reviewer: props.currentOperator,
     reviewComment: `订单中心走流程：${action}`,
   };
 }
@@ -575,7 +615,7 @@ function reviewCommand(action: string) {
 function mesCommand(action: string): MesTaskOperationCommand {
   return {
     operationId: flowOperationId(action),
-    operator: 'admin',
+    operator: props.currentOperator,
     timestamp: currentIsoTimestamp(),
     sign: 'order-center-flow',
   };
@@ -655,6 +695,7 @@ function reportPostMutationRefreshFailure(targetOrderNo: string, generation: num
 }
 
 async function bindNextDecoctionTask(targetOrderNo: string, generation: number) {
+  if (!canWriteDecoction.value) return;
   const prescriptionNo = firstActivePrescriptionNo();
   if (!prescriptionNo) {
     throw new Error('当前订单没有可绑定煎药任务的处方');
@@ -669,7 +710,7 @@ async function bindNextDecoctionTask(targetOrderNo: string, generation: number) 
     deviceCode: idleDevice.deviceCode,
     prescriptionNo,
     pailNo: `FLOW-${Date.now()}`,
-    operator: 'admin',
+    operator: props.currentOperator,
     timestamp: currentIsoTimestamp(),
     sign: 'order-center-flow',
   };
@@ -679,6 +720,7 @@ async function bindNextDecoctionTask(targetOrderNo: string, generation: number) 
 }
 
 async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgress, generation: number) {
+  if (!canWriteDecoction.value) return;
   if (task.taskStatus === 'BOUND') {
     await startMesTask(task.taskNo, mesCommand('start'));
     if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
@@ -695,12 +737,13 @@ async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgre
 }
 
 async function advanceShipmentFlow(targetOrderNo: string, generation: number) {
+  if (!canWriteLogistics.value) return;
   const shipment = latestShipment();
   if (!shipment) {
     const command: PackShipmentCommand = {
       orderNo: targetOrderNo,
       logisticsCompany: '订单中心手工物流',
-      operator: 'admin',
+      operator: props.currentOperator,
     };
     await packShipment(command);
     if (!await refreshSelectedOrder(targetOrderNo, generation)) return;
@@ -708,7 +751,7 @@ async function advanceShipmentFlow(targetOrderNo: string, generation: number) {
     return;
   }
   const command: ShipmentActionCommand = {
-    operator: 'admin',
+    operator: props.currentOperator,
     remark: '订单中心走流程',
   };
   if (shipment.logisticsStatus === 'PACKED') {
@@ -728,6 +771,7 @@ async function advanceShipmentFlow(targetOrderNo: string, generation: number) {
 
 async function advanceOrderFlow() {
   if (mutationBusy.value) return;
+  if (!canWriteNextFlowStep.value) return;
   if (!orderDetail.value || !orderProgress.value) {
     orderError.value = '请先查看一条订单详情后再走流程';
     return;
@@ -784,6 +828,7 @@ async function advanceOrderFlow() {
 
 function openAddressModal() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再修改地址';
     return;
@@ -798,7 +843,7 @@ function openAddressModal() {
     receiverAddress: orderDetail.value.receiverAddress ?? '',
     addressType: orderDetail.value.addressType ?? '',
     deliveryTime: legacyDateTimeInput(orderDetail.value.deliveryTime),
-    operator: addressForm.value.operator || 'admin',
+    operator: props.currentOperator,
     reason: '',
   };
   addressModalOpen.value = true;
@@ -812,6 +857,7 @@ function closeAddressModal() {
 
 async function submitAddressUpdate() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     addressError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -825,7 +871,7 @@ async function submitAddressUpdate() {
     receiverAddress: addressForm.value.receiverAddress.trim(),
     addressType: addressForm.value.addressType,
     deliveryTime: addressForm.value.deliveryTime.trim(),
-    operator: addressForm.value.operator.trim() || 'admin',
+    operator: props.currentOperator,
     reason: addressForm.value.reason.trim(),
   };
   if (!command.receiverName || !command.receiverPhone || !command.receiverAddress) {
@@ -871,7 +917,7 @@ function fillPrescriptionForm(prescription: AdminOrderDetailPrescription) {
     medicationMethod: prescription.medicationMethod ?? '',
     medicationInstruction: prescription.medicationInstruction ?? '',
     prescriptionRemark: prescription.prescriptionRemark ?? '',
-    operator: prescriptionForm.value.operator || 'admin',
+    operator: props.currentOperator,
     reason: '',
   };
 }
@@ -882,6 +928,7 @@ function selectedPrescription() {
 
 function openPrescriptionModal() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再修改处方';
     return;
@@ -916,6 +963,7 @@ function changePrescriptionForm() {
 
 async function submitPrescriptionUpdate() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     prescriptionError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
@@ -939,7 +987,7 @@ async function submitPrescriptionUpdate() {
     medicationMethod: prescriptionForm.value.medicationMethod.trim(),
     medicationInstruction: prescriptionForm.value.medicationInstruction.trim(),
     prescriptionRemark: prescriptionForm.value.prescriptionRemark.trim(),
-    operator: prescriptionForm.value.operator.trim() || 'admin',
+    operator: props.currentOperator,
     reason: prescriptionForm.value.reason.trim(),
   };
   if (!command.prescriptionType) {
@@ -977,13 +1025,14 @@ async function submitPrescriptionUpdate() {
 
 function openCancelModal() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再取消订单';
     return;
   }
   cancelError.value = '';
   cancelForm.value = {
-    operator: cancelForm.value.operator || 'admin',
+    operator: props.currentOperator,
     reason: '',
   };
   cancelModalOpen.value = true;
@@ -997,12 +1046,13 @@ function closeCancelModal() {
 
 async function submitCancelOrder() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     cancelError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
   }
   const command: AdminOrderCancelCommand = {
-    operator: cancelForm.value.operator.trim() || 'admin',
+    operator: props.currentOperator,
     reason: cancelForm.value.reason.trim(),
   };
   if (!command.reason) {
@@ -1036,13 +1086,14 @@ async function submitCancelOrder() {
 
 function openInitializeModal() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再初始化';
     return;
   }
   initializeError.value = '';
   initializeForm.value = {
-    operator: initializeForm.value.operator || 'admin',
+    operator: props.currentOperator,
     reason: '',
   };
   initializeModalOpen.value = true;
@@ -1056,12 +1107,13 @@ function closeInitializeModal() {
 
 async function submitInitializeOrder() {
   if (mutationBusy.value) return;
+  if (!canWriteOrder.value) return;
   if (!orderDetail.value) {
     initializeError.value = '订单详情已失效，请关闭弹窗后重新查看';
     return;
   }
   const command: AdminOrderInitializeCommand = {
-    operator: initializeForm.value.operator.trim() || 'admin',
+    operator: props.currentOperator,
     reason: initializeForm.value.reason.trim(),
   };
   if (!command.reason) {
@@ -1100,6 +1152,7 @@ async function submitInitializeOrder() {
 
 function openSignModal() {
   if (mutationBusy.value) return;
+  if (!canWriteLogistics.value) return;
   if (!orderDetail.value) {
     orderError.value = '请先查看一条订单详情后再签收';
     return;
@@ -1110,7 +1163,7 @@ function openSignModal() {
   }
   signError.value = '';
   signForm.value = {
-    operator: signForm.value.operator || 'admin',
+    operator: props.currentOperator,
     remark: '',
   };
   signModalOpen.value = true;
@@ -1124,6 +1177,7 @@ function closeSignModal() {
 
 async function submitSignOrder() {
   if (mutationBusy.value) return;
+  if (!canWriteLogistics.value) return;
   if (!orderDetail.value || !signableShipment.value) {
     signError.value = '订单详情或可签收物流单已失效，请关闭弹窗后重新查看';
     return;
@@ -1132,7 +1186,7 @@ async function submitSignOrder() {
   const generation = detailRequestSequence;
   const targetShipment = signableShipment.value;
   const command: ShipmentActionCommand = {
-    operator: signForm.value.operator.trim() || 'admin',
+    operator: props.currentOperator,
     remark: signForm.value.remark.trim() || '订单中心手动签收',
   };
   if (!beginMutation('sign')) return;
@@ -1206,6 +1260,7 @@ function currentOrderQueryParams(options: { includePaging: boolean }): AdminOrde
 }
 
 async function exportOrders() {
+  if (!canExportOrder.value || exportLoading.value) return;
   exportLoading.value = true;
   orderError.value = '';
   try {
@@ -1411,7 +1466,7 @@ defineExpose({
           variant="outline"
           size="small"
           :loading="exportLoading"
-          :disabled="orderLoading"
+          :disabled="!canExportOrder || orderLoading"
           title="按当前筛选最多导出 5000 行"
           @click="exportOrders"
         >
@@ -1567,7 +1622,7 @@ defineExpose({
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="addressForm.operator" class="order-form-control" />
+            <input :value="currentOperator" class="order-form-control" disabled />
           </label>
           <label>
             <span>收货人</span>
@@ -1613,7 +1668,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="addressSubmitting" @click="closeAddressModal">取消</t-button>
-          <t-button theme="primary" :loading="addressSubmitting" :disabled="mutationBusy && activeMutation !== 'address'" @click="submitAddressUpdate">保存地址</t-button>
+          <t-button theme="primary" :loading="addressSubmitting" :disabled="!canWriteOrder || (mutationBusy && activeMutation !== 'address')" @click="submitAddressUpdate">保存地址</t-button>
         </div>
     </t-dialog>
 
@@ -1693,7 +1748,7 @@ defineExpose({
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="prescriptionForm.operator" class="order-form-control" />
+            <input :value="currentOperator" class="order-form-control" disabled />
           </label>
           <label>
             <span>修改原因</span>
@@ -1714,7 +1769,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">取消</t-button>
-          <t-button theme="primary" :loading="prescriptionSubmitting" :disabled="mutationBusy && activeMutation !== 'prescription'" @click="submitPrescriptionUpdate">保存处方</t-button>
+          <t-button theme="primary" :loading="prescriptionSubmitting" :disabled="!canWriteOrder || (mutationBusy && activeMutation !== 'prescription')" @click="submitPrescriptionUpdate">保存处方</t-button>
         </div>
     </t-dialog>
 
@@ -1741,7 +1796,7 @@ defineExpose({
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="cancelForm.operator" class="order-form-control" />
+            <input :value="currentOperator" class="order-form-control" disabled />
           </label>
           <label class="order-form-wide">
             <span>取消原因</span>
@@ -1750,7 +1805,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="cancelSubmitting" @click="closeCancelModal">返回</t-button>
-          <t-button theme="danger" :loading="cancelSubmitting" :disabled="mutationBusy && activeMutation !== 'cancel'" @click="submitCancelOrder">确认取消</t-button>
+          <t-button theme="danger" :loading="cancelSubmitting" :disabled="!canWriteOrder || (mutationBusy && activeMutation !== 'cancel')" @click="submitCancelOrder">确认取消</t-button>
         </div>
     </t-dialog>
 
@@ -1781,7 +1836,7 @@ defineExpose({
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="initializeForm.operator" class="order-form-control" />
+            <input :value="currentOperator" class="order-form-control" disabled />
           </label>
           <label class="order-form-wide">
             <span>初始化原因</span>
@@ -1790,7 +1845,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="initializeSubmitting" @click="closeInitializeModal">返回</t-button>
-          <t-button theme="warning" :loading="initializeSubmitting" :disabled="mutationBusy && activeMutation !== 'initialize'" @click="submitInitializeOrder">确认初始化</t-button>
+          <t-button theme="warning" :loading="initializeSubmitting" :disabled="!canWriteOrder || (mutationBusy && activeMutation !== 'initialize')" @click="submitInitializeOrder">确认初始化</t-button>
         </div>
     </t-dialog>
 
@@ -1824,7 +1879,7 @@ defineExpose({
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="signForm.operator" class="order-form-control" />
+            <input :value="currentOperator" class="order-form-control" disabled />
           </label>
           <label class="order-form-wide">
             <span>签收备注</span>
@@ -1833,7 +1888,7 @@ defineExpose({
         </div>
         <div class="order-dialog-actions">
           <t-button theme="default" variant="outline" :disabled="signSubmitting" @click="closeSignModal">返回</t-button>
-          <t-button theme="primary" :loading="signSubmitting" :disabled="mutationBusy && activeMutation !== 'sign'" @click="submitSignOrder">确认签收</t-button>
+          <t-button theme="primary" :loading="signSubmitting" :disabled="!canWriteLogistics || (mutationBusy && activeMutation !== 'sign')" @click="submitSignOrder">确认签收</t-button>
         </div>
     </t-dialog>
 
