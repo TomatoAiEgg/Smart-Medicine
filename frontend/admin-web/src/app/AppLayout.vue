@@ -61,8 +61,8 @@ const activeGroupName = computed<MenuGroupName | null>(() => {
 const expandedGroupName = ref<string | null>(null);
 const mobileNavigationOpen = ref(false);
 
-watch(activeGroupName, (groupName) => {
-  expandedGroupName.value = groupName;
+watch(() => props.activeView, () => {
+  expandedGroupName.value = activeGroupName.value;
 }, { immediate: true });
 
 const groupedMenuItems = computed(() => menuGroupOrder
@@ -206,7 +206,7 @@ function navigateAndClose(navigate: RouteNavigate) {
     </aside>
 
     <main class="admin-shell__main">
-      <div class="admin-shell__tabs" role="tablist" aria-label="已打开页面">
+      <nav class="admin-shell__tabs" aria-label="已打开页面">
         <div
           v-for="tab in tabs"
           :key="tab.key"
@@ -236,12 +236,12 @@ function navigateAndClose(navigate: RouteNavigate) {
             <t-icon name="close" />
           </button>
         </div>
-      </div>
+      </nav>
 
       <section class="admin-shell__workspace">
         <header class="admin-page-heading">
           <div>
-            <p>{{ activeGroupName ?? '系统入口' }}</p>
+            <p>{{ activeGroupName ?? '工作台' }}</p>
             <h1>{{ title }}</h1>
             <span class="admin-page-heading__subtitle">{{ subtitle }}</span>
           </div>
