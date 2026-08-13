@@ -156,19 +156,27 @@ const exportLoading = ref(false);
 const detailLoading = ref(false);
 const orderError = ref('');
 const selectedOrderNo = ref('');
+const pendingDetailOrderNo = ref('');
 const page = ref(1);
 const pageSize = ref(20);
 const addressModalOpen = ref(false);
 const addressSubmitting = ref(false);
+const addressError = ref('');
 const prescriptionModalOpen = ref(false);
 const prescriptionSubmitting = ref(false);
+const prescriptionError = ref('');
 const cancelModalOpen = ref(false);
 const cancelSubmitting = ref(false);
+const cancelError = ref('');
 const initializeModalOpen = ref(false);
 const initializeSubmitting = ref(false);
+const initializeError = ref('');
 const signModalOpen = ref(false);
 const signSubmitting = ref(false);
+const signError = ref('');
 const flowSubmitting = ref(false);
+let orderRequestSequence = 0;
+let detailRequestSequence = 0;
 const addressForm = ref<AddressForm>({
   receiverName: '',
   receiverPhone: '',
@@ -393,6 +401,14 @@ function receiverSummary(row: AdminOrderListItem) {
   return joinDisplayParts([maskPersonName(row.receiverName), maskPhone(row.receiverPhone)], ' / ');
 }
 
+function maskSensitiveIdentifier(value: string | null | undefined) {
+  if (!value) return EMPTY_VALUE;
+  const normalized = value.trim();
+  if (normalized.length <= 2) return `${normalized.slice(0, 1)}*`;
+  if (normalized.length <= 4) return `${normalized.slice(0, 1)}**${normalized.slice(-1)}`;
+  return `${normalized.slice(0, 2)}${'*'.repeat(Math.min(8, normalized.length - 4))}${normalized.slice(-2)}`;
+}
+
 function detailPatientSummary() {
   if (!orderDetail.value) return EMPTY_VALUE;
   return joinDisplayParts(
@@ -557,16 +573,38 @@ function mesCommand(action: string): MesTaskOperationCommand {
 }
 
 async function refreshSelectedOrder(targetOrderNo: string) {
-  const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-    getOrder(targetOrderNo),
-    getAdminOrderDetail(targetOrderNo),
-    getOrderProgress(targetOrderNo),
-    queryOrder(),
+  const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+  if (!refreshed) reportPostMutationRefreshFailure();
+  return refreshed;
+}
+
+async function refreshAfterSuccessfulMutation(targetOrderNo: string) {
+  const [detailResult, listResult] = await Promise.allSettled([
+    Promise.all([
+      getOrder(targetOrderNo),
+      getAdminOrderDetail(targetOrderNo),
+      getOrderProgress(targetOrderNo),
+    ]),
+    queryOrder(false),
   ]);
-  order.value = nextOrder;
-  orderDetail.value = nextDetail;
-  orderProgress.value = nextProgress;
-  selectedOrderNo.value = targetOrderNo;
+  if (detailResult.status === 'fulfilled') {
+    const [nextOrder, nextDetail, nextProgress] = detailResult.value;
+    order.value = nextOrder;
+    orderDetail.value = nextDetail;
+    orderProgress.value = nextProgress;
+    selectedOrderNo.value = targetOrderNo;
+  }
+  return detailResult.status === 'fulfilled'
+    && listResult.status === 'fulfilled'
+    && listResult.value;
+}
+
+function reportPostMutationRefreshFailure() {
+  order.value = null;
+  orderDetail.value = null;
+  orderProgress.value = null;
+  selectedOrderNo.value = '';
+  orderError.value = '操作已成功，但数据刷新失败，请重新查询';
 }
 
 async function bindNextDecoctionTask(targetOrderNo: string) {
@@ -589,20 +627,20 @@ async function bindNextDecoctionTask(targetOrderNo: string) {
     sign: 'order-center-flow',
   };
   await bindPrescription(command);
-  await refreshSelectedOrder(targetOrderNo);
+  if (!await refreshSelectedOrder(targetOrderNo)) return;
   emit('notice', 'success', `订单 ${targetOrderNo} 已绑定煎药任务`);
 }
 
 async function advanceDecoctionTask(targetOrderNo: string, task: DecoctionProgress) {
   if (task.taskStatus === 'BOUND') {
     await startMesTask(task.taskNo, mesCommand('start'));
-    await refreshSelectedOrder(targetOrderNo);
+    if (!await refreshSelectedOrder(targetOrderNo)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已开始煎药`);
     return;
   }
   if (task.taskStatus === 'DECOCTING') {
     await finishMesTask(task.taskNo, mesCommand('finish'));
-    await refreshSelectedOrder(targetOrderNo);
+    if (!await refreshSelectedOrder(targetOrderNo)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已完成煎药`);
     return;
   }
@@ -618,7 +656,7 @@ async function advanceShipmentFlow(targetOrderNo: string) {
       operator: 'admin',
     };
     await packShipment(command);
-    await refreshSelectedOrder(targetOrderNo);
+    if (!await refreshSelectedOrder(targetOrderNo)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已打包`);
     return;
   }
@@ -628,13 +666,13 @@ async function advanceShipmentFlow(targetOrderNo: string) {
   };
   if (shipment.logisticsStatus === 'PACKED') {
     await shipShipment(shipment.shipmentId, command);
-    await refreshSelectedOrder(targetOrderNo);
+    if (!await refreshSelectedOrder(targetOrderNo)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已发货`);
     return;
   }
   if (SIGNABLE_SHIPMENT_STATUSES.has(shipment.logisticsStatus)) {
     await signShipment(shipment.shipmentId, command);
-    await refreshSelectedOrder(targetOrderNo);
+    if (!await refreshSelectedOrder(targetOrderNo)) return;
     emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
     return;
   }
@@ -654,21 +692,21 @@ async function advanceOrderFlow() {
     const reviewTask = pendingWorkflowTask('ORDER_REVIEW') as WorkflowProgress | null;
     if (reviewTask) {
       await approveReviewTask(reviewTask.taskId, reviewCommand('审方通过'));
-      await refreshSelectedOrder(targetOrderNo);
+      if (!await refreshSelectedOrder(targetOrderNo)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已审方通过`);
       return;
     }
     const dispenseTask = pendingWorkflowTask('PRESCRIPTION_DISPENSE') as WorkflowProgress | null;
     if (dispenseTask) {
       await completeDispenseTask(dispenseTask.taskId, reviewCommand('完成调剂'));
-      await refreshSelectedOrder(targetOrderNo);
+      if (!await refreshSelectedOrder(targetOrderNo)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已完成调剂`);
       return;
     }
     const recheckTask = pendingWorkflowTask('PRESCRIPTION_RECHECK') as WorkflowProgress | null;
     if (recheckTask) {
       await completeRecheckTask(recheckTask.taskId, reviewCommand('完成复核'));
-      await refreshSelectedOrder(targetOrderNo);
+      if (!await refreshSelectedOrder(targetOrderNo)) return;
       emit('notice', 'success', `订单 ${targetOrderNo} 已完成复核`);
       return;
     }
@@ -698,6 +736,7 @@ function openAddressModal() {
     orderError.value = '请先查看一条订单详情后再修改地址';
     return;
   }
+  addressError.value = '';
   addressForm.value = {
     receiverName: orderDetail.value.receiverName ?? '',
     receiverPhone: orderDetail.value.receiverPhone ?? '',
@@ -716,10 +755,14 @@ function openAddressModal() {
 function closeAddressModal() {
   if (addressSubmitting.value) return;
   addressModalOpen.value = false;
+  addressError.value = '';
 }
 
 async function submitAddressUpdate() {
-  if (!orderDetail.value) return;
+  if (!orderDetail.value) {
+    addressError.value = '订单详情已失效，请关闭弹窗后重新查看';
+    return;
+  }
   const command: AdminOrderAddressUpdateCommand = {
     receiverName: addressForm.value.receiverName.trim(),
     receiverPhone: addressForm.value.receiverPhone.trim(),
@@ -733,28 +776,26 @@ async function submitAddressUpdate() {
     reason: addressForm.value.reason.trim(),
   };
   if (!command.receiverName || !command.receiverPhone || !command.receiverAddress) {
-    orderError.value = '收货人、收货电话和详细地址不能为空';
+    addressError.value = '收货人、收货电话和详细地址不能为空';
     return;
   }
   addressSubmitting.value = true;
-  orderError.value = '';
+  addressError.value = '';
   try {
     const targetOrderNo = orderDetail.value.orderNo;
-    await updateAdminOrderAddress(targetOrderNo, command);
-    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-      getOrder(targetOrderNo),
-      getAdminOrderDetail(targetOrderNo),
-      getOrderProgress(targetOrderNo),
-      queryOrder(),
-    ]);
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = targetOrderNo;
+    try {
+      await updateAdminOrderAddress(targetOrderNo, command);
+    } catch (error) {
+      addressError.value = errorMessage(error);
+      return;
+    }
     addressModalOpen.value = false;
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    if (!refreshed) {
+      reportPostMutationRefreshFailure();
+      return;
+    }
     emit('notice', 'success', `订单 ${targetOrderNo} 地址已更新`);
-  } catch (error) {
-    orderError.value = errorMessage(error);
   } finally {
     addressSubmitting.value = false;
   }
@@ -797,6 +838,7 @@ function openPrescriptionModal() {
     orderError.value = '当前订单没有可修改处方';
     return;
   }
+  prescriptionError.value = '';
   fillPrescriptionForm(firstPrescription);
   prescriptionModalOpen.value = true;
 }
@@ -804,9 +846,11 @@ function openPrescriptionModal() {
 function closePrescriptionModal() {
   if (prescriptionSubmitting.value) return;
   prescriptionModalOpen.value = false;
+  prescriptionError.value = '';
 }
 
 function changePrescriptionForm() {
+  prescriptionError.value = '';
   const prescription = selectedPrescription();
   if (prescription) {
     fillPrescriptionForm(prescription);
@@ -814,10 +858,13 @@ function changePrescriptionForm() {
 }
 
 async function submitPrescriptionUpdate() {
-  if (!orderDetail.value) return;
+  if (!orderDetail.value) {
+    prescriptionError.value = '订单详情已失效，请关闭弹窗后重新查看';
+    return;
+  }
   const targetPrescription = selectedPrescription();
   if (!targetPrescription) {
-    orderError.value = '请选择要修改的处方';
+    prescriptionError.value = '请选择要修改的处方';
     return;
   }
   const doseCount = formNumber(prescriptionForm.value.doseCount);
@@ -838,32 +885,30 @@ async function submitPrescriptionUpdate() {
     reason: prescriptionForm.value.reason.trim(),
   };
   if (!command.prescriptionType) {
-    orderError.value = '处方类型不能为空';
+    prescriptionError.value = '处方类型不能为空';
     return;
   }
   if (command.prescriptionType === 'DECOCTION' && (!command.boilTimes || command.boilTimes <= 0)) {
-    orderError.value = '代煎处方的几煎必须大于 0';
+    prescriptionError.value = '代煎处方的几煎必须大于 0';
     return;
   }
   prescriptionSubmitting.value = true;
-  orderError.value = '';
+  prescriptionError.value = '';
   try {
     const targetOrderNo = orderDetail.value.orderNo;
-    await updateAdminPrescription(targetOrderNo, targetPrescription.prescriptionId, command);
-    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-      getOrder(targetOrderNo),
-      getAdminOrderDetail(targetOrderNo),
-      getOrderProgress(targetOrderNo),
-      queryOrder(),
-    ]);
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = targetOrderNo;
+    try {
+      await updateAdminPrescription(targetOrderNo, targetPrescription.prescriptionId, command);
+    } catch (error) {
+      prescriptionError.value = errorMessage(error);
+      return;
+    }
     prescriptionModalOpen.value = false;
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    if (!refreshed) {
+      reportPostMutationRefreshFailure();
+      return;
+    }
     emit('notice', 'success', `处方 ${targetPrescription.prescriptionNo} 已更新`);
-  } catch (error) {
-    orderError.value = errorMessage(error);
   } finally {
     prescriptionSubmitting.value = false;
   }
@@ -874,6 +919,7 @@ function openCancelModal() {
     orderError.value = '请先查看一条订单详情后再取消订单';
     return;
   }
+  cancelError.value = '';
   cancelForm.value = {
     operator: cancelForm.value.operator || 'admin',
     reason: '',
@@ -884,37 +930,39 @@ function openCancelModal() {
 function closeCancelModal() {
   if (cancelSubmitting.value) return;
   cancelModalOpen.value = false;
+  cancelError.value = '';
 }
 
 async function submitCancelOrder() {
-  if (!orderDetail.value) return;
+  if (!orderDetail.value) {
+    cancelError.value = '订单详情已失效，请关闭弹窗后重新查看';
+    return;
+  }
   const command: AdminOrderCancelCommand = {
     operator: cancelForm.value.operator.trim() || 'admin',
     reason: cancelForm.value.reason.trim(),
   };
   if (!command.reason) {
-    orderError.value = '取消原因不能为空';
+    cancelError.value = '取消原因不能为空';
     return;
   }
   cancelSubmitting.value = true;
-  orderError.value = '';
+  cancelError.value = '';
   try {
     const targetOrderNo = orderDetail.value.orderNo;
-    await cancelAdminOrder(targetOrderNo, command);
-    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-      getOrder(targetOrderNo),
-      getAdminOrderDetail(targetOrderNo),
-      getOrderProgress(targetOrderNo),
-      queryOrder(),
-    ]);
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = targetOrderNo;
+    try {
+      await cancelAdminOrder(targetOrderNo, command);
+    } catch (error) {
+      cancelError.value = errorMessage(error);
+      return;
+    }
     cancelModalOpen.value = false;
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    if (!refreshed) {
+      reportPostMutationRefreshFailure();
+      return;
+    }
     emit('notice', 'success', `订单 ${targetOrderNo} 已取消`);
-  } catch (error) {
-    orderError.value = errorMessage(error);
   } finally {
     cancelSubmitting.value = false;
   }
@@ -925,6 +973,7 @@ function openInitializeModal() {
     orderError.value = '请先查看一条订单详情后再初始化';
     return;
   }
+  initializeError.value = '';
   initializeForm.value = {
     operator: initializeForm.value.operator || 'admin',
     reason: '',
@@ -935,32 +984,44 @@ function openInitializeModal() {
 function closeInitializeModal() {
   if (initializeSubmitting.value) return;
   initializeModalOpen.value = false;
+  initializeError.value = '';
 }
 
 async function submitInitializeOrder() {
-  if (!orderDetail.value) return;
+  if (!orderDetail.value) {
+    initializeError.value = '订单详情已失效，请关闭弹窗后重新查看';
+    return;
+  }
   const command: AdminOrderInitializeCommand = {
     operator: initializeForm.value.operator.trim() || 'admin',
     reason: initializeForm.value.reason.trim(),
   };
   if (!command.reason) {
-    orderError.value = '初始化原因不能为空';
+    initializeError.value = '初始化原因不能为空';
     return;
   }
   initializeSubmitting.value = true;
-  orderError.value = '';
+  initializeError.value = '';
   try {
     const targetOrderNo = orderDetail.value.orderNo;
-    const result = await initializeAdminOrder(targetOrderNo, command);
-    await refreshSelectedOrder(targetOrderNo);
+    let result: Awaited<ReturnType<typeof initializeAdminOrder>>;
+    try {
+      result = await initializeAdminOrder(targetOrderNo, command);
+    } catch (error) {
+      initializeError.value = errorMessage(error);
+      return;
+    }
     initializeModalOpen.value = false;
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    if (!refreshed) {
+      reportPostMutationRefreshFailure();
+      return;
+    }
     emit(
       'notice',
       'success',
       `订单 ${targetOrderNo} 已初始化：处方 ${result.resetPrescriptionCount} 条，流程任务 ${result.cancelledWorkflowTaskCount} 条`,
     );
-  } catch (error) {
-    orderError.value = errorMessage(error);
   } finally {
     initializeSubmitting.value = false;
   }
@@ -975,6 +1036,7 @@ function openSignModal() {
     orderError.value = '当前订单没有可签收物流单';
     return;
   }
+  signError.value = '';
   signForm.value = {
     operator: signForm.value.operator || 'admin',
     remark: '',
@@ -985,10 +1047,14 @@ function openSignModal() {
 function closeSignModal() {
   if (signSubmitting.value) return;
   signModalOpen.value = false;
+  signError.value = '';
 }
 
 async function submitSignOrder() {
-  if (!orderDetail.value || !signableShipment.value) return;
+  if (!orderDetail.value || !signableShipment.value) {
+    signError.value = '订单详情或可签收物流单已失效，请关闭弹窗后重新查看';
+    return;
+  }
   const targetOrderNo = orderDetail.value.orderNo;
   const targetShipment = signableShipment.value;
   const command: ShipmentActionCommand = {
@@ -996,34 +1062,37 @@ async function submitSignOrder() {
     remark: signForm.value.remark.trim() || '订单中心手动签收',
   };
   signSubmitting.value = true;
-  orderError.value = '';
+  signError.value = '';
   try {
-    await signShipment(targetShipment.shipmentId, command);
-    const [nextOrder, nextDetail, nextProgress] = await Promise.all([
-      getOrder(targetOrderNo),
-      getAdminOrderDetail(targetOrderNo),
-      getOrderProgress(targetOrderNo),
-      queryOrder(),
-    ]);
-    order.value = nextOrder;
-    orderDetail.value = nextDetail;
-    orderProgress.value = nextProgress;
-    selectedOrderNo.value = targetOrderNo;
+    try {
+      await signShipment(targetShipment.shipmentId, command);
+    } catch (error) {
+      signError.value = errorMessage(error);
+      return;
+    }
     signModalOpen.value = false;
+    const refreshed = await refreshAfterSuccessfulMutation(targetOrderNo);
+    if (!refreshed) {
+      reportPostMutationRefreshFailure();
+      return;
+    }
     emit('notice', 'success', `订单 ${targetOrderNo} 已签收`);
-  } catch (error) {
-    orderError.value = errorMessage(error);
   } finally {
     signSubmitting.value = false;
   }
 }
 
-async function queryOrder() {
+async function queryOrder(showSuccess = true) {
+  const requestSequence = ++orderRequestSequence;
+  detailRequestSequence += 1;
+  pendingDetailOrderNo.value = '';
+  detailLoading.value = false;
   orderLoading.value = true;
   orderError.value = '';
   try {
     pageSize.value = boundedPositiveInteger(pageSize.value, 20, 100);
     const nextPage = await listAdminOrders(currentOrderQueryParams({ includePaging: true }));
+    if (requestSequence !== orderRequestSequence) return true;
     orderPage.value = nextPage;
     page.value = nextPage.page;
     pageSize.value = nextPage.pageSize;
@@ -1031,15 +1100,20 @@ async function queryOrder() {
     orderProgress.value = null;
     orderDetail.value = null;
     selectedOrderNo.value = '';
-    emit('notice', 'success', `已查询到 ${nextPage.total} 条处方订单记录`);
+    if (showSuccess) emit('notice', 'success', `已查询到 ${nextPage.total} 条处方订单记录`);
+    return true;
   } catch (error) {
+    if (requestSequence !== orderRequestSequence) return true;
     orderPage.value = null;
     order.value = null;
     orderProgress.value = null;
     orderDetail.value = null;
     orderError.value = errorMessage(error);
+    return false;
   } finally {
-    orderLoading.value = false;
+    if (requestSequence === orderRequestSequence) {
+      orderLoading.value = false;
+    }
   }
 }
 
@@ -1079,10 +1153,11 @@ async function exportOrders() {
 
 async function searchFirstPage() {
   page.value = 1;
+  orderPage.value = null;
   await queryOrder();
 }
 
-function resetOrderFilters() {
+async function resetOrderFilters() {
   startTime.value = '';
   endTime.value = '';
   institution.value = '';
@@ -1098,9 +1173,13 @@ function resetOrderFilters() {
   patientName.value = '';
   receiverPhone.value = '';
   page.value = 1;
+  orderPage.value = null;
+  await queryOrder();
 }
 
 async function loadOrderDetail(row: AdminOrderListItem) {
+  const requestSequence = ++detailRequestSequence;
+  pendingDetailOrderNo.value = row.orderNo;
   detailLoading.value = true;
   orderError.value = '';
   try {
@@ -1109,6 +1188,7 @@ async function loadOrderDetail(row: AdminOrderListItem) {
       getAdminOrderDetail(row.orderNo),
       getOrderProgress(row.orderNo),
     ]);
+    if (requestSequence !== detailRequestSequence) return;
     order.value = nextOrder;
     orderDetail.value = nextDetail;
     orderProgress.value = nextProgress;
@@ -1116,13 +1196,17 @@ async function loadOrderDetail(row: AdminOrderListItem) {
     emit('notice', 'success', `已加载订单 ${nextOrder.orderNo} 详情`);
     scrollToOrderDetail();
   } catch (error) {
+    if (requestSequence !== detailRequestSequence) return;
     order.value = null;
     orderProgress.value = null;
     orderDetail.value = null;
     selectedOrderNo.value = '';
     orderError.value = errorMessage(error);
   } finally {
-    detailLoading.value = false;
+    if (requestSequence === detailRequestSequence) {
+      pendingDetailOrderNo.value = '';
+      detailLoading.value = false;
+    }
   }
 }
 
@@ -1348,7 +1432,7 @@ defineExpose({
                 <td>
                   <div class="receiver-cell">
                     <strong>{{ receiverSummary(row) }}</strong>
-                    <small>{{ joinDisplayParts([row.receiverProvince, row.receiverCity, row.receiverZone, row.receiverAddress]) }}</small>
+                    <small>{{ joinDisplayParts([row.receiverProvince, row.receiverCity, row.receiverZone]) }}</small>
                   </div>
                 </td>
                 <td>{{ formatDate(row.deliveryTime) }}</td>
@@ -1363,8 +1447,8 @@ defineExpose({
                     theme="primary"
                     variant="text"
                     size="small"
-                    :loading="detailLoading && selectedOrderNo === row.orderNo"
-                    :disabled="detailLoading && selectedOrderNo !== row.orderNo"
+                    :loading="detailLoading && pendingDetailOrderNo === row.orderNo"
+                    :disabled="detailLoading && pendingDetailOrderNo === row.orderNo"
                     @click="loadOrderDetail(row)"
                   >
                     查看
@@ -1413,6 +1497,7 @@ defineExpose({
       width="860px"
       @close="closeAddressModal"
     >
+        <p v-if="addressError" class="order-modal-error" role="alert">{{ addressError }}</p>
         <div class="order-form-grid">
           <label>
             <span>平台订单号</span>
@@ -1484,6 +1569,7 @@ defineExpose({
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>当前仅支持订单创建或审核通过状态下修改处方结构化字段。</span>
         </div>
+        <p v-if="prescriptionError" class="order-modal-error" role="alert">{{ prescriptionError }}</p>
         <div class="order-form-grid">
           <label class="order-form-wide">
             <span>处方</span>
@@ -1585,6 +1671,7 @@ defineExpose({
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>取消后订单和处方会进入已取消状态，未完成工作流任务会同步关闭。</span>
         </div>
+        <p v-if="cancelError" class="order-modal-error" role="alert">{{ cancelError }}</p>
         <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>当前状态</span>
@@ -1620,6 +1707,7 @@ defineExpose({
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>初始化会把订单回退到初始审核状态，重置处方状态，取消未完成流程和活跃煎药任务，并清理物流运行记录。</span>
         </div>
+        <p v-if="initializeError" class="order-modal-error" role="alert">{{ initializeError }}</p>
         <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>当前状态</span>
@@ -1658,6 +1746,7 @@ defineExpose({
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>签收会通过物流服务推进订单状态，并生成物流轨迹和签收回调。</span>
         </div>
+        <p v-if="signError" class="order-modal-error" role="alert">{{ signError }}</p>
         <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>物流单号</span>
@@ -1936,13 +2025,13 @@ defineExpose({
                   <td>{{ displayValue(item.patientAge) }}</td>
                   <td>{{ joinDisplayParts([item.patientMonthAge, item.patientDayAge], ' / ') }}</td>
                   <td>{{ displayValue(item.patientGender) }}</td>
-                  <td>{{ displayValue(item.patientCardNo) }}</td>
-                  <td>{{ displayValue(item.treatCard) }}</td>
+                  <td>{{ maskSensitiveIdentifier(item.patientCardNo) }}</td>
+                  <td>{{ maskSensitiveIdentifier(item.treatCard) }}</td>
                   <td>{{ maskPhone(item.patientTel) }}</td>
                   <td>{{ displayValue(item.isPregnant) }}</td>
                   <td>{{ displayValue(item.herbType) }}</td>
                   <td>{{ displayValue(item.wjType) }}</td>
-                  <td>{{ displayValue(item.doctorTel) }}</td>
+                  <td>{{ maskPhone(item.doctorTel) }}</td>
                   <td class="text-cell">{{ displayValue(item.hospitalName) }}</td>
                   <td>{{ displayValue(item.hospitalNum) }}</td>
                   <td>{{ displayValue(item.orderHandleFloor) }}</td>
@@ -2315,6 +2404,16 @@ defineExpose({
 
 .admin-error-line {
   margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--admin-danger);
+  color: var(--admin-danger);
+  background: var(--admin-surface-subtle);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.order-modal-error {
+  margin: 0 0 12px;
   padding: 8px 10px;
   border-left: 3px solid var(--admin-danger);
   color: var(--admin-danger);
