@@ -21,3 +21,8 @@ export const router = createRouter({
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
 });
+
+router.afterEach((to) => {
+  const title = typeof to.meta.title === 'string' ? to.meta.title : routeItems[0].label;
+  document.title = `${title} - 智能药房 SaaS`;
+});

@@ -110,7 +110,7 @@ const layoutTabs = computed<LayoutTab[]>(() => [
 ]);
 
 const navigationItems = computed<readonly AppRouteItem[]>(() => [
-  ...menuItems.filter((item) => item.key !== 'institutionApps' && canAccessRoute(item, sessionPermissions.value)),
+  ...menuItems.filter((item) => canAccessRoute(item, sessionPermissions.value)),
 ]);
 
 function countForRoute(item: AppRouteItem) {

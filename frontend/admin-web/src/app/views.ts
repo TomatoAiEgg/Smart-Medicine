@@ -1,3 +1,19 @@
+export const menuGroupOrder = [
+  '系统管理',
+  '参数管理',
+  '机构管理',
+  '物流管理',
+  '订单管理',
+  '维护管理',
+  '标签管理',
+  '短信管理',
+  '药品管理',
+  '报表管理',
+  '煎煮管理',
+] as const;
+
+export type MenuGroupName = (typeof menuGroupOrder)[number];
+
 export type MenuPriority = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
 
 export type ImplementedViewKey =
