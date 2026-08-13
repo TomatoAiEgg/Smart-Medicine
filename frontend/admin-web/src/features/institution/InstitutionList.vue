@@ -300,16 +300,6 @@ defineExpose({
 <template>
   <section class="institution-page">
     <AdminToolbar>
-      <t-button
-        class="institution-create-button"
-        theme="primary"
-        size="small"
-        :disabled="loading || saving"
-        @click="openCreateForm"
-      >
-        <template #icon><t-icon name="add" /></template>
-        新增机构
-      </t-button>
       <label class="institution-field institution-field--keyword">
         <span>关键字</span>
         <t-input
@@ -350,6 +340,15 @@ defineExpose({
         </t-select>
       </label>
       <template #actions>
+        <t-button
+          theme="primary"
+          size="small"
+          :disabled="loading || saving"
+          @click="openCreateForm"
+        >
+          <template #icon><t-icon name="add" /></template>
+          新增机构
+        </t-button>
         <t-button
           theme="primary"
           variant="outline"

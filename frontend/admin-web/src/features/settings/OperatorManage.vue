@@ -293,16 +293,6 @@ defineExpose({
 <template>
   <section class="operator-page">
     <AdminToolbar>
-      <t-button
-        class="operator-create-button"
-        theme="primary"
-        size="small"
-        :disabled="loading || saving || !canManage"
-        @click="openCreateForm"
-      >
-        <template #icon><t-icon name="add" /></template>
-        新增工号
-      </t-button>
       <label class="operator-field operator-field--keyword">
         <span>关键字</span>
         <t-input
@@ -331,13 +321,12 @@ defineExpose({
       <template #actions>
         <t-button
           theme="primary"
-          variant="outline"
           size="small"
-          :disabled="loading"
-          @click="searchFirstPage"
+          :disabled="loading || saving || !canManage"
+          @click="openCreateForm"
         >
-          <template #icon><t-icon name="search" /></template>
-          {{ loading ? '查询中' : '查询' }}
+          <template #icon><t-icon name="add" /></template>
+          新增工号
         </t-button>
         <t-button
           theme="default"
@@ -348,6 +337,16 @@ defineExpose({
         >
           <template #icon><t-icon name="download" /></template>
           导出当前页
+        </t-button>
+        <t-button
+          theme="primary"
+          variant="outline"
+          size="small"
+          :disabled="loading"
+          @click="searchFirstPage"
+        >
+          <template #icon><t-icon name="search" /></template>
+          {{ loading ? '查询中' : '查询' }}
         </t-button>
       </template>
     </AdminToolbar>
