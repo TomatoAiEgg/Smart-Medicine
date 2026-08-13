@@ -36,14 +36,22 @@ const toneClass = computed(() =>
 }
 
 .admin-status-tag--enabled {
-  border-color: #ccebd8;
-  color: var(--admin-green, #157347);
-  background: var(--admin-green-soft, #eaf8f0);
+  border-color: color-mix(
+    in srgb,
+    var(--admin-success, #2ba471) 32%,
+    var(--admin-surface, #ffffff)
+  );
+  color: var(--admin-success, #2ba471);
+  background: color-mix(
+    in srgb,
+    var(--admin-success, #2ba471) 12%,
+    var(--admin-surface, #ffffff)
+  );
 }
 
 .admin-status-tag--disabled {
-  border-color: #e1e5ea;
-  color: #5d6878;
-  background: #f1f3f5;
+  border-color: var(--admin-border, #dcdcdc);
+  color: var(--admin-text-secondary, #5e5e5e);
+  background: var(--admin-surface-subtle, #f2f3f5);
 }
 </style>

@@ -92,7 +92,7 @@ function handleNext() {
 }
 
 .admin-pagination__summary {
-  color: var(--admin-muted, #667085);
+  color: var(--admin-text-secondary, #5e5e5e);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   line-height: 20px;

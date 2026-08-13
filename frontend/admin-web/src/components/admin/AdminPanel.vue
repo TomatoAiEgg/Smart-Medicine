@@ -49,7 +49,7 @@ defineSlots<{
   min-height: 40px;
   min-width: 0;
   padding: 6px 0 8px;
-  border-bottom: 1px solid var(--admin-line, #e3e8f0);
+  border-bottom: 1px solid var(--admin-border, #dcdcdc);
 }
 
 .admin-panel__heading {
@@ -63,7 +63,7 @@ defineSlots<{
 }
 
 .admin-panel__heading h2 {
-  color: var(--admin-text, #1f2937);
+  color: var(--admin-text, #181818);
   font-size: 15px;
   font-weight: 600;
   line-height: 22px;
@@ -71,7 +71,7 @@ defineSlots<{
 
 .admin-panel__heading p {
   margin-top: 2px;
-  color: var(--admin-muted, #667085);
+  color: var(--admin-text-secondary, #5e5e5e);
   font-size: 12px;
   line-height: 18px;
 }

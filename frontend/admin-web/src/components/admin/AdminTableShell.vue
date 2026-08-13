@@ -17,7 +17,7 @@ defineSlots<{
   border: 1px solid var(--admin-border, #dcdcdc);
   border-top: 0;
   border-radius: 0 0 3px 3px;
-  background: #ffffff;
+  background: var(--admin-surface, #ffffff);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -47,7 +47,7 @@ defineSlots<{
   top: 0;
   height: 40px;
   padding: 0 10px;
-  color: var(--admin-muted, #667085);
+  color: var(--admin-text-secondary, #5e5e5e);
   background: var(--admin-surface-subtle, #f2f3f5);
   font-weight: 600;
 }
@@ -57,7 +57,7 @@ defineSlots<{
 }
 
 .admin-table-shell :deep(tbody tr:hover > td) {
-  background: #f8fafc;
+  background: var(--admin-surface-subtle, #f2f3f5);
 }
 
 .admin-table-shell :deep([data-align='number']) {

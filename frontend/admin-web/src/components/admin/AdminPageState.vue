@@ -83,10 +83,10 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
 .admin-page-state {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--admin-line, #e3e8f0);
+  border: 1px solid var(--admin-border, #dcdcdc);
   border-radius: 0 0 3px 3px;
-  color: var(--admin-muted, #667085);
-  background: #ffffff;
+  color: var(--admin-text-secondary, #5e5e5e);
+  background: var(--admin-surface, #ffffff);
 }
 
 .admin-page-state--loading {
@@ -116,7 +116,7 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
   align-items: center;
   gap: 24px;
   min-height: 40px;
-  border-bottom: 1px solid var(--admin-line-soft, #edf1f6);
+  border-bottom: 1px solid var(--admin-border, #dcdcdc);
 }
 
 .admin-page-state__skeleton-row:last-child {
@@ -127,7 +127,7 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
   display: block;
   height: 8px;
   border-radius: 2px;
-  background: #e9edf2;
+  background: var(--admin-border, #dcdcdc);
 }
 
 .admin-page-state__skeleton-row span:nth-child(2) {
@@ -150,7 +150,7 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
 .admin-page-state__icon {
   flex: 0 0 auto;
   margin-top: 1px;
-  color: var(--admin-muted, #667085);
+  color: var(--admin-text-secondary, #5e5e5e);
   font-size: 20px;
 }
 
@@ -167,7 +167,7 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
 }
 
 .admin-page-state__copy strong {
-  color: var(--admin-text, #1f2937);
+  color: var(--admin-text, #181818);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -184,12 +184,12 @@ const liveMode = computed(() => (props.state === 'error' ? 'assertive' : 'polite
 }
 
 .admin-page-state--error .admin-page-state__icon {
-  color: var(--admin-red, #b4232e);
+  color: var(--admin-danger, #d54941);
 }
 
 .admin-page-state--forbidden .admin-page-state__icon,
 .admin-page-state--readonly .admin-page-state__icon {
-  color: var(--admin-amber, #a16207);
+  color: var(--admin-warning, #e37318);
 }
 
 @media (max-width: 639px) {
