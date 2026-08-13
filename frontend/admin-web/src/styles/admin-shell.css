@@ -230,6 +230,8 @@
 }
 
 .admin-shell__tab-main {
+  display: inline-flex;
+  align-items: center;
   min-width: 0;
   height: 100%;
   padding: 0 12px;
@@ -238,6 +240,7 @@
   border-radius: 0;
   color: inherit;
   background: transparent;
+  text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
