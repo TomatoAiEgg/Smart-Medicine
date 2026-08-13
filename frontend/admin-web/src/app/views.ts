@@ -103,7 +103,8 @@ export interface AppRouteItem {
   apiDependencies: readonly string[];
 }
 
-export interface MenuItem extends AppRouteItem {
+export interface MenuItem extends Omit<AppRouteItem, 'group'> {
+  group: MenuGroupName;
   legacyRoute: string;
 }
 

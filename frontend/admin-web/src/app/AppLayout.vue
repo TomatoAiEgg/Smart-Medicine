@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { AdminUserSession } from '../api/adminSession';
 import {
   menuGroupOrder,
-  type AppRouteItem,
   type MenuGroupName,
+  type MenuItem,
   type ViewKey,
 } from './views';
 
@@ -22,7 +22,7 @@ const props = defineProps<{
   title: string;
   subtitle: string;
   homePath: string;
-  menuItems: readonly AppRouteItem[];
+  menuItems: readonly MenuItem[];
   counts: Partial<Record<ViewKey, number>>;
   notice: { tone: 'info' | 'success' | 'error'; text: string } | null;
   tabs: LayoutTab[];
@@ -53,13 +53,15 @@ const activeMenuItem = computed(() => (
   props.menuItems.find((item) => item.key === props.activeView) ?? null
 ));
 
-const activeGroupName = computed<MenuGroupName | null>(() => {
-  const groupName = activeMenuItem.value?.group;
-  return menuGroupOrder.find((name) => name === groupName) ?? null;
-});
+const activeGroupName = computed<MenuGroupName | null>(() => activeMenuItem.value?.group ?? null);
 
-const expandedGroupName = ref<string | null>(null);
+const expandedGroupName = ref<MenuGroupName | null>(null);
 const mobileNavigationOpen = ref(false);
+const compactViewport = ref(false);
+const menuTriggerRef = ref<HTMLButtonElement | null>(null);
+let compactViewportQuery: MediaQueryList | null = null;
+
+const mobileNavigationHidden = computed(() => compactViewport.value && !mobileNavigationOpen.value);
 
 watch(() => props.activeView, () => {
   expandedGroupName.value = activeGroupName.value;
@@ -84,32 +86,64 @@ function toggleGroup(groupName: MenuGroupName) {
   expandedGroupName.value = isGroupOpen(groupName) ? null : groupName;
 }
 
-function openMobileNavigation() {
-  mobileNavigationOpen.value = true;
+function closeMobileNavigation(restoreFocus = true) {
+  const wasOpen = mobileNavigationOpen.value;
+  mobileNavigationOpen.value = false;
+  if (restoreFocus && wasOpen) {
+    void nextTick(() => menuTriggerRef.value?.focus());
+  }
 }
 
-function closeMobileNavigation() {
-  mobileNavigationOpen.value = false;
+function toggleMobileNavigation() {
+  if (mobileNavigationOpen.value) {
+    closeMobileNavigation();
+    return;
+  }
+  mobileNavigationOpen.value = true;
 }
 
 function navigateAndClose(navigate: RouteNavigate) {
   void navigate();
+  closeMobileNavigation(false);
+}
+
+function handleCompactViewportChange(event: MediaQueryListEvent) {
+  compactViewport.value = event.matches;
+  if (!event.matches) closeMobileNavigation(false);
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !mobileNavigationOpen.value) return;
+  event.preventDefault();
   closeMobileNavigation();
 }
+
+onMounted(() => {
+  compactViewportQuery = window.matchMedia('(max-width: 1023px)');
+  compactViewport.value = compactViewportQuery.matches;
+  compactViewportQuery.addEventListener('change', handleCompactViewportChange);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  compactViewportQuery?.removeEventListener('change', handleCompactViewportChange);
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <template>
   <div class="admin-shell" :class="{ 'admin-shell--nav-open': mobileNavigationOpen }">
     <header class="admin-shell__header">
       <button
+        ref="menuTriggerRef"
         type="button"
         class="admin-shell__menu-trigger"
-        aria-label="打开导航菜单"
+        :aria-label="mobileNavigationOpen ? '关闭导航菜单' : '打开导航菜单'"
         :aria-expanded="mobileNavigationOpen"
         aria-controls="admin-sidebar-navigation"
-        @click="openMobileNavigation"
+        @click="toggleMobileNavigation"
       >
-        <t-icon name="menu" />
+        <t-icon :name="mobileNavigationOpen ? 'close' : 'menu'" />
       </button>
 
       <strong class="admin-shell__brand">智能药房 SaaS</strong>
@@ -131,13 +165,15 @@ function navigateAndClose(navigate: RouteNavigate) {
       type="button"
       class="admin-shell__backdrop"
       aria-label="关闭导航菜单"
-      @click="closeMobileNavigation"
+      @click="closeMobileNavigation()"
     />
 
     <aside
       id="admin-sidebar-navigation"
       class="admin-shell__sidebar"
       aria-label="后台功能导航"
+      :aria-hidden="mobileNavigationHidden ? 'true' : undefined"
+      :inert="mobileNavigationHidden"
     >
       <RouterLink v-slot="{ navigate }" :to="homePath" custom>
         <button
@@ -212,18 +248,13 @@ function navigateAndClose(navigate: RouteNavigate) {
           :key="tab.key"
           class="admin-shell__tab"
           :class="{ active: activeView === tab.key }"
-          :aria-current="activeView === tab.key ? 'page' : undefined"
         >
-          <RouterLink v-slot="{ navigate }" :to="tab.path" custom>
-            <button
-              type="button"
-              class="admin-shell__tab-main"
-              role="tab"
-              :aria-selected="activeView === tab.key"
-              @click="navigate"
-            >
-              {{ tab.label }}
-            </button>
+          <RouterLink
+            :to="tab.path"
+            class="admin-shell__tab-main"
+            :aria-current="activeView === tab.key ? 'page' : undefined"
+          >
+            {{ tab.label }}
           </RouterLink>
           <button
             v-if="tab.closable"

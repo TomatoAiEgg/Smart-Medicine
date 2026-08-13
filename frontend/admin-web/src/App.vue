@@ -15,6 +15,7 @@ import {
   routeItems,
   type AppRouteItem,
   type ImplementedViewKey,
+  type MenuItem,
   type ViewKey,
 } from './app/views';
 
@@ -109,7 +110,7 @@ const layoutTabs = computed<LayoutTab[]>(() => [
   })),
 ]);
 
-const navigationItems = computed<readonly AppRouteItem[]>(() => [
+const navigationItems = computed<readonly MenuItem[]>(() => [
   ...menuItems.filter((item) => canAccessRoute(item, sessionPermissions.value)),
 ]);
 
