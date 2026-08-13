@@ -61,6 +61,7 @@ defineSlots<{
   .admin-toolbar {
     align-items: stretch;
     flex-direction: column;
+    flex-wrap: nowrap;
   }
 
   .admin-toolbar__filters,
@@ -69,7 +70,7 @@ defineSlots<{
   }
 
   .admin-toolbar__filters {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     align-items: stretch;
     flex-direction: column;
   }
@@ -81,6 +82,7 @@ defineSlots<{
   }
 
   .admin-toolbar__actions {
+    flex: 0 0 auto;
     justify-content: flex-start;
     margin-left: 0;
   }
