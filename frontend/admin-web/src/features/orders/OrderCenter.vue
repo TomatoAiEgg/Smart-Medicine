@@ -2467,7 +2467,8 @@ defineExpose({
 .admin-error-line {
   margin: 0 0 10px;
   padding: 8px 10px;
-  border-left: 3px solid var(--admin-danger);
+  border: 1px solid var(--admin-danger);
+  border-radius: var(--admin-radius);
   color: var(--admin-danger);
   background: var(--admin-surface-subtle);
   font-size: 13px;
@@ -2477,7 +2478,8 @@ defineExpose({
 .order-modal-error {
   margin: 0 0 12px;
   padding: 8px 10px;
-  border-left: 3px solid var(--admin-danger);
+  border: 1px solid var(--admin-danger);
+  border-radius: var(--admin-radius);
   color: var(--admin-danger);
   background: var(--admin-surface-subtle);
   font-size: 13px;
@@ -2700,7 +2702,8 @@ defineExpose({
   gap: 3px;
   margin-bottom: 14px;
   padding: 8px 10px;
-  border-left: 3px solid var(--admin-primary);
+  border: 1px solid var(--admin-primary);
+  border-radius: var(--admin-radius);
   color: var(--admin-text-secondary);
   background: var(--admin-surface-subtle);
   font-size: 13px;
@@ -2712,11 +2715,11 @@ defineExpose({
 }
 
 .order-dialog-notice--warning {
-  border-left-color: var(--admin-warning);
+  border-color: var(--admin-warning);
 }
 
 .order-dialog-notice--danger {
-  border-left-color: var(--admin-danger);
+  border-color: var(--admin-danger);
 }
 
 .order-detail-workbench {
