@@ -21,6 +21,7 @@ import {
 } from '../../domain/formatters';
 
 type NoticeTone = 'info' | 'success' | 'error';
+type ActionErrorSource = 'editor' | 'list' | null;
 
 interface InstitutionForm {
   id: string | null;
@@ -53,6 +54,7 @@ const editorOpen = ref(false);
 const loaded = ref(false);
 const listError = ref('');
 const actionError = ref('');
+const actionErrorSource = ref<ActionErrorSource>(null);
 const refreshRequestSequence = ref(0);
 const activeRefreshRequest = ref(0);
 const form = ref<InstitutionForm>({
@@ -71,6 +73,7 @@ const hasNextPage = computed(() => !loading.value && page.value * pageSize.value
 const editing = computed(() => form.value.id !== null);
 const canExport = computed(() => !loading.value && rows.value.length > 0);
 const rowActionsDisabled = computed(() => loading.value || saving.value);
+const editorDisabled = computed(() => saving.value);
 const formEnabled = computed({
   get: () => form.value.status === 'ENABLED',
   set: (enabled: boolean) => {
@@ -180,6 +183,7 @@ async function searchFirstPage() {
 
 function resetForm() {
   actionError.value = '';
+  actionErrorSource.value = null;
   form.value = {
     id: null,
     institutionCode: '',
@@ -199,6 +203,7 @@ function openCreateForm() {
 function openEditForm(row: AdminInstitutionRecord) {
   if (saving.value) return;
   actionError.value = '';
+  actionErrorSource.value = null;
   form.value = {
     id: row.id,
     institutionCode: row.institutionCode,
@@ -223,14 +228,24 @@ function handleEditorOpenChange(open: boolean) {
   closeEditor();
 }
 
+function handleEnabledSwitchKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (editorDisabled.value) return;
+  formEnabled.value = !formEnabled.value;
+}
+
 async function saveInstitution() {
   if (saving.value) return;
   if (!form.value.institutionCode.trim() || !form.value.institutionName.trim()) {
     actionError.value = '机构编码和机构名称不能为空';
+    actionErrorSource.value = 'editor';
     return;
   }
   saving.value = true;
   actionError.value = '';
+  actionErrorSource.value = null;
   try {
     if (form.value.id) {
       await updateAdminInstitution(form.value.id, commandFromForm());
@@ -243,6 +258,7 @@ async function saveInstitution() {
     await refreshInstitutions();
   } catch (error) {
     actionError.value = errorMessage(error);
+    actionErrorSource.value = 'editor';
   } finally {
     saving.value = false;
   }
@@ -252,6 +268,7 @@ async function toggleInstitution(row: AdminInstitutionRecord) {
   if (saving.value) return;
   saving.value = true;
   actionError.value = '';
+  actionErrorSource.value = null;
   try {
     await updateAdminInstitution(row.id, {
       institutionName: row.institutionName,
@@ -263,6 +280,7 @@ async function toggleInstitution(row: AdminInstitutionRecord) {
     await refreshInstitutions();
   } catch (error) {
     actionError.value = errorMessage(error);
+    actionErrorSource.value = 'list';
   } finally {
     saving.value = false;
   }
@@ -298,9 +316,9 @@ defineExpose({
 </script>
 
 <template>
-  <section class="institution-page">
+  <section class="admin-list-page">
     <AdminToolbar>
-      <label class="institution-field institution-field--keyword">
+      <label class="admin-form-field admin-form-field--keyword">
         <span>关键字</span>
         <t-input
           v-model="keyword"
@@ -312,7 +330,7 @@ defineExpose({
           @enter="searchFirstPage"
         />
       </label>
-      <label class="institution-field institution-field--status">
+      <label class="admin-form-field admin-form-field--status">
         <span>状态</span>
         <t-select
           v-model="status"
@@ -325,7 +343,7 @@ defineExpose({
           <t-option value="DISABLED" label="停用" />
         </t-select>
       </label>
-      <label class="institution-field institution-field--type">
+      <label class="admin-form-field admin-form-field--type">
         <span>类型</span>
         <t-select
           v-model="institutionType"
@@ -378,10 +396,16 @@ defineExpose({
         {{ loaded ? `当前第 ${page} 页，共 ${formatNumber(total)} 条记录。` : '按条件检索机构列表。' }}
       </template>
       <template #actions>
-        <span class="institution-list-note">机构名称为主信息，编码显示在名称下方。</span>
+        <span class="admin-list-note">机构名称为主信息，编码显示在名称下方。</span>
       </template>
 
-      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
+      <p
+        v-if="actionError && actionErrorSource === 'list' && !editorOpen"
+        class="admin-error-line"
+        role="alert"
+      >
+        {{ actionError }}
+      </p>
 
       <AdminPageState
         v-if="listState === 'loading'"
@@ -399,9 +423,9 @@ defineExpose({
         message="没有相关机构。"
       />
       <template v-else>
-        <p v-if="listError" class="error-line institution-list-error" role="alert">{{ listError }}</p>
+        <p v-if="listError" class="admin-error-line admin-list-error" role="alert">{{ listError }}</p>
         <AdminTableShell>
-          <table class="institution-table">
+          <table class="admin-data-table">
             <thead>
               <tr>
                 <th>机构</th>
@@ -428,7 +452,7 @@ defineExpose({
                 <td>{{ displayValue(row.storageType) }}</td>
                 <td>{{ formatDate(row.createdAt) }}</td>
                 <td>{{ formatDate(row.updatedAt) }}</td>
-                <td class="institution-row-actions">
+                <td class="admin-row-actions">
                   <t-button
                     theme="default"
                     variant="outline"
@@ -474,50 +498,68 @@ defineExpose({
       @update:open="handleEditorOpenChange"
       @save="saveInstitution"
     >
-      <p v-if="actionError" class="error-line institution-editor-error" role="alert">{{ actionError }}</p>
+      <p
+        v-if="actionError && actionErrorSource === 'editor' && editorOpen"
+        class="admin-error-line admin-editor-error"
+        role="alert"
+      >
+        {{ actionError }}
+      </p>
 
-      <div class="institution-form-grid">
-        <label class="institution-field">
+      <div class="admin-form-grid">
+        <label class="admin-form-field">
           <span>机构编码</span>
           <t-input
             v-model="form.institutionCode"
             name="institution-code"
             size="small"
-            :disabled="editing"
+            :disabled="saving || editing"
             placeholder="hospital-code"
             autofocus
           />
         </label>
-        <label class="institution-field">
+        <label class="admin-form-field">
           <span>机构名称</span>
           <t-input
             v-model="form.institutionName"
             name="institution-name"
             size="small"
+            :disabled="editorDisabled"
             placeholder="机构名称"
           />
         </label>
-        <label class="institution-field">
+        <label class="admin-form-field">
           <span>类型</span>
-          <t-select v-model="form.institutionType" size="small">
+          <t-select v-model="form.institutionType" size="small" :disabled="editorDisabled">
             <t-option value="HOSPITAL" label="医院" />
             <t-option value="PHARMACY" label="药房" />
             <t-option value="PLATFORM" label="平台" />
           </t-select>
         </label>
-        <label class="institution-switch-field">
+        <label class="admin-switch-field">
           <span>状态</span>
-          <span class="institution-switch-control">
-            <t-switch v-model="formEnabled" size="small" />
+          <span class="admin-switch-control">
+            <t-switch
+              v-model="formEnabled"
+              size="small"
+              role="switch"
+              aria-label="机构状态"
+              :tabindex="editorDisabled ? -1 : 0"
+              :aria-checked="formEnabled ? 'true' : 'false'"
+              :aria-disabled="editorDisabled ? 'true' : 'false'"
+              :disabled="editorDisabled"
+              @keydown="handleEnabledSwitchKeydown"
+            />
             <span>{{ formEnabled ? '启用' : '停用' }}</span>
           </span>
         </label>
-        <label class="institution-field institution-field--wide">
+        <label class="admin-form-field admin-form-field--wide">
           <span>煎煮中心</span>
           <t-input
             v-model="form.storageType"
             name="institution-storage-type"
             size="small"
+            :disabled="editorDisabled"
             placeholder="中心/仓储标识"
           />
         </label>
@@ -527,65 +569,60 @@ defineExpose({
 </template>
 
 <style scoped>
-.institution-page {
+.admin-list-page {
   display: grid;
   gap: 12px;
   min-width: 0;
   overflow-x: hidden;
 }
 
-.institution-list-note {
+.admin-list-note {
   color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.institution-field {
+.admin-form-field {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.institution-field > span,
-.institution-switch-field > span:first-child {
+.admin-form-field > span,
+.admin-switch-field > span:first-child {
   color: var(--admin-text-secondary);
   font-size: 13px;
   line-height: 20px;
 }
 
-.institution-field--keyword {
+.admin-form-field--keyword {
   flex: 1 1 300px;
-  min-width: 240px;
+  min-width: 220px;
 }
 
-.institution-field--status,
-.institution-field--type {
+.admin-form-field--status,
+.admin-form-field--type {
   flex: 0 0 136px;
 }
 
-.institution-field :deep(.t-input),
-.institution-field :deep(.t-select) {
-  width: 100%;
-}
-
-.institution-form-grid {
+.admin-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 12px;
   min-width: 0;
 }
 
-.institution-field--wide {
+.admin-form-field--wide {
   grid-column: 1 / -1;
 }
 
-.institution-switch-field {
+.admin-switch-field {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.institution-switch-control {
+.admin-switch-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -595,7 +632,7 @@ defineExpose({
   line-height: 20px;
 }
 
-.institution-table {
+.admin-data-table {
   min-width: 1040px;
 }
 
@@ -618,36 +655,36 @@ defineExpose({
   line-height: 18px;
 }
 
-.institution-row-actions {
+.admin-row-actions {
   white-space: nowrap;
 }
 
-.institution-row-actions :deep(.t-button) {
+.admin-row-actions :deep(.t-button) {
   margin-right: 8px;
 }
 
-.institution-row-actions :deep(.t-button:last-child) {
+.admin-row-actions :deep(.t-button:last-child) {
   margin-right: 0;
 }
 
-.error-line {
+.admin-error-line {
   margin: 0;
   color: var(--admin-danger);
   font-size: 13px;
   line-height: 20px;
 }
 
-.institution-editor-error,
-.institution-list-error {
+.admin-editor-error,
+.admin-list-error {
   margin-bottom: 12px;
 }
 
 @media (max-width: 639px) {
-  .institution-form-grid {
+  .admin-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .institution-field--wide {
+  .admin-form-field--wide {
     grid-column: auto;
   }
 }

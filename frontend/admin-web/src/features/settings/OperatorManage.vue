@@ -16,6 +16,7 @@ import { boundedPositiveInteger, enabledStringParam, enabledText, displayValue, 
 
 type NoticeTone = 'info' | 'success' | 'error';
 type EnabledFilter = '' | 'true' | 'false';
+type ActionErrorSource = 'editor' | 'list' | null;
 
 interface OperatorForm {
   id: string | null;
@@ -49,6 +50,7 @@ const revokingUserId = ref('');
 const loaded = ref(false);
 const listError = ref('');
 const actionError = ref('');
+const actionErrorSource = ref<ActionErrorSource>(null);
 const roleOptions = ref<AdminRbacRoleRecord[]>([]);
 const refreshRequestSequence = ref(0);
 const activeRefreshRequest = ref(0);
@@ -68,6 +70,7 @@ const editing = computed(() => form.value.id !== null);
 const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName] as const)));
 const canExport = computed(() => !loading.value && rows.value.length > 0);
 const rowActionsDisabled = computed(() => loading.value || saving.value || !props.canManage);
+const editorDisabled = computed(() => saving.value || !props.canManage);
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
   if (listError.value && operatorPage.value === null) return 'error';
@@ -127,6 +130,12 @@ async function refreshOperators() {
       listAdminRbacRoles({ page: 1, pageSize: 100 }),
     ]);
     if (requestId !== activeRefreshRequest.value) return;
+    const lastPage = Math.max(1, Math.ceil(nextPage.total / nextPage.pageSize));
+    if (nextPage.records.length === 0 && page.value > lastPage) {
+      page.value = lastPage;
+      await refreshOperators();
+      return;
+    }
     operatorPage.value = nextPage;
     roleOptions.value = roles.records;
     page.value = nextPage.page;
@@ -155,6 +164,7 @@ async function searchFirstPage() {
 
 function resetForm() {
   actionError.value = '';
+  actionErrorSource.value = null;
   form.value = {
     id: null,
     username: '',
@@ -173,6 +183,7 @@ function openCreateForm() {
 function openEditForm(row: AdminOperatorRecord) {
   if (!props.canManage || saving.value) return;
   actionError.value = '';
+  actionErrorSource.value = null;
   form.value = {
     id: row.id,
     username: row.username,
@@ -196,14 +207,24 @@ function handleEditorOpenChange(open: boolean) {
   closeEditor();
 }
 
+function handleEnabledSwitchKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (editorDisabled.value) return;
+  form.value.enabled = !form.value.enabled;
+}
+
 async function saveOperator() {
   if (!props.canManage || saving.value) return;
   if (!form.value.username.trim() || !form.value.displayName.trim()) {
     actionError.value = '工号和姓名不能为空';
+    actionErrorSource.value = 'editor';
     return;
   }
   saving.value = true;
   actionError.value = '';
+  actionErrorSource.value = null;
   try {
     if (form.value.id) {
       await updateAdminOperator(form.value.id, commandFromForm());
@@ -216,6 +237,7 @@ async function saveOperator() {
     await refreshOperators();
   } catch (error) {
     actionError.value = errorMessage(error);
+    actionErrorSource.value = 'editor';
   } finally {
     saving.value = false;
   }
@@ -225,6 +247,7 @@ async function toggleOperator(row: AdminOperatorRecord) {
   if (!props.canManage) return;
   saving.value = true;
   actionError.value = '';
+  actionErrorSource.value = null;
   try {
     await updateAdminOperator(row.id, {
       displayName: row.displayName,
@@ -235,6 +258,7 @@ async function toggleOperator(row: AdminOperatorRecord) {
     await refreshOperators();
   } catch (error) {
     actionError.value = errorMessage(error);
+    actionErrorSource.value = 'list';
   } finally {
     saving.value = false;
   }
@@ -245,6 +269,7 @@ async function forceLogout(row: AdminOperatorRecord) {
   if (!window.confirm(`确认强制下线工号“${row.username}”的全部登录会话吗？`)) return;
   revokingUserId.value = row.id;
   actionError.value = '';
+  actionErrorSource.value = null;
   try {
     const result = await revokeAdminUserSessions(row.id);
     emit(
@@ -256,6 +281,7 @@ async function forceLogout(row: AdminOperatorRecord) {
     );
   } catch (error) {
     actionError.value = errorMessage(error);
+    actionErrorSource.value = 'list';
   } finally {
     revokingUserId.value = '';
   }
@@ -291,9 +317,9 @@ defineExpose({
 </script>
 
 <template>
-  <section class="operator-page">
+  <section class="admin-list-page">
     <AdminToolbar>
-      <label class="operator-field operator-field--keyword">
+      <label class="admin-form-field admin-form-field--keyword">
         <span>关键字</span>
         <t-input
           v-model="keyword"
@@ -305,7 +331,7 @@ defineExpose({
           @enter="searchFirstPage"
         />
       </label>
-      <label class="operator-field operator-field--status">
+      <label class="admin-form-field admin-form-field--status">
         <span>状态</span>
         <t-select
           v-model="enabledFilter"
@@ -357,10 +383,16 @@ defineExpose({
         {{ loaded ? `当前第 ${page} 页，共 ${formatNumber(total)} 条记录。` : '按条件检索工号列表。' }}
       </template>
       <template #actions>
-        <span class="operator-list-note">角色主值显示名称，附带编码。</span>
+        <span class="admin-list-note">角色主值显示名称，附带编码。</span>
       </template>
 
-      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
+      <p
+        v-if="actionError && actionErrorSource === 'list' && !editorOpen"
+        class="admin-error-line"
+        role="alert"
+      >
+        {{ actionError }}
+      </p>
 
       <AdminPageState
         v-if="listState === 'loading'"
@@ -379,7 +411,7 @@ defineExpose({
       />
       <template v-else>
         <AdminTableShell>
-          <table class="operator-table">
+          <table class="admin-data-table">
             <thead>
               <tr>
                 <th>工号</th>
@@ -408,7 +440,7 @@ defineExpose({
                 </td>
                 <td>{{ formatDate(row.createdAt) }}</td>
                 <td>{{ formatDate(row.updatedAt) }}</td>
-                <td class="operator-row-actions">
+                <td class="admin-row-actions">
                   <t-button
                     theme="default"
                     variant="outline"
@@ -464,36 +496,42 @@ defineExpose({
       @update:open="handleEditorOpenChange"
       @save="saveOperator"
     >
-      <p v-if="actionError" class="error-line operator-editor-error" role="alert">{{ actionError }}</p>
+      <p
+        v-if="actionError && actionErrorSource === 'editor' && editorOpen"
+        class="admin-error-line admin-editor-error"
+        role="alert"
+      >
+        {{ actionError }}
+      </p>
 
-      <div class="operator-form-grid">
-        <label class="operator-field">
+      <div class="admin-form-grid">
+        <label class="admin-form-field">
           <span>工号</span>
           <t-input
             v-model="form.username"
             name="operator-username"
             size="small"
-            :disabled="editing || !canManage"
+            :disabled="saving || editing || !canManage"
             placeholder="operator01"
             autofocus
           />
         </label>
-        <label class="operator-field">
+        <label class="admin-form-field">
           <span>姓名</span>
           <t-input
             v-model="form.displayName"
             name="operator-display-name"
             size="small"
-            :disabled="!canManage"
+            :disabled="editorDisabled"
             placeholder="操作员姓名"
           />
         </label>
-        <label class="operator-field operator-field--wide">
+        <label class="admin-form-field admin-form-field--wide">
           <span>角色</span>
           <t-select
             v-model="form.roleCode"
             size="small"
-            :disabled="!canManage"
+            :disabled="editorDisabled"
           >
             <t-option value="" label="未分配角色" />
             <t-option
@@ -505,10 +543,20 @@ defineExpose({
             />
           </t-select>
         </label>
-        <label class="operator-switch-field operator-field--wide">
+        <label class="admin-switch-field admin-form-field--wide">
           <span>状态</span>
-          <span class="operator-switch-control">
-            <t-switch v-model="form.enabled" size="small" :disabled="!canManage" />
+          <span class="admin-switch-control">
+            <t-switch
+              v-model="form.enabled"
+              size="small"
+              role="switch"
+              aria-label="工号状态"
+              :tabindex="editorDisabled ? -1 : 0"
+              :aria-checked="form.enabled ? 'true' : 'false'"
+              :aria-disabled="editorDisabled ? 'true' : 'false'"
+              :disabled="editorDisabled"
+              @keydown="handleEnabledSwitchKeydown"
+            />
             <span>{{ form.enabled ? '启用' : '停用' }}</span>
           </span>
         </label>
@@ -518,64 +566,59 @@ defineExpose({
 </template>
 
 <style scoped>
-.operator-page {
+.admin-list-page {
   display: grid;
   gap: 12px;
   min-width: 0;
   overflow-x: hidden;
 }
 
-.operator-list-note {
+.admin-list-note {
   color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.operator-field {
+.admin-form-field {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.operator-field > span,
-.operator-switch-field > span:first-child {
+.admin-form-field > span,
+.admin-switch-field > span:first-child {
   color: var(--admin-text-secondary);
   font-size: 13px;
   line-height: 20px;
 }
 
-.operator-field--keyword {
-  flex: 1 1 280px;
+.admin-form-field--keyword {
+  flex: 1 1 300px;
   min-width: 220px;
 }
 
-.operator-field--status {
-  flex: 0 0 144px;
+.admin-form-field--status {
+  flex: 0 0 136px;
 }
 
-.operator-field :deep(.t-input),
-.operator-field :deep(.t-select) {
-  width: 100%;
-}
-
-.operator-form-grid {
+.admin-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 12px;
   min-width: 0;
 }
 
-.operator-field--wide {
+.admin-form-field--wide {
   grid-column: 1 / -1;
 }
 
-.operator-switch-field {
+.admin-switch-field {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.operator-switch-control {
+.admin-switch-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -585,7 +628,7 @@ defineExpose({
   line-height: 20px;
 }
 
-.operator-table {
+.admin-data-table {
   min-width: 1040px;
 }
 
@@ -608,35 +651,35 @@ defineExpose({
   line-height: 18px;
 }
 
-.operator-row-actions {
+.admin-row-actions {
   white-space: nowrap;
 }
 
-.operator-row-actions :deep(.t-button) {
+.admin-row-actions :deep(.t-button) {
   margin-right: 8px;
 }
 
-.operator-row-actions :deep(.t-button:last-child) {
+.admin-row-actions :deep(.t-button:last-child) {
   margin-right: 0;
 }
 
-.error-line {
+.admin-error-line {
   margin: 0;
   color: var(--admin-danger);
   font-size: 13px;
   line-height: 20px;
 }
 
-.operator-editor-error {
+.admin-editor-error {
   margin-bottom: 12px;
 }
 
 @media (max-width: 639px) {
-  .operator-form-grid {
+  .admin-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .operator-field--wide {
+  .admin-form-field--wide {
     grid-column: auto;
   }
 }
