@@ -1,0 +1,78 @@
+:root {
+  --admin-primary: #0052d9;
+  --admin-primary-hover: #003cab;
+  --admin-header: #1f2d3d;
+  --admin-sidebar: #1f2d3d;
+  --admin-sidebar-hover: #26384a;
+  --admin-sidebar-active: #0b5cab;
+  --admin-workspace: #f5f6f7;
+  --admin-surface: #ffffff;
+  --admin-surface-subtle: #f2f3f5;
+  --admin-text: #181818;
+  --admin-text-secondary: #5e5e5e;
+  --admin-text-placeholder: #8b8b8b;
+  --admin-border: #dcdcdc;
+  --admin-success: #2ba471;
+  --admin-warning: #e37318;
+  --admin-danger: #d54941;
+  --admin-control-height: 32px;
+  --admin-header-height: 48px;
+  --admin-sidebar-width: 208px;
+  --admin-tab-height: 36px;
+  --admin-radius: 3px;
+  --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    "Noto Sans CJK SC", Arial, sans-serif;
+
+  --td-brand-color: var(--admin-primary);
+  --td-brand-color-hover: var(--admin-primary-hover);
+  --td-brand-color-active: #002a7c;
+  --td-brand-color-focus: rgba(0, 82, 217, 0.18);
+  --td-bg-color-page: var(--admin-workspace);
+  --td-bg-color-container: var(--admin-surface);
+  --td-bg-color-container-hover: var(--admin-surface-subtle);
+  --td-bg-color-container-active: #e8e8e8;
+  --td-bg-color-component: var(--admin-surface-subtle);
+  --td-bg-color-component-hover: #e8e8e8;
+  --td-bg-color-component-active: #dcdcdc;
+  --td-border-level-1-color: var(--admin-border);
+  --td-border-level-2-color: #c8c8c8;
+  --td-component-stroke: var(--admin-border);
+  --td-component-border: #c8c8c8;
+  --td-font-gray-1: var(--admin-text);
+  --td-font-gray-2: var(--admin-text-secondary);
+  --td-font-gray-3: var(--admin-text-placeholder);
+  --td-success-color: var(--admin-success);
+  --td-warning-color: var(--admin-warning);
+  --td-error-color: var(--admin-danger);
+  --td-radius-small: 2px;
+  --td-radius-default: var(--admin-radius);
+  --td-radius-medium: 4px;
+  --td-comp-size-s: var(--admin-control-height);
+  --td-font-family: var(--admin-font-family);
+  --td-font-family-medium: var(--admin-font-family);
+}
+
+html,
+body,
+#app {
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+  color: var(--admin-text);
+  background: var(--admin-workspace);
+  font-family: var(--admin-font-family);
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 1px;
+}
