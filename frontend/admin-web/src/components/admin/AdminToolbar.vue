@@ -74,10 +74,10 @@ defineSlots<{
     flex-direction: column;
   }
 
-  .admin-toolbar__filters :deep(> *) {
+  .admin-toolbar > .admin-toolbar__filters > :deep(*) {
+    flex: none;
     width: 100%;
     max-width: none;
-    flex-basis: auto;
   }
 
   .admin-toolbar__actions {
