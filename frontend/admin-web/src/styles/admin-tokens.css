@@ -1,10 +1,6 @@
 :root {
   --admin-primary: #0052d9;
   --admin-primary-hover: #003cab;
-  --admin-header: #1f2d3d;
-  --admin-sidebar: #1f2d3d;
-  --admin-sidebar-hover: #26384a;
-  --admin-sidebar-active: #0b5cab;
   --admin-workspace: #f5f6f7;
   --admin-surface: #ffffff;
   --admin-surface-subtle: #f2f3f5;
@@ -50,6 +46,13 @@
   --td-comp-size-s: var(--admin-control-height);
   --td-font-family: var(--admin-font-family);
   --td-font-family-medium: var(--admin-font-family);
+}
+
+.admin-shell {
+  --admin-header: #1f2d3d;
+  --admin-sidebar: #1f2d3d;
+  --admin-sidebar-hover: #26384a;
+  --admin-sidebar-active: #0b5cab;
 }
 
 html,

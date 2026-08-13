@@ -2,10 +2,13 @@
   display: grid;
   grid-template:
     "header header" var(--admin-header-height)
-    "sidebar main" calc(100vh - var(--admin-header-height))
+    "sidebar main" minmax(0, 1fr)
     / var(--admin-sidebar-width) minmax(0, 1fr);
+  height: 100vh;
   min-width: 0;
   min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   color: var(--admin-text);
   background: var(--admin-workspace);
 }
@@ -306,19 +309,19 @@
   min-width: 0;
 }
 
-.admin-page-heading p,
-.admin-page-heading h1,
-.admin-page-heading span {
+.admin-page-heading > div > p,
+.admin-page-heading > div > h1,
+.admin-page-heading > div > span {
   margin: 0;
 }
 
-.admin-page-heading p {
+.admin-page-heading > div > p {
   color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.admin-page-heading h1 {
+.admin-page-heading > div > h1 {
   margin-top: 1px;
   color: var(--admin-text);
   font-size: 20px;
@@ -327,7 +330,7 @@
   overflow-wrap: anywhere;
 }
 
-.admin-page-heading span {
+.admin-page-heading > div > span {
   display: block;
   margin-top: 2px;
   color: var(--admin-text-secondary);
@@ -350,8 +353,12 @@
   .admin-shell {
     grid-template:
       "header" var(--admin-header-height)
-      "main" calc(100vh - var(--admin-header-height))
+      "main" minmax(0, 1fr)
       / minmax(0, 1fr);
+    height: 100vh;
+    min-height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
   }
 
   .admin-shell__menu-trigger {
@@ -419,7 +426,7 @@
     gap: 8px;
   }
 
-  .admin-page-heading h1 {
+  .admin-page-heading > div > h1 {
     font-size: 18px;
     line-height: 26px;
   }
