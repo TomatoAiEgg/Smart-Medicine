@@ -45,9 +45,30 @@ import type {
   SimulatorOperationCommand,
   WorkflowProgress,
 } from '../../api/types';
+import AdminPageState from '../../components/admin/AdminPageState.vue';
+import AdminPagination from '../../components/admin/AdminPagination.vue';
+import AdminPanel from '../../components/admin/AdminPanel.vue';
+import AdminTableShell from '../../components/admin/AdminTableShell.vue';
+import AdminToolbar from '../../components/admin/AdminToolbar.vue';
 import StatusPill from '../../components/StatusPill.vue';
 import { saveBlob } from '../../domain/download';
-import { EMPTY_VALUE, amountValue, boundedPositiveInteger, displayValue, currentIsoDate, currentIsoTimestamp, formatDate, joinDisplayParts, labelFromMap, moneyValue, numericValue, sumNumbers } from '../../domain/formatters';
+import {
+  EMPTY_VALUE,
+  amountValue,
+  boundedPositiveInteger,
+  currentIsoDate,
+  currentIsoTimestamp,
+  displayValue,
+  formatDate,
+  joinDisplayParts,
+  labelFromMap,
+  maskPersonName,
+  maskPhone,
+  moneyValue,
+  numericValue,
+  splitCommaValues,
+  sumNumbers,
+} from '../../domain/formatters';
 import { statusTone } from '../../domain/status';
 
 type NoticeTone = 'info' | 'success' | 'error';
@@ -97,6 +118,11 @@ interface SignForm {
   remark: string;
 }
 type FormNumberValue = number | '' | null;
+type AdminOrderListPaymentFields = AdminOrderListItem & {
+  payMethod?: string | null;
+  payStatus?: string | null;
+  paymentStatus?: string | null;
+};
 const CANCELLABLE_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED', 'RECHECKED']);
 const EDITABLE_PRESCRIPTION_ORDER_STATUSES = new Set(['CREATED', 'AUDIT_PASSED']);
 const SIGNABLE_SHIPMENT_STATUSES = new Set(['PACKED', 'SHIPPED', 'IN_TRANSIT']);
@@ -307,6 +333,29 @@ function hospitalTypeText(type: string | null | undefined) {
   return labelFromMap(type, labels);
 }
 
+function prescriptionTypeText(type: string | null | undefined) {
+  const labels: Record<string, string> = {
+    DECOCTION: '代煎',
+    SELF_DECOCTION: '自煎',
+    HERBAL_PIECE: '饮片',
+    CREAM: '膏方',
+    PILL: '丸剂',
+    POWDER: '散剂',
+    OTHER: '其他',
+    代煎: '代煎',
+    自煎: '自煎',
+    饮片: '饮片',
+    膏方: '膏方',
+    丸剂: '丸剂',
+    散剂: '散剂',
+    其他: '其他',
+  };
+  const values = splitCommaValues(type);
+  return values.length > 0
+    ? values.map((value) => labelFromMap(value, labels)).join(' / ')
+    : EMPTY_VALUE;
+}
+
 function isWithinText(type: number | null | undefined) {
   if (type === 0) return '内服';
   if (type === 1) return '外用';
@@ -341,19 +390,15 @@ function legacyDateTimeInput(value: string | null | undefined) {
 }
 
 function receiverSummary(row: AdminOrderListItem) {
-  const address = [row.receiverProvince, row.receiverCity, row.receiverZone, row.receiverAddress]
-    .filter((item): item is string => !!item && item.trim().length > 0)
-    .join('');
-  const pieces = [row.receiverName, row.receiverPhone, address]
-    .filter((item): item is string => !!item && item.trim().length > 0);
-  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+  return joinDisplayParts([maskPersonName(row.receiverName), maskPhone(row.receiverPhone)], ' / ');
 }
 
 function detailPatientSummary() {
   if (!orderDetail.value) return EMPTY_VALUE;
-  const pieces = [orderDetail.value.patientName, orderDetail.value.patientPhone]
-    .filter((item): item is string => !!item && item.trim().length > 0);
-  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+  return joinDisplayParts(
+    [maskPersonName(orderDetail.value.patientName), maskPhone(orderDetail.value.patientPhone)],
+    ' / ',
+  );
 }
 
 function detailReceiverSummary() {
@@ -364,9 +409,26 @@ function detailReceiverSummary() {
     orderDetail.value.receiverZone,
     orderDetail.value.receiverAddress,
   ].filter((item): item is string => !!item && item.trim().length > 0).join('');
-  const pieces = [orderDetail.value.receiverName, orderDetail.value.receiverPhone, address]
-    .filter((item): item is string => !!item && item.trim().length > 0);
-  return pieces.length > 0 ? pieces.join(' / ') : EMPTY_VALUE;
+  return joinDisplayParts(
+    [maskPersonName(orderDetail.value.receiverName), maskPhone(orderDetail.value.receiverPhone), address],
+    ' / ',
+  );
+}
+
+function paymentSummary(row: AdminOrderListItem) {
+  const payment = row as AdminOrderListPaymentFields;
+  const status = payment.paymentStatus ?? payment.payStatus;
+  const methodLabels: Record<string, string> = {
+    CASH: '现金',
+    ONLINE: '线上支付',
+    WECHAT: '微信支付',
+    ALIPAY: '支付宝',
+    COD: '货到付款',
+  };
+  return joinDisplayParts(
+    [status ? statusText(status) : null, payment.payMethod ? labelFromMap(payment.payMethod, methodLabels) : null],
+    ' / ',
+  );
 }
 
 function validationSummary() {
@@ -419,6 +481,10 @@ function statusText(status: string | null | undefined) {
     PASSED: '已通过',
     SENT: '已发送',
     OK: '正常',
+    PAID: '已支付',
+    UNPAID: '未支付',
+    REFUNDED: '已退款',
+    PARTIALLY_REFUNDED: '部分退款',
   };
   return labelFromMap(status, labels);
 }
@@ -1016,6 +1082,24 @@ async function searchFirstPage() {
   await queryOrder();
 }
 
+function resetOrderFilters() {
+  startTime.value = '';
+  endTime.value = '';
+  institution.value = '';
+  prescriptionType.value = '';
+  hospitalType.value = '';
+  orderStatus.value = '';
+  decoctionCenter.value = '';
+  deliveryType.value = '';
+  logisticsCompany.value = '';
+  province.value = '';
+  orderNo.value = '';
+  hospitalPrescriptionNo.value = '';
+  patientName.value = '';
+  receiverPhone.value = '';
+  page.value = 1;
+}
+
 async function loadOrderDetail(row: AdminOrderListItem) {
   detailLoading.value = true;
   orderError.value = '';
@@ -1060,252 +1144,295 @@ defineExpose({
 </script>
 
 <template>
-  <section class="legacy-page order-list-page">
-    <ul class="legacy-search order-list-search">
-      <li>
-        开始时间：
-        <input v-model="startTime" class="legacy-input input-large" placeholder="YYYY-MM-DD HH:mm:ss" />
-      </li>
-      <li>
-        结束时间：
-        <input v-model="endTime" class="legacy-input input-large" placeholder="YYYY-MM-DD HH:mm:ss" />
-      </li>
-      <li>
-        机构：
-        <select v-model="institution" class="legacy-input input-large">
-          <option value="">请选择</option>
-          <option value="良益堂煎药中心">良益堂煎药中心</option>
-          <option value="广州良益堂（康正堂店）">广州良益堂（康正堂店）</option>
-          <option value="代煎代配药房">代煎代配药房</option>
-        </select>
-      </li>
-      <li>
-        处方类型：
-        <select v-model="prescriptionType" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="代煎">代煎</option>
-          <option value="自煎">自煎</option>
-        </select>
-      </li>
-      <li>
-        门诊住院：
-        <select v-model="hospitalType" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="1">门诊</option>
-          <option value="2">住院</option>
-          <option value="3">其他</option>
-        </select>
-      </li>
-      <li>
-        订单状态：
-        <select v-model="orderStatus" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="CREATED">已创建</option>
-          <option value="PENDING">待处理</option>
-          <option value="APPROVED">已通过</option>
-          <option value="REJECTED">已驳回</option>
-          <option value="PACKED">已打包</option>
-          <option value="SHIPPED">已发货</option>
-          <option value="SIGNED">已签收</option>
-        </select>
-      </li>
-      <li>
-        煎煮中心：
-        <select v-model="decoctionCenter" class="legacy-input input-large">
-          <option value="">请选择</option>
-          <option value="良益堂煎药中心">良益堂煎药中心</option>
-          <option value="良益堂煎煮中心">良益堂煎煮中心</option>
-        </select>
-      </li>
-      <li>
-        送货方式：
-        <select v-model="deliveryType" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="HOSPITAL">送医院</option>
-          <option value="PATIENT">送个人</option>
-          <option value="PICKUP">自提</option>
-        </select>
-      </li>
-      <li>
-        物流公司：
-        <select v-model="logisticsCompany" class="legacy-input">
-          <option value="">请选择</option>
-          <option value="顺丰">顺丰</option>
-          <option value="EMS">EMS</option>
-          <option value="自配送">自配送</option>
-        </select>
-      </li>
-      <li>
-        省份：
-        <input v-model="province" class="legacy-input input-large" />
-      </li>
-      <li>
-        平台订单号/处方号：
-        <input
-          v-model="orderNo"
-          class="legacy-input input-large"
-          placeholder="平台订单号/处方号"
-          @keyup.enter="searchFirstPage"
-        />
-      </li>
-      <li>
-        机构处方号：
-        <input v-model="hospitalPrescriptionNo" class="legacy-input input-large" />
-      </li>
-      <li>
-        病人姓名：
-        <input v-model="patientName" class="legacy-input input-large" />
-      </li>
-      <li>
-        收货电话：
-        <input v-model="receiverPhone" class="legacy-input input-large" />
-      </li>
-      <li>
-        条数：
-        <select v-model.number="pageSize" class="legacy-input">
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-        </select>
-      </li>
-      <li>
-        <button class="legacy-btn legacy-btn-primary" type="button" :disabled="orderLoading" @click="searchFirstPage">
-          {{ orderLoading ? '查询中' : '查询' }}
-        </button>
-      </li>
-      <li>
-        <button
-          class="legacy-btn legacy-btn-export"
-          type="button"
-          :disabled="exportLoading || orderLoading"
+  <section class="admin-list-page order-center-page">
+    <AdminToolbar class="order-filter-toolbar">
+      <div class="order-filter-grid">
+        <label class="order-filter-field order-filter-field--wide">
+          <span>时间范围</span>
+          <div class="order-time-range">
+            <t-input v-model="startTime" size="small" clearable placeholder="开始时间" @enter="searchFirstPage" />
+            <span>至</span>
+            <t-input v-model="endTime" size="small" clearable placeholder="结束时间" @enter="searchFirstPage" />
+          </div>
+        </label>
+        <label class="order-filter-field">
+          <span>机构</span>
+          <t-select v-model="institution" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="良益堂煎药中心" label="良益堂煎药中心" />
+            <t-option value="广州良益堂（康正堂店）" label="广州良益堂（康正堂店）" />
+            <t-option value="代煎代配药房" label="代煎代配药房" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>处方类型</span>
+          <t-select v-model="prescriptionType" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="代煎" label="代煎" />
+            <t-option value="自煎" label="自煎" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>门诊 / 住院</span>
+          <t-select v-model="hospitalType" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="1" label="门诊" />
+            <t-option value="2" label="住院" />
+            <t-option value="3" label="其他" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>订单状态</span>
+          <t-select v-model="orderStatus" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="CREATED" label="已创建" />
+            <t-option value="PENDING" label="待处理" />
+            <t-option value="APPROVED" label="已通过" />
+            <t-option value="REJECTED" label="已驳回" />
+            <t-option value="PACKED" label="已打包" />
+            <t-option value="SHIPPED" label="已发货" />
+            <t-option value="SIGNED" label="已签收" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>煎煮中心</span>
+          <t-select v-model="decoctionCenter" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="良益堂煎药中心" label="良益堂煎药中心" />
+            <t-option value="良益堂煎煮中心" label="良益堂煎煮中心" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>配送方式</span>
+          <t-select v-model="deliveryType" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="HOSPITAL" label="送医院" />
+            <t-option value="PATIENT" label="送个人" />
+            <t-option value="PICKUP" label="自提" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>物流公司</span>
+          <t-select v-model="logisticsCompany" size="small" clearable>
+            <t-option value="" label="全部" />
+            <t-option value="顺丰" label="顺丰" />
+            <t-option value="EMS" label="EMS" />
+            <t-option value="自配送" label="自配送" />
+          </t-select>
+        </label>
+        <label class="order-filter-field">
+          <span>省份</span>
+          <t-input v-model="province" size="small" clearable @enter="searchFirstPage" />
+        </label>
+        <label class="order-filter-field">
+          <span>平台订单号 / 处方号</span>
+          <t-input v-model="orderNo" size="small" clearable @enter="searchFirstPage" />
+        </label>
+        <label class="order-filter-field">
+          <span>机构处方号</span>
+          <t-input v-model="hospitalPrescriptionNo" size="small" clearable @enter="searchFirstPage" />
+        </label>
+        <label class="order-filter-field">
+          <span>患者姓名</span>
+          <t-input v-model="patientName" size="small" clearable @enter="searchFirstPage" />
+        </label>
+        <label class="order-filter-field">
+          <span>收货电话</span>
+          <t-input v-model="receiverPhone" size="small" clearable @enter="searchFirstPage" />
+        </label>
+        <label class="order-filter-field order-filter-field--page-size">
+          <span>每页条数</span>
+          <t-select v-model="pageSize" size="small">
+            <t-option :value="10" label="10" />
+            <t-option :value="20" label="20" />
+            <t-option :value="50" label="50" />
+            <t-option :value="100" label="100" />
+          </t-select>
+        </label>
+      </div>
+
+      <template #actions>
+        <t-button theme="primary" size="small" :loading="orderLoading" @click="searchFirstPage">
+          <template #icon><t-icon name="search" /></template>
+          查询
+        </t-button>
+        <t-button theme="default" variant="outline" size="small" :disabled="orderLoading" @click="resetOrderFilters">
+          <template #icon><t-icon name="refresh" /></template>
+          重置
+        </t-button>
+        <t-button
+          theme="default"
+          variant="outline"
+          size="small"
+          :loading="exportLoading"
+          :disabled="orderLoading"
           title="按当前筛选最多导出 5000 行"
           @click="exportOrders"
         >
-          {{ exportLoading ? '导出中' : '导出' }}
-        </button>
-      </li>
-    </ul>
+          <template #icon><t-icon name="download" /></template>
+          导出
+        </t-button>
+      </template>
+    </AdminToolbar>
 
-    <p class="order-contract-hint">
-      当前列表已接入后端处方维度分页查询，门诊住院、金额、剂数、送货时间、批次和订单备注来自结构化字段。
-    </p>
+    <AdminPanel class="order-list-panel">
+      <template #title>处方订单</template>
+      <template #description>{{ orderPage ? pageSummary : '按筛选条件查询处方订单。' }}</template>
 
-    <div class="order-action-bar">
-      <button class="legacy-btn" type="button" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</button>
-      <button class="legacy-btn" type="button" :disabled="!canEditPrescription" title="先查看可修改处方的订单详情" @click="openPrescriptionModal">处方修改</button>
-      <button class="legacy-btn" type="button" :disabled="!canInitializeOrder" title="将订单回退到初始审核状态" @click="openInitializeModal">
-        {{ initializeSubmitting ? '初始化中' : '初始化' }}
-      </button>
-      <button class="legacy-btn" type="button" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</button>
-      <button class="legacy-btn" type="button" :disabled="!canAdvanceFlow" title="按当前订单进度推进下一步" @click="advanceOrderFlow">
-        {{ flowSubmitting ? '推进中' : '走流程' }}
-      </button>
-      <button class="legacy-btn" type="button" :disabled="!canSignOrder" title="先查看有可签收物流单的订单详情" @click="openSignModal">签收</button>
-    </div>
+      <p v-if="orderError && orderPage" class="admin-error-line" role="alert">{{ orderError }}</p>
+      <AdminPageState
+        v-if="orderLoading && !orderPage"
+        state="loading"
+        message="正在查询处方订单。"
+      />
+      <AdminPageState
+        v-else-if="orderError && !orderPage"
+        state="error"
+        :message="orderError"
+      >
+        <template #action>
+          <t-button theme="primary" variant="outline" size="small" @click="searchFirstPage">重新查询</t-button>
+        </template>
+      </AdminPageState>
+      <AdminPageState
+        v-else-if="!orderPage"
+        state="empty"
+        title="等待查询"
+        message="设置筛选条件后查询处方订单。"
+      />
+      <AdminPageState
+        v-else-if="orderRows.length === 0"
+        state="empty"
+        message="没有符合当前筛选条件的处方订单。"
+      />
+      <template v-else>
+        <AdminTableShell class="order-table-shell">
+          <table class="order-result-table">
+            <thead>
+              <tr>
+                <th class="column-prescription">平台处方号</th>
+                <th class="column-time">平台下单时间</th>
+                <th class="column-center">煎煮中心</th>
+                <th class="column-institution">机构</th>
+                <th class="column-type">门诊 / 住院</th>
+                <th class="column-prescription">机构处方号</th>
+                <th class="column-person">患者</th>
+                <th class="column-type">处方类型</th>
+                <th class="column-number" data-align="number">剂数</th>
+                <th class="column-number" data-align="number">味数</th>
+                <th class="column-amount" data-align="number">金额</th>
+                <th class="column-type">配送方式</th>
+                <th class="column-receiver">收件信息</th>
+                <th class="column-time">配送时间</th>
+                <th class="column-status" data-align="status">状态</th>
+                <th class="column-payment">支付</th>
+                <th class="column-type">批次</th>
+                <th class="column-remark">订单备注</th>
+                <th class="column-actions">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in orderRows" :key="`${row.orderId}-${row.prescriptionNos}`">
+                <td class="primary-code">{{ displayValue(row.prescriptionNos) }}</td>
+                <td>{{ formatDate(row.createdAt) }}</td>
+                <td>{{ displayValue(row.storageType) }}</td>
+                <td>{{ displayValue(row.institutionName) }}</td>
+                <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
+                <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
+                <td>{{ maskPersonName(row.patientName) }}</td>
+                <td>{{ prescriptionTypeText(row.prescriptionTypes) }}</td>
+                <td data-align="number">{{ displayValue(row.doseCount) }}</td>
+                <td data-align="number">{{ displayValue(row.detailCount) }}</td>
+                <td data-align="number">{{ moneyValue(row.totalAmount) }}</td>
+                <td>{{ deliveryTypeText(row.addressType) }}</td>
+                <td>
+                  <div class="receiver-cell">
+                    <strong>{{ receiverSummary(row) }}</strong>
+                    <small>{{ joinDisplayParts([row.receiverProvince, row.receiverCity, row.receiverZone, row.receiverAddress]) }}</small>
+                  </div>
+                </td>
+                <td>{{ formatDate(row.deliveryTime) }}</td>
+                <td data-align="status">
+                  <StatusPill :value="statusText(row.orderStatus)" :tone="statusTone(row.orderStatus)" />
+                </td>
+                <td>{{ paymentSummary(row) }}</td>
+                <td>{{ batchText(row.batchNo) }}</td>
+                <td class="order-remark-cell">{{ displayValue(row.orderRemark) }}</td>
+                <td class="order-row-actions">
+                  <t-button
+                    theme="primary"
+                    variant="text"
+                    size="small"
+                    :loading="detailLoading && selectedOrderNo === row.orderNo"
+                    :disabled="detailLoading && selectedOrderNo !== row.orderNo"
+                    @click="loadOrderDetail(row)"
+                  >
+                    查看
+                  </t-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </AdminTableShell>
 
-    <p v-if="orderError" class="error-line">{{ orderError }}</p>
+        <AdminPagination
+          :page="page"
+          :page-size="pageSize"
+          :total="resultCount"
+          :loading="orderLoading"
+          @previous="goPreviousPage"
+          @next="goNextPage"
+        />
+      </template>
+    </AdminPanel>
 
-    <div class="legacy-panel">
-      <table class="legacy-main-table order-result-table">
-        <thead>
-          <tr class="legacy-main-head">
-            <th>平台处方号</th>
-            <th>平台订单时间</th>
-            <th>煎煮中心</th>
-            <th>机构名称</th>
-            <th>门诊住院</th>
-            <th>机构处方号</th>
-            <th>病人姓名</th>
-            <th>处方类型</th>
-            <th>剂数</th>
-            <th>味数</th>
-            <th>处方金额</th>
-            <th>送货方式</th>
-            <th>收货信息</th>
-            <th>送货时间</th>
-            <th>状态</th>
-            <th>批次</th>
-            <th>订单备注</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="orderRows.length === 0" class="legacy-main-info">
-            <td colspan="18" class="legacy-empty">
-              {{ orderLoading ? '正在查询处方订单' : '请输入筛选条件后查询' }}
-            </td>
-          </tr>
-          <tr v-for="row in orderRows" :key="`${row.orderId}-${row.prescriptionNos}`" class="legacy-main-info">
-            <td>{{ displayValue(row.prescriptionNos) }}</td>
-            <td>{{ formatDate(row.createdAt) }}</td>
-            <td>{{ displayValue(row.storageType) }}</td>
-            <td>{{ displayValue(row.institutionName) }}</td>
-            <td>{{ hospitalTypeText(row.hospitalTypes) }}</td>
-            <td>{{ displayValue(row.externalPrescriptionNos) }}</td>
-            <td>{{ displayValue(row.patientName) }}</td>
-            <td>{{ displayValue(row.prescriptionTypes) }}</td>
-            <td>{{ displayValue(row.doseCount) }}</td>
-            <td>{{ displayValue(row.detailCount) }}</td>
-            <td>{{ moneyValue(row.totalAmount) }}</td>
-            <td>{{ deliveryTypeText(row.addressType) }}</td>
-            <td class="legacy-left">{{ receiverSummary(row) }}</td>
-            <td>{{ formatDate(row.deliveryTime) }}</td>
-            <td>
-              <StatusPill :value="statusText(row.orderStatus)" :tone="statusTone(row.orderStatus)" />
-            </td>
-            <td>{{ batchText(row.batchNo) }}</td>
-            <td class="legacy-left">{{ displayValue(row.orderRemark) }}</td>
-            <td>
-              <button
-                class="legacy-link-btn"
-                type="button"
-                :disabled="detailLoading && selectedOrderNo === row.orderNo"
-                @click="loadOrderDetail(row)"
-              >
-                {{ detailLoading && selectedOrderNo === row.orderNo ? '加载中' : '查看' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="order-page-footer">
-      <p class="legacy-page-summary">{{ pageSummary }}</p>
-      <div class="order-page-actions">
-        <button class="legacy-btn" type="button" :disabled="!hasPreviousPage" @click="goPreviousPage">上一页</button>
-        <span>第 {{ page }} 页</span>
-        <button class="legacy-btn" type="button" :disabled="!hasNextPage" @click="goNextPage">下一页</button>
-      </div>
-    </div>
-
-    <div v-if="addressModalOpen" class="legacy-modal-mask">
-      <section class="legacy-modal address-modal">
-        <div class="legacy-modal-head">
-          <h2>修改订单地址</h2>
-          <button class="legacy-link-btn" type="button" :disabled="addressSubmitting" @click="closeAddressModal">关闭</button>
+    <section class="order-operation-section" aria-labelledby="order-operation-title">
+      <header class="order-section-header">
+        <div>
+          <h2 id="order-operation-title">订单操作</h2>
+          <p>{{ orderDetail ? `当前订单：${orderDetail.orderNo}` : '查看订单详情后可执行操作。' }}</p>
         </div>
-        <div class="address-form-grid">
+      </header>
+      <div class="order-action-bar">
+        <t-button theme="default" variant="outline" size="small" :disabled="!canEditAddress" title="先查看订单详情后修改地址" @click="openAddressModal">地址修改</t-button>
+        <t-button theme="default" variant="outline" size="small" :disabled="!canEditPrescription" title="先查看可修改处方的订单详情" @click="openPrescriptionModal">处方修改</t-button>
+        <t-button theme="default" variant="outline" size="small" :loading="initializeSubmitting" :disabled="!canInitializeOrder" title="将订单回退到初始审核状态" @click="openInitializeModal">初始化</t-button>
+        <t-button theme="danger" variant="outline" size="small" :disabled="!canCancelOrder" title="先查看可取消订单详情" @click="openCancelModal">取消</t-button>
+        <t-button theme="primary" variant="outline" size="small" :loading="flowSubmitting" :disabled="!canAdvanceFlow" title="按当前订单进度推进下一步" @click="advanceOrderFlow">走流程</t-button>
+        <t-button theme="default" variant="outline" size="small" :disabled="!canSignOrder" title="先查看有可签收物流单的订单详情" @click="openSignModal">签收</t-button>
+      </div>
+    </section>
+
+    <t-dialog
+      :visible="addressModalOpen"
+      header="修改订单地址"
+      :footer="false"
+      :close-btn="!addressSubmitting"
+      :close-on-esc-keydown="!addressSubmitting"
+      :close-on-overlay-click="false"
+      width="860px"
+      @close="closeAddressModal"
+    >
+        <div class="order-form-grid">
           <label>
             <span>平台订单号</span>
-            <input class="legacy-input" :value="orderDetail?.orderNo" disabled />
+            <input class="order-form-control" :value="orderDetail?.orderNo" disabled />
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="addressForm.operator" class="legacy-input" />
+            <input v-model="addressForm.operator" class="order-form-control" />
           </label>
           <label>
             <span>收货人</span>
-            <input v-model="addressForm.receiverName" class="legacy-input" />
+            <input v-model="addressForm.receiverName" class="order-form-control" />
           </label>
           <label>
             <span>收货电话</span>
-            <input v-model="addressForm.receiverPhone" class="legacy-input" />
+            <input v-model="addressForm.receiverPhone" class="order-form-control" />
           </label>
           <label>
             <span>送货方式</span>
-            <select v-model="addressForm.addressType" class="legacy-input">
+            <select v-model="addressForm.addressType" class="order-form-control">
               <option value="">默认</option>
               <option value="HOSPITAL">送医院</option>
               <option value="PATIENT">送个人</option>
@@ -1314,52 +1441,53 @@ defineExpose({
           </label>
           <label>
             <span>送货时间</span>
-            <input v-model="addressForm.deliveryTime" class="legacy-input" placeholder="YYYY-MM-DD HH:mm:ss" />
+            <input v-model="addressForm.deliveryTime" class="order-form-control" placeholder="YYYY-MM-DD HH:mm:ss" />
           </label>
           <label>
             <span>省份</span>
-            <input v-model="addressForm.receiverProvince" class="legacy-input" />
+            <input v-model="addressForm.receiverProvince" class="order-form-control" />
           </label>
           <label>
             <span>城市</span>
-            <input v-model="addressForm.receiverCity" class="legacy-input" />
+            <input v-model="addressForm.receiverCity" class="order-form-control" />
           </label>
           <label>
             <span>区县</span>
-            <input v-model="addressForm.receiverZone" class="legacy-input" />
+            <input v-model="addressForm.receiverZone" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>详细地址</span>
-            <input v-model="addressForm.receiverAddress" class="legacy-input" />
+            <input v-model="addressForm.receiverAddress" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>修改原因</span>
-            <input v-model="addressForm.reason" class="legacy-input" placeholder="可选" />
+            <input v-model="addressForm.reason" class="order-form-control" placeholder="可选" />
           </label>
         </div>
-        <div class="legacy-modal-actions">
-          <button class="legacy-btn" type="button" :disabled="addressSubmitting" @click="closeAddressModal">取消</button>
-          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="addressSubmitting" @click="submitAddressUpdate">
-            {{ addressSubmitting ? '保存中' : '保存地址' }}
-          </button>
+        <div class="order-dialog-actions">
+          <t-button theme="default" variant="outline" :disabled="addressSubmitting" @click="closeAddressModal">取消</t-button>
+          <t-button theme="primary" :loading="addressSubmitting" @click="submitAddressUpdate">保存地址</t-button>
         </div>
-      </section>
-    </div>
+    </t-dialog>
 
-    <div v-if="prescriptionModalOpen" class="legacy-modal-mask">
-      <section class="legacy-modal address-modal">
-        <div class="legacy-modal-head">
-          <h2>修改处方</h2>
-          <button class="legacy-link-btn" type="button" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">关闭</button>
-        </div>
-        <div class="cancel-warning">
+    <t-dialog
+      :visible="prescriptionModalOpen"
+      header="修改处方"
+      :footer="false"
+      :close-btn="!prescriptionSubmitting"
+      :close-on-esc-keydown="!prescriptionSubmitting"
+      :close-on-overlay-click="false"
+      width="860px"
+      @close="closePrescriptionModal"
+    >
+        <div class="order-dialog-notice">
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>当前仅支持订单创建或审核通过状态下修改处方结构化字段。</span>
         </div>
-        <div class="address-form-grid">
-          <label class="address-form-wide">
+        <div class="order-form-grid">
+          <label class="order-form-wide">
             <span>处方</span>
-            <select v-model="prescriptionForm.prescriptionId" class="legacy-input" @change="changePrescriptionForm">
+            <select v-model="prescriptionForm.prescriptionId" class="order-form-control" @change="changePrescriptionForm">
               <option
                 v-for="item in editableDetailPrescriptions"
                 :key="item.prescriptionId"
@@ -1371,7 +1499,7 @@ defineExpose({
           </label>
           <label>
             <span>处方类型</span>
-            <select v-model="prescriptionForm.prescriptionType" class="legacy-input">
+            <select v-model="prescriptionForm.prescriptionType" class="order-form-control">
               <option value="">请选择</option>
               <option value="DECOCTION">代煎</option>
               <option value="SELF_DECOCTION">自煎</option>
@@ -1380,7 +1508,7 @@ defineExpose({
           </label>
           <label>
             <span>门诊住院</span>
-            <select v-model="prescriptionForm.hospitalType" class="legacy-input">
+            <select v-model="prescriptionForm.hospitalType" class="order-form-control">
               <option value="">请选择</option>
               <option value="OUTPATIENT">门诊</option>
               <option value="INPATIENT">住院</option>
@@ -1389,19 +1517,19 @@ defineExpose({
           </label>
           <label>
             <span>剂数</span>
-            <input v-model.number="prescriptionForm.doseCount" class="legacy-input" type="number" min="0" />
+            <input v-model.number="prescriptionForm.doseCount" class="order-form-control" type="number" min="0" />
           </label>
           <label>
             <span>几煎</span>
-            <input v-model.number="prescriptionForm.boilTimes" class="legacy-input" type="number" min="0" />
+            <input v-model.number="prescriptionForm.boilTimes" class="order-form-control" type="number" min="0" />
           </label>
           <label>
             <span>煎煮剂数</span>
-            <input class="legacy-input" type="number" min="0" :value="calculatedPrescriptionDecoctionCount ?? ''" disabled />
+            <input class="order-form-control" type="number" min="0" :value="calculatedPrescriptionDecoctionCount ?? ''" disabled />
           </label>
           <label>
             <span>服用方式</span>
-            <select v-model.number="prescriptionForm.isWithin" class="legacy-input">
+            <select v-model.number="prescriptionForm.isWithin" class="order-form-control">
               <option :value="null">请选择</option>
               <option :value="0">内服</option>
               <option :value="1">外用</option>
@@ -1409,169 +1537,164 @@ defineExpose({
           </label>
           <label>
             <span>每剂包数</span>
-            <input v-model.number="prescriptionForm.perPackNum" class="legacy-input" type="number" min="0" />
+            <input v-model.number="prescriptionForm.perPackNum" class="order-form-control" type="number" min="0" />
           </label>
           <label>
             <span>每剂剂量</span>
-            <input v-model.number="prescriptionForm.perPackDose" class="legacy-input" type="number" min="0" />
+            <input v-model.number="prescriptionForm.perPackDose" class="order-form-control" type="number" min="0" />
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="prescriptionForm.operator" class="legacy-input" />
+            <input v-model="prescriptionForm.operator" class="order-form-control" />
           </label>
           <label>
             <span>修改原因</span>
-            <input v-model="prescriptionForm.reason" class="legacy-input" placeholder="可选" />
+            <input v-model="prescriptionForm.reason" class="order-form-control" placeholder="可选" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>用药方法</span>
-            <input v-model="prescriptionForm.medicationMethod" class="legacy-input" />
+            <input v-model="prescriptionForm.medicationMethod" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>用药指导</span>
-            <input v-model="prescriptionForm.medicationInstruction" class="legacy-input" />
+            <input v-model="prescriptionForm.medicationInstruction" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>处方备注</span>
-            <input v-model="prescriptionForm.prescriptionRemark" class="legacy-input" />
+            <input v-model="prescriptionForm.prescriptionRemark" class="order-form-control" />
           </label>
         </div>
-        <div class="legacy-modal-actions">
-          <button class="legacy-btn" type="button" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">取消</button>
-          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="prescriptionSubmitting" @click="submitPrescriptionUpdate">
-            {{ prescriptionSubmitting ? '保存中' : '保存处方' }}
-          </button>
+        <div class="order-dialog-actions">
+          <t-button theme="default" variant="outline" :disabled="prescriptionSubmitting" @click="closePrescriptionModal">取消</t-button>
+          <t-button theme="primary" :loading="prescriptionSubmitting" @click="submitPrescriptionUpdate">保存处方</t-button>
         </div>
-      </section>
-    </div>
+    </t-dialog>
 
-    <div v-if="cancelModalOpen" class="legacy-modal-mask">
-      <section class="legacy-modal cancel-modal">
-        <div class="legacy-modal-head">
-          <h2>取消订单</h2>
-          <button class="legacy-link-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">关闭</button>
-        </div>
-        <div class="cancel-warning">
+    <t-dialog
+      :visible="cancelModalOpen"
+      header="取消订单"
+      theme="danger"
+      :footer="false"
+      :close-btn="!cancelSubmitting"
+      :close-on-esc-keydown="!cancelSubmitting"
+      :close-on-overlay-click="false"
+      width="600px"
+      @close="closeCancelModal"
+    >
+        <div class="order-dialog-notice order-dialog-notice--danger">
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>取消后订单和处方会进入已取消状态，未完成工作流任务会同步关闭。</span>
         </div>
-        <div class="address-form-grid">
+        <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>当前状态</span>
-            <input class="legacy-input" :value="statusText(orderDetail?.orderStatus)" disabled />
+            <input class="order-form-control" :value="statusText(orderDetail?.orderStatus)" disabled />
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="cancelForm.operator" class="legacy-input" />
+            <input v-model="cancelForm.operator" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>取消原因</span>
-            <input v-model="cancelForm.reason" class="legacy-input" placeholder="必填" />
+            <input v-model="cancelForm.reason" class="order-form-control" placeholder="必填" />
           </label>
         </div>
-        <div class="legacy-modal-actions">
-          <button class="legacy-btn" type="button" :disabled="cancelSubmitting" @click="closeCancelModal">返回</button>
-          <button class="legacy-btn legacy-btn-export" type="button" :disabled="cancelSubmitting" @click="submitCancelOrder">
-            {{ cancelSubmitting ? '取消中' : '确认取消' }}
-          </button>
+        <div class="order-dialog-actions">
+          <t-button theme="default" variant="outline" :disabled="cancelSubmitting" @click="closeCancelModal">返回</t-button>
+          <t-button theme="danger" :loading="cancelSubmitting" @click="submitCancelOrder">确认取消</t-button>
         </div>
-      </section>
-    </div>
+    </t-dialog>
 
-    <div v-if="initializeModalOpen" class="legacy-modal-mask">
-      <section class="legacy-modal cancel-modal">
-        <div class="legacy-modal-head">
-          <h2>订单初始化</h2>
-          <button class="legacy-link-btn" type="button" :disabled="initializeSubmitting" @click="closeInitializeModal">关闭</button>
-        </div>
-        <div class="cancel-warning">
+    <t-dialog
+      :visible="initializeModalOpen"
+      header="订单初始化"
+      theme="warning"
+      :footer="false"
+      :close-btn="!initializeSubmitting"
+      :close-on-esc-keydown="!initializeSubmitting"
+      :close-on-overlay-click="false"
+      width="640px"
+      @close="closeInitializeModal"
+    >
+        <div class="order-dialog-notice order-dialog-notice--warning">
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>初始化会把订单回退到初始审核状态，重置处方状态，取消未完成流程和活跃煎药任务，并清理物流运行记录。</span>
         </div>
-        <div class="address-form-grid">
+        <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>当前状态</span>
-            <input class="legacy-input" :value="statusText(orderDetail?.orderStatus)" disabled />
+            <input class="order-form-control" :value="statusText(orderDetail?.orderStatus)" disabled />
           </label>
           <label>
             <span>目标状态</span>
-            <input class="legacy-input" value="已创建 / 待审核" disabled />
+            <input class="order-form-control" value="已创建 / 待审核" disabled />
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="initializeForm.operator" class="legacy-input" />
+            <input v-model="initializeForm.operator" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>初始化原因</span>
-            <input v-model="initializeForm.reason" class="legacy-input" placeholder="必填" />
+            <input v-model="initializeForm.reason" class="order-form-control" placeholder="必填" />
           </label>
         </div>
-        <div class="legacy-modal-actions">
-          <button class="legacy-btn" type="button" :disabled="initializeSubmitting" @click="closeInitializeModal">返回</button>
-          <button class="legacy-btn legacy-btn-export" type="button" :disabled="initializeSubmitting" @click="submitInitializeOrder">
-            {{ initializeSubmitting ? '初始化中' : '确认初始化' }}
-          </button>
+        <div class="order-dialog-actions">
+          <t-button theme="default" variant="outline" :disabled="initializeSubmitting" @click="closeInitializeModal">返回</t-button>
+          <t-button theme="warning" :loading="initializeSubmitting" @click="submitInitializeOrder">确认初始化</t-button>
         </div>
-      </section>
-    </div>
+    </t-dialog>
 
-    <div v-if="signModalOpen" class="legacy-modal-mask">
-      <section class="legacy-modal cancel-modal">
-        <div class="legacy-modal-head">
-          <h2>订单签收</h2>
-          <button class="legacy-link-btn" type="button" :disabled="signSubmitting" @click="closeSignModal">关闭</button>
-        </div>
-        <div class="cancel-warning">
+    <t-dialog
+      :visible="signModalOpen"
+      header="订单签收"
+      :footer="false"
+      :close-btn="!signSubmitting"
+      :close-on-esc-keydown="!signSubmitting"
+      :close-on-overlay-click="false"
+      width="640px"
+      @close="closeSignModal"
+    >
+        <div class="order-dialog-notice">
           <strong>{{ displayValue(orderDetail?.orderNo) }}</strong>
           <span>签收会通过物流服务推进订单状态，并生成物流轨迹和签收回调。</span>
         </div>
-        <div class="address-form-grid">
+        <div class="order-form-grid order-form-grid--compact">
           <label>
             <span>物流单号</span>
-            <input class="legacy-input" :value="displayValue(signableShipment?.logisticsNo)" disabled />
+            <input class="order-form-control" :value="displayValue(signableShipment?.logisticsNo)" disabled />
           </label>
           <label>
             <span>物流公司</span>
-            <input class="legacy-input" :value="displayValue(signableShipment?.logisticsCompany)" disabled />
+            <input class="order-form-control" :value="displayValue(signableShipment?.logisticsCompany)" disabled />
           </label>
           <label>
             <span>物流状态</span>
-            <input class="legacy-input" :value="statusText(signableShipment?.logisticsStatus)" disabled />
+            <input class="order-form-control" :value="statusText(signableShipment?.logisticsStatus)" disabled />
           </label>
           <label>
             <span>操作人</span>
-            <input v-model="signForm.operator" class="legacy-input" />
+            <input v-model="signForm.operator" class="order-form-control" />
           </label>
-          <label class="address-form-wide">
+          <label class="order-form-wide">
             <span>签收备注</span>
-            <input v-model="signForm.remark" class="legacy-input" placeholder="可选" />
+            <input v-model="signForm.remark" class="order-form-control" placeholder="可选" />
           </label>
         </div>
-        <div class="legacy-modal-actions">
-          <button class="legacy-btn" type="button" :disabled="signSubmitting" @click="closeSignModal">返回</button>
-          <button class="legacy-btn legacy-btn-primary" type="button" :disabled="signSubmitting" @click="submitSignOrder">
-            {{ signSubmitting ? '签收中' : '确认签收' }}
-          </button>
+        <div class="order-dialog-actions">
+          <t-button theme="default" variant="outline" :disabled="signSubmitting" @click="closeSignModal">返回</t-button>
+          <t-button theme="primary" :loading="signSubmitting" @click="submitSignOrder">确认签收</t-button>
         </div>
-      </section>
-    </div>
+    </t-dialog>
 
     <section id="order-detail-panel" class="order-detail-workbench">
-      <section class="order-detail-section">
-        <div class="order-section-title">
-          <h2>提示信息</h2>
-        </div>
-        <p class="order-detail-note">
-          本页已按老订单详情拆分为处方订单工作台。订单基础信息、处方、药品明细、金额、门诊住院、批次和订单备注来自后端详情接口。
-          <span v-if="orderDetail">最近校验：{{ validationSummary() }}</span>
-        </p>
-      </section>
-
       <template v-if="order">
         <section class="order-detail-section">
-          <div class="order-section-title">
-            <h2>订单信息</h2>
-          </div>
+          <header class="order-section-header">
+            <div>
+              <h2>订单信息</h2>
+              <p>最近校验：{{ validationSummary() }}</p>
+            </div>
+          </header>
           <div class="order-detail-grid">
             <div>
               <span>平台订单号</span>
@@ -1626,11 +1749,30 @@ defineExpose({
               <strong>{{ detailPatientSummary() }}</strong>
             </div>
             <div>
-              <span>收货地址</span>
+              <span>批次</span>
+              <strong>{{ batchText(orderDetail?.batchNo) }}</strong>
+            </div>
+            <div>
+              <span>订单备注</span>
+              <strong>{{ displayValue(orderDetail?.orderRemark) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="order-detail-section">
+          <header class="order-section-header">
+            <div>
+              <h2>配送信息</h2>
+              <p>{{ shipments.length > 0 ? `共 ${shipments.length} 个物流单` : '暂无物流单' }}</p>
+            </div>
+          </header>
+          <div class="order-detail-grid">
+            <div class="order-detail-item--wide">
+              <span>收件信息</span>
               <strong>{{ detailReceiverSummary() }}</strong>
             </div>
             <div>
-              <span>送货方式</span>
+              <span>配送方式</span>
               <strong>{{ deliveryTypeText(orderDetail?.addressType) }}</strong>
             </div>
             <div>
@@ -1638,16 +1780,8 @@ defineExpose({
               <strong>{{ displayValue(orderDetail?.storageType) }}</strong>
             </div>
             <div>
-              <span>送货时间</span>
+              <span>配送时间</span>
               <strong>{{ formatDate(orderDetail?.deliveryTime) }}</strong>
-            </div>
-            <div>
-              <span>批次</span>
-              <strong>{{ batchText(orderDetail?.batchNo) }}</strong>
-            </div>
-            <div>
-              <span>订单备注</span>
-              <strong>{{ displayValue(orderDetail?.orderRemark) }}</strong>
             </div>
             <div>
               <span>包裹数量</span>
@@ -1705,9 +1839,9 @@ defineExpose({
         </section>
 
         <section class="order-detail-section">
-          <div class="order-section-title">
+          <header class="order-section-header">
             <h2>处方信息</h2>
-          </div>
+          </header>
           <div class="table-wrap">
             <table class="order-detail-table">
               <thead>
@@ -1743,7 +1877,7 @@ defineExpose({
                   <td>
                     <StatusPill :value="statusText(item.prescriptionStatus)" :tone="statusTone(item.prescriptionStatus)" />
                   </td>
-                  <td>{{ displayValue(item.prescriptionType) }}</td>
+                  <td>{{ prescriptionTypeText(item.prescriptionType) }}</td>
                   <td>{{ hospitalTypeText(item.hospitalType) }}</td>
                   <td>{{ displayValue(item.doseCount) }}</td>
                   <td>{{ moneyValue(item.totalAmount) }}</td>
@@ -1753,10 +1887,10 @@ defineExpose({
                   <td>{{ displayValue(item.perPackNum) }}</td>
                   <td>{{ displayValue(item.perPackDose) }}</td>
                   <td>{{ displayValue(item.doctorName) }}</td>
-                  <td class="legacy-left">{{ displayValue(item.diagnosis) }}</td>
-                  <td class="legacy-left">{{ joinDisplayParts([item.departmentName, item.wardName, item.bedNo], ' / ') }}</td>
-                  <td class="legacy-left">{{ joinDisplayParts([item.medicationMethod, item.medicationInstruction], ' / ') }}</td>
-                  <td class="legacy-left">{{ displayValue(item.prescriptionRemark) }}</td>
+                  <td class="text-cell">{{ displayValue(item.diagnosis) }}</td>
+                  <td class="text-cell">{{ joinDisplayParts([item.departmentName, item.wardName, item.bedNo], ' / ') }}</td>
+                  <td class="text-cell">{{ joinDisplayParts([item.medicationMethod, item.medicationInstruction], ' / ') }}</td>
+                  <td class="text-cell">{{ displayValue(item.prescriptionRemark) }}</td>
                   <td>{{ displayValue(item.detailCount) }}</td>
                   <td>{{ formatDate(item.createdAt) }}</td>
                 </tr>
@@ -1804,20 +1938,20 @@ defineExpose({
                   <td>{{ displayValue(item.patientGender) }}</td>
                   <td>{{ displayValue(item.patientCardNo) }}</td>
                   <td>{{ displayValue(item.treatCard) }}</td>
-                  <td>{{ displayValue(item.patientTel) }}</td>
+                  <td>{{ maskPhone(item.patientTel) }}</td>
                   <td>{{ displayValue(item.isPregnant) }}</td>
                   <td>{{ displayValue(item.herbType) }}</td>
                   <td>{{ displayValue(item.wjType) }}</td>
                   <td>{{ displayValue(item.doctorTel) }}</td>
-                  <td class="legacy-left">{{ displayValue(item.hospitalName) }}</td>
+                  <td class="text-cell">{{ displayValue(item.hospitalName) }}</td>
                   <td>{{ displayValue(item.hospitalNum) }}</td>
                   <td>{{ displayValue(item.orderHandleFloor) }}</td>
                   <td>{{ displayValue(item.jyjDecoctionPlan) }}</td>
-                  <td class="legacy-left">{{ displayValue(item.jyjDecoctionAdvice) }}</td>
+                  <td class="text-cell">{{ displayValue(item.jyjDecoctionAdvice) }}</td>
                   <td>{{ displayValue(item.labelSize) }}</td>
                   <td>{{ displayValue(item.bindNo) }}</td>
                   <td>{{ moneyValue(item.drugsMoney) }}</td>
-                  <td class="legacy-left">{{ joinDisplayParts([item.auditResult, item.auditReason], ' / ') }}</td>
+                  <td class="text-cell">{{ joinDisplayParts([item.auditResult, item.auditReason], ' / ') }}</td>
                   <td><a v-if="item.auditFlowPicUrl" :href="item.auditFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
                   <td><a v-if="item.dispenseFlowPicUrl" :href="item.dispenseFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
                   <td><a v-if="item.recheckFlowPicUrl" :href="item.recheckFlowPicUrl" target="_blank" rel="noopener noreferrer">查看</a><span v-else>-</span></td>
@@ -1828,9 +1962,9 @@ defineExpose({
         </section>
 
         <section class="order-detail-section">
-          <div class="order-section-title">
+          <header class="order-section-header">
             <h2>药品信息</h2>
-          </div>
+          </header>
           <div class="table-wrap">
             <table class="order-detail-table drug-detail-table">
               <thead>
@@ -1873,9 +2007,9 @@ defineExpose({
                   <td>{{ displayValue(row.prescriptionNo) }}</td>
                   <td>{{ displayValue(row.externalPrescriptionNo) }}</td>
                   <td>{{ displayValue(row.detail.drugCode) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.drugName) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.drugName) }}</td>
                   <td>{{ displayValue(row.detail.platformDrugCode) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.platformDrugName) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.platformDrugName) }}</td>
                   <td>{{ displayValue(row.detail.drugSpecs) }}</td>
                   <td>{{ displayValue(row.detail.drugOrigin) }}</td>
                   <td>{{ displayValue(row.detail.dose) }}</td>
@@ -1885,18 +2019,18 @@ defineExpose({
                   <td>{{ moneyValue(row.detail.totalPrice) }}</td>
                   <td>{{ moneyValue(row.detail.settlementUnitPrice) }}</td>
                   <td>{{ moneyValue(row.detail.settlementTotalPrice) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.specialUsage) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.specialUsage) }}</td>
                   <td>{{ displayValue(row.detail.batchNo) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.remark) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.validationTips) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.remark) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.validationTips) }}</td>
                   <td>{{ displayValue(row.detail.dcGoodsNum) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.dcGoodsName) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.rootsGoodsName) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.supplierName) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.dcGoodsName) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.rootsGoodsName) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.supplierName) }}</td>
                   <td>{{ amountValue(row.detail.medPerDose) }}</td>
                   <td>{{ amountValue(row.detail.medPerDay) }}</td>
-                  <td>{{ displayValue(row.detail.detailStatus) }}</td>
-                  <td class="legacy-left">{{ displayValue(row.detail.note) }}</td>
+                  <td>{{ statusText(row.detail.detailStatus) }}</td>
+                  <td class="text-cell">{{ displayValue(row.detail.note) }}</td>
                   <td>{{ amountValue(row.detail.waterAbsorbRatio) }}</td>
                 </tr>
               </tbody>
@@ -1905,9 +2039,9 @@ defineExpose({
         </section>
 
         <section class="order-detail-section">
-          <div class="order-section-title">
+          <header class="order-section-header">
             <h2>金额汇总</h2>
-          </div>
+          </header>
           <div class="order-detail-grid amount-grid">
             <div>
               <span>处方金额</span>
@@ -1937,9 +2071,9 @@ defineExpose({
         </section>
 
         <section class="order-detail-section">
-          <div class="order-section-title">
+          <header class="order-section-header">
             <h2>履约进度/状态日志</h2>
-          </div>
+          </header>
 
           <div class="order-detail-grid progress-summary-grid">
             <div>
@@ -1993,7 +2127,7 @@ defineExpose({
                   <td>{{ taskTypeText(task.taskType) }}</td>
                   <td><StatusPill :value="statusText(task.taskStatus)" :tone="statusTone(task.taskStatus)" /></td>
                   <td>{{ displayValue(task.operator) }}</td>
-                  <td class="legacy-left">{{ displayValue(task.comment) }}</td>
+                  <td class="text-cell">{{ displayValue(task.comment) }}</td>
                   <td>{{ formatDate(task.createdAt) }}</td>
                   <td>{{ formatDate(task.completedAt) }}</td>
                 </tr>
@@ -2020,7 +2154,7 @@ defineExpose({
                   <td>{{ displayValue(record.taskId) }}</td>
                   <td><StatusPill :value="statusText(record.printStatus)" :tone="statusTone(record.printStatus)" /></td>
                   <td>{{ displayValue(record.dispenser) }}</td>
-                  <td class="legacy-left">{{ displayValue(record.dispenseComment) }}</td>
+                  <td class="text-cell">{{ displayValue(record.dispenseComment) }}</td>
                   <td>{{ formatDate(record.dispensedAt) }}</td>
                 </tr>
                 <tr v-for="task in decoctionTasks" :key="task.taskId">
@@ -2028,7 +2162,7 @@ defineExpose({
                   <td>{{ displayValue(task.taskNo) }}</td>
                   <td><StatusPill :value="statusText(task.taskStatus)" :tone="statusTone(task.taskStatus)" /></td>
                   <td>{{ displayValue(task.operator) }}</td>
-                  <td class="legacy-left">
+                  <td class="text-cell">
                     处方 {{ displayValue(task.prescriptionNo) }}；设备 {{ displayValue(task.deviceCode) }}；桶号 {{ displayValue(task.pailNo) }}
                   </td>
                   <td>{{ formatDate(task.finishedAt || task.startedAt || task.createdAt) }}</td>
@@ -2038,7 +2172,7 @@ defineExpose({
                   <td>{{ displayValue(shipment.logisticsNo) }}</td>
                   <td><StatusPill :value="statusText(shipment.logisticsStatus)" :tone="statusTone(shipment.logisticsStatus)" /></td>
                   <td>{{ displayValue(shipment.logisticsCompany) }}</td>
-                  <td class="legacy-left">
+                  <td class="text-cell">
                     {{ displayValue(shipment.latestTraceStatus) }} {{ shipment.latestTraceContent || '' }}
                   </td>
                   <td>{{ formatDate(shipment.latestTraceTime) }}</td>
@@ -2108,187 +2242,372 @@ defineExpose({
         </section>
       </template>
 
-      <section v-else class="order-detail-section">
-        <div class="order-section-title">
-          <h2>订单详情</h2>
-        </div>
-        <p class="legacy-empty">查询平台订单号后展示订单信息、处方信息、药品信息、金额汇总、履约进度和状态日志。</p>
-      </section>
+      <AdminPageState
+        v-else
+        state="empty"
+        title="尚未选择订单"
+        message="从处方订单列表中查看一条记录。"
+      />
     </section>
   </section>
 </template>
 
 <style scoped>
-.order-contract-hint {
-  margin: -4px 0 10px;
-  color: #6f7d91;
-  font-size: 13px;
-  line-height: 1.6;
+.order-center-page {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  color: var(--admin-text);
 }
 
-.order-action-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+.order-filter-toolbar :deep(.admin-toolbar__filters) {
+  flex-basis: 100%;
+}
+
+.order-filter-grid {
+  display: grid;
+  flex: 1 1 100%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.order-filter-field,
+.order-form-grid label {
+  display: grid;
+  align-content: end;
+  gap: 4px;
+  min-width: 0;
+  color: var(--admin-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.order-filter-field--wide {
+  grid-column: span 2;
+}
+
+.order-filter-field--page-size {
+  max-width: 140px;
+}
+
+.order-time-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.order-time-range > span {
+  color: var(--admin-text-placeholder);
+}
+
+.order-list-panel,
+.order-table-shell,
+.order-operation-section,
+.order-detail-workbench,
+.order-detail-section {
+  min-width: 0;
+}
+
+.admin-error-line {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--admin-danger);
+  color: var(--admin-danger);
+  background: var(--admin-surface-subtle);
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .order-result-table {
-  min-width: 1860px;
+  min-width: 2480px;
+  table-layout: auto;
 }
 
-.order-page-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
+.order-result-table th,
+.order-result-table td {
+  white-space: nowrap;
 }
 
-.order-page-footer .legacy-page-summary {
-  margin: 0;
+.order-result-table .column-prescription {
+  min-width: 150px;
 }
 
-.order-page-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #4b5563;
-  font-size: 13px;
+.order-result-table .column-time {
+  min-width: 146px;
 }
 
-.legacy-modal-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgb(15 23 42 / 38%);
+.order-result-table .column-center,
+.order-result-table .column-institution {
+  min-width: 160px;
 }
 
-.legacy-modal {
-  width: min(860px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
-  padding: 14px;
-  border: 1px solid #b9c6d8;
-  background: #fff;
-  box-shadow: 0 16px 42px rgb(15 23 42 / 22%);
+.order-result-table .column-type,
+.order-result-table .column-payment {
+  min-width: 104px;
 }
 
-.legacy-modal-head,
-.legacy-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.order-result-table .column-person {
+  min-width: 92px;
 }
 
-.legacy-modal-head {
-  margin-bottom: 12px;
+.order-result-table .column-number {
+  min-width: 68px;
 }
 
-.legacy-modal-head h2 {
-  margin: 0;
-  color: #1f5fa3;
-  font-size: 15px;
+.order-result-table .column-amount,
+.order-result-table .column-status {
+  min-width: 96px;
 }
 
-.legacy-modal-actions {
-  justify-content: flex-end;
-  margin-top: 12px;
+.order-result-table .column-receiver {
+  min-width: 260px;
 }
 
-.address-form-grid {
+.order-result-table .column-remark {
+  min-width: 180px;
+}
+
+.order-result-table .column-actions {
+  min-width: 76px;
+}
+
+.primary-code {
+  color: var(--admin-primary);
+  font-weight: 600;
+}
+
+.receiver-cell {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.address-form-grid label {
-  display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  color: #344054;
+  white-space: normal;
+}
+
+.receiver-cell strong,
+.receiver-cell small {
+  display: block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.receiver-cell strong {
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.receiver-cell small {
+  color: var(--admin-text-secondary);
   font-size: 12px;
 }
 
-.address-form-wide {
-  grid-column: span 3;
+.order-remark-cell {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.cancel-warning {
+.order-result-table .order-row-actions,
+.order-result-table .column-actions {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  border-left: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  text-align: center;
+}
+
+.order-result-table .column-actions {
+  z-index: 3;
+  background: var(--admin-surface-subtle);
+}
+
+.order-result-table tbody tr:hover .order-row-actions {
+  background: var(--admin-surface-subtle);
+}
+
+.order-operation-section,
+.order-detail-section {
+  border-top: 1px solid var(--admin-border);
+  background: transparent;
+}
+
+.order-operation-section {
+  padding-top: 2px;
+}
+
+.order-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 42px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.order-section-header h2,
+.order-section-header p {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.order-section-header h2 {
+  color: var(--admin-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.order-section-header p {
+  margin-top: 2px;
+  color: var(--admin-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.order-action-bar,
+.order-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-action-bar {
+  padding-top: 10px;
+}
+
+.order-dialog-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.order-form-grid {
   display: grid;
-  gap: 4px;
-  margin-bottom: 12px;
-  padding: 10px;
-  border: 1px solid #fecaca;
-  background: #fff7ed;
-  color: #9a3412;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.order-form-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.order-form-wide {
+  grid-column: 1 / -1;
+}
+
+.order-form-control {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--admin-control-height);
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  outline: 0;
+  color: var(--admin-text);
+  background: var(--admin-surface);
   font-size: 13px;
+}
+
+.order-form-control:hover {
+  border-color: var(--admin-text-placeholder);
+}
+
+.order-form-control:focus {
+  border-color: var(--admin-primary);
+}
+
+.order-form-control:disabled {
+  color: var(--admin-text-secondary);
+  background: var(--admin-surface-subtle);
+  cursor: not-allowed;
+}
+
+.order-dialog-notice {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--admin-primary);
+  color: var(--admin-text-secondary);
+  background: var(--admin-surface-subtle);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.order-dialog-notice strong {
+  color: var(--admin-text);
+}
+
+.order-dialog-notice--warning {
+  border-left-color: var(--admin-warning);
+}
+
+.order-dialog-notice--danger {
+  border-left-color: var(--admin-danger);
 }
 
 .order-detail-workbench {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 20px;
+  scroll-margin-top: 12px;
 }
 
 .order-detail-section {
-  padding: 12px;
-  border: 1px solid #d8e0ea;
-  background: #fff;
-}
-
-.order-section-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.order-section-title h2 {
-  margin: 0;
-  color: #1f5fa3;
-  font-size: 15px;
-}
-
-.order-detail-note {
-  margin: 0;
-  color: #6f7d91;
-  font-size: 13px;
-  line-height: 1.6;
+  padding-top: 2px;
 }
 
 .order-detail-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
 }
 
-.order-detail-grid div {
+.order-detail-grid > div {
   min-width: 0;
-  padding: 8px;
-  border: 1px solid #edf1f5;
-  background: #fbfcfe;
+  padding: 9px 10px;
+  border-right: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.order-detail-grid > div:nth-child(4n) {
+  border-right: 0;
+}
+
+.order-detail-grid .order-detail-item--wide {
+  grid-column: span 2;
+}
+
+.order-detail-grid span,
+.order-detail-grid strong {
+  display: block;
+  letter-spacing: 0;
 }
 
 .order-detail-grid span {
-  display: block;
-  margin-bottom: 4px;
-  color: #667085;
+  margin-bottom: 3px;
+  color: var(--admin-text-secondary);
   font-size: 12px;
+  line-height: 18px;
 }
 
 .order-detail-grid strong {
-  display: block;
   overflow-wrap: anywhere;
-  color: #1f2937;
+  color: var(--admin-text);
   font-size: 13px;
-  line-height: 1.4;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .amount-grid,
@@ -2296,25 +2615,40 @@ defineExpose({
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-.order-placeholder-panel {
-  padding: 14px;
-  border: 1px dashed #98a2b3;
-  background: #fcfcfd;
-  color: #667085;
-  font-size: 13px;
+.amount-grid > div:nth-child(4n),
+.progress-summary-grid > div:nth-child(4n) {
+  border-right: 1px solid var(--admin-border);
+}
+
+.amount-grid > div:nth-child(6n),
+.progress-summary-grid > div:nth-child(6n) {
+  border-right: 0;
 }
 
 .order-subsection-title {
-  margin: 14px 0 8px;
-  color: #1f2937;
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--admin-border);
+  -webkit-overflow-scrolling: touch;
 }
 
 .order-detail-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1120px;
   border-collapse: collapse;
+  color: var(--admin-text);
+  background: var(--admin-surface);
   font-size: 12px;
 }
 
@@ -2328,48 +2662,153 @@ defineExpose({
 
 .order-detail-table th,
 .order-detail-table td {
+  box-sizing: border-box;
+  min-width: 88px;
   padding: 7px 8px;
-  border: 1px solid #d0d5dd;
+  border-right: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border);
+  line-height: 20px;
   text-align: center;
   vertical-align: top;
 }
 
 .order-detail-table th {
-  background: #f2f4f7;
-  color: #1f2937;
-  font-weight: 700;
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  color: var(--admin-text-secondary);
+  background: var(--admin-surface-subtle);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.order-detail-table td {
-  color: #344054;
+.order-detail-table tr:last-child td {
+  border-bottom: 0;
 }
 
-@media (max-width: 1180px) {
+.order-detail-table th:last-child,
+.order-detail-table td:last-child {
+  border-right: 0;
+}
+
+.order-detail-table tbody tr:hover td {
+  background: var(--admin-surface-subtle);
+}
+
+.text-cell {
+  min-width: 150px !important;
+  text-align: left !important;
+  white-space: normal;
+}
+
+.empty {
+  height: 72px;
+  color: var(--admin-text-secondary);
+  text-align: center !important;
+}
+
+@media (max-width: 1199px) {
+  .order-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .order-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .order-detail-grid > div,
+  .amount-grid > div,
+  .progress-summary-grid > div {
+    border-right: 1px solid var(--admin-border);
+  }
+
+  .order-detail-grid > div:nth-child(3n),
+  .amount-grid > div:nth-child(3n),
+  .progress-summary-grid > div:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .amount-grid,
+  .progress-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .order-filter-grid,
   .order-detail-grid,
   .amount-grid,
   .progress-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .order-detail-grid > div,
+  .amount-grid > div,
+  .progress-summary-grid > div {
+    border-right: 1px solid var(--admin-border);
+  }
+
+  .order-detail-grid > div:nth-child(2n),
+  .amount-grid > div:nth-child(2n),
+  .progress-summary-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .order-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-@media (max-width: 640px) {
-  .order-page-footer {
-    align-items: flex-start;
-    flex-direction: column;
+@media (max-width: 639px) {
+  .order-center-page {
+    gap: 12px;
   }
 
-  .address-form-grid {
-    grid-template-columns: 1fr;
+  .order-filter-grid,
+  .order-detail-grid,
+  .amount-grid,
+  .progress-summary-grid,
+  .order-form-grid,
+  .order-form-grid--compact {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .address-form-wide {
+  .order-filter-field--wide,
+  .order-detail-grid .order-detail-item--wide,
+  .order-form-wide {
     grid-column: span 1;
   }
 
-  .order-detail-grid,
-  .amount-grid,
-  .progress-summary-grid {
-    grid-template-columns: 1fr;
+  .order-filter-field--page-size {
+    max-width: none;
+  }
+
+  .order-time-range {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .order-time-range > span {
+    display: none;
+  }
+
+  .order-action-bar :deep(.t-button) {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  .order-detail-grid > div,
+  .amount-grid > div,
+  .progress-summary-grid > div,
+  .order-detail-grid > div:nth-child(n) {
+    border-right: 0;
+  }
+
+  .order-section-header {
+    align-items: flex-start;
+  }
+
+  .order-dialog-actions :deep(.t-button) {
+    flex: 1 1 0;
   }
 }
 </style>
