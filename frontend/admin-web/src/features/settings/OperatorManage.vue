@@ -70,6 +70,7 @@ const editing = computed(() => form.value.id !== null);
 const roleNameByCode = computed(() => new Map(roleOptions.value.map((role) => [role.roleCode, role.roleName] as const)));
 const canExport = computed(() => !loading.value && rows.value.length > 0);
 const rowActionsDisabled = computed(() => loading.value || saving.value || !props.canManage);
+const editorEntryDisabled = computed(() => rowActionsDisabled.value || Boolean(revokingUserId.value));
 const editorDisabled = computed(() => saving.value || !props.canManage);
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
@@ -162,9 +163,14 @@ async function searchFirstPage() {
   await refreshOperators();
 }
 
-function resetForm() {
+function clearEditorActionError() {
+  if (actionErrorSource.value !== 'editor') return;
   actionError.value = '';
   actionErrorSource.value = null;
+}
+
+function resetForm() {
+  clearEditorActionError();
   form.value = {
     id: null,
     username: '',
@@ -175,15 +181,14 @@ function resetForm() {
 }
 
 function openCreateForm() {
-  if (!props.canManage || saving.value) return;
+  if (editorEntryDisabled.value) return;
   resetForm();
   editorOpen.value = true;
 }
 
 function openEditForm(row: AdminOperatorRecord) {
-  if (!props.canManage || saving.value) return;
-  actionError.value = '';
-  actionErrorSource.value = null;
+  if (editorEntryDisabled.value) return;
+  clearEditorActionError();
   form.value = {
     id: row.id,
     username: row.username,
@@ -348,7 +353,7 @@ defineExpose({
         <t-button
           theme="primary"
           size="small"
-          :disabled="loading || saving || !canManage"
+          :disabled="editorEntryDisabled"
           @click="openCreateForm"
         >
           <template #icon><t-icon name="add" /></template>
@@ -387,7 +392,7 @@ defineExpose({
       </template>
 
       <p
-        v-if="actionError && actionErrorSource === 'list' && !editorOpen"
+        v-if="actionError && actionErrorSource === 'list'"
         class="admin-error-line"
         role="alert"
       >
@@ -445,7 +450,7 @@ defineExpose({
                     theme="default"
                     variant="outline"
                     size="small"
-                    :disabled="rowActionsDisabled"
+                    :disabled="editorEntryDisabled"
                     @click="openEditForm(row)"
                   >
                     编辑
