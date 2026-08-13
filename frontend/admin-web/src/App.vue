@@ -154,7 +154,11 @@ watch(activeView, (view) => {
 }, { immediate: true });
 
 watch([adminSession, activeView], ([session, view]) => {
-  if (!session || canAccessRoute(routeByKey[view], new Set(session.permissions))) return;
+  if (!session) return;
+  if (canAccessRoute(routeByKey[view], new Set(session.permissions))) {
+    ensureOpenTab(view);
+    return;
+  }
   openTabs.value = openTabs.value.filter((key) => canAccessRoute(routeByKey[key], new Set(session.permissions)));
   void router.replace(routeByKey.dashboard.path);
 }, { immediate: true });
