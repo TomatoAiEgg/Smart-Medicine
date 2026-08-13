@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { createAdminInstitution, listAdminInstitutions, updateAdminInstitution } from '../../api/order';
 import type { AdminInstitutionCommand, AdminInstitutionPage, AdminInstitutionRecord } from '../../api/types';
+import AdminDrawerForm from '../../components/admin/AdminDrawerForm.vue';
 import AdminPageState from '../../components/admin/AdminPageState.vue';
 import AdminPagination from '../../components/admin/AdminPagination.vue';
 import AdminPanel from '../../components/admin/AdminPanel.vue';
@@ -30,11 +31,6 @@ interface InstitutionForm {
   storageType: string;
 }
 
-interface InstitutionStat {
-  label: string;
-  value: string;
-}
-
 const props = defineProps<{
   active: boolean;
   activationKey: number;
@@ -53,6 +49,7 @@ const pageSize = ref(20);
 const institutionPage = ref<AdminInstitutionPage | null>(null);
 const loading = ref(false);
 const saving = ref(false);
+const editorOpen = ref(false);
 const loaded = ref(false);
 const listError = ref('');
 const actionError = ref('');
@@ -69,25 +66,23 @@ const form = ref<InstitutionForm>({
 
 const rows = computed(() => institutionPage.value?.records ?? []);
 const total = computed(() => institutionPage.value?.total ?? 0);
-const enabledCount = computed(() => rows.value.filter((row) => row.status === 'ENABLED').length);
-const disabledCount = computed(() => rows.value.filter((row) => row.status !== 'ENABLED').length);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
 const canExport = computed(() => !loading.value && rows.value.length > 0);
 const rowActionsDisabled = computed(() => loading.value || saving.value);
+const formEnabled = computed({
+  get: () => form.value.status === 'ENABLED',
+  set: (enabled: boolean) => {
+    form.value.status = enabled ? 'ENABLED' : 'DISABLED';
+  },
+});
 const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loading.value && !loaded.value) return 'loading';
   if (listError.value && rows.value.length === 0) return 'error';
   if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
   return null;
 });
-const stats = computed<InstitutionStat[]>(() => [
-  { label: '机构总数', value: formatNumber(total.value) },
-  { label: '本页启用', value: formatNumber(enabledCount.value) },
-  { label: '本页停用', value: formatNumber(disabledCount.value) },
-]);
-
 function statusLabel(value: string) {
   return labelFromMap(value, {
     ENABLED: '启用',
@@ -105,7 +100,7 @@ function typeLabel(value: string) {
 
 function commandFromForm(): AdminInstitutionCommand {
   return {
-    institutionCode: form.value.institutionCode.trim(),
+    ...(form.value.id ? {} : { institutionCode: form.value.institutionCode.trim() }),
     institutionName: form.value.institutionName.trim(),
     institutionType: form.value.institutionType,
     status: form.value.status,
@@ -195,7 +190,14 @@ function resetForm() {
   };
 }
 
-function editInstitution(row: AdminInstitutionRecord) {
+function openCreateForm() {
+  if (saving.value) return;
+  resetForm();
+  editorOpen.value = true;
+}
+
+function openEditForm(row: AdminInstitutionRecord) {
+  if (saving.value) return;
   actionError.value = '';
   form.value = {
     id: row.id,
@@ -205,6 +207,20 @@ function editInstitution(row: AdminInstitutionRecord) {
     status: row.status,
     storageType: row.storageType ?? '',
   };
+  editorOpen.value = true;
+}
+
+function closeEditor() {
+  editorOpen.value = false;
+  resetForm();
+}
+
+function handleEditorOpenChange(open: boolean) {
+  if (open) {
+    editorOpen.value = true;
+    return;
+  }
+  closeEditor();
 }
 
 async function saveInstitution() {
@@ -223,7 +239,7 @@ async function saveInstitution() {
       await createAdminInstitution(commandFromForm());
       emit('notice', 'success', `机构 ${form.value.institutionName} 已新增`);
     }
-    resetForm();
+    closeEditor();
     await refreshInstitutions();
   } catch (error) {
     actionError.value = errorMessage(error);
@@ -284,42 +300,54 @@ defineExpose({
 <template>
   <section class="institution-page">
     <AdminToolbar>
+      <t-button
+        class="institution-create-button"
+        theme="primary"
+        size="small"
+        :disabled="loading || saving"
+        @click="openCreateForm"
+      >
+        <template #icon><t-icon name="add" /></template>
+        新增机构
+      </t-button>
       <label class="institution-field institution-field--keyword">
         <span>关键字</span>
-        <input
+        <t-input
           v-model="keyword"
-          class="institution-input"
+          name="institution-keyword"
+          size="small"
+          clearable
           :disabled="loading"
           placeholder="机构编码 / 名称 / 煎煮中心"
-          @keyup.enter="searchFirstPage"
-        >
+          @enter="searchFirstPage"
+        />
       </label>
       <label class="institution-field institution-field--status">
         <span>状态</span>
-        <select
+        <t-select
           v-model="status"
-          class="institution-input"
+          size="small"
           :disabled="loading"
           @change="searchFirstPage"
         >
-          <option value="">全部</option>
-          <option value="ENABLED">启用</option>
-          <option value="DISABLED">停用</option>
-        </select>
+          <t-option value="" label="全部" />
+          <t-option value="ENABLED" label="启用" />
+          <t-option value="DISABLED" label="停用" />
+        </t-select>
       </label>
       <label class="institution-field institution-field--type">
         <span>类型</span>
-        <select
+        <t-select
           v-model="institutionType"
-          class="institution-input"
+          size="small"
           :disabled="loading"
           @change="searchFirstPage"
         >
-          <option value="">全部</option>
-          <option value="HOSPITAL">医院</option>
-          <option value="PHARMACY">药房</option>
-          <option value="PLATFORM">平台</option>
-        </select>
+          <t-option value="" label="全部" />
+          <t-option value="HOSPITAL" label="医院" />
+          <t-option value="PHARMACY" label="药房" />
+          <t-option value="PLATFORM" label="平台" />
+        </t-select>
       </label>
       <template #actions>
         <t-button
@@ -329,6 +357,7 @@ defineExpose({
           :disabled="loading"
           @click="searchFirstPage"
         >
+          <template #icon><t-icon name="search" /></template>
           {{ loading ? '查询中' : '查询' }}
         </t-button>
         <t-button
@@ -338,87 +367,11 @@ defineExpose({
           :disabled="!canExport"
           @click="downloadInstitutionCsv"
         >
+          <template #icon><t-icon name="download" /></template>
           导出当前页
         </t-button>
       </template>
     </AdminToolbar>
-
-    <div class="institution-stats" aria-label="机构统计">
-      <article v-for="stat in stats" :key="stat.label" class="institution-stat">
-        <strong>{{ stat.value }}</strong>
-        <span>{{ stat.label }}</span>
-      </article>
-    </div>
-
-    <AdminPanel class="institution-edit-panel">
-      <template #title>{{ editing ? '编辑机构' : '新增机构' }}</template>
-      <template #description>维护机构名称、类型、状态与煎煮中心。</template>
-      <template #actions>
-        <t-button
-          theme="primary"
-          variant="outline"
-          size="small"
-          :disabled="saving"
-          @click="saveInstitution"
-        >
-          {{ saving ? '保存中' : editing ? '保存修改' : '新增机构' }}
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="saving"
-          @click="resetForm"
-        >
-          清空
-        </t-button>
-      </template>
-
-      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
-
-      <div class="institution-form-grid">
-        <label class="institution-field">
-          <span>机构编码</span>
-          <input
-            v-model="form.institutionCode"
-            class="institution-input"
-            :disabled="editing"
-            placeholder="hospital-code"
-          >
-        </label>
-        <label class="institution-field">
-          <span>机构名称</span>
-          <input
-            v-model="form.institutionName"
-            class="institution-input"
-            placeholder="机构名称"
-          >
-        </label>
-        <label class="institution-field">
-          <span>类型</span>
-          <select v-model="form.institutionType" class="institution-input">
-            <option value="HOSPITAL">医院</option>
-            <option value="PHARMACY">药房</option>
-            <option value="PLATFORM">平台</option>
-          </select>
-        </label>
-        <label class="institution-field">
-          <span>状态</span>
-          <select v-model="form.status" class="institution-input">
-            <option value="ENABLED">启用</option>
-            <option value="DISABLED">停用</option>
-          </select>
-        </label>
-        <label class="institution-field">
-          <span>煎煮中心</span>
-          <input
-            v-model="form.storageType"
-            class="institution-input"
-            placeholder="中心/仓储标识"
-          >
-        </label>
-      </div>
-    </AdminPanel>
 
     <AdminPanel class="institution-list-panel">
       <template #title>机构列表</template>
@@ -428,6 +381,8 @@ defineExpose({
       <template #actions>
         <span class="institution-list-note">机构名称为主信息，编码显示在名称下方。</span>
       </template>
+
+      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
 
       <AdminPageState
         v-if="listState === 'loading'"
@@ -480,7 +435,7 @@ defineExpose({
                     variant="outline"
                     size="small"
                     :disabled="rowActionsDisabled"
-                    @click="editInstitution(row)"
+                    @click="openEditForm(row)"
                   >
                     编辑
                   </t-button>
@@ -509,6 +464,66 @@ defineExpose({
         />
       </template>
     </AdminPanel>
+
+    <AdminDrawerForm
+      :open="editorOpen"
+      :title="editing ? '编辑机构' : '新增机构'"
+      description="配置机构名称、类型、状态和煎煮中心。"
+      :submitting="saving"
+      :save-label="editing ? '保存修改' : '新增机构'"
+      width="560px"
+      @update:open="handleEditorOpenChange"
+      @save="saveInstitution"
+    >
+      <p v-if="actionError" class="error-line institution-editor-error" role="alert">{{ actionError }}</p>
+
+      <div class="institution-form-grid">
+        <label class="institution-field">
+          <span>机构编码</span>
+          <t-input
+            v-model="form.institutionCode"
+            name="institution-code"
+            size="small"
+            :disabled="editing"
+            placeholder="hospital-code"
+            autofocus
+          />
+        </label>
+        <label class="institution-field">
+          <span>机构名称</span>
+          <t-input
+            v-model="form.institutionName"
+            name="institution-name"
+            size="small"
+            placeholder="机构名称"
+          />
+        </label>
+        <label class="institution-field">
+          <span>类型</span>
+          <t-select v-model="form.institutionType" size="small">
+            <t-option value="HOSPITAL" label="医院" />
+            <t-option value="PHARMACY" label="药房" />
+            <t-option value="PLATFORM" label="平台" />
+          </t-select>
+        </label>
+        <label class="institution-switch-field">
+          <span>状态</span>
+          <span class="institution-switch-control">
+            <t-switch v-model="formEnabled" size="small" />
+            <span>{{ formEnabled ? '启用' : '停用' }}</span>
+          </span>
+        </label>
+        <label class="institution-field institution-field--wide">
+          <span>煎煮中心</span>
+          <t-input
+            v-model="form.storageType"
+            name="institution-storage-type"
+            size="small"
+            placeholder="中心/仓储标识"
+          />
+        </label>
+      </div>
+    </AdminDrawerForm>
   </section>
 </template>
 
@@ -520,81 +535,65 @@ defineExpose({
   overflow-x: hidden;
 }
 
-.institution-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 12px;
-  min-width: 0;
-}
-
-.institution-stat {
-  display: grid;
-  gap: 4px;
-  min-height: 88px;
-  padding: 14px;
-  border: 1px solid #e3e8f0;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.institution-stat strong {
-  color: #111827;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.institution-stat span,
 .institution-list-note {
-  color: #667085;
+  color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.institution-form-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  min-width: 0;
-}
-
 .institution-field {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
-.institution-field span {
-  color: #4b5563;
+.institution-field > span,
+.institution-switch-field > span:first-child {
+  color: var(--admin-text-secondary);
   font-size: 13px;
   line-height: 20px;
 }
 
 .institution-field--keyword {
   flex: 1 1 300px;
+  min-width: 240px;
 }
 
 .institution-field--status,
 .institution-field--type {
-  flex: 0 0 150px;
+  flex: 0 0 136px;
 }
 
-.institution-input {
+.institution-field :deep(.t-input),
+.institution-field :deep(.t-select) {
   width: 100%;
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid #d7deea;
-  border-radius: 6px;
-  color: #1f2937;
-  background: #ffffff;
+}
+
+.institution-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+  min-width: 0;
+}
+
+.institution-field--wide {
+  grid-column: 1 / -1;
+}
+
+.institution-switch-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.institution-switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--admin-control-height);
+  color: var(--admin-text);
   font-size: 13px;
   line-height: 20px;
-}
-
-.institution-input:disabled {
-  color: #98a2b3;
-  background: #f8fafc;
 }
 
 .institution-table {
@@ -608,14 +607,14 @@ defineExpose({
 }
 
 .institution-primary-cell strong {
-  color: #111827;
+  color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 20px;
 }
 
 .institution-primary-cell small {
-  color: #667085;
+  color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
@@ -634,18 +633,23 @@ defineExpose({
 
 .error-line {
   margin: 0;
-  color: #b42318;
+  color: var(--admin-danger);
   font-size: 13px;
   line-height: 20px;
 }
 
+.institution-editor-error,
 .institution-list-error {
   margin-bottom: 12px;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 639px) {
   .institution-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .institution-field--wide {
+    grid-column: auto;
   }
 }
 </style>

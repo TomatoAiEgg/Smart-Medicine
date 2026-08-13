@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { revokeAdminUserSessions } from '../../api/auth';
 import { createAdminOperator, listAdminOperators, listAdminRbacRoles, updateAdminOperator } from '../../api/order';
 import type { AdminOperatorCommand, AdminOperatorPage, AdminOperatorRecord, AdminRbacRoleRecord } from '../../api/types';
+import AdminDrawerForm from '../../components/admin/AdminDrawerForm.vue';
 import AdminPageState from '../../components/admin/AdminPageState.vue';
 import AdminPagination from '../../components/admin/AdminPagination.vue';
 import AdminPanel from '../../components/admin/AdminPanel.vue';
@@ -24,11 +25,6 @@ interface OperatorForm {
   enabled: boolean;
 }
 
-interface OperatorStat {
-  label: string;
-  value: string;
-}
-
 const props = defineProps<{
   active: boolean;
   activationKey: number;
@@ -48,6 +44,7 @@ const pageSize = ref(20);
 const operatorPage = ref<AdminOperatorPage | null>(null);
 const loading = ref(false);
 const saving = ref(false);
+const editorOpen = ref(false);
 const revokingUserId = ref('');
 const loaded = ref(false);
 const listError = ref('');
@@ -65,8 +62,6 @@ const form = ref<OperatorForm>({
 
 const rows = computed(() => operatorPage.value?.records ?? []);
 const total = computed(() => operatorPage.value?.total ?? 0);
-const enabledCount = computed(() => rows.value.filter((row) => row.enabled).length);
-const disabledCount = computed(() => rows.value.filter((row) => !row.enabled).length);
 const hasPreviousPage = computed(() => page.value > 1 && !loading.value);
 const hasNextPage = computed(() => !loading.value && page.value * pageSize.value < total.value);
 const editing = computed(() => form.value.id !== null);
@@ -79,12 +74,6 @@ const listState = computed<'loading' | 'error' | 'empty' | null>(() => {
   if (loaded.value && !loading.value && rows.value.length === 0) return 'empty';
   return null;
 });
-const stats = computed<OperatorStat[]>(() => [
-  { label: '工号总数', value: formatNumber(total.value) },
-  { label: '本页启用', value: formatNumber(enabledCount.value) },
-  { label: '本页停用', value: formatNumber(disabledCount.value) },
-]);
-
 function downloadOperatorCsv() {
   downloadCsv(
     `后台工号-第${page.value}页.csv`,
@@ -104,7 +93,7 @@ function downloadOperatorCsv() {
 
 function commandFromForm(): AdminOperatorCommand {
   return {
-    username: form.value.username.trim(),
+    ...(form.value.id ? {} : { username: form.value.username.trim() }),
     displayName: form.value.displayName.trim(),
     roleCode: form.value.roleCode.trim(),
     enabled: form.value.enabled,
@@ -165,6 +154,7 @@ async function searchFirstPage() {
 }
 
 function resetForm() {
+  actionError.value = '';
   form.value = {
     id: null,
     username: '',
@@ -174,7 +164,15 @@ function resetForm() {
   };
 }
 
-function editOperator(row: AdminOperatorRecord) {
+function openCreateForm() {
+  if (!props.canManage || saving.value) return;
+  resetForm();
+  editorOpen.value = true;
+}
+
+function openEditForm(row: AdminOperatorRecord) {
+  if (!props.canManage || saving.value) return;
+  actionError.value = '';
   form.value = {
     id: row.id,
     username: row.username,
@@ -182,10 +180,24 @@ function editOperator(row: AdminOperatorRecord) {
     roleCode: row.roleCode ?? '',
     enabled: row.enabled,
   };
+  editorOpen.value = true;
+}
+
+function closeEditor() {
+  editorOpen.value = false;
+  resetForm();
+}
+
+function handleEditorOpenChange(open: boolean) {
+  if (open) {
+    editorOpen.value = true;
+    return;
+  }
+  closeEditor();
 }
 
 async function saveOperator() {
-  if (!props.canManage) return;
+  if (!props.canManage || saving.value) return;
   if (!form.value.username.trim() || !form.value.displayName.trim()) {
     actionError.value = '工号和姓名不能为空';
     return;
@@ -200,7 +212,7 @@ async function saveOperator() {
       await createAdminOperator(commandFromForm());
       emit('notice', 'success', `工号 ${form.value.username} 已新增`);
     }
-    resetForm();
+    closeEditor();
     await refreshOperators();
   } catch (error) {
     actionError.value = errorMessage(error);
@@ -281,28 +293,40 @@ defineExpose({
 <template>
   <section class="operator-page">
     <AdminToolbar>
+      <t-button
+        class="operator-create-button"
+        theme="primary"
+        size="small"
+        :disabled="loading || saving || !canManage"
+        @click="openCreateForm"
+      >
+        <template #icon><t-icon name="add" /></template>
+        新增工号
+      </t-button>
       <label class="operator-field operator-field--keyword">
         <span>关键字</span>
-        <input
+        <t-input
           v-model="keyword"
-          class="operator-input"
+          name="operator-keyword"
+          size="small"
+          clearable
           :disabled="loading"
           placeholder="工号 / 姓名 / 角色"
-          @keyup.enter="searchFirstPage"
-        >
+          @enter="searchFirstPage"
+        />
       </label>
       <label class="operator-field operator-field--status">
         <span>状态</span>
-        <select
+        <t-select
           v-model="enabledFilter"
-          class="operator-input"
+          size="small"
           :disabled="loading"
           @change="searchFirstPage"
         >
-          <option value="">全部</option>
-          <option value="true">启用</option>
-          <option value="false">停用</option>
-        </select>
+          <t-option value="" label="全部" />
+          <t-option value="true" label="启用" />
+          <t-option value="false" label="停用" />
+        </t-select>
       </label>
       <template #actions>
         <t-button
@@ -312,6 +336,7 @@ defineExpose({
           :disabled="loading"
           @click="searchFirstPage"
         >
+          <template #icon><t-icon name="search" /></template>
           {{ loading ? '查询中' : '查询' }}
         </t-button>
         <t-button
@@ -321,97 +346,11 @@ defineExpose({
           :disabled="!canExport"
           @click="downloadOperatorCsv"
         >
+          <template #icon><t-icon name="download" /></template>
           导出当前页
         </t-button>
       </template>
     </AdminToolbar>
-
-    <div class="operator-stats" aria-label="工号统计">
-      <article
-        v-for="stat in stats"
-        :key="stat.label"
-        class="operator-stat"
-      >
-        <strong>{{ stat.value }}</strong>
-        <span>{{ stat.label }}</span>
-      </article>
-    </div>
-
-    <AdminPanel class="operator-edit-panel">
-      <template #title>{{ editing ? '编辑工号' : '新增工号' }}</template>
-      <template #description>
-        {{ canManage ? '维护工号名称、角色与状态。' : '当前账号仅可查看，编辑与状态变更按钮已禁用。' }}
-      </template>
-      <template #actions>
-        <t-button
-          theme="primary"
-          variant="outline"
-          size="small"
-          :disabled="saving || !canManage"
-          @click="saveOperator"
-        >
-          {{ saving ? '保存中' : editing ? '保存修改' : '新增工号' }}
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="saving"
-          @click="resetForm"
-        >
-          清空
-        </t-button>
-      </template>
-
-      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
-
-      <div class="operator-form-grid">
-        <label class="operator-field">
-          <span>工号</span>
-          <input
-            v-model="form.username"
-            class="operator-input"
-            :disabled="loading || editing || !canManage"
-            placeholder="operator01"
-          >
-        </label>
-        <label class="operator-field">
-          <span>姓名</span>
-          <input
-            v-model="form.displayName"
-            class="operator-input"
-            :disabled="loading || !canManage"
-            placeholder="操作员姓名"
-          >
-        </label>
-        <label class="operator-field">
-          <span>角色</span>
-          <select
-            v-model="form.roleCode"
-            class="operator-input"
-            :disabled="loading || !canManage"
-          >
-            <option value="">未分配角色</option>
-            <option
-              v-for="role in roleOptions"
-              :key="role.id"
-              :value="role.roleCode"
-              :disabled="!role.enabled"
-            >
-              {{ role.roleName }}（{{ role.roleCode }}）
-            </option>
-          </select>
-        </label>
-        <label class="operator-check">
-          <input
-            v-model="form.enabled"
-            type="checkbox"
-            :disabled="loading || !canManage"
-          >
-          <span>启用</span>
-        </label>
-      </div>
-    </AdminPanel>
 
     <AdminPanel class="operator-list-panel">
       <template #title>工号列表</template>
@@ -421,6 +360,8 @@ defineExpose({
       <template #actions>
         <span class="operator-list-note">角色主值显示名称，附带编码。</span>
       </template>
+
+      <p v-if="actionError" class="error-line" role="alert">{{ actionError }}</p>
 
       <AdminPageState
         v-if="listState === 'loading'"
@@ -474,7 +415,7 @@ defineExpose({
                     variant="outline"
                     size="small"
                     :disabled="rowActionsDisabled"
-                    @click="editOperator(row)"
+                    @click="openEditForm(row)"
                   >
                     编辑
                   </t-button>
@@ -513,6 +454,67 @@ defineExpose({
         />
       </template>
     </AdminPanel>
+
+    <AdminDrawerForm
+      :open="editorOpen"
+      :title="editing ? '编辑工号' : '新增工号'"
+      description="配置工号姓名、角色和状态。"
+      :submitting="saving"
+      :save-label="editing ? '保存修改' : '新增工号'"
+      width="520px"
+      @update:open="handleEditorOpenChange"
+      @save="saveOperator"
+    >
+      <p v-if="actionError" class="error-line operator-editor-error" role="alert">{{ actionError }}</p>
+
+      <div class="operator-form-grid">
+        <label class="operator-field">
+          <span>工号</span>
+          <t-input
+            v-model="form.username"
+            name="operator-username"
+            size="small"
+            :disabled="editing || !canManage"
+            placeholder="operator01"
+            autofocus
+          />
+        </label>
+        <label class="operator-field">
+          <span>姓名</span>
+          <t-input
+            v-model="form.displayName"
+            name="operator-display-name"
+            size="small"
+            :disabled="!canManage"
+            placeholder="操作员姓名"
+          />
+        </label>
+        <label class="operator-field operator-field--wide">
+          <span>角色</span>
+          <t-select
+            v-model="form.roleCode"
+            size="small"
+            :disabled="!canManage"
+          >
+            <t-option value="" label="未分配角色" />
+            <t-option
+              v-for="role in roleOptions"
+              :key="role.id"
+              :value="role.roleCode"
+              :label="`${role.roleName}（${role.roleCode}）`"
+              :disabled="!role.enabled"
+            />
+          </t-select>
+        </label>
+        <label class="operator-switch-field operator-field--wide">
+          <span>状态</span>
+          <span class="operator-switch-control">
+            <t-switch v-model="form.enabled" size="small" :disabled="!canManage" />
+            <span>{{ form.enabled ? '启用' : '停用' }}</span>
+          </span>
+        </label>
+      </div>
+    </AdminDrawerForm>
   </section>
 </template>
 
@@ -524,100 +526,75 @@ defineExpose({
   overflow-x: hidden;
 }
 
-.operator-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 12px;
-  min-width: 0;
-}
-
-.operator-stat {
-  display: grid;
-  gap: 4px;
-  min-height: 88px;
-  padding: 14px;
-  border: 1px solid #e3e8f0;
-  border-radius: 6px;
-  background: #ffffff;
-}
-
-.operator-stat strong {
-  color: #111827;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.operator-stat span,
 .operator-list-note {
-  color: #667085;
+  color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.operator-form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(96px, auto);
-  gap: 12px;
-  min-width: 0;
-}
-
 .operator-field {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
-.operator-field span,
-.operator-check span {
-  color: #4b5563;
+.operator-field > span,
+.operator-switch-field > span:first-child {
+  color: var(--admin-text-secondary);
   font-size: 13px;
   line-height: 20px;
 }
 
 .operator-field--keyword {
   flex: 1 1 280px;
+  min-width: 220px;
 }
 
 .operator-field--status {
-  flex: 0 0 160px;
+  flex: 0 0 144px;
 }
 
-.operator-input {
+.operator-field :deep(.t-input),
+.operator-field :deep(.t-select) {
   width: 100%;
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid #d7deea;
-  border-radius: 6px;
-  color: #1f2937;
-  background: #ffffff;
+}
+
+.operator-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+  min-width: 0;
+}
+
+.operator-field--wide {
+  grid-column: 1 / -1;
+}
+
+.operator-switch-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.operator-switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--admin-control-height);
+  color: var(--admin-text);
   font-size: 13px;
   line-height: 20px;
 }
 
-.operator-input:disabled {
-  color: #98a2b3;
-  background: #f8fafc;
-}
-
-.operator-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding-top: 24px;
-}
-
 .operator-table {
-  min-width: 960px;
+  min-width: 1040px;
 }
 
 .operator-primary-text,
 .operator-role-cell strong {
-  color: #111827;
+  color: var(--admin-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 20px;
 }
 
@@ -627,7 +604,7 @@ defineExpose({
 }
 
 .operator-role-cell small {
-  color: #667085;
+  color: var(--admin-text-secondary);
   font-size: 12px;
   line-height: 18px;
 }
@@ -644,13 +621,24 @@ defineExpose({
   margin-right: 0;
 }
 
-@media (max-width: 980px) {
+.error-line {
+  margin: 0;
+  color: var(--admin-danger);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.operator-editor-error {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 639px) {
   .operator-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .operator-check {
-    padding-top: 0;
+  .operator-field--wide {
+    grid-column: auto;
   }
 }
 </style>
