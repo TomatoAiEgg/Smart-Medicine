@@ -180,6 +180,7 @@ onBeforeUnmount(() => {
     drawer-class-name="admin-drawer-form"
     :visible="open"
     :size="drawerSize"
+    destroy-on-close
     :close-btn="false"
     :close-on-overlay-click="!submitting"
     :close-on-esc-keydown="!submitting"
