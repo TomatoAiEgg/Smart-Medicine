@@ -36,16 +36,19 @@ defineSlots<{
   display: grid;
   gap: 12px;
   min-width: 0;
+  border: 0;
+  background: transparent;
 }
 
 .admin-panel__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px 16px;
+  gap: 8px 16px;
+  min-height: 40px;
   min-width: 0;
-  padding-bottom: 10px;
+  padding: 6px 0 8px;
   border-bottom: 1px solid var(--admin-line, #e3e8f0);
 }
 
@@ -61,21 +64,21 @@ defineSlots<{
 
 .admin-panel__heading h2 {
   color: var(--admin-text, #1f2937);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 24px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
 }
 
 .admin-panel__heading p {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--admin-muted, #667085);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .admin-panel__actions {
   display: flex;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;

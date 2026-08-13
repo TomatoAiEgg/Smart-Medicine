@@ -24,6 +24,8 @@ const totalPages = computed(() => {
   return Math.ceil(props.total / props.pageSize);
 });
 
+const displayedTotalPages = computed(() => Math.max(totalPages.value, 1));
+
 const hasValidPagination = computed(
   () => props.total > 0 && props.pageSize > 0 && totalPages.value > 0,
 );
@@ -53,7 +55,7 @@ function handleNext() {
 <template>
   <nav class="admin-pagination" aria-label="分页">
     <span class="admin-pagination__summary">
-      第 {{ page }} 页 / 共 {{ total }} 条
+      共 {{ total }} 条，第 {{ page }} / {{ displayedTotalPages }} 页
     </span>
     <div class="admin-pagination__actions">
       <t-button
@@ -101,6 +103,21 @@ function handleNext() {
   flex: 0 0 auto;
   align-items: center;
   gap: 8px;
+}
+
+.admin-pagination__actions :deep(.t-button) {
+  min-width: 72px;
+  height: 32px;
+}
+
+@media (max-width: 639px) {
+  .admin-pagination {
+    gap: 8px;
+  }
+
+  .admin-pagination__actions {
+    margin-left: auto;
+  }
 }
 
 @media (max-width: 420px) {

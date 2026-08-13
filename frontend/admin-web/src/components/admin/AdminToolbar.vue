@@ -21,12 +21,12 @@ defineSlots<{
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px 12px;
+  gap: 8px 12px;
   min-width: 0;
   padding: 12px;
   border: 1px solid var(--admin-line, #e3e8f0);
-  border-radius: 6px;
-  background: #ffffff;
+  border-radius: 3px 3px 0 0;
+  background: var(--admin-surface-soft, #f6f8fa);
 }
 
 .admin-toolbar__filters {
@@ -34,7 +34,7 @@ defineSlots<{
   flex: 1 1 360px;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 10px 12px;
+  gap: 8px 12px;
   min-width: 0;
 }
 
@@ -49,7 +49,15 @@ defineSlots<{
   min-width: 0;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1023px) {
+  .admin-toolbar__actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 639px) {
   .admin-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -62,6 +70,14 @@ defineSlots<{
 
   .admin-toolbar__filters {
     flex: 0 1 auto;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-toolbar__filters :deep(> *) {
+    width: 100%;
+    max-width: none;
+    flex-basis: auto;
   }
 
   .admin-toolbar__actions {
