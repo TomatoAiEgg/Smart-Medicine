@@ -24,9 +24,9 @@ defineSlots<{
   gap: 8px 12px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid var(--admin-line, #e3e8f0);
+  border: 1px solid var(--admin-border, #dcdcdc);
   border-radius: 3px 3px 0 0;
-  background: var(--admin-surface-soft, #f6f8fa);
+  background: var(--admin-surface-subtle, #f2f3f5);
 }
 
 .admin-toolbar__filters {
