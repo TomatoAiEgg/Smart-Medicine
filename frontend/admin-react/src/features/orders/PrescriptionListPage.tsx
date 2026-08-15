@@ -50,7 +50,16 @@ function maskAddress(value: string | null | undefined) {
   }
 
   const chars = Array.from(trimmedValue);
-  const visibleLength = Math.min(chars.length, 8);
+
+  if (chars.length === 1) {
+    return '*';
+  }
+
+  if (chars.length <= 4) {
+    return `${chars[0]}${'*'.repeat(chars.length - 1)}`;
+  }
+
+  const visibleLength = Math.min(chars.length - 1, 6);
 
   return `${chars.slice(0, visibleLength).join('')}****`;
 }
