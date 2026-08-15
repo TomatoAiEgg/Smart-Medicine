@@ -37,7 +37,8 @@ body {
   overflow: hidden;
 }
 
-.admin-auth-loading {
+.admin-auth-loading,
+.admin-route-loading {
   align-items: center;
   background: #f3f6fb;
   display: flex;

@@ -1,15 +1,32 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { lazy, type ReactNode } from 'react';
 import { AuthGate } from '../app/AuthGate';
 import { MigrationNoticePage } from '../components/MigrationNoticePage';
-import { LoginPage } from '../features/auth/LoginPage';
-import { EquipmentListPage } from '../features/decoction/EquipmentListPage';
-import { PrescriptionListPage } from '../features/orders/PrescriptionListPage';
-import { PrescriptionRecheckPage } from '../features/orders/PrescriptionRecheckPage';
-import { PrescriptionCountReportPage } from '../features/reports/PrescriptionCountReportPage';
-import { UserManagementPage } from '../features/system/UserManagementPage';
-import { AdminShell } from '../shell/AdminShell';
 import { menuItems } from './menu';
+
+const AdminShell = lazy(() => import('../shell/AdminShell').then(({ AdminShell }) => ({ default: AdminShell })));
+const LoginPage = lazy(() => import('../features/auth/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })));
+const UserManagementPage = lazy(() =>
+  import('../features/system/UserManagementPage').then(({ UserManagementPage }) => ({ default: UserManagementPage })),
+);
+const PrescriptionListPage = lazy(() =>
+  import('../features/orders/PrescriptionListPage').then(({ PrescriptionListPage }) => ({
+    default: PrescriptionListPage,
+  })),
+);
+const PrescriptionRecheckPage = lazy(() =>
+  import('../features/orders/PrescriptionRecheckPage').then(({ PrescriptionRecheckPage }) => ({
+    default: PrescriptionRecheckPage,
+  })),
+);
+const EquipmentListPage = lazy(() =>
+  import('../features/decoction/EquipmentListPage').then(({ EquipmentListPage }) => ({ default: EquipmentListPage })),
+);
+const PrescriptionCountReportPage = lazy(() =>
+  import('../features/reports/PrescriptionCountReportPage').then(({ PrescriptionCountReportPage }) => ({
+    default: PrescriptionCountReportPage,
+  })),
+);
 
 const implementedPages: Record<string, ReactNode> = {
   'system-users': <UserManagementPage />,
