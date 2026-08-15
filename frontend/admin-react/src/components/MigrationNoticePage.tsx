@@ -38,7 +38,7 @@ export function MigrationNoticePage({ item }: MigrationNoticePageProps) {
             label: '迁移状态',
             children: (
               <Tag color={item.implemented ? 'green' : 'blue'}>
-                {item.implemented ? '代表页面已实现' : '入口已恢复，页面待迁移'}
+                {item.implemented ? '代表页面计划接入' : '入口已恢复，页面待迁移'}
               </Tag>
             ),
           },
