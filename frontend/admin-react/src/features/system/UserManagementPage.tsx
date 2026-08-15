@@ -4,6 +4,7 @@ import { Button, Space } from 'antd';
 import { QueryTableShell } from '../../components/QueryTableShell';
 import { StatusTag } from '../../components/StatusTag';
 import { formatDate } from '../../utils/formatters';
+import { maskPhone } from '../../utils/masking';
 
 interface UserRecord {
   id: string;
@@ -58,6 +59,7 @@ const columns: ProColumns<UserRecord>[] = [
     dataIndex: 'phone',
     width: 140,
     ellipsis: true,
+    render: (_, row) => maskPhone(row.phone),
   },
   {
     title: '创建时间',

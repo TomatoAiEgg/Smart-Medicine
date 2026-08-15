@@ -42,6 +42,19 @@ function formatAmount(value: number | null | undefined) {
   }).format(value);
 }
 
+function maskAddress(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return '-';
+  }
+
+  const chars = Array.from(trimmedValue);
+  const visibleLength = Math.min(chars.length, 8);
+
+  return `${chars.slice(0, visibleLength).join('')}****`;
+}
+
 const columns: ProColumns<PrescriptionRecord>[] = [
   {
     title: '平台处方号',
@@ -125,6 +138,7 @@ const columns: ProColumns<PrescriptionRecord>[] = [
     width: 260,
     ellipsis: true,
     hideInSearch: true,
+    render: (_, row) => maskAddress(row.receiverAddress),
   },
   {
     title: '送货时间',

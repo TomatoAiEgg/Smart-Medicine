@@ -6,7 +6,7 @@ interface QueryTableShellProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
-  filters: ReactNode;
+  filters?: ReactNode | null;
   table: ReactNode;
 }
 
@@ -20,9 +20,11 @@ export function QueryTableShell({
   return (
     <section className="query-page">
       <PageHeader title={title} subtitle={subtitle} actions={actions} />
-      <Card className="query-page__filters" size="small">
-        {filters}
-      </Card>
+      {filters !== null && filters !== undefined ? (
+        <Card className="query-page__filters" size="small">
+          {filters}
+        </Card>
+      ) : null}
       <Card className="query-page__table" size="small">
         {table}
       </Card>
