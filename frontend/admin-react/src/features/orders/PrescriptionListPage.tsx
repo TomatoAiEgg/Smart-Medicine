@@ -1,6 +1,7 @@
 import { ExportOutlined } from '@ant-design/icons';
 import { ProTable, type ProColumns } from '@ant-design/pro-components';
 import { Button, Space } from 'antd';
+import { listAdminOrders, type AdminOrderRecord } from '../../api/order';
 import { QueryTableShell } from '../../components/QueryTableShell';
 import { StatusTag } from '../../components/StatusTag';
 import { formatDate } from '../../utils/formatters';
@@ -21,6 +22,20 @@ interface PrescriptionRecord {
   deliveryTime: string | null;
   status: string;
   remark: string | null;
+}
+
+interface PrescriptionQueryParams {
+  current?: number;
+  pageSize?: number;
+  prescriptionNo?: string;
+  decoctionCenter?: string;
+  institutionName?: string;
+  patientName?: string;
+  receiverPhone?: string;
+  prescriptionType?: string;
+  deliveryMethod?: string;
+  deliveryTime?: string;
+  status?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -62,6 +77,36 @@ function maskAddress(value: string | null | undefined) {
   const visibleLength = Math.min(chars.length - 1, 6);
 
   return `${chars.slice(0, visibleLength).join('')}****`;
+}
+
+function toNumber(value: number | string | null | undefined) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+  return 0;
+}
+
+function mapOrderRecord(record: AdminOrderRecord): PrescriptionRecord {
+  return {
+    prescriptionNo: record.prescriptionNos || record.orderNo,
+    orderedAt: record.createdAt,
+    decoctionCenter: record.decoctionCenter ?? '',
+    institutionName: record.institutionName,
+    patientName: record.patientName ?? record.receiverName ?? '',
+    receiverPhone: record.receiverPhone ?? record.patientPhone ?? '',
+    prescriptionType: record.prescriptionTypes,
+    doseCount: record.doseCount ?? 0,
+    amount: toNumber(record.totalAmount),
+    deliveryMethod: record.deliveryMethod ?? record.addressType ?? '',
+    receiverAddress: [record.receiverProvince, record.receiverCity, record.receiverZone, record.receiverAddress]
+      .filter(Boolean)
+      .join(''),
+    deliveryTime: record.deliveryTime,
+    status: record.prescriptionStatus || record.orderStatus,
+    remark: record.orderRemark,
+  };
 }
 
 const columns: ProColumns<PrescriptionRecord>[] = [
@@ -204,13 +249,32 @@ export function PrescriptionListPage() {
       }
       filters={null}
       table={
-        <ProTable<PrescriptionRecord>
+        <ProTable<PrescriptionRecord, PrescriptionQueryParams>
           rowKey="prescriptionNo"
           columns={columns}
           options={false}
           search={{ labelWidth: 'auto', defaultCollapsed: false }}
           scroll={{ x: 2190 }}
-          request={async () => ({ data: [], success: true, total: 0 })}
+          request={async (params) => {
+            const page = await listAdminOrders({
+              pageNo: params.current,
+              pageSize: params.pageSize,
+              prescriptionNo: params.prescriptionNo,
+              decoctionCenter: params.decoctionCenter,
+              institutionName: params.institutionName,
+              patientName: params.patientName,
+              receiverPhone: params.receiverPhone,
+              prescriptionType: params.prescriptionType,
+              deliveryMethod: params.deliveryMethod,
+              deliveryTime: params.deliveryTime,
+              status: params.status,
+            });
+            return {
+              data: page.records.map(mapOrderRecord),
+              success: true,
+              total: page.total,
+            };
+          }}
           locale={{ emptyText: '暂无处方订单数据，请调整查询条件后重试。' }}
           pagination={{ defaultPageSize: 10, showSizeChanger: true }}
         />

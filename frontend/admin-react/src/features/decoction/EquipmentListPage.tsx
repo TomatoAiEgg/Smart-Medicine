@@ -1,6 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { ProTable, type ProColumns } from '@ant-design/pro-components';
 import { Button, Space } from 'antd';
+import { listAdminDecoctionDevices, type DeviceRecord } from '../../api/decoction';
 import { QueryTableShell } from '../../components/QueryTableShell';
 import { StatusTag } from '../../components/StatusTag';
 import { formatDate } from '../../utils/formatters';
@@ -21,6 +22,20 @@ interface EquipmentRecord {
   updatedAt: string;
 }
 
+interface EquipmentQueryParams {
+  current?: number;
+  pageSize?: number;
+  id?: string;
+  equipmentType?: string;
+  equipmentCode?: string;
+  equipmentName?: string;
+  serialNo?: string;
+  ipAddress?: string;
+  groupName?: string;
+  enabled?: string | boolean;
+  decoctionCenter?: string;
+}
+
 const enabledLabels: Record<string, string> = {
   ENABLED: '已启用',
   DISABLED: '已停用',
@@ -30,6 +45,24 @@ const usedLabels: Record<string, string> = {
   ACTIVE: '使用中',
   INACTIVE: '未使用',
 };
+
+function mapDeviceRecord(record: DeviceRecord): EquipmentRecord {
+  return {
+    id: record.deviceId ?? record.deviceCode,
+    equipmentType: record.deviceType,
+    equipmentCode: record.deviceCode,
+    equipmentName: record.deviceName,
+    serialNo: record.remark ?? '',
+    ipAddress: record.ipAddress ?? '',
+    groupName: record.deviceGroup ?? '',
+    enabled: record.enabled,
+    used: Boolean(record.activeTaskNo || record.activePrescriptionNo),
+    decoctionCenter: record.decoctionCenter ?? '',
+    operatorName: '',
+    createdAt: record.createdAt ?? '',
+    updatedAt: record.updatedAt ?? '',
+  };
+}
 
 const columns: ProColumns<EquipmentRecord>[] = [
   {
@@ -100,9 +133,7 @@ const columns: ProColumns<EquipmentRecord>[] = [
       true: { text: '使用中' },
       false: { text: '未使用' },
     },
-    render: (_, row) => (
-      <StatusTag value={row.used ? 'ACTIVE' : 'INACTIVE'} labels={usedLabels} />
-    ),
+    render: (_, row) => <StatusTag value={row.used ? 'ACTIVE' : 'INACTIVE'} labels={usedLabels} />,
   },
   {
     title: '煎煮中心',
@@ -157,13 +188,29 @@ export function EquipmentListPage() {
       }
       filters={null}
       table={
-        <ProTable<EquipmentRecord>
+        <ProTable<EquipmentRecord, EquipmentQueryParams>
           rowKey="id"
           columns={columns}
           options={false}
           search={{ labelWidth: 'auto', defaultCollapsed: false }}
           scroll={{ x: 1910 }}
-          request={async () => ({ data: [], success: true, total: 0 })}
+          request={async (params) => {
+            const page = await listAdminDecoctionDevices({
+              deviceId: params.id,
+              deviceCode: params.equipmentCode,
+              deviceName: params.equipmentName,
+              deviceType: params.equipmentType,
+              deviceGroup: params.groupName,
+              ipAddress: params.ipAddress,
+              decoctionCenter: params.decoctionCenter,
+              enabled: params.enabled,
+            });
+            return {
+              data: page.records.map(mapDeviceRecord),
+              success: true,
+              total: page.total,
+            };
+          }}
           locale={{ emptyText: '暂无煎煮设备数据，请调整查询条件或添加设备。' }}
           pagination={{ defaultPageSize: 10, showSizeChanger: true }}
         />
