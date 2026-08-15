@@ -1,8 +1,22 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { MigrationNoticePage } from '../components/MigrationNoticePage';
 import { LoginPage } from '../features/auth/LoginPage';
+import { EquipmentListPage } from '../features/decoction/EquipmentListPage';
+import { PrescriptionListPage } from '../features/orders/PrescriptionListPage';
+import { PrescriptionRecheckPage } from '../features/orders/PrescriptionRecheckPage';
+import { PrescriptionCountReportPage } from '../features/reports/PrescriptionCountReportPage';
+import { UserManagementPage } from '../features/system/UserManagementPage';
 import { AdminShell } from '../shell/AdminShell';
 import { menuItems } from './menu';
+
+const implementedPages: Record<string, ReactNode> = {
+  'system-users': <UserManagementPage />,
+  'orders-prescriptions': <PrescriptionListPage />,
+  'orders-recheck': <PrescriptionRecheckPage />,
+  'decoction-equipment': <EquipmentListPage />,
+  'reports-prescription-counts': <PrescriptionCountReportPage />,
+};
 
 export const router = createBrowserRouter([
   {
@@ -19,7 +33,7 @@ export const router = createBrowserRouter([
       },
       ...menuItems.map((item) => ({
         path: item.path.slice(1),
-        element: <MigrationNoticePage item={item} />,
+        element: implementedPages[item.key] ?? <MigrationNoticePage item={item} />,
       })),
     ],
   },
