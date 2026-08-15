@@ -12,7 +12,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Tabs, Typography, type MenuProps } from 'antd';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { menuGroups } from '../routes/menu';
 import { useRouteTabs } from './useRouteTabs';
@@ -33,9 +33,22 @@ const parentIcons: Record<string, ReactNode> = {
   decoction: <ShopOutlined />,
 };
 
+function ensureCurrentParentOpen(keys: string[], currentParentKey: string): string[] {
+  return keys.includes(currentParentKey) ? keys : [...keys, currentParentKey];
+}
+
 export function AdminShell() {
   const menuNavigate = useNavigate();
   const { tabs, activeKey, current, navigate, closeTab } = useRouteTabs();
+  const [openKeys, setOpenKeys] = useState<string[]>([current.parentKey]);
+
+  useEffect(() => {
+    setOpenKeys((keys) => ensureCurrentParentOpen(keys, current.parentKey));
+  }, [current.parentKey]);
+
+  const handleOpenChange: MenuProps['onOpenChange'] = (keys) => {
+    setOpenKeys(ensureCurrentParentOpen(keys, current.parentKey));
+  };
 
   const menuItems: MenuProps['items'] = menuGroups.map((group) => ({
     key: group.key,
@@ -59,8 +72,9 @@ export function AdminShell() {
           theme="dark"
           mode="inline"
           selectedKeys={[current.key]}
-          defaultOpenKeys={[current.parentKey]}
+          openKeys={openKeys}
           items={menuItems}
+          onOpenChange={handleOpenChange}
         />
       </Sider>
 

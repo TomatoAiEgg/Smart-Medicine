@@ -16,13 +16,23 @@ const initialRouteTab: RouteTab = {
   closable: false,
 };
 
-function createRouteTab(item: AdminMenuItem): RouteTab {
+function createRouteTab(item: AdminMenuItem, path: string): RouteTab {
   return {
     key: item.key,
     title: item.title,
-    path: item.path,
+    path,
     closable: item.key !== initialRouteTab.key,
   };
+}
+
+function createInitialTabs(current: AdminMenuItem, pathname: string, fullPath: string): RouteTab[] {
+  if (current.path !== pathname) {
+    return [initialRouteTab];
+  }
+
+  const currentTab = createRouteTab(current, fullPath);
+
+  return currentTab.key === initialRouteTab.key ? [currentTab] : [initialRouteTab, currentTab];
 }
 
 export function useRouteTabs(): {
@@ -34,8 +44,14 @@ export function useRouteTabs(): {
 } {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tabs, setTabs] = useState<RouteTab[]>([initialRouteTab]);
+  const fullPath = useMemo(
+    () => `${location.pathname}${location.search}${location.hash}`,
+    [location.hash, location.pathname, location.search],
+  );
   const current = useMemo(() => findMenuItemByPath(location.pathname), [location.pathname]);
+  const [tabs, setTabs] = useState<RouteTab[]>(() =>
+    createInitialTabs(current, location.pathname, fullPath),
+  );
   const activeKey = current.key;
 
   useEffect(() => {
@@ -45,30 +61,32 @@ export function useRouteTabs(): {
 
     setTabs((previousTabs) => {
       if (previousTabs.some((tab) => tab.key === current.key)) {
-        return previousTabs;
+        return previousTabs.map((tab) =>
+          tab.key === current.key ? { ...tab, title: current.title, path: fullPath } : tab,
+        );
       }
 
-      return [...previousTabs, createRouteTab(current)];
+      return [...previousTabs, createRouteTab(current, fullPath)];
     });
-  }, [current, location.pathname]);
+  }, [current, fullPath, location.pathname]);
 
   const closeTab = useCallback(
     (targetKey: string) => {
-      const targetTab = tabs.find((tab) => tab.key === targetKey);
+      const targetIndex = tabs.findIndex((tab) => tab.key === targetKey);
+      const targetTab = tabs[targetIndex];
 
       if (!targetTab?.closable) {
         return;
       }
 
       const remainingTabs = tabs.filter((tab) => tab.key !== targetKey);
+      const fallbackPath =
+        tabs[targetIndex - 1]?.path ?? tabs[targetIndex + 1]?.path ?? initialRouteTab.path;
+
       setTabs(remainingTabs);
 
       if (targetKey === activeKey) {
-        const fallbackTab = remainingTabs.at(-1) ?? remainingTabs[0];
-
-        if (fallbackTab) {
-          navigate(fallbackTab.path);
-        }
+        navigate(fallbackPath);
       }
     },
     [activeKey, navigate, tabs],
