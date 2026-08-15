@@ -26,7 +26,12 @@ export function readAdminSession(): StoredAdminSession | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredAdminSession>;
-    if (!parsed.accessToken || !parsed.refreshToken || !parsed.refreshExpiresAt || !parsed.user?.userId || !parsed.user.expiresAt) {
+    if (
+      !isNonEmptyString(parsed.accessToken) ||
+      !isNonEmptyString(parsed.refreshToken) ||
+      !isNonEmptyString(parsed.refreshExpiresAt) ||
+      !isAdminUserSession(parsed.user)
+    ) {
       clearAdminSession();
       return null;
     }
@@ -59,4 +64,37 @@ export function storeAdminSession(
 
 export function clearAdminSession() {
   sessionStorage.removeItem(STORAGE_KEY);
+}
+
+function isAdminUserSession(value: unknown): value is AdminUserSession {
+  if (!isRecord(value)) return false;
+  return (
+    isNonEmptyString(value.userId) &&
+    isString(value.tenantId) &&
+    isString(value.tenantCode) &&
+    isString(value.tenantName) &&
+    isString(value.username) &&
+    isString(value.displayName) &&
+    isStringArray(value.roleCodes) &&
+    isStringArray(value.institutionIds) &&
+    isStringArray(value.permissions) &&
+    typeof value.tenantWide === 'boolean' &&
+    isNonEmptyString(value.expiresAt)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return isString(value) && value.length > 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
 }

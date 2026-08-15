@@ -52,3 +52,15 @@ export async function logoutAdmin() {
     clearAdminSession();
   }
 }
+
+export interface AdminSessionRevocationResult {
+  userId: string;
+  revokedSessions: number;
+}
+
+export function revokeAdminUserSessions(userId: string) {
+  return request<AdminSessionRevocationResult>(
+    `/auth-api/api/admin/auth/users/${encodeURIComponent(userId)}/revoke-sessions`,
+    { method: 'POST' },
+  );
+}

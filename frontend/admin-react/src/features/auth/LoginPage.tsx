@@ -4,11 +4,15 @@ import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { loginAdmin, type AdminLoginCommand } from '../../api/auth';
 
+const TENANT_CODE_STORAGE_KEY = 'zhyf.admin.tenant-code';
+const DEFAULT_TENANT_CODE = 'demo-tenant';
+
 export function LoginPage() {
   const navigate = useNavigate();
   const loginMutation = useMutation({
     mutationFn: loginAdmin,
-    onSuccess: () => {
+    onSuccess: (session) => {
+      sessionStorage.setItem(TENANT_CODE_STORAGE_KEY, session.tenantCode);
       navigate('/system/users', { replace: true });
     },
   });
@@ -46,15 +50,21 @@ export function LoginPage() {
         <Form<AdminLoginCommand>
           layout="vertical"
           requiredMark={false}
-          initialValues={{ tenantCode: 'default' }}
-          onFinish={(values) => loginMutation.mutate(values)}
+          initialValues={{ tenantCode: sessionStorage.getItem(TENANT_CODE_STORAGE_KEY) || DEFAULT_TENANT_CODE }}
+          onFinish={(values) =>
+            loginMutation.mutate({
+              ...values,
+              tenantCode: values.tenantCode.trim(),
+              username: values.username.trim(),
+            })
+          }
         >
           <Form.Item
             label="租户编码"
             name="tenantCode"
             rules={[{ required: true, message: '请输入租户编码' }]}
           >
-            <Input autoComplete="organization" placeholder="default" />
+            <Input autoComplete="organization" placeholder={DEFAULT_TENANT_CODE} />
           </Form.Item>
 
           <Form.Item
