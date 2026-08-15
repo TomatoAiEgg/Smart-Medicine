@@ -14,6 +14,7 @@ import {
 import { Layout, Menu, Tabs, Typography, type MenuProps } from 'antd';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { readAdminSession, type AdminUserSession } from '../api/adminSession';
 import { menuGroups } from '../routes/menu';
 import { useRouteTabs } from './useRouteTabs';
 
@@ -41,10 +42,28 @@ export function AdminShell() {
   const menuNavigate = useNavigate();
   const { tabs, activeKey, current, navigate, closeTab } = useRouteTabs();
   const [openKeys, setOpenKeys] = useState<string[]>([current.parentKey]);
+  const [user, setUser] = useState<AdminUserSession | null>(() => readAdminSession()?.user ?? null);
 
   useEffect(() => {
     setOpenKeys((keys) => ensureCurrentParentOpen(keys, current.parentKey));
   }, [current.parentKey]);
+
+  useEffect(() => {
+    const handleRefreshed = (event: Event) => {
+      if (event instanceof CustomEvent) {
+        setUser(event.detail as AdminUserSession);
+      }
+    };
+    const handleExpired = () => setUser(null);
+
+    window.addEventListener('admin-auth-refreshed', handleRefreshed);
+    window.addEventListener('admin-auth-expired', handleExpired);
+
+    return () => {
+      window.removeEventListener('admin-auth-refreshed', handleRefreshed);
+      window.removeEventListener('admin-auth-expired', handleExpired);
+    };
+  }, []);
 
   const handleOpenChange: MenuProps['onOpenChange'] = (keys) => {
     setOpenKeys(ensureCurrentParentOpen(keys, current.parentKey));
@@ -90,7 +109,7 @@ export function AdminShell() {
           </div>
           <div className="admin-shell__user">
             <Typography.Text className="admin-shell__user-name">
-              平台运营中心
+              {user?.displayName || user?.username || user?.tenantName || '平台运营中心'}
             </Typography.Text>
             <span className="admin-shell__avatar">管</span>
           </div>

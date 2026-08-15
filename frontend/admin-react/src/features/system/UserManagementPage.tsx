@@ -111,10 +111,10 @@ export function UserManagementPage() {
       subtitle="后台操作人员账号、角色标识和启停状态维护。"
       actions={
         <>
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button type="primary" disabled icon={<PlusOutlined />} title="新增用户接口将在后续迁移阶段接入">
             新增
           </Button>
-          <Button>导出</Button>
+          <Button disabled title="导出接口将在后续迁移阶段接入">导出</Button>
         </>
       }
       filters={null}

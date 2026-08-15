@@ -1,22 +1,5 @@
 import { request } from './client';
 
-type QueryValue = string | number | boolean | null | undefined;
-
-export interface DecoctionDeviceQueryParams {
-  [key: string]: QueryValue;
-  deviceId?: string;
-  deviceCode?: string;
-  deviceName?: string;
-  deviceType?: string;
-  deviceGroup?: string;
-  ipAddress?: string;
-  decoctionCenter?: string;
-  pdaCode?: string;
-  printerCode?: string;
-  printTemplateCode?: string;
-  enabled?: string | boolean;
-}
-
 export interface DeviceRecord {
   deviceId: string | null;
   deviceCode: string;
@@ -42,21 +25,9 @@ export interface DecoctionDevicePage {
   total: number;
 }
 
-export async function listAdminDecoctionDevices(params: DecoctionDeviceQueryParams = {}) {
-  const query = buildQuery(params);
-  const payload = await request<unknown>(`/decoction-api/admin/decoction/devices${query ? `?${query}` : ''}`);
+export async function listAdminDecoctionDevices() {
+  const payload = await request<unknown>('/decoction-api/admin/decoction/devices');
   return normalizeDevicePage(payload);
-}
-
-function buildQuery(params: Record<string, QueryValue>) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    const normalizedValue = typeof value === 'string' ? value.trim() : String(value);
-    if (normalizedValue === '') return;
-    query.set(key, normalizedValue);
-  });
-  return query.toString();
 }
 
 function normalizeDevicePage(payload: unknown): DecoctionDevicePage {

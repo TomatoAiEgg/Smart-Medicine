@@ -37,6 +37,14 @@ body {
   overflow: hidden;
 }
 
+.admin-auth-loading {
+  align-items: center;
+  background: #f3f6fb;
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+}
+
 button,
 input,
 textarea,

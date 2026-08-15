@@ -42,7 +42,7 @@ export function PrescriptionRecheckPage() {
           </Form.Item>
           <Form.Item>
             <Space wrap>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" disabled title="复核提交接口将在后续迁移阶段接入">
                 提交复核
               </Button>
               <Button htmlType="reset">重置</Button>

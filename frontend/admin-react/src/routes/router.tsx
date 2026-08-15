@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { AuthGate } from '../app/AuthGate';
 import { MigrationNoticePage } from '../components/MigrationNoticePage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { EquipmentListPage } from '../features/decoction/EquipmentListPage';
@@ -25,7 +26,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AdminShell />,
+    element: (
+      <AuthGate>
+        <AdminShell />
+      </AuthGate>
+    ),
     children: [
       {
         index: true,

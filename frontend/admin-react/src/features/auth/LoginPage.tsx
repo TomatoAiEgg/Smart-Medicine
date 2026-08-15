@@ -1,19 +1,36 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { loginAdmin, type AdminLoginCommand } from '../../api/auth';
 
 const TENANT_CODE_STORAGE_KEY = 'zhyf.admin.tenant-code';
 const DEFAULT_TENANT_CODE = 'demo-tenant';
 
+interface LoginLocationState {
+  from?: string;
+}
+
+function readRedirectPath(state: unknown) {
+  if (typeof state === 'object' && state !== null && 'from' in state) {
+    const from = (state as LoginLocationState).from;
+
+    if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
+      return from;
+    }
+  }
+
+  return '/system/users';
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const loginMutation = useMutation({
     mutationFn: loginAdmin,
     onSuccess: (session) => {
       sessionStorage.setItem(TENANT_CODE_STORAGE_KEY, session.tenantCode);
-      navigate('/system/users', { replace: true });
+      navigate(readRedirectPath(location.state), { replace: true });
     },
   });
 

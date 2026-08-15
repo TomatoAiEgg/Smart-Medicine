@@ -245,7 +245,7 @@ export function PrescriptionListPage() {
       title="处方列表"
       subtitle="查询订单详情、处方和履约进度。"
       actions={
-        <Button icon={<ExportOutlined />}>
+        <Button disabled icon={<ExportOutlined />} title="导出接口将在后续迁移阶段接入">
           导出
         </Button>
       }

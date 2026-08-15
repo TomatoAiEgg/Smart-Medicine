@@ -120,7 +120,7 @@ export function PrescriptionCountReportPage() {
       title="处方数量统计"
       subtitle="按时间、机构和煎煮中心统计处方数量与剂数。"
       actions={
-        <Button icon={<ExportOutlined />}>
+        <Button disabled icon={<ExportOutlined />} title="报表导出接口将在后续迁移阶段接入">
           导出报表
         </Button>
       }
