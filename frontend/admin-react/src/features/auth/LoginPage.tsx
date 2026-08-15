@@ -62,7 +62,13 @@ export function LoginPage() {
           <Form.Item
             label="租户编码"
             name="tenantCode"
-            rules={[{ required: true, message: '请输入租户编码' }]}
+            rules={[
+              { required: true, message: '请输入租户编码' },
+              {
+                validator: (_, value: string | undefined) =>
+                  value?.trim() ? Promise.resolve() : Promise.reject(new Error('请输入租户编码')),
+              },
+            ]}
           >
             <Input autoComplete="organization" placeholder={DEFAULT_TENANT_CODE} />
           </Form.Item>
@@ -70,7 +76,13 @@ export function LoginPage() {
           <Form.Item
             label="用户名"
             name="username"
-            rules={[{ required: true, message: '请输入用户名' }]}
+            rules={[
+              { required: true, message: '请输入用户名' },
+              {
+                validator: (_, value: string | undefined) =>
+                  value?.trim() ? Promise.resolve() : Promise.reject(new Error('请输入用户名')),
+              },
+            ]}
           >
             <Input
               autoComplete="username"

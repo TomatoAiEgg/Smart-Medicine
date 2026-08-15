@@ -29,7 +29,7 @@ export function readAdminSession(): StoredAdminSession | null {
     if (
       !isNonEmptyString(parsed.accessToken) ||
       !isNonEmptyString(parsed.refreshToken) ||
-      !isNonEmptyString(parsed.refreshExpiresAt) ||
+      !isParseableDateString(parsed.refreshExpiresAt) ||
       !isAdminUserSession(parsed.user)
     ) {
       clearAdminSession();
@@ -79,7 +79,7 @@ function isAdminUserSession(value: unknown): value is AdminUserSession {
     isStringArray(value.institutionIds) &&
     isStringArray(value.permissions) &&
     typeof value.tenantWide === 'boolean' &&
-    isNonEmptyString(value.expiresAt)
+    isParseableDateString(value.expiresAt)
   );
 }
 
@@ -93,6 +93,10 @@ function isString(value: unknown): value is string {
 
 function isNonEmptyString(value: unknown): value is string {
   return isString(value) && value.length > 0;
+}
+
+function isParseableDateString(value: unknown): value is string {
+  return isNonEmptyString(value) && Number.isFinite(Date.parse(value));
 }
 
 function isStringArray(value: unknown): value is string[] {
