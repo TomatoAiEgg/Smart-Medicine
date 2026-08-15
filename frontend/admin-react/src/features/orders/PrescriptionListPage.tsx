@@ -262,7 +262,6 @@ export function PrescriptionListPage() {
               page: params.current,
               pageSize: params.pageSize,
               keyword: params.prescriptionNo,
-              hospitalPrescriptionNo: params.prescriptionNo,
               decoctionCenter: params.decoctionCenter,
               institution: params.institutionName,
               patientName: params.patientName,

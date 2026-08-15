@@ -46,7 +46,7 @@ const usedLabels: Record<string, string> = {
 };
 
 function mapDeviceRecord(record: DeviceRecord): EquipmentRecord {
-  const pdaPrintConfig = [record.pdaCode, record.printerCode, record.printTemplateCode]
+  const pdaPrintConfigParts = [record.pdaCode, record.printerCode, record.printTemplateCode]
     .filter((value): value is string => Boolean(value))
     .join(' / ');
 
@@ -55,7 +55,7 @@ function mapDeviceRecord(record: DeviceRecord): EquipmentRecord {
     equipmentType: record.deviceType,
     equipmentCode: record.deviceCode,
     equipmentName: record.deviceName,
-    pdaPrintConfig,
+    pdaPrintConfig: pdaPrintConfigParts || '-',
     ipAddress: record.ipAddress ?? '',
     groupName: record.deviceGroup ?? '',
     enabled: record.enabled,
@@ -65,6 +65,40 @@ function mapDeviceRecord(record: DeviceRecord): EquipmentRecord {
     createdAt: record.createdAt ?? '',
     updatedAt: record.updatedAt ?? '',
   };
+}
+
+function includesText(value: string | boolean | null | undefined, keyword: string | undefined) {
+  const normalizedKeyword = keyword?.trim().toLowerCase();
+  if (!normalizedKeyword) return true;
+  return String(value ?? '').toLowerCase().includes(normalizedKeyword);
+}
+
+function matchesEnabled(value: boolean, keyword: string | boolean | undefined) {
+  if (keyword === undefined || keyword === null || keyword === '') return true;
+  if (typeof keyword === 'boolean') return value === keyword;
+  const normalizedKeyword = keyword.trim().toLowerCase();
+  if (normalizedKeyword === 'true') return value;
+  if (normalizedKeyword === 'false') return !value;
+  return true;
+}
+
+function filterEquipmentRecords(records: EquipmentRecord[], params: EquipmentQueryParams) {
+  return records.filter(
+    (record) =>
+      includesText(record.id, params.id) &&
+      includesText(record.equipmentType, params.equipmentType) &&
+      includesText(record.equipmentCode, params.equipmentCode) &&
+      includesText(record.equipmentName, params.equipmentName) &&
+      includesText(record.ipAddress, params.ipAddress) &&
+      includesText(record.groupName, params.groupName) &&
+      includesText(record.decoctionCenter, params.decoctionCenter) &&
+      matchesEnabled(record.enabled, params.enabled),
+  );
+}
+
+function paginateEquipmentRecords(records: EquipmentRecord[], current = 1, pageSize = 10) {
+  const start = (current - 1) * pageSize;
+  return records.slice(start, start + pageSize);
 }
 
 const columns: ProColumns<EquipmentRecord>[] = [
@@ -199,20 +233,13 @@ export function EquipmentListPage() {
           search={{ labelWidth: 'auto', defaultCollapsed: false }}
           scroll={{ x: 1910 }}
           request={async (params) => {
-            const page = await listAdminDecoctionDevices({
-              deviceId: params.id,
-              deviceCode: params.equipmentCode,
-              deviceName: params.equipmentName,
-              deviceType: params.equipmentType,
-              deviceGroup: params.groupName,
-              ipAddress: params.ipAddress,
-              decoctionCenter: params.decoctionCenter,
-              enabled: params.enabled,
-            });
+            const page = await listAdminDecoctionDevices();
+            const records = page.records.map(mapDeviceRecord);
+            const filteredRecords = filterEquipmentRecords(records, params);
             return {
-              data: page.records.map(mapDeviceRecord),
+              data: paginateEquipmentRecords(filteredRecords, params.current, params.pageSize),
               success: true,
-              total: page.total,
+              total: filteredRecords.length,
             };
           }}
           locale={{ emptyText: '暂无煎煮设备数据，请调整查询条件或添加设备。' }}
