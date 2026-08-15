@@ -4,17 +4,19 @@ type QueryValue = string | number | boolean | null | undefined;
 
 export interface AdminOrderQueryParams {
   [key: string]: QueryValue;
-  pageNo?: number;
+  page?: number;
   pageSize?: number;
-  prescriptionNo?: string;
+  keyword?: string;
+  hospitalPrescriptionNo?: string;
+  institution?: string;
   decoctionCenter?: string;
-  institutionName?: string;
   patientName?: string;
   receiverPhone?: string;
   prescriptionType?: string;
-  deliveryMethod?: string;
-  deliveryTime?: string;
-  status?: string;
+  orderStatus?: string;
+  deliveryType?: string;
+  logisticsCompany?: string;
+  province?: string;
 }
 
 export interface AdminOrderRecord {
@@ -42,13 +44,13 @@ export interface AdminOrderRecord {
   createdAt: string;
   updatedAt: string;
   decoctionCenter?: string | null;
-  deliveryMethod?: string | null;
+  deliveryType?: string | null;
 }
 
 export interface AdminOrderPage {
   records: AdminOrderRecord[];
   total: number;
-  pageNo: number;
+  page: number;
   pageSize: number;
 }
 
@@ -75,7 +77,7 @@ function normalizeAdminOrderPage(payload: unknown, params: AdminOrderQueryParams
     return {
       records,
       total: records.length,
-      pageNo: params.pageNo ?? 1,
+      page: params.page ?? 1,
       pageSize: params.pageSize ?? records.length,
     };
   }
@@ -86,7 +88,7 @@ function normalizeAdminOrderPage(payload: unknown, params: AdminOrderQueryParams
     return {
       records,
       total: readNumber(payload.total) ?? records.length,
-      pageNo: readNumber(payload.pageNo) ?? readNumber(payload.page) ?? params.pageNo ?? 1,
+      page: readNumber(payload.page) ?? readNumber(payload.pageNo) ?? params.page ?? 1,
       pageSize: readNumber(payload.pageSize) ?? params.pageSize ?? records.length,
     };
   }
@@ -94,7 +96,7 @@ function normalizeAdminOrderPage(payload: unknown, params: AdminOrderQueryParams
   return {
     records: [],
     total: 0,
-    pageNo: params.pageNo ?? 1,
+    page: params.page ?? 1,
     pageSize: params.pageSize ?? 10,
   };
 }

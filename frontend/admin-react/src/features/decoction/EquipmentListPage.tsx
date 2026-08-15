@@ -11,7 +11,7 @@ interface EquipmentRecord {
   equipmentType: string;
   equipmentCode: string;
   equipmentName: string;
-  serialNo: string;
+  pdaPrintConfig: string;
   ipAddress: string;
   groupName: string;
   enabled: boolean;
@@ -29,7 +29,6 @@ interface EquipmentQueryParams {
   equipmentType?: string;
   equipmentCode?: string;
   equipmentName?: string;
-  serialNo?: string;
   ipAddress?: string;
   groupName?: string;
   enabled?: string | boolean;
@@ -47,12 +46,16 @@ const usedLabels: Record<string, string> = {
 };
 
 function mapDeviceRecord(record: DeviceRecord): EquipmentRecord {
+  const pdaPrintConfig = [record.pdaCode, record.printerCode, record.printTemplateCode]
+    .filter((value): value is string => Boolean(value))
+    .join(' / ');
+
   return {
     id: record.deviceId ?? record.deviceCode,
     equipmentType: record.deviceType,
     equipmentCode: record.deviceCode,
     equipmentName: record.deviceName,
-    serialNo: record.remark ?? '',
+    pdaPrintConfig,
     ipAddress: record.ipAddress ?? '',
     groupName: record.deviceGroup ?? '',
     enabled: record.enabled,
@@ -96,10 +99,11 @@ const columns: ProColumns<EquipmentRecord>[] = [
     ellipsis: true,
   },
   {
-    title: '设备序列号',
-    dataIndex: 'serialNo',
+    title: 'PDA/打印配置',
+    dataIndex: 'pdaPrintConfig',
     width: 180,
     ellipsis: true,
+    hideInSearch: true,
   },
   {
     title: '设备IP',

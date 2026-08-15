@@ -8,6 +8,7 @@ import { formatDate } from '../../utils/formatters';
 import { maskName, maskPhone } from '../../utils/masking';
 
 interface PrescriptionRecord {
+  orderId: string;
   prescriptionNo: string;
   orderedAt: string;
   decoctionCenter: string;
@@ -90,6 +91,7 @@ function toNumber(value: number | string | null | undefined) {
 
 function mapOrderRecord(record: AdminOrderRecord): PrescriptionRecord {
   return {
+    orderId: record.orderId,
     prescriptionNo: record.prescriptionNos || record.orderNo,
     orderedAt: record.createdAt,
     decoctionCenter: record.decoctionCenter ?? '',
@@ -99,7 +101,7 @@ function mapOrderRecord(record: AdminOrderRecord): PrescriptionRecord {
     prescriptionType: record.prescriptionTypes,
     doseCount: record.doseCount ?? 0,
     amount: toNumber(record.totalAmount),
-    deliveryMethod: record.deliveryMethod ?? record.addressType ?? '',
+    deliveryMethod: record.deliveryType ?? record.addressType ?? '',
     receiverAddress: [record.receiverProvince, record.receiverCity, record.receiverZone, record.receiverAddress]
       .filter(Boolean)
       .join(''),
@@ -250,24 +252,24 @@ export function PrescriptionListPage() {
       filters={null}
       table={
         <ProTable<PrescriptionRecord, PrescriptionQueryParams>
-          rowKey="prescriptionNo"
+          rowKey="orderId"
           columns={columns}
           options={false}
           search={{ labelWidth: 'auto', defaultCollapsed: false }}
           scroll={{ x: 2190 }}
           request={async (params) => {
             const page = await listAdminOrders({
-              pageNo: params.current,
+              page: params.current,
               pageSize: params.pageSize,
-              prescriptionNo: params.prescriptionNo,
+              keyword: params.prescriptionNo,
+              hospitalPrescriptionNo: params.prescriptionNo,
               decoctionCenter: params.decoctionCenter,
-              institutionName: params.institutionName,
+              institution: params.institutionName,
               patientName: params.patientName,
               receiverPhone: params.receiverPhone,
               prescriptionType: params.prescriptionType,
-              deliveryMethod: params.deliveryMethod,
-              deliveryTime: params.deliveryTime,
-              status: params.status,
+              deliveryType: params.deliveryMethod,
+              orderStatus: params.status,
             });
             return {
               data: page.records.map(mapOrderRecord),

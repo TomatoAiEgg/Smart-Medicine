@@ -11,6 +11,9 @@ export interface DecoctionDeviceQueryParams {
   deviceGroup?: string;
   ipAddress?: string;
   decoctionCenter?: string;
+  pdaCode?: string;
+  printerCode?: string;
+  printTemplateCode?: string;
   enabled?: string | boolean;
 }
 
@@ -22,6 +25,9 @@ export interface DeviceRecord {
   deviceGroup: string | null;
   ipAddress?: string | null;
   decoctionCenter: string | null;
+  pdaCode: string | null;
+  printerCode: string | null;
+  printTemplateCode: string | null;
   deviceStatus: string;
   enabled: boolean;
   remark: string | null;
