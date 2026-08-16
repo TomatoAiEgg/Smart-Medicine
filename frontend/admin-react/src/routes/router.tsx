@@ -9,6 +9,24 @@ const LoginPage = lazy(() => import('../features/auth/LoginPage').then(({ LoginP
 const UserManagementPage = lazy(() =>
   import('../features/system/UserManagementPage').then(({ UserManagementPage }) => ({ default: UserManagementPage })),
 );
+const RoleManagementPage = lazy(() =>
+  import('../features/system/RoleManagementPage').then(({ RoleManagementPage }) => ({ default: RoleManagementPage })),
+);
+const MenuRegistryPage = lazy(() =>
+  import('../features/system/MenuRegistryPage').then(({ MenuRegistryPage }) => ({ default: MenuRegistryPage })),
+);
+const DictionaryManagementPage = lazy(() =>
+  import('../features/settings/DictionaryManagementPage').then(({ DictionaryManagementPage }) => ({ default: DictionaryManagementPage })),
+);
+const BasicManagementPages = {
+  SystemConfigPage: lazy(() => import('../features/management/BasicManagementPages').then(({ SystemConfigPage }) => ({ default: SystemConfigPage }))),
+  DecoctCenterPage: lazy(() => import('../features/management/BasicManagementPages').then(({ DecoctCenterPage }) => ({ default: DecoctCenterPage }))),
+  OperatorManagementPage: lazy(() => import('../features/management/BasicManagementPages').then(({ OperatorManagementPage }) => ({ default: OperatorManagementPage }))),
+  InstitutionListPage: lazy(() => import('../features/management/BasicManagementPages').then(({ InstitutionListPage }) => ({ default: InstitutionListPage }))),
+  InstitutionIpWhitelistPage: lazy(() => import('../features/management/BasicManagementPages').then(({ InstitutionIpWhitelistPage }) => ({ default: InstitutionIpWhitelistPage }))),
+  InstitutionApiListPage: lazy(() => import('../features/management/BasicManagementPages').then(({ InstitutionApiListPage }) => ({ default: InstitutionApiListPage }))),
+  InstitutionApiPermissionPage: lazy(() => import('../features/management/BasicManagementPages').then(({ InstitutionApiPermissionPage }) => ({ default: InstitutionApiPermissionPage }))),
+};
 const PrescriptionListPage = lazy(() =>
   import('../features/orders/PrescriptionListPage').then(({ PrescriptionListPage }) => ({
     default: PrescriptionListPage,
@@ -30,6 +48,16 @@ const PrescriptionCountReportPage = lazy(() =>
 
 const implementedPages: Record<string, ReactNode> = {
   'system-users': <UserManagementPage />,
+  'system-roles': <RoleManagementPage />,
+  'system-menus': <MenuRegistryPage />,
+  'settings-dicts': <DictionaryManagementPage />,
+  'settings-configs': <BasicManagementPages.SystemConfigPage />,
+  'settings-decoct-centers': <BasicManagementPages.DecoctCenterPage />,
+  'settings-operators': <BasicManagementPages.OperatorManagementPage />,
+  'institutions-list': <BasicManagementPages.InstitutionListPage />,
+  'institutions-ip': <BasicManagementPages.InstitutionIpWhitelistPage />,
+  'institutions-apis': <BasicManagementPages.InstitutionApiListPage />,
+  'institutions-api-permissions': <BasicManagementPages.InstitutionApiPermissionPage />,
   'orders-prescriptions': <PrescriptionListPage />,
   'orders-recheck': <PrescriptionRecheckPage />,
   'decoction-equipment': <EquipmentListPage />,

@@ -5,13 +5,14 @@ import {
   ExperimentOutlined,
   FileTextOutlined,
   MessageOutlined,
+  MenuOutlined,
   SettingOutlined,
   ShopOutlined,
   ToolOutlined,
   TruckOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Tabs, Typography, type MenuProps } from 'antd';
+import { Button, Drawer, Layout, Menu, Tabs, Typography, type MenuProps } from 'antd';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { readAdminSession, type AdminUserSession } from '../api/adminSession';
@@ -42,6 +43,7 @@ export function AdminShell() {
   const menuNavigate = useNavigate();
   const { tabs, activeKey, current, navigate, closeTab } = useRouteTabs();
   const [openKeys, setOpenKeys] = useState<string[]>([current.parentKey]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<AdminUserSession | null>(() => readAdminSession()?.user ?? null);
 
   useEffect(() => {
@@ -69,6 +71,11 @@ export function AdminShell() {
     setOpenKeys(ensureCurrentParentOpen(keys, current.parentKey));
   };
 
+  const navigateToMenuItem = (path: string) => {
+    menuNavigate(path);
+    setMobileMenuOpen(false);
+  };
+
   const menuItems: MenuProps['items'] = menuGroups.map((group) => ({
     key: group.key,
     icon: parentIcons[group.key],
@@ -76,9 +83,20 @@ export function AdminShell() {
     children: group.children.map((item) => ({
       key: item.key,
       label: item.label,
-      onClick: () => menuNavigate(item.path),
+      onClick: () => navigateToMenuItem(item.path),
     })),
   }));
+
+  const renderNavigationMenu = () => (
+    <Menu
+      theme="dark"
+      mode="inline"
+      selectedKeys={[current.key]}
+      openKeys={openKeys}
+      items={menuItems}
+      onOpenChange={handleOpenChange}
+    />
+  );
 
   return (
     <Layout className="admin-shell">
@@ -87,18 +105,33 @@ export function AdminShell() {
           <span className="admin-shell__brand-mark">药</span>
           <span className="admin-shell__brand-name">智能药房 SaaS</span>
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[current.key]}
-          openKeys={openKeys}
-          items={menuItems}
-          onOpenChange={handleOpenChange}
-        />
+        {renderNavigationMenu()}
       </Sider>
+
+      <Drawer
+        className="admin-shell__mobile-drawer"
+        placement="left"
+        open={mobileMenuOpen}
+        width={224}
+        closable={false}
+        onClose={() => setMobileMenuOpen(false)}
+      >
+        <div className="admin-shell__brand">
+          <span className="admin-shell__brand-mark">药</span>
+          <span className="admin-shell__brand-name">智能药房 SaaS</span>
+        </div>
+        {renderNavigationMenu()}
+      </Drawer>
 
       <Layout className="admin-shell__body">
         <Header className="admin-shell__header">
+          <Button
+            className="admin-shell__mobile-trigger"
+            type="text"
+            icon={<MenuOutlined />}
+            aria-label="打开导航菜单"
+            onClick={() => setMobileMenuOpen(true)}
+          />
           <div className="admin-shell__breadcrumb">
             <Typography.Text className="admin-shell__parent-title">
               {current.parentLabel}

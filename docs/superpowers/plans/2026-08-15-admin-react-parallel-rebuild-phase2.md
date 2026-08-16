@@ -1,48 +1,66 @@
-# Admin React Parallel Rebuild Phase 2 Plan
+# Admin React Full Content Migration Plan
 
-## Goal
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-Continue the parallel React admin rebuild in `frontend/admin-react` by migrating more legacy menu entries into real React pages while keeping the Vue `frontend/admin-web` entry as the rollback path.
+**Goal:** Replace every React migration notice with a real, API-connected management page while preserving the legacy menu structure and workflows.
 
-## Scope
+**Architecture:** Keep the React shell and 68 existing child routes. Port stable TypeScript API contracts from `frontend/admin-web` into domain-focused React API modules, then implement dense Ant Design list, filter, drawer, detail, export, and permission states. The Vue application remains the production rollback until all release gates pass.
 
-- Keep the existing 11 parent menus and 68 child routes unchanged.
-- Preserve old project page structure from `docs/00_项目总览/老项目UI截图基线/`.
-- Read `frontend/admin-react/DESIGN.md` before every UI change.
-- Do not change backend APIs, database schema, gateway routes, or server deployment.
-- Do not create test files unless explicitly requested; verify with type check, build, Impeccable detect, and screenshots.
+**Tech Stack:** React 19, TypeScript, Vite, Ant Design, ProComponents, TanStack Query, React Router.
 
-## Phase 2 Priority
+---
 
-1. **System And Permission Pages**
-   - `系统管理 / 角色管理`
-   - `系统管理 / 菜单管理`
-   - Goal: restore permission-oriented table, tree, drawer, and disabled-action states.
+## Current State
 
-2. **Parameter Pages**
-   - `参数管理 / 字典列表`
-   - `参数管理 / 参数配置`
-   - `参数管理 / 煎煮中心配置`
-   - `参数管理 / 工号管理`
-   - Goal: migrate high-frequency configuration lists and connect only stable read endpoints.
+- The React shell exposes 11 parent menus and 68 child routes.
+- Five routes are mapped to React components, but the user page still has an empty stub data source.
+- Sixty-three routes render `MigrationNoticePage`.
+- Production was rolled back to the complete Vue image after this gap was confirmed.
 
-3. **Institution Pages**
-   - `机构管理 / 机构列表`
-   - `机构管理 / 机构 IP 白名单列表`
-   - `机构管理 / 接口列表`
-   - `机构管理 / 机构接口权限列表`
-   - Goal: preserve old structure for institution access and API permission workflows.
+## Scope And Order
 
-4. **Order Workbench Expansion**
-   - `订单管理 / 订单审核`
-   - `订单管理 / 调剂打印`
-   - `订单管理 / 复核管理`
-   - Goal: extend from the existing prescription list and recheck shell without wiring unsafe write actions.
+### Batch 1: System, Parameters, Institutions
 
-## Acceptance
+- System: users, roles, menu registry.
+- Parameters: dictionaries, system configuration, decoction centers, operators.
+- Institutions: institution list, IP allowlist, API list, API permissions.
+- Preserve list filters, pagination, create/edit drawers, enabled states, permission states, and business labels.
 
-- `pnpm exec tsc -p tsconfig.json --noEmit --incremental false --pretty false` passes.
-- `pnpm run build` passes without Vite chunk-size or circular chunk warnings.
-- Impeccable detect returns no static findings.
-- Representative desktop screenshots show no header, sidebar, tab, filter, or table overlap at 1366px.
-- Unmigrated write actions remain disabled or clearly marked until their backend contract is confirmed.
+### Batch 2: Logistics, Orders, Maintenance
+
+- Logistics: special rules, address costs, delivery, tracking, printing, merges, unreceived follow-up.
+- Orders: prescriptions, audit, dispense, recheck, multi-recheck, recheck records, address and prescription changes, actions, reprint, warehouse, intercept rules, manual process, receipts.
+- Maintenance: order process, exception logs, MQ messages, problem registrations.
+- Preserve workflow transitions and disable any mutation whose backend contract cannot be verified.
+
+### Batch 3: Labels, SMS, Drugs, Reports, Decoction
+
+- Labels: templates and printing.
+- SMS: templates, single send, records.
+- Drugs: herbs, index logs, indexes, imports, areas.
+- Reports: all 16 report routes and exports.
+- Decoction: equipment, prescription bindings, printer relations, water pails, cloud print records.
+
+## Out Of Scope
+
+- Backend API, database schema, gateway routes, authentication semantics, and production data.
+- Copying Vue, TDesign, JSP, iframe, jQuery, EasyUI, Bootstrap, or the old visual skin into React.
+- Inventing write behavior when no stable backend contract exists.
+
+## Release Gates
+
+- Every menu item has `implemented: true`.
+- `MigrationNoticePage` is not reachable from any menu route.
+- No page uses a fabricated empty request as its production data source.
+- TypeScript no-emit check passes.
+- Production build passes without chunk-size or circular dependency warnings.
+- Impeccable detector reports no static findings.
+- Desktop and mobile screenshots show no overlap or page-level overflow.
+- Authenticated smoke checks cover one read path and one permitted action path per parent menu.
+- Production remains on Vue until every gate passes and the user explicitly approves the React cutover.
+
+## Rollback
+
+- Keep the current Vue production image and container definition intact.
+- Deploy React as a separately tagged image.
+- On cutover failure, replace the React container with the known-good Vue image without touching backend services or data.
