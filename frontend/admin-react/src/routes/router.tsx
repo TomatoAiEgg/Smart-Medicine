@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, type ReactNode } from 'react';
 import { AuthGate } from '../app/AuthGate';
-import { MigrationNoticePage } from '../components/MigrationNoticePage';
 import { menuItems } from './menu';
 
 const AdminShell = lazy(() => import('../shell/AdminShell').then(({ AdminShell }) => ({ default: AdminShell })));
@@ -197,7 +196,7 @@ export const router = createBrowserRouter([
       },
       ...menuItems.map((item) => ({
         path: item.path.slice(1),
-        element: implementedPages[item.key] ?? <MigrationNoticePage item={item} />,
+        element: implementedPages[item.key] ?? <Navigate to="/system/users" replace />,
       })),
     ],
   },
