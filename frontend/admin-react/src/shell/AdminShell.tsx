@@ -43,6 +43,7 @@ export function AdminShell() {
   const menuNavigate = useNavigate();
   const { tabs, activeKey, current, navigate, closeTab } = useRouteTabs();
   const [openKeys, setOpenKeys] = useState<string[]>([current.parentKey]);
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<AdminUserSession | null>(() => readAdminSession()?.user ?? null);
 
@@ -87,12 +88,13 @@ export function AdminShell() {
     })),
   }));
 
-  const renderNavigationMenu = () => (
+  const renderNavigationMenu = (inlineCollapsed = false) => (
     <Menu
       theme="dark"
       mode="inline"
       selectedKeys={[current.key]}
-      openKeys={openKeys}
+      openKeys={inlineCollapsed ? undefined : openKeys}
+      inlineCollapsed={inlineCollapsed}
       items={menuItems}
       onOpenChange={handleOpenChange}
     />
@@ -100,12 +102,19 @@ export function AdminShell() {
 
   return (
     <Layout className="admin-shell">
-      <Sider width={224} className="admin-shell__sider">
+      <Sider
+        width={224}
+        collapsedWidth={64}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        className="admin-shell__sider"
+      >
         <div className="admin-shell__brand">
           <span className="admin-shell__brand-mark">药</span>
           <span className="admin-shell__brand-name">智能药房 SaaS</span>
         </div>
-        {renderNavigationMenu()}
+        {renderNavigationMenu(collapsed)}
       </Sider>
 
       <Drawer

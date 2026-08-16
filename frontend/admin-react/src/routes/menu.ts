@@ -196,7 +196,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流打单',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'logistics-merges',
@@ -232,7 +232,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方列表',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-audit',
@@ -252,7 +252,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '调剂打印',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-recheck',
@@ -262,7 +262,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方复核',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-recheck-multi',
@@ -272,7 +272,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方复核（多桶）',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-recheck-records',
@@ -312,7 +312,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单操作',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-reprint',
@@ -352,7 +352,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单走流程',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'orders-receipts',
@@ -362,7 +362,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单签收',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: true,
+        implemented: false,
       },
     ],
   },
@@ -434,7 +434,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方标签打印',
         parentKey: 'labels',
         parentLabel: '标签管理',
-        implemented: true,
+        implemented: false,
       },
     ],
   },
@@ -728,7 +728,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方设备绑定列表',
         parentKey: 'decoction',
         parentLabel: '煎煮管理',
-        implemented: true,
+        implemented: false,
       },
       {
         key: 'decoction-printers',

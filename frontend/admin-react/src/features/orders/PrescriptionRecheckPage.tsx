@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, Space } from 'antd';
+import { Alert, Button, Card, Form, Input, Space } from 'antd';
 import { PageHeader } from '../../components/PageHeader';
 
 interface PrescriptionRecheckForm {
@@ -18,6 +18,12 @@ export function PrescriptionRecheckPage() {
         subtitle="按处方号完成调剂员、复核员和加水桶号的作业登记。"
       />
       <Card size="small" className="query-page__filters">
+        <Alert
+          className="entity-list__alert"
+          type="info"
+          showIcon
+          message="当前仅保留复核表单结构，复核提交接口仍待迁移。"
+        />
         <Form<PrescriptionRecheckForm>
           form={form}
           layout="vertical"

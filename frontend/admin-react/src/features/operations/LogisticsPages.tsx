@@ -171,7 +171,7 @@ export function LogisticsInfoPage() {
 }
 
 export function LogisticsPrintPage() {
-  return <OperationalListPage title="物流打单" subtitle="按订单和物流信息查询可打印的发货记录。" filters={logisticsFilters} columns={shipmentColumns} load={(params) => listOperationPage('/logistics-api/api/admin/logistics/shipments', params)} />;
+  return <OperationalListPage title="物流打单" subtitle="按订单和物流信息查询可打印的发货记录。" filters={logisticsFilters} columns={shipmentColumns} notice="当前仅接入发货记录查询，打单、发货确认和轨迹登记动作仍待迁移。" load={(params) => listOperationPage('/logistics-api/api/admin/logistics/shipments', params)} />;
 }
 
 export function LogisticsMergePage() {

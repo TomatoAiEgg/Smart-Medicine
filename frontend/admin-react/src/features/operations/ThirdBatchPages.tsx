@@ -75,8 +75,8 @@ const reportDetailColumns: OperationColumn[] = [
   { title: '备注', dataIndex: 'remark', width: 240 },
 ];
 
-function listPage(title: string, subtitle: string, path: string, columns: OperationColumn[], filters = keywordStatusFilters) {
-  return <OperationalListPage title={title} subtitle={subtitle} filters={filters} columns={columns} load={(params) => listOperationPage(path, params)} />;
+function listPage(title: string, subtitle: string, path: string, columns: OperationColumn[], filters = keywordStatusFilters, notice?: string) {
+  return <OperationalListPage title={title} subtitle={subtitle} filters={filters} columns={columns} notice={notice} load={(params) => listOperationPage(path, params)} />;
 }
 
 function reportPage(title: string, path: string, detail = false) {
@@ -96,7 +96,7 @@ export function LabelPrintPage() {
     { title: '剂数', dataIndex: 'doseCount', width: 90, kind: 'count' },
     { title: '批次', dataIndex: 'batchNo', width: 120 },
     { title: '接单时间', dataIndex: 'createdAt', width: 180, kind: 'date' },
-  ], [{ name: 'startTime', label: '开始时间' }, { name: 'endTime', label: '结束时间' }, { name: 'prescriptionNo', label: '处方号' }]);
+  ], [{ name: 'startTime', label: '开始时间' }, { name: 'endTime', label: '结束时间' }, { name: 'prescriptionNo', label: '处方号' }], '当前仅接入可打印处方查询，打印载荷获取和打印记录登记动作仍待迁移。');
 }
 
 export function SmsTemplatePage() {
@@ -281,14 +281,14 @@ export function HerbDosagePage() {
 }
 
 export function DecoctionBindingPage() {
-  return listPage('处方设备绑定列表', '查询可操作处方、设备绑定和 MES/PDA 任务状态。', '/decoction-api/simulator/pda/decoction/prescriptions/can-operate', [
+  return listPage('处方设备绑定列表', '查询可操作处方、设备绑定和 MES/PDA 任务状态。', '/decoction-api/simulator/pda/prescriptions/can-operate', [
     { title: '处方号', dataIndex: 'prescriptionNo', width: 180, kind: 'code' },
     { title: '订单号', dataIndex: 'orderNo', width: 180, kind: 'code' },
     { title: '设备', dataIndex: 'deviceCode', width: 160, kind: 'code' },
     { title: '水桶', dataIndex: 'pailNo', width: 120, kind: 'code' },
     { title: '状态', dataIndex: 'status', fallbackKeys: ['taskStatus'], width: 120, kind: 'status' },
     { title: '更新时间', dataIndex: 'updatedAt', width: 180, kind: 'date' },
-  ]);
+  ], keywordStatusFilters, '当前仅接入可操作处方查询，设备绑定、开始、完成、取消等 PDA 动作仍待迁移。');
 }
 
 export function DecoctionPrinterPage() {

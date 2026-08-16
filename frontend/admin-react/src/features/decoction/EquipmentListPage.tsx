@@ -1,6 +1,4 @@
-import { PlusOutlined } from '@ant-design/icons';
 import { ProTable, type ProColumns } from '@ant-design/pro-components';
-import { Button, Space } from 'antd';
 import { listAdminDecoctionDevices, type DeviceRecord } from '../../api/decoction';
 import { QueryTableShell } from '../../components/QueryTableShell';
 import { StatusTag } from '../../components/StatusTag';
@@ -199,19 +197,6 @@ const columns: ProColumns<EquipmentRecord>[] = [
     valueType: 'dateTime',
     render: (_, row) => formatDate(row.updatedAt),
   },
-  {
-    title: '操作',
-    valueType: 'option',
-    width: 90,
-    fixed: 'right',
-    render: () => (
-      <Space size={4}>
-        <Button type="link" size="small">
-          修改
-        </Button>
-      </Space>
-    ),
-  },
 ];
 
 export function EquipmentListPage() {
@@ -219,11 +204,7 @@ export function EquipmentListPage() {
     <QueryTableShell
       title="设备列表查询"
       subtitle="煎煮设备档案、状态和绑定关系维护。"
-      actions={
-        <Button type="primary" icon={<PlusOutlined />}>
-          添加设备
-        </Button>
-      }
+      actions={null}
       filters={null}
       table={
         <ProTable<EquipmentRecord, EquipmentQueryParams>

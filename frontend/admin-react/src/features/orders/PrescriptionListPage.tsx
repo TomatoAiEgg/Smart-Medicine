@@ -5,7 +5,7 @@ import { listAdminOrders, type AdminOrderRecord } from '../../api/order';
 import { QueryTableShell } from '../../components/QueryTableShell';
 import { StatusTag } from '../../components/StatusTag';
 import { formatDate } from '../../utils/formatters';
-import { maskName, maskPhone } from '../../utils/masking';
+import { maskAddress, maskName, maskPhone } from '../../utils/masking';
 
 interface PrescriptionRecord {
   orderId: string;
@@ -56,28 +56,6 @@ function formatAmount(value: number | null | undefined) {
     style: 'currency',
     currency: 'CNY',
   }).format(value);
-}
-
-function maskAddress(value: string | null | undefined) {
-  const trimmedValue = value?.trim();
-
-  if (!trimmedValue) {
-    return '-';
-  }
-
-  const chars = Array.from(trimmedValue);
-
-  if (chars.length === 1) {
-    return '*';
-  }
-
-  if (chars.length <= 4) {
-    return `${chars[0]}${'*'.repeat(chars.length - 1)}`;
-  }
-
-  const visibleLength = Math.min(chars.length - 1, 6);
-
-  return `${chars.slice(0, visibleLength).join('')}****`;
 }
 
 function toNumber(value: number | string | null | undefined) {
@@ -231,7 +209,7 @@ const columns: ProColumns<PrescriptionRecord>[] = [
     fixed: 'right',
     render: () => (
       <Space size={4}>
-        <Button type="link" size="small">
+        <Button type="link" size="small" disabled title="订单详情迁移中">
           查看
         </Button>
       </Space>

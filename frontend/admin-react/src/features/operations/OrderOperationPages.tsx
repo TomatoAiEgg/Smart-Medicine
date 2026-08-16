@@ -42,20 +42,27 @@ const workflowColumns: OperationColumn[] = [
   { title: '创建时间', dataIndex: 'createdAt', width: 180, kind: 'date' },
 ];
 
-function orderPage(title: string, subtitle: string, path: string, columns = orderColumns, filters = orderFilters) {
-  return <OperationalListPage title={title} subtitle={subtitle} filters={filters} columns={columns} load={(params) => listOperationPage(path, params)} />;
+function orderPage(
+  title: string,
+  subtitle: string,
+  path: string,
+  columns = orderColumns,
+  filters = orderFilters,
+  notice?: string,
+) {
+  return <OperationalListPage title={title} subtitle={subtitle} filters={filters} columns={columns} notice={notice} load={(params) => listOperationPage(path, params)} />;
 }
 
 export function OrderAuditPage() {
-  return orderPage('订单审核', '查询待审核和已审核订单，保留审核记录、患者、机构和处方核对信息。', '/order-api/api/admin/review-records', workflowColumns);
+  return orderPage('订单审核', '查询待审核和已审核订单，保留审核记录、患者、机构和处方核对信息。', '/order-api/api/admin/review-records', workflowColumns, orderFilters, '当前仅接入审核记录查询，审核通过/驳回动作仍待迁移。');
 }
 
 export function OrderDispensePage() {
-  return orderPage('调剂打印', '查询调剂任务、批次、处方和打印相关信息。', '/workflow-api/api/admin/workflow/dispense-tasks', workflowColumns, []);
+  return orderPage('调剂打印', '查询调剂任务、批次、处方和打印相关信息。', '/workflow-api/api/admin/workflow/dispense-tasks', workflowColumns, [], '当前仅接入调剂任务查询，调剂完成和打印动作仍待迁移。');
 }
 
 export function OrderRecheckMultiPage() {
-  return orderPage('处方复核（多单）', '查询复核任务并保留多任务复核入口。', '/workflow-api/api/admin/workflow/recheck-tasks', workflowColumns, []);
+  return orderPage('处方复核（多单）', '查询复核任务并保留多任务复核入口。', '/workflow-api/api/admin/workflow/recheck-tasks', workflowColumns, [], '当前仅接入复核任务查询，多单复核提交动作仍待迁移。');
 }
 
 export function OrderRecheckRecordsPage() {
@@ -71,7 +78,7 @@ export function OrderPrescriptionModifyPage() {
 }
 
 export function OrderManageActionPage() {
-  return orderPage('订单操作', '查询可初始化或取消的处方订单，操作类 mutation 后续按权限逐项开放。', '/order-api/api/admin/orders');
+  return orderPage('订单操作', '查询可初始化或取消的处方订单，操作类 mutation 后续按权限逐项开放。', '/order-api/api/admin/orders', orderColumns, orderFilters, '当前仅接入订单查询，初始化、取消、处方操作等动作仍待迁移。');
 }
 
 export function OrderPrescriptionReprintPage() {
@@ -154,9 +161,9 @@ export function OrderInterceptRulePage() {
 }
 
 export function OrderManualProcessPage() {
-  return orderPage('订单走流程', '查询需人工推进的订单，详情中保留审核、调剂、复核、煎煮、出库和签收节点。', '/order-api/api/admin/manual-process-orders');
+  return orderPage('订单走流程', '查询需人工推进的订单，详情中保留审核、调剂、复核、煎煮、出库和签收节点。', '/order-api/api/admin/manual-process-orders', orderColumns, orderFilters, '当前仅接入人工流程订单查询，手工推进动作仍待迁移。');
 }
 
 export function OrderReceiptPage() {
-  return orderPage('订单签收', '查询待签收和签收异常订单，保留物流和收货信息。', '/order-api/api/admin/order-receipts');
+  return orderPage('订单签收', '查询待签收和签收异常订单，保留物流和收货信息。', '/order-api/api/admin/order-receipts', orderColumns, orderFilters, '当前仅接入签收记录查询，单笔签收和批量签收动作仍待迁移。');
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { OperationListQuery, OperationRecord, OperationValue } from '../api/operations';
 import { downloadCsv } from '../utils/downloadCsv';
 import { formatDate } from '../utils/formatters';
+import { maskSensitiveValue } from '../utils/masking';
 import { QueryTableShell } from './QueryTableShell';
 
 export interface OperationColumn {
@@ -27,6 +28,7 @@ interface OperationalListPageProps {
   columns: OperationColumn[];
   load: (params: OperationListQuery) => Promise<{ records: OperationRecord[]; total: number; page: number; pageSize: number }>;
   filters?: OperationFilter[];
+  notice?: React.ReactNode;
   rowActions?: (record: OperationRecord, refresh: () => Promise<void>) => React.ReactNode;
 }
 
@@ -39,16 +41,18 @@ function readValue(record: OperationRecord, column: OperationColumn) {
   return null;
 }
 
-function displayValue(value: unknown): string {
+function displayValue(value: unknown, fieldName = ''): string {
+  const maskedValue = fieldName ? maskSensitiveValue(fieldName, value) : null;
+  if (maskedValue !== null) return maskedValue;
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'boolean') return value ? '是' : '否';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
-  if (Array.isArray(value)) return value.length ? value.map(displayValue).join('、') : '-';
+  if (Array.isArray(value)) return value.length ? value.map((item) => displayValue(item, fieldName)).join('、') : '-';
   return JSON.stringify(value);
 }
 
-function renderValue(value: unknown, kind: OperationColumn['kind']) {
-  const text = displayValue(value);
+function renderValue(value: unknown, kind: OperationColumn['kind'], fieldName: string) {
+  const text = displayValue(value, fieldName);
   if (kind === 'date') return text === '-' ? text : formatDate(text);
   if (kind === 'code') return <code className="entity-code">{text}</code>;
   if (kind === 'money') return text === '-' ? text : `¥${text}`;
@@ -64,6 +68,7 @@ export function OperationalListPage({
   subtitle,
   columns,
   filters = [],
+  notice,
   load,
   rowActions,
 }: OperationalListPageProps) {
@@ -105,7 +110,7 @@ export function OperationalListPage({
         dataIndex: column.dataIndex,
         key: column.dataIndex,
         width: column.width,
-        render: (_: unknown, record: OperationRecord) => renderValue(readValue(record, column), column.kind),
+        render: (_: unknown, record: OperationRecord) => renderValue(readValue(record, column), column.kind, column.dataIndex),
       })),
       {
         title: '操作',
@@ -129,7 +134,7 @@ export function OperationalListPage({
     downloadCsv(
       `${title}-第${page}页.csv`,
       columns.map((column) => column.title),
-      rows.map((record) => columns.map((column) => displayValue(readValue(record, column)))),
+      rows.map((record) => columns.map((column) => displayValue(readValue(record, column), column.dataIndex))),
     );
   };
 
@@ -187,6 +192,7 @@ export function OperationalListPage({
         }
         table={
           <>
+            {notice ? <Alert className="entity-list__alert" type="info" showIcon message={notice} /> : null}
             {error ? <Alert className="entity-list__alert" type="error" showIcon message={error} action={<Button onClick={() => void refresh()}>重试</Button>} /> : null}
             <Table<OperationRecord>
               rowKey="id"
@@ -214,7 +220,7 @@ export function OperationalListPage({
         <Descriptions column={1} size="small" bordered>
           {detail ? Object.entries(detail).map(([key, value]) => (
             <Descriptions.Item key={key} label={key}>
-              {displayValue(value)}
+              {displayValue(value, key)}
             </Descriptions.Item>
           )) : null}
         </Descriptions>

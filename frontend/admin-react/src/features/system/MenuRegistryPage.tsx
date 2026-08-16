@@ -23,7 +23,7 @@ const columns: TableColumnsType<MenuRegistryRow> = [
     title: '迁移状态',
     dataIndex: 'implemented',
     width: 120,
-    render: (value: boolean) => <Tag color={value ? 'success' : 'warning'}>{value ? '已迁移' : '待迁移'}</Tag>,
+    render: (value: boolean) => <Tag color={value ? 'success' : 'warning'}>{value ? '已迁移' : '待完善'}</Tag>,
   },
 ];
 
