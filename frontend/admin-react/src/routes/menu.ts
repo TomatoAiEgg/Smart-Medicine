@@ -424,7 +424,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方标签设置',
         parentKey: 'labels',
         parentLabel: '标签管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'labels-print',
@@ -434,7 +434,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方标签打印',
         parentKey: 'labels',
         parentLabel: '标签管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -450,7 +450,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '短信模板管理',
         parentKey: 'sms',
         parentLabel: '短信管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'sms-send-single',
@@ -460,7 +460,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '单发短信',
         parentKey: 'sms',
         parentLabel: '短信管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'sms-records',
@@ -470,7 +470,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '短信列表查询',
         parentKey: 'sms',
         parentLabel: '短信管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -486,7 +486,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药品目录列表',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'drugs-index-logs',
@@ -496,7 +496,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药品索引操作日志',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'drugs-indexes',
@@ -506,7 +506,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药品索引列表',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'drugs-herbs-import',
@@ -516,7 +516,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药品目录导入',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'drugs-index-import',
@@ -526,7 +526,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药品索引导入',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'drugs-areas',
@@ -536,7 +536,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药材区域管理',
         parentKey: 'drugs',
         parentLabel: '药品管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -562,7 +562,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '机构处方数量统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-audit-performance',
@@ -572,7 +572,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '审核员业绩统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-audit-details',
@@ -582,7 +582,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '审核员业绩明细',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-dispense-performance',
@@ -592,7 +592,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '调剂员业绩统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-dispense-details',
@@ -602,7 +602,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '调剂员业绩明细',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-recheck-performance',
@@ -612,7 +612,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '复核员业绩统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-recheck-details',
@@ -622,7 +622,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '复核员业绩明细',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-decoction-performance',
@@ -632,7 +632,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '煎煮员业绩统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-decoction-details',
@@ -642,7 +642,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '煎煮员业绩明细',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-logistics-performance',
@@ -652,7 +652,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流员业绩统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-logistics-details',
@@ -662,7 +662,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流员业绩明细',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-org-herbs',
@@ -672,7 +672,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '机构药材统计（对账）',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-prescription-reconciliation',
@@ -682,7 +682,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方对账列表（对账）',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-herb-details',
@@ -692,7 +692,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药材明细列表（对账）',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'reports-herb-dosage',
@@ -702,7 +702,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '药材用量统计',
         parentKey: 'reports',
         parentLabel: '报表管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -728,7 +728,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方设备绑定列表',
         parentKey: 'decoction',
         parentLabel: '煎煮管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'decoction-printers',
@@ -738,7 +738,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '打码机打印配置',
         parentKey: 'decoction',
         parentLabel: '煎煮管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'decoction-water-pails',
@@ -748,7 +748,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '加水桶管理',
         parentKey: 'decoction',
         parentLabel: '煎煮管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'decoction-cloud-prints',
@@ -758,7 +758,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '云打印记录列表',
         parentKey: 'decoction',
         parentLabel: '煎煮管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },

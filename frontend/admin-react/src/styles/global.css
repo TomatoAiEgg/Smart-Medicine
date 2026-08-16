@@ -156,6 +156,21 @@ select {
   background: var(--zhyf-surface);
 }
 
+.single-operation-form {
+  max-width: 720px;
+  padding: 16px;
+}
+
+.report-overview {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.report-overview__section .ant-card-body {
+  padding: 0;
+}
+
 @media (max-width: 640px) {
   .query-page__header {
     flex-direction: column;
