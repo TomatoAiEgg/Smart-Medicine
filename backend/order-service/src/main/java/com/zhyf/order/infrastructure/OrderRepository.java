@@ -2840,51 +2840,93 @@ public class OrderRepository {
         long total = totalValue == null ? 0 : totalValue;
 
         QueryParts listQuery = new QueryParts("""
+                with paged_orders as (
+                    select
+                        o.id as order_id,
+                        o.tenant_id,
+                        o.institution_id,
+                        i.institution_name,
+                        coalesce(o.storage_type, i.storage_type) as storage_type,
+                        o.order_no,
+                        o.external_order_no,
+                        o.status as order_status,
+                        o.patient_name,
+                        o.patient_phone,
+                        o.receiver_name,
+                        o.receiver_phone,
+                        o.receiver_province,
+                        o.receiver_city,
+                        o.receiver_zone,
+                        o.receiver_address,
+                        o.address_type,
+                        p.id as prescription_id,
+                        p.status as prescription_status,
+                        p.prescription_no as prescription_nos,
+                        p.external_prescription_no as external_prescription_nos,
+                        coalesce(p.prescription_type, '') as prescription_types,
+                        coalesce(p.hospital_type, '') as hospital_types,
+                        1 as prescription_count,
+                        p.dose_count,
+                        p.is_within,
+                        p.total_amount,
+                        o.delivery_time,
+                        o.batch_no,
+                        o.order_remark,
+                        o.created_at,
+                        o.updated_at
+                    from order_main o
+                    join prescription p on p.order_id = o.id
+                    join institution i on i.id = o.institution_id
+                    where 1 = 1
+                """);
+        listQuery.append(filters.sql());
+        listQuery.addAll(filters.argsList());
+        listQuery.append("""
+                     order by o.created_at desc, p.prescription_no desc limit ? offset ?
+                )
                 select
-                    o.id as order_id,
-                    o.tenant_id,
-                    o.institution_id,
-                    i.institution_name,
-                    coalesce(o.storage_type, i.storage_type) as storage_type,
-                    o.order_no,
-                    o.external_order_no,
-                    o.status as order_status,
-                    o.patient_name,
-                    o.patient_phone,
-                    o.receiver_name,
-                    o.receiver_phone,
-                    o.receiver_province,
-                    o.receiver_city,
-                    o.receiver_zone,
-                    o.receiver_address,
-                    o.address_type,
-                    p.id as prescription_id,
-                    p.status as prescription_status,
-                    p.prescription_no as prescription_nos,
-                    p.external_prescription_no as external_prescription_nos,
-                    coalesce(p.prescription_type, '') as prescription_types,
-                    coalesce(p.hospital_type, '') as hospital_types,
-                    1 as prescription_count,
+                    po.order_id,
+                    po.tenant_id,
+                    po.institution_id,
+                    po.institution_name,
+                    po.storage_type,
+                    po.order_no,
+                    po.external_order_no,
+                    po.order_status,
+                    po.patient_name,
+                    po.patient_phone,
+                    po.receiver_name,
+                    po.receiver_phone,
+                    po.receiver_province,
+                    po.receiver_city,
+                    po.receiver_zone,
+                    po.receiver_address,
+                    po.address_type,
+                    po.prescription_id,
+                    po.prescription_status,
+                    po.prescription_nos,
+                    po.external_prescription_nos,
+                    po.prescription_types,
+                    po.hospital_types,
+                    po.prescription_count,
                     coalesce(pd.detail_count, 0) as detail_count,
-                    p.dose_count,
-                    p.is_within,
-                    p.total_amount,
-                    o.delivery_time,
-                    o.batch_no,
-                    o.order_remark,
+                    po.dose_count,
+                    po.is_within,
+                    po.total_amount,
+                    po.delivery_time,
+                    po.batch_no,
+                    po.order_remark,
                     latest_shipment.logistics_company,
                     latest_shipment.logistics_no,
                     latest_shipment.logistics_status,
                     latest_shipment.latest_trace_time,
-                    o.created_at,
-                    o.updated_at
-                from order_main o
-                join prescription p on p.order_id = o.id
-                join institution i on i.id = o.institution_id
+                    po.created_at,
+                    po.updated_at
+                from paged_orders po
                 left join lateral (
                     select count(d.id)::int as detail_count
                     from prescription_detail d
-                    where d.prescription_id = p.id
+                    where d.prescription_id = po.prescription_id
                 ) pd on true
                 left join lateral (
                     select
@@ -2900,15 +2942,12 @@ public class OrderRepository {
                         order by st.created_at desc
                         limit 1
                     ) t on true
-                    where s.order_id = o.id
+                    where s.order_id = po.order_id
                     order by s.created_at desc
                     limit 1
                 ) latest_shipment on true
-                where 1 = 1
+                order by po.created_at desc, po.prescription_nos desc
                 """);
-        listQuery.append(filters.sql());
-        listQuery.addAll(filters.argsList());
-        listQuery.append(" order by o.created_at desc, p.prescription_no desc limit ? offset ?");
         listQuery.add(query.pageSize());
         listQuery.add((query.page() - 1) * query.pageSize());
 

@@ -26,6 +26,7 @@ import com.zhyf.order.application.AdminLogisticsAddressCostQuery;
 import com.zhyf.order.application.AdminLogisticsSpecialRuleQuery;
 import com.zhyf.order.application.AdminOrderInterceptRuleQuery;
 import com.zhyf.order.application.AdminOrderMergeQuery;
+import com.zhyf.order.application.AdminOrderSearchQuery;
 import com.zhyf.order.application.AdminOperatorQuery;
 import com.zhyf.order.application.AdminOperatorRoleQuery;
 import com.zhyf.order.domain.OrderSnapshot;
@@ -1157,6 +1158,45 @@ class OrderRepositoryTest {
                 20,
                 20
         );
+    }
+
+    @Test
+    void shouldPageAdminOrdersBeforeDetailAndShipmentAggregation() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(0L);
+        when(jdbcTemplate.query(anyString(), anyRowMapper(), any(Object[].class))).thenReturn(List.of());
+
+        repository.searchAdminOrders(new AdminOrderSearchQuery(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                25
+        ));
+
+        ArgumentCaptor<String> listSqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> listArgsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate, atLeastOnce()).query(listSqlCaptor.capture(), anyRowMapper(), listArgsCaptor.capture());
+        assertThat(listSqlCaptor.getValue())
+                .contains("with paged_orders as")
+                .contains("from paged_orders po")
+                .containsSubsequence(
+                        "order by o.created_at desc, p.prescription_no desc limit ? offset ?",
+                        "from paged_orders po",
+                        "left join lateral"
+                );
+        assertThat(listArgsCaptor.getValue()).containsExactly(25, 25);
     }
 
     @Test
