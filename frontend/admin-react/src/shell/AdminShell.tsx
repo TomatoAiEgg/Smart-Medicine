@@ -68,7 +68,7 @@ export function AdminShell() {
   }, []);
 
   const handleOpenChange: MenuProps['onOpenChange'] = (keys) => {
-    setOpenKeys(ensureCurrentParentOpen(keys, current.parentKey));
+    setOpenKeys([...keys]);
   };
 
   const navigateToMenuItem = (path: string) => {
