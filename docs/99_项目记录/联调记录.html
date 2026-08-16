@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>联调记录</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dbe3ef;
+      --line-strong: #c5d0df;
+      --primary: #0f62fe;
+      --primary-soft: #e8f0ff;
+      --green: #087f5b;
+      --green-soft: #e7f7ef;
+      --red: #b42318;
+      --red-soft: #fff1f0;
+      --amber: #a15c00;
+      --amber-soft: #fff4df;
+      --code-bg: #eef3f8;
+      --focus: #2563eb;
+    }
+    * { box-sizing: border-box; min-width: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+    ::selection { background: #bfdbfe; color: #0f172a; }
+    button, input, select { font: inherit; }
+    button, summary { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 48px; }
+    .header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: end; padding: 6px 0 20px; }
+    .title-block h1 { margin: 0; font-size: clamp(24px, 3vw, 36px); line-height: 1.16; font-weight: 720; letter-spacing: 0; }
+    .title-block p { margin: 10px 0 0; max-width: 790px; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+    .source-note { margin-top: 10px; color: #475569; font-size: 13px; overflow-wrap: anywhere; }
+    .source-note code, .footer code, .item-copy code, .pill code, .text-block code {
+      border-radius: 5px;
+      background: var(--code-bg);
+      color: #0f172a;
+      padding: 1px 5px;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: .92em;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .button {
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--text);
+      min-height: 36px;
+      padding: 7px 11px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, color .16s ease;
+    }
+    .button:hover { border-color: #94a3b8; background: #f8fafc; }
+    .button.primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .button.primary:hover { background: #004dd6; border-color: #004dd6; }
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 190px; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .field { display: grid; gap: 6px; }
+    .field label { color: #334155; font-size: 13px; font-weight: 650; }
+    .field input, .field select { width: 100%; min-height: 38px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; color: var(--text); padding: 8px 10px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+    .stat { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 12px 14px; }
+    .stat span { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; margin-top: 4px; font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .intro { display: grid; gap: 10px; margin-bottom: 14px; }
+    .intro-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+    .intro-card summary { cursor: pointer; list-style: none; padding: 13px 16px; font-weight: 720; border-bottom: 1px solid transparent; }
+    .intro-card[open] summary { border-bottom-color: var(--line); background: #fbfdff; }
+    .intro-card summary::-webkit-details-marker { display: none; }
+    .text-block { padding: 12px 16px 16px; color: #1f2937; font-size: 14px; overflow-wrap: anywhere; }
+    .text-block pre { margin: 0; padding: 12px; overflow: auto; border-radius: 8px; background: #0f172a; color: #e5edf8; font-size: 12px; line-height: 1.7; }
+    .text-block table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .text-block th, .text-block td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+    .text-block th { background: var(--surface-soft); font-weight: 720; }
+    .timeline { display: grid; gap: 12px; }
+    .day { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+    .day[open] { border-color: #b9c7da; }
+    .day summary { display: grid; grid-template-columns: minmax(130px, auto) minmax(0, 1fr) auto; gap: 12px; align-items: center; cursor: pointer; list-style: none; padding: 14px 16px; border-bottom: 1px solid transparent; background: var(--surface); }
+    .day[open] summary { border-bottom-color: var(--line); background: #fbfdff; }
+    .day summary::-webkit-details-marker { display: none; }
+    .date { font-size: 16px; font-weight: 740; font-variant-numeric: tabular-nums; }
+    .day-title { min-width: 0; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: anywhere; }
+    .badge-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .badge, .pill { display: inline-flex; align-items: center; max-width: 100%; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-soft); color: #334155; padding: 3px 8px; font-size: 12px; line-height: 1.45; }
+    .badge { white-space: nowrap; }
+    .pill { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+    .badge.primary { border-color: #b7ccff; background: var(--primary-soft); color: #174ea6; }
+    .badge.green { border-color: #b8e6cb; background: var(--green-soft); color: var(--green); }
+    .badge.red { border-color: #ffc9c5; background: var(--red-soft); color: var(--red); }
+    .day-body { padding: 14px 16px 16px; display: grid; gap: 12px; }
+    .entry { border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+    .entry-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
+    .entry-header h2 { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 720; }
+    .entry-meta { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .section-grid { display: grid; grid-template-columns: 150px minmax(0, 1fr); border-top: 1px solid var(--line); }
+    .section-grid:first-of-type { border-top: 0; }
+    .section-label { padding: 12px 14px; color: #475569; background: #fbfdff; border-right: 1px solid var(--line); font-size: 13px; font-weight: 650; }
+    .section-main { min-width: 0; padding: 12px 14px; }
+    .item-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: item; }
+    .item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px; border: 1px solid #edf2f7; border-radius: 8px; background: #fff; }
+    .item::before { counter-increment: item; content: counter(item); display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: var(--code-bg); color: #334155; font-size: 12px; font-weight: 720; font-variant-numeric: tabular-nums; }
+    .item-copy { min-width: 0; max-width: 100%; color: #1f2937; font-size: 14px; overflow-wrap: anywhere; word-break: break-word; }
+    .artifacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .empty { border: 1px dashed var(--line-strong); border-radius: 12px; background: var(--surface); padding: 28px; color: var(--muted); text-align: center; }
+    .footer { margin-top: 22px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 20px, 1180px); padding-top: 18px; }
+      .header { grid-template-columns: 1fr; align-items: start; }
+      .header-actions { justify-content: flex-start; }
+      .toolbar { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .day summary { grid-template-columns: 1fr; gap: 6px; }
+      .day-title { white-space: normal; }
+      .badge-row { justify-content: flex-start; }
+      .entry-header { grid-template-columns: 1fr; gap: 4px; }
+      .section-grid { grid-template-columns: 1fr; }
+      .section-label { border-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+      .item { grid-template-columns: 30px minmax(0, 1fr); padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+  THESIS: 联调记录需要像排查台账一样快速定位环境、链路、步骤、结果和风险，而不是只靠长 Markdown 滚动。
+  OWN-WORLD: 延续项目记录 H5 的中性审计面板，用细边框、密集列表、蓝色操作和少量语义状态色表达可靠性。
+  STORY: 读者先看联调范围统计，再按日期展开一次联调，核对环境、服务、中间件、测试数据、步骤、结果、问题、结论和风险。
+  FIRST VIEWPORT: 标题、筛选、展开控制、统计和基础说明在首屏，日期折叠列表紧随其后。
+  FORM: 文档联调控制台，基于联调记录 Markdown 的脱敏快照生成。
+  -->
+  <main class="shell">
+    <header class="header">
+      <div class="title-block">
+        <h1>联调记录</h1>
+        <p>按日期查看接口、环境和问题排查联调。每次联调拆成环境、服务、中间件、步骤、结果、问题、处理结论和遗留风险，便于回溯。</p>
+        <div class="source-note">数据来源：<code>docs/99_项目记录/联调记录.md</code> 的脱敏快照。</div>
+      </div>
+      <div class="header-actions" aria-label="页面操作">
+        <button class="button primary" type="button" id="expandAll">展开全部</button>
+        <button class="button" type="button" id="collapseAll">收起全部</button>
+      </div>
+    </header>
+    <section class="toolbar" aria-label="筛选联调记录">
+      <div class="field"><label for="searchInput">搜索日期、主题、服务、接口、命令或结论</label><input id="searchInput" type="search" placeholder="例如：order-service、RocketMQ、健康检查、回调" autocomplete="off" /></div>
+      <div class="field"><label for="typeFilter">记录类型</label><select id="typeFilter"><option value="all">全部联调</option><option value="issue">有问题/风险</option><option value="service">含服务信息</option><option value="command">含命令/接口</option></select></div>
+    </section>
+    <section class="stats" aria-label="联调统计"><div class="stat"><span>日期</span><strong id="dateCount">0</strong></div><div class="stat"><span>联调主题</span><strong id="entryCount">0</strong></div><div class="stat"><span>记录项</span><strong id="itemCount">0</strong></div><div class="stat"><span>当前匹配</span><strong id="matchCount">0</strong></div></section>
+    <section class="intro" id="intro"></section>
+    <section class="timeline" id="timeline" aria-live="polite"></section>
+    <footer class="footer">H5 页面保留 Markdown 原始记录的审计口径；如更新 <code>联调记录.md</code> 后需要离线快照同步，请重新生成本页面。</footer>
+  </main>
+  <script>
+    const EMBEDDED_MARKDOWN = "# 联调记录\n\n本文档记录接口联调、环境联调、问题排查过程和结论。正式编码后每次重要联调都应追加记录。\n\nH5 浏览入口：同目录 `联调记录.html`，按日期折叠展示联调环境、服务、中间件、步骤、结果、问题、处理结论和遗留风险。\n\n## 记录格式\n\n```text\n## YYYY-MM-DD 联调主题\n\n- 环境：\n- 涉及服务：\n- 涉及中间件：\n- 测试数据：\n- 执行步骤：\n- 结果：\n- 问题：\n- 处理结论：\n- 遗留风险：\n```\n\n## 2026-06-18 云端中间件可用性检查\n\n- 环境：云端 Ubuntu，项目专用 Docker 网络 `zhyf-net`。\n- 涉及中间件：PostgreSQL、Redis、RocketMQ NameServer、RocketMQ Broker、RocketMQ Dashboard。\n- 结果：项目专用容器已启动，PostgreSQL 可连接，Redis `PING` 正常，RocketMQ Broker 在线。\n- 结论：当前开发默认使用云端项目专用中间件，本地 Redis / RocketMQ 不作为默认依赖。\n- 遗留风险：云服务器内存较紧张，后续启动完整服务和监控组件时需要继续观察资源占用。\n\n## 第一版业务联调清单\n\n| 顺序 | 联调链路 | 验收点 |\n| --- | --- | --- |\n| 1 | 机构推单 -\u003e 订单/处方/明细落库 | 幂等、签名、IP 白名单、状态初始值正确 |\n| 2 | 订单创建 -\u003e Outbox -\u003e RocketMQ | 本地事务一致，事件可发布，消费幂等 |\n| 3 | 后台审核/调剂/复核 | 状态机合法推进，状态日志完整 |\n| 4 | PDA 模拟扫码绑定 | 重复扫码、并发扫码、超时重试可控 |\n| 5 | MES 模拟开始/完成煎煮 | 乱序、重复上报可识别，设备占用可释放 |\n| 6 | 打包出库 -\u003e 物流轨迹 -\u003e 签收 | 物流状态和订单状态联动正确 |\n| 7 | 签收/取消/异常 -\u003e 机构回调 | 回调签名、失败重试、死信、人工重放完整 |\n| 8 | 社康/医院/地址补录适配 | 外围协议兼容，差异不侵入订单主流程 |\n\n## 2026-06-19 第一阶段后端骨架验证\n\n- 环境：Windows 本地，JDK 17，Maven 3.9.2。\n- 涉及服务：`zhyf-common`、`auth-institution`、`order-service`、`prescription-service`、`message-service`、`ops-service`、`gateway`。\n- 已执行：`mvn test`。\n- 结果：后端 Maven Reactor 全模块编译和测试通过。\n- 已执行：`mvn install -DskipTests`。\n- 结果：全模块安装到本地 Maven 仓库成功，单模块启动依赖已具备。\n- 数据库联调：暂未完成。本机 `[网络地址]:15432` 无 PostgreSQL 服务，云端项目端口从本机连接超时，本机 Docker Desktop 未能稳定启动 Linux Engine。\n- 已补充：`infra/docker-compose.local-optional.yml`，仅作为本地离线备用方案，当前默认不启动本地 Docker / Redis / RocketMQ。\n- 已补充：`test/integration/create-order-smoke.ps1`，用于数据库可用后执行机构推单签名和接口冒烟验证。\n- 遗留风险：当前只完成编译级验证，真实落库和 Outbox 状态验证需要数据库环境恢复后继续执行。\n\n## 2026-06-19 云端 order-service 推单冒烟验证\n\n- 环境：云服务器 Ubuntu，项目专用 Docker 网络 `zhyf-net`。\n- 中间件状态：`zhyf-postgres`、`zhyf-redis`、`zhyf-rocketmq-namesrv`、`zhyf-rocketmq-broker`、`zhyf-rocketmq-dashboard` 均运行中。\n- 服务启动：已上传 `order-service-0.1.0-SNAPSHOT.jar` 到 `/home/ubuntu/zhyf-saas/apps/order-service/order-service.jar`。\n- 运行方式：使用 `eclipse-temurin:17-jre-alpine` 容器启动 `zhyf-order-service`，挂载 jar，连接 `zhyf-net`，服务端口 `18082`。\n- 数据库连接：`order-service` 通过容器名 `zhyf-postgres:5432` 连接 `zhyf_saas`。\n- Flyway 结果：`V1__init_core_schema.sql` 已执行成功，schema 当前版本为 `1 - init core schema`。\n- 健康检查：`GET http://[网络地址]:18082/actuator/health` 返回 `UP`。\n- 推单接口：`POST http://[网络地址]:18082/api/institution/createOrder` 返回成功。\n- 返回结果：业务码 `0`，订单状态 `CREATED`，`duplicated=false`。\n- 落库结果：`order_main=1`、`prescription=1`、`prescription_detail=1`、`order_status_log=1`、`event_outbox=1`。\n- Outbox 结果：生成 `ORDER_CREATED` 事件，状态为 `NEW`。\n- 遗留风险：`message-service` 尚未部署到云端验证 Outbox 扫描；RocketMQ 真实生产者尚未接入，当前仍是日志发布器骨架。\n\n## 2026-06-22 message-service RocketMQ 发布验证\n\n- 环境：Windows 本地 JDK 21 编译，云服务器 Ubuntu 运行容器。\n- IDE 状态：IDEA 已导入 `backend/pom.xml` 为 Maven 项目，Project SDK 为 JDK 21。\n- Maven 状态：`backend/pom.xml` 已将 `java.version` 调整为 `21`。\n- 本地验证：使用 `D:\\Javasource\\javaTools\\jdk-21.0.10` 执行 `mvn test` 通过。\n- 代码变更：`message-service` 新增 RocketMQ 真实发布器，配置 `ZHYF_MESSAGE_PUBLISHER=rocketmq` 时启用，默认仍为 logging 发布器。\n- 云端部署：上传新版 `message-service.jar`，启动容器 `zhyf-message-service`，端口 `18083`。\n- RocketMQ 修复：`zhyf-rocketmq-broker` 原 `brokerIP1=[网络地址]`，服务器和容器内访问该公网地址失败；已改为项目 Docker 网络内地址 `[网络地址]`，并重启本项目 Broker。\n- Topic：已创建 `zhyf-order-event`。\n- 发布验证：将原 `FAILED` 的 `ORDER_CREATED` Outbox 事件重置为 `NEW` 后，`message-service` 成功发送 RocketMQ，日志显示 `SEND_OK`。\n- 数据库结果：`event_outbox` 中 `ORDER_CREATED` 状态已变为 `SENT`。\n- RocketMQ 结果：`zhyf-order-event` Topic 队列最大位点已增加到 `1`。\n- 健康检查：`GET http://[网络地址]:18083/actuator/health` 返回 `UP`。\n- 遗留风险：当前只验证了生产者发布，尚未实现和验证消费者幂等处理。\n\n## 2026-06-22 云端应用容器释放\n\n- 原因：云服务器内存紧张，当前只需要云端 Redis / RocketMQ / PostgreSQL 中间件，应用服务应在本地运行和调试。\n- 已停止并删除：`zhyf-order-service`、`zhyf-message-service`。\n- 已保留：`zhyf-postgres`、`zhyf-redis`、`zhyf-rocketmq-namesrv`、`zhyf-rocketmq-broker`、`zhyf-rocketmq-dashboard`。\n- 后续策略：不默认上传 jar 到云服务器运行；本地 IDEA / Maven 启动应用服务并连接云端项目专用中间件。\n- 网络策略：如果本机无法直连云端中间件端口，优先使用 SSH 隧道或云端安全组处理，不启动本地 Redis / RocketMQ。\n\n## 2026-06-22 老笔记本 Ubuntu 中间件联调\n\n- 环境：Windows 本地开发机，老笔记本 Ubuntu 中间件主机，Tailscale 地址 `[网络地址]`。\n- 涉及中间件：PostgreSQL、Redis、RocketMQ NameServer、RocketMQ Broker、RocketMQ Dashboard。\n- 资源检查：老笔记本 Ubuntu Docker 可用，磁盘和内存满足当前中间件运行。\n- 容器状态：`zhyf-postgres`、`zhyf-redis`、`zhyf-rocketmq-namesrv`、`zhyf-rocketmq-broker`、`zhyf-rocketmq-dashboard` 已启动。\n- PostgreSQL 验证：`pg_isready` 正常，项目库 `zhyf_saas` 可访问。\n- Redis 验证：`PING` 返回正常。\n- RocketMQ 验证：Broker 集群 `zhyf-cluster` 在线，Topic `zhyf-order-event` 可查询。\n- 本机端口验证：`15432`、`16379`、`9876`、`10911`、`18181` 从 Windows 本机可连通。\n- 端口调整：老笔记本上 `18081` 已被其他项目容器占用，本项目 RocketMQ Dashboard 改用 `18181`。\n- 处理结论：后续开发默认本地跑应用，连接老笔记本 Ubuntu 中间件；不再上传 jar 到服务器运行。\n- 遗留风险：新 PostgreSQL 实例为空库，下一步需要本地启动 `order-service` 执行 Flyway 并重新跑机构推单冒烟。\n\n## 2026-06-22 本地 order-service 连接老笔记本 PostgreSQL 冒烟\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL。\n- 涉及服务：`order-service`。\n- 涉及中间件：PostgreSQL `[网络地址]:15432`。\n- 启动方式：本地 `mvn -pl order-service -am package -DskipTests` 后执行 `java -jar order-service-0.1.0-SNAPSHOT.jar`。\n- Flyway 结果：`V1__init_core_schema.sql` 在 `zhyf_saas` 库执行成功。\n- 健康检查：`GET http://[网络地址]:18082/actuator/health` 返回 `UP`。\n- 推单接口：`POST http://[网络地址]:18082/api/institution/createOrder` 返回业务码 `0`。\n- 落库结果：`tenant=1`、`institution=1`、`institution_app=1`、`order_main=1`、`prescription=1`、`prescription_detail=1`、`order_status_log=1`、`event_outbox=1`。\n- Outbox 结果：最新 `ORDER_CREATED` 事件状态为 `NEW`，等待 `message-service` 发布。\n- 问题处理：原 `test/integration/create-order-smoke.ps1` 中文测试数据在 Windows PowerShell 5.1 下解析异常，已改成 ASCII 测试数据。\n- 遗留风险：尚未启动 `message-service` 连接老笔记本 RocketMQ 验证 Outbox 从 `NEW` 推进到 `SENT`。\n\n## 2026-06-22 本地 message-service 连接老笔记本 RocketMQ 发布验证\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL / RocketMQ。\n- 涉及服务：`message-service`。\n- 涉及中间件：PostgreSQL `[网络地址]:15432`，RocketMQ NameServer `[网络地址]:9876`。\n- 启动方式：本地 `mvn -pl message-service -am package -DskipTests` 后执行 `java -jar message-service-0.1.0-SNAPSHOT.jar`。\n- 启动参数：`ZHYF_MESSAGE_PUBLISHER=rocketmq`，`ZHYF_OUTBOX_SCAN_ENABLED=true`。\n- 健康检查：`GET http://[网络地址]:18083/actuator/health` 返回 `UP`。\n- 发布日志：`ORDER_CREATED` 事件发送到 `zhyf-order-event`，RocketMQ 返回 `SEND_OK`。\n- 数据库结果：`event_outbox` 中最新 `ORDER_CREATED` 状态为 `SENT`，`retry_count=0`，`published_at` 已写入。\n- RocketMQ 结果：`zhyf-order-event` Topic 的 `broker-a` 队列 `0` 最大位点为 `1`。\n- 处理结论：第一阶段 Outbox 生产者发布链路在新中间件环境下验证通过。\n- 遗留风险：消费者幂等处理、订单创建后的校验/审方/回调等消费链路尚未实现。\n\n## 2026-06-24 ORDER_CREATED 消费单元验证\n\n- 环境：Windows 本地，JDK 21。\n- 涉及服务：`message-service`、`order-service` migration。\n- 涉及中间件：本次为单元测试和编译验证，未启动本地中间件。\n- 代码变更：新增 `workflow_task` migration，新增 `WorkflowTaskRepository` 和 JDBC 实现，`OrderCreatedEventHandler` 校验通过后创建 `ORDER_REVIEW/PENDING` 待审核任务。\n- 验证命令：`mvn -pl message-service -am test -q`。\n- 结果：通过。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n\n- 处理结论：第一阶段 `ORDER_CREATED` 消费链路已从“只写校验记录”推进到“校验通过生成待审核任务”。\n- 遗留风险：尚未启动本地服务连接老笔记本 PostgreSQL/RocketMQ 做真实端到端验证；后台审核接口和 `workflow-service` 仍未落地。\n\n## 2026-06-24 后台审核过渡接口验证\n\n- 环境：Windows 本地，JDK 21。\n- 涉及服务：`order-service`。\n- 变更：增加待审核任务查询、审核通过、审核拒绝接口，以及 `workflow_task` 任务模型。\n- 验证命令：`mvn -pl order-service -am test -q`。\n- 结果：通过。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n- 处理结论：第一阶段已经补到“推单 -\u003e 消费校验 -\u003e 待审核任务 -\u003e 审核推进状态”的最小闭环。\n- 遗留风险：`workflow_task` 仍是过渡表，后续需要迁移到真正的 `workflow-service`；真实 HTTP 联调还未跑。\n\n## 2026-06-25 真实端到端 HTTP 联调\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu 中间件，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`gateway`、`auth-institution`、`order-service`、`message-service`。\n- 涉及中间件：PostgreSQL `[网络地址]:15432`、RocketMQ NameServer `[网络地址]:9876`。\n- 启动方式：本地 `mvn -DskipTests package` 后，以本地 `java -jar` 进程启动四个服务；`message-service` 启用 `ZHYF_MESSAGE_PUBLISHER=rocketmq`、`ZHYF_OUTBOX_SCAN_ENABLED=true`、`ZHYF_MESSAGE_CONSUMER_ENABLED=true`。\n- 健康检查：`gateway:18080`、`auth-institution:18081`、`order-service:18082`、`message-service:18083` 均返回 `UP`。\n- 测试数据：`appKey=demo-app`，外部单号 `E2E-1782388093389`，订单号 `ZHYF1782388095356`。\n- 执行步骤：\n  - 通过 `POST http://localhost:18080/api/institution/createOrder` 走网关签名、IP 白名单、访问日志和转发。\n  - 等待 `message-service` 扫描 Outbox、发布 RocketMQ 并消费 `ORDER_CREATED`。\n  - 通过数据库核对订单、事件、消费日志、校验记录、待审核任务和访问日志。\n  - 调用 `GET http://localhost:18082/api/admin/review-tasks` 查询待审核任务。\n  - 调用 `PATCH http://localhost:18082/api/admin/review-tasks/{taskId}/approve` 审核通过。\n- 结果：\n  - 网关推单返回业务码 `0`，初始订单状态 `CREATED`，非重复单。\n  - `api_access_log.result_code=HTTP_200`。\n  - `event_outbox.status=SENT`，`retry_count=0`。\n  - `message_consume_log.status=SUCCESS`，消费组为 `zhyf-message-order-consumer`。\n  - `order_validation_record.validation_status=PASSED`。\n  - 审核前 `workflow_task.task_status=PENDING`，审核后为 `APPROVED`。\n  - 审核后 `order_main.status=AUDIT_PASSED`，`order_status_log` 记录 `CREATED -\u003e AUDIT_PASSED`。\n- 问题：\n  - `gateway` 首次 jar 启动失败，`SignatureVerifier` 多构造器未标注 Spring 注入构造器，报 `No default constructor found`。\n  - `order-service` 首次查询待审核任务返回 500，原因是 PostgreSQL JDBC 不支持 `timestamptz` 直接 `getObject(..., Instant.class)`。\n- 处理结论：\n  - 已为 `SignatureVerifier` 生产构造器补 `@Autowired`，新增 `GatewayApplicationTest` 覆盖应用上下文启动。\n  - 已把 `OrderRepository` 时间映射改为 `OffsetDateTime -\u003e Instant`，新增 `OrderRepositoryTest` 覆盖待审核任务映射。\n  - 已执行 `mvn -pl gateway -am test -q`、`mvn -pl order-service -am test -q`、`mvn test -q`，结果均通过。\n- 遗留风险：\n  - `workflow_task` 仍是第一阶段过渡表，后续需要迁移或抽象到真正的 `workflow-service`。\n  - 当前没有清理本次 E2E 测试数据，保留用于联调追踪；后续如需清理必须先明确清理范围。\n  - 本次未验证审核拒绝真实 HTTP 路径，拒绝路径目前只完成单元测试。\n\n## 2026-06-25 workflow-service 审核迁移单元验证\n\n- 环境：Windows 本地，JDK 21。\n- 涉及服务：`workflow-service`、`order-service`、`message-service`。\n- 涉及中间件：本次未启动中间件，只做代码、单元测试和 Maven 打包验证。\n- 代码变更：\n  - 新增 `workflow-service` 模块，默认端口 `18085`。\n  - `workflow-service` 提供审核任务查询、审核通过、审核拒绝接口。\n  - `workflow-service` 新增独立 RocketMQ 消费者，消费 `ORDER_CREATED` 后根据 `order_validation_record.PASSED` 创建 `workflow_task`。\n  - `message-service` 移除直接创建 `workflow_task` 的仓储和调用，只保留订单创建事件基础校验记录。\n  - `order-service` 新增内部状态推进接口 `PATCH /internal/orders/{orderId}/status`，第一版只支持审核通过/拒绝状态推进。\n  - `order-service` 原审核过渡接口保留并标记废弃。\n- 验证命令：`mvn -pl workflow-service -am test -q`。\n- 结果：通过。\n- 验证命令：`mvn -pl order-service -am test -q`。\n- 结果：通过。\n- 验证命令：`mvn -pl message-service -am test -q`。\n- 结果：通过。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n- 验证命令：`mvn -DskipTests package -q`。\n- 结果：通过。\n- 处理结论：审核职责已完成代码层迁移，`workflow-service` 成为工作流任务创建和审核处理的承载服务。\n- 遗留风险：\n  - 尚未启动五个本地服务连接老笔记本 PostgreSQL/RocketMQ 做真实端到端 HTTP 联调。\n  - `workflow_task` migration 仍由 `order-service` 历史 migration 创建，后续只在明确迁移窗口处理归档，不改已执行版本。\n  - 内部接口 `/internal/orders/{orderId}/status` 当前还没有服务间鉴权，后续需要补内部签名或网关隔离。\n\n## 2026-06-25 IDEA 启动配置排查\n\n- 环境：Windows 本地，IntelliJ IDEA 2026.1.2。\n- 现象：\n  - IDEA 中 `gateway` 和 `auth-institution` 进程已启动，但 `/actuator/health` 返回 `DOWN`。\n  - `order-service`、`message-service`、`workflow-service` 未监听默认端口。\n- 排查结果：\n  - IDEA 自动生成的 Spring Boot Run Configuration 未配置 `ZHYF_DB_PASSWORD` 等项目环境变量。\n  - `order-service`、`message-service`、`workflow-service` 原 application.yml 默认连接 `[网络地址]`，而当前项目默认中间件在老笔记本 `[网络地址]`。\n  - 复现错误：`order-service` 启动时报 `Connection to [网络地址]:15432 refused`。\n- 处理：\n  - 已将 `order-service`、`message-service`、`workflow-service` 的默认 PostgreSQL 地址改为 `[网络地址]:15432`。\n  - 已将 `message-service`、`workflow-service` 的默认 RocketMQ NameServer 改为 `[网络地址]:9876`。\n  - 未把数据库密码写入代码或文档。\n- 后续 IDEA 启动要求：\n  - 每个需要数据库的 Run Configuration 都必须配置 `ZHYF_DB_PASSWORD`。\n  - `message-service` 如需真实 MQ 发布和消费，还需配置或确认 `ZHYF_MESSAGE_PUBLISHER=rocketmq`、`ZHYF_OUTBOX_SCAN_ENABLED=true`、`ZHYF_MESSAGE_CONSUMER_ENABLED=true`。\n  - `workflow-service` 如需真实消费，确认 `ZHYF_WORKFLOW_CONSUMER_ENABLED=true`。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n\n## 2026-06-25 docs/error 控制台报错排查\n\n- 环境：Windows 本地，IntelliJ IDEA 2026.1.2。\n- 日志来源：`docs/error`。\n- 报错归类：\n  - `message-service` 和 `workflow-service` 启动 RocketMQ 消费者时报 `RemotingConnectException: connect to null failed`。\n  - `order-service` Flyway 初始化数据库连接时报 `FATAL: password authentication failed for user \"postgres\"`。\n  - `prescription-service` 使用默认 `8080` 启动，报 `Web server failed to start. Port 8080 was already in use`。\n- 排查结论：\n  - `message-service`、`workflow-service` 的 `src/main/resources/application.yml` 和 `target/classes/application.yml` 已同步到老笔记本 RocketMQ NameServer `[网络地址]:9876`，不是资源未编译。\n  - RocketMQ 报 `connect to null` 更符合 IDEA Run Configuration 中环境变量存在但为空，导致 `${ZHYF_ROCKETMQ_NAMESRV:...}` 没触发默认值的场景。\n  - 数据库密码认证失败只能在 IDEA Run Configuration 中修正 `ZHYF_DB_PASSWORD`，密码不能写入代码、文档或最终回复。\n  - `prescription-service` 之前没有 `application.yml`，因此落到 Spring Boot 默认端口 `8080`。\n- 处理：\n  - `message-service` 的 `RocketMqProperties` 增加代码级默认值和空白值回退，覆盖 NameServer、生产者组、消费者组和订单 Topic。\n  - `workflow-service` 的 `WorkflowProperties` 增加代码级默认值和空白值回退，覆盖订单服务地址、NameServer、消费者组和订单 Topic。\n  - `message-service`、`workflow-service` 消费者在 `consumer.start()` 前打印实际使用的 NameServer、Group 和 Topic，方便后续从 IDEA 控制台直接确认配置。\n  - 新增 `prescription-service` 本地默认端口 `18084`。\n  - 新增 `ops-service` 本地默认端口 `18086`，避免骨架服务后续也落到 `8080`。\n  - 新增配置属性单元测试覆盖空白值回退。\n- 后续 IDEA 启动要求：\n  - 每个需要数据库的服务仍必须在 Run Configuration 中配置正确的 `ZHYF_DB_PASSWORD`。\n  - `message-service` 如需真实 RocketMQ 发布，确认 `ZHYF_MESSAGE_PUBLISHER=rocketmq`、`ZHYF_OUTBOX_SCAN_ENABLED=true`。\n  - 如 IDEA 控制台仍有 RocketMQ 报错，先看新增的 `starting RocketMQ consumer nameServer=...` 日志，确认进入 RocketMQ client 前的地址。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n- 验证命令：`mvn -DskipTests package -q`。\n- 结果：通过。\n\n## 2026-06-25 workflow-service 五服务真实端到端 HTTP 联调\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu 中间件，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`gateway`、`auth-institution`、`order-service`、`message-service`、`workflow-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动五个服务，端口使用 `19080/19081/19082/19083/19085`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`，RocketMQ NameServer `[网络地址]:9876`。\n- 消费组：本次使用临时消费组 `zhyf-e2e-message-1782395697296`、`zhyf-e2e-workflow-1782395697296`，避免和 IDEA 进程或默认消费组抢消息。\n- 健康检查：五个临时服务 `/actuator/health` 均返回 `UP`。\n- 测试数据：`appKey=demo-app`，外部单号 `E2E-WF-1782395864763`，订单号 `ZHYF1782395865216`，订单 ID `8ce9a191-fccf-4fe9-b466-37928f9a4933`。\n- 执行步骤：\n  - 通过 `POST http://localhost:19080/api/institution/createOrder` 走网关签名、IP 白名单、访问日志和转发。\n  - 等待 `message-service` 扫描 Outbox、发布 RocketMQ 并消费 `ORDER_CREATED` 生成 `order_validation_record`。\n  - 等待 `workflow-service` 独立消费 `ORDER_CREATED`，读取校验通过记录后创建 `workflow_task`。\n  - 调用 `PATCH http://localhost:19085/api/admin/workflow/review-tasks/{taskId}/approve` 审核通过。\n- 结果：\n  - 网关推单返回业务码 `0`，初始订单状态 `CREATED`。\n  - `event_outbox.status=SENT`，`retry_count=0`。\n  - `message_consume_log` 中两个临时消费组均为 `SUCCESS`。\n  - `order_validation_record.validation_status=PASSED`。\n  - 审核前 `workflow_task.task_status=PENDING`，审核后 `APPROVED`，审核人为 `codex-e2e`。\n  - 审核后 `order_main.status=AUDIT_PASSED`，`order_status_log` 记录 `CREATED -\u003e AUDIT_PASSED`。\n- 额外修正：\n  - 真实联调时发现 `OrderReviewResult.completedAt` 返回了任务创建时间，已改为用服务端当前时间生成完成时间，并补充单元测试。\n- 清理：\n  - 已停止本次启动的 `19080/19081/19082/19083/19085` 临时进程。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪；如需清理必须先明确范围。\n- 验证命令：`mvn test -q`。\n- 结果：通过。\n- 验证命令：`mvn -DskipTests package -q`。\n- 结果：通过。\n\n## 2026-06-26 PDA/MES 煎煮链路真实本地联调\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu 中间件，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`gateway`、`auth-institution`、`order-service`、`message-service`、`workflow-service`、`decoction-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动六个服务，端口使用 `19080/19081/19082/19083/19085/19087`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`，RocketMQ NameServer `[网络地址]:9876`。\n- 消费组：真实联调中默认消费组受历史 offset / 其他进程影响未及时消费新事件；已改用本轮临时消费组 `zhyf-message-e2e-1782473731084`、`zhyf-workflow-e2e-1782473731084` 完成本地验证。\n- 健康检查：六个临时服务 `/actuator/health` 均返回 `UP`。\n- 测试数据：\n  - 外部单号：`E2E-DCT-1782473402095`\n  - 订单号：`ZHYF1782473402454`\n  - 订单 ID：`6897db30-16b5-4684-8443-2d86c561b3ef`\n  - 煎煮任务号：`DCT-6C049A30`\n  - 煎煮设备：`DECOCT-001`\n  - 处方号：`RX17824734025041`\n- 执行步骤：\n  - 通过 `POST http://[网络地址]:19080/api/institution/createOrder` 走网关签名、IP 白名单、访问日志和转发。\n  - 等待 `message-service` 扫描 Outbox、发布 RocketMQ 并消费 `ORDER_CREATED` 生成 `order_validation_record.PASSED`。\n  - 等待 `workflow-service` 独立消费 `ORDER_CREATED`，创建 `ORDER_REVIEW/PENDING` 审核任务。\n  - 调用 `workflow-service` 审核通过接口，订单推进到 `AUDIT_PASSED`，并创建 `PRESCRIPTION_RECHECK/PENDING` 复核任务。\n  - 调用复核完成接口，订单推进到 `RECHECKED`。\n  - 调用 `decoction-service` PDA 模拟器绑定处方和设备，生成 `decoction_task.BOUND`。\n  - 调用 `decoction-service` MES 模拟器开始任务，订单推进到 `DECOCTING`。\n  - 调用 `decoction-service` MES 模拟器完成任务，订单推进到 `DECOCTED`。\n- 结果：\n  - `event_outbox.status=SENT`。\n  - 临时 `message-service` 消费组和临时 `workflow-service` 消费组对应本单事件均为 `SUCCESS`。\n  - 审核任务最终为 `APPROVED`，复核任务最终为 `COMPLETED`。\n  - `decoction_task.task_status=DECOCTED`。\n  - `order_main.status=DECOCTED`。\n  - `order_status_log` 覆盖 `CREATED -\u003e AUDIT_PASSED -\u003e RECHECKED -\u003e DECOCTING -\u003e DECOCTED` 主链路状态推进。\n- 真实联调暴露并修复的问题：\n  - `OrderReviewTaskService`、`OrderStatusUpdateService`、`OrderCreatedWorkflowService` 存在多构造器但生产构造器未标注 `@Autowired`，jar 启动时报 `No default constructor found`；已补齐生产构造器注入标注。\n  - `workflow-service` 可能早于 `message-service` 查到订单校验记录，导致 `order validation record not found`；已为 `OrderCreatedWorkflowService` 增加短时间重试等待，并补充单元测试。\n  - `decoction-service` 调用 `order-service` 内部 `PATCH /internal/orders/{orderId}/status` 时，默认 `RestClient` 落到不支持 PATCH 的 `HttpURLConnection`，报 `Invalid HTTP method: PATCH`；已显式使用 `JdkClientHttpRequestFactory`。\n- 验证命令：\n  - `mvn -pl workflow-service -am test -q` 通过。\n  - `mvn -pl workflow-service -am -DskipTests package -q` 通过。\n  - `mvn -pl decoction-service -am test -q` 通过。\n  - `mvn -pl decoction-service -am -DskipTests package -q` 通过。\n  - `mvn -pl workflow-service,decoction-service -am test -q` 通过。\n- 清理约束：\n  - 本次未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n  - 本次未上传 jar 到服务器。\n  - 本次未清空日志、未删除 volume、未启动 Docker Desktop。\n\n## 2026-07-08 物流/回调真实本地联调\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`order-service`、`ops-service`、`logistics-service`、`callback-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动四个服务，端口使用 `19182/19186/19188/19189`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- Flyway：本次临时启动时从历史 `V4` 继续执行到 `V8__add_logistics_callback.sql`，完成物流和回调表结构迁移。\n- 测试数据：\n  - 外部单号：`E2E-DCT-1782473402095`\n  - 订单号：`ZHYF1782473402454`\n  - 订单 ID：`6897db30-16b5-4684-8443-2d86c561b3ef`\n  - 物流单号：`E2E-LC-1783483943630`\n  - shipmentId：`6379ae03-ee52-4f16-a39a-8ef1394eb3f1`\n  - 回调地址：`http://example.invalid/callback`\n- 已执行步骤：\n  - 启动四个临时服务并检查健康状态。\n  - 使用已处于 `DECOCTED` 的订单查询待打包列表。\n  - 调用 `logistics-service` 打包接口创建 `shipment`，写入打包轨迹，并创建 `ORDER_PACKED` 回调记录。\n  - 调用发货接口写入发货轨迹，并创建 `ORDER_SHIPPED` 回调记录。\n  - 调用轨迹录入接口写入运输中轨迹，并创建 `ORDER_IN_TRANSIT` 回调记录。\n  - 查询数据库确认 `shipment.logistics_status=IN_TRANSIT`，回调记录业务 ID 分别为 shipmentId、`shipmentId:SHIPPED`、`shipmentId:IN_TRANSIT`。\n  - 恢复 PostgreSQL 连接后继续调用签收接口，写入 `SIGNED` 轨迹，订单和物流单推进到 `SIGNED`，并创建 `ORDER_SIGNED` 回调记录。\n  - 临时把测试订单回调地址指向 `http://[网络地址]:19299/callback`，启动本机 HTTP 500 服务，签收回调创建后恢复订单回调地址为 `http://example.invalid/callback`。\n  - 通过 `POST /api/admin/callback-records/dispatch-due?limit=1` 真实派发 `ORDER_SIGNED` 回调，第一次失败后进入 `FAILED`，人工重放两轮后进入 `DEAD`。\n  - 通过 `GET /api/admin/ops/logistics-callback-issues?orderNo=ZHYF1782473402454\u0026limit=10` 查询 `DEAD` 聚合记录，结果包含物流单号、订单号、失败响应、重试次数、`SIGNED` 物流状态和最新签收轨迹。\n- 真实联调暴露并修复的问题：\n  - `LogisticsRepository.createShipment`、`updateShipmentStatus`、`createTrace` 直接把 `Instant` 作为 JDBC 参数写入 PostgreSQL `timestamptz`，报 `Can\u0027t infer the SQL type to use for an instance of java.time.Instant`；已统一转换为 UTC `OffsetDateTime`。\n  - `CallbackRepository.findDueRecords`、`markFailed`、`replay` 同样统一转换 `Instant` 参数，避免后续派发或重放时触发相同 JDBC 类型问题。\n  - `OpsQueryRepository.findLogisticsCallbackIssues` 原只按物流单号关联回调业务 ID；已改为兼容 shipmentId、`shipmentId:状态` 和物流单号。\n- 验证命令：\n  - `mvn -pl logistics-service -am test -q` 通过。\n  - `mvn -pl callback-service -am test -q` 通过。\n  - `mvn -pl ops-service -am test -q` 通过。\n  - `mvn -pl logistics-service,callback-service -am -DskipTests package -q` 通过。\n  - `mvn -pl ops-service,logistics-service,callback-service -am -DskipTests package -q` 通过。\n- 续跑验证结果：\n  - `Test-NetConnection [网络地址] -Port 15432` 返回 `TcpTestSucceeded=True`。\n  - 四个临时服务 `/actuator/health` 均返回 `UP`。\n  - `shipment.logistics_status=SIGNED`，`order_main.status=SIGNED`。\n  - `shipment_trace` 覆盖 `PACKED -\u003e SHIPPED -\u003e IN_TRANSIT -\u003e SIGNED`。\n  - `ORDER_SIGNED` 回调最终 `status=DEAD`、`retryCount=5`、`responseBody=HTTP 500 ...`。\n  - `ops-service` 聚合查询返回 `callbackStatus=DEAD`，关联 `logisticsStatus=SIGNED`、`latestTraceStatus=SIGNED`、`latestTraceContent=signed e2e verification`。\n- 清理：\n  - 已停止本次启动的 `19182/19186/19188/19189` 临时进程和 `19299` 本机失败回调服务。\n  - 端口 `19182/19186/19188/19189` 已释放，`19299` 仅剩系统 `TIME_WAIT`。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n\n## 2026-07-09 admin-web + ops + decoction + 旧协议入口本地联调\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`order-service`、`ops-service`、`decoction-service`、`admin-web`。\n- 启动方式：使用本地临时进程启动后端服务和 Vite，端口使用 `19282/19286/19287/19274`，避免干扰 IDEA 当前 `180xx` 进程和既有 `5174` 前端进程。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- 测试数据：\n  - 外部单号：`E2E-LEGACY-1783574424794`\n  - 订单号：`ZHYF1783574426206`\n  - 订单 ID：`ef18c214-f6e7-4d93-a2cf-bc711832788c`\n  - 处方号：`RX17835744275931`\n  - 水桶号：`LEGACY-PAIL-1783574424794`\n  - 煎煮任务号：`DCT-5A7BB105`\n- 已执行步骤：\n  - 启动 `order-service`、`ops-service`、`decoction-service` 和 `admin-web` 临时进程并检查健康状态。\n  - 调用 `order-service` 创建订单，并通过内部状态接口推进到 `CREATED -\u003e AUDIT_PASSED -\u003e RECHECKED`，作为旧协议入口可操作处方。\n  - 调用旧 PDA/MES 兼容入口完成登录、设备查询、复核推方查询、绑定处方、按水桶取任务、加水完成、按处方取方、开始煎煮、温度回调和完成煎煮。\n  - 通过 `admin-web` Vite proxy 查询 `decoction-service` 的事件轨迹和作业明细，并通过 `/ops-api` 查询 `ops-service` Outbox 数据。\n  - 通过数据库复核订单、煎煮任务、事件和作业明细最终状态。\n- 结果：\n  - `order_main.status=DECOCTED`。\n  - `decoction_task.task_status=DECOCTED`。\n  - `decoction_task_event` 写入 `WATER_FINISHED` 和 `TEMPERATURE` 各 1 条。\n  - `decoction_device_work_record` 写入 `BIND`、`WATER_FINISHED`、`START`、`TEMPERATURE`、`FINISH` 共 5 条。\n  - `admin-web` `/decoction-api` 代理能查询到事件轨迹和作业明细，`/ops-api` 代理能查询到本单 `ORDER_CREATED` Outbox 记录。\n- 真实联调暴露并修复的问题：\n  - `DecoctionTaskRepository.createTaskEvent` 和 `createDeviceWorkRecord` 直接把 `Instant` 作为 JDBC 参数写入 PostgreSQL `timestamptz`，旧协议调用到加水完成时触发 `Can\u0027t infer the SQL type to use for an instance of java.time.Instant`。\n  - 已统一转换为 UTC `OffsetDateTime` 后写入，并新增仓储单元测试覆盖事件时间和设备作业时间参数。\n- 验证命令：\n  - `mvn -pl decoction-service -Dtest=DecoctionTaskRepositoryTest test -q` 先红后绿，通过。\n  - `mvn -pl decoction-service -am test -q` 通过。\n  - `mvn -pl order-service,ops-service,decoction-service -am test -q` 通过。\n  - `pnpm build`（`frontend/admin-web`）通过。\n- 清理：\n  - 本次未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n  - 本次未上传 jar 到服务器。\n  - 本次未清空日志、未删除 volume、未启动 Docker Desktop。\n\n## 2026-07-09 portal-service 医院查单/地址补录本地验证\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`order-service`、`portal-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动两个服务，端口使用 `19382/19390`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- Flyway：本次临时启动 `order-service` 时执行 `V9__add_portal_address_supplement.sql`，完成 `portal_address_supplement` 表结构迁移。\n- 测试数据：\n  - 订单号：`ZHYF1783574426206`\n  - 外部单号：`E2E-LEGACY-1783574424794`\n  - 查询手机号：`[测试手机号]`\n  - 地址补录申请 ID：`6b2e2958-4300-4d3f-8643-f76badaf15ab`\n- 已执行步骤：\n  - 使用 JDK 21 打包 `order-service` 和 `portal-service`。\n  - 启动 `order-service:19382`，确认 Flyway 从版本 8 迁移到版本 9。\n  - 启动 `portal-service:19390` 并检查健康状态。\n  - 调用 `GET /api/portal/orders/query?orderNo=ZHYF1783574426206\u0026phone=[测试手机号]`。\n  - 调用 `POST /api/portal/orders/ZHYF1783574426206/address-supplements` 提交补录地址。\n  - 查询数据库确认 `portal_address_supplement` 已写入 `PENDING` 申请。\n- 结果：\n  - 门户查单返回业务码 `0`，订单状态 `DECOCTED`，处方数量 1。\n  - 地址补录返回业务码 `0`，申请状态 `PENDING`。\n  - 数据库记录存在：`order_no=ZHYF1783574426206`、`supplement_status=PENDING`。\n- 处理结论：\n  - `portal-service` 医院查单和地址补录最小入口真实本地验证通过。\n  - 地址补录当前只创建申请，不直接修改订单地址，后续可在管理端补人工审核/应用地址流程。\n- 清理：\n  - 已停止本次启动的 `19382/19390` 临时进程。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n\n## 2026-07-09 report-service 报表统计本地验证\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`report-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动服务，端口使用 `19391`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- 测试数据：复用当前联调库已有订单、处方、物流、回调和地址补录申请记录。\n- 已执行步骤：\n  - 使用 JDK 21 打包 `report-service`。\n  - 启动 `report-service:19391` 并检查健康状态。\n  - 调用 `GET /api/admin/reports/overview?trendDays=14`。\n  - 查询完成后停止临时进程并确认端口释放。\n- 结果：\n  - 健康检查返回 `UP`。\n  - 报表接口返回业务码 `0`。\n  - 当前库统计结果：订单 6、处方 6、物流单 1、回调 4、待处理地址补录 1。\n  - 返回订单状态分布 4 类、回调状态分布 2 类、近期订单趋势 2 天。\n- 问题：\n  - 第一次验证中，老笔记本 PostgreSQL 首次建连耗时超过客户端 10 秒超时，接口请求在连接池首连完成前被客户端中断。\n- 处理结论：\n  - 通过 `Test-NetConnection [网络地址] -Port 15432` 确认数据库端口可达。\n  - 重新启动服务并给首个报表请求更长超时时间后验证通过，服务端无 SQL 异常。\n  - 报表接口是只读聚合，不新增表、不写业务数据。\n- 清理：\n  - 已停止本次启动的 `19391` 临时进程。\n  - 端口 `19391` 已释放。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n\n## 2026-07-09 integration-service 外围协议适配本地验证\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`order-service`、`integration-service`。\n- 启动方式：使用本地 `java -jar` 临时进程启动服务，端口使用 `19482/19492`，避免干扰 IDEA 当前 `180xx` 进程。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- Flyway：本次临时启动 `order-service` 时执行 `V10__add_integration_message.sql`，完成 `integration_message` 表结构迁移。\n- 测试数据：\n  - 社康消息来源：`COMMUNITY_HOSPITAL / CH-E2E`\n  - 地址回推来源：`ADDRESS_PUSH / HOSP-E2E`\n  - 查询处方号：`RX17835744275931`\n  - 查询手机号：`[测试手机号]`\n  - 查询订单号：`ZHYF1783574426206`\n- 已执行步骤：\n  - 使用 JDK 21 打包 `order-service` 和 `integration-service`。\n  - 启动 `order-service:19482` 执行 V10 migration。\n  - 启动 `integration-service:19492` 并检查健康状态。\n  - 调用 `POST /api/integration/community/messages` 登记社康消息。\n  - 使用相同社康消息重复调用一次，验证幂等返回同一个 `messageId`。\n  - 调用 `POST /api/integration/address/push-records` 登记地址补录回推记录。\n  - 调用 `GET /api/integration/hospital/prescriptions/RX17835744275931/order?phone=[测试手机号]`。\n  - 调用 `GET /api/admin/integration/messages?businessKey=...\u0026limit=10` 查询后台消息列表。\n- 结果：\n  - 社康消息登记返回业务码 `0`，`processStatus=PENDING`。\n  - 重复社康消息返回同一个 `messageId`。\n  - 地址回推记录返回业务码 `0`，`processStatus=PENDING`。\n  - 医院处方查单返回业务码 `0`，订单号 `ZHYF1783574426206`，处方号 `RX17835744275931`。\n  - 后台消息列表按本次业务键返回 1 条记录。\n- 问题：\n  - `order-service` 首次连接老笔记本 PostgreSQL 并执行 Flyway 时超过 75 秒健康检查窗口；日志显示数据库连接和 V10 migration 均成功，放宽等待并单独启动 `integration-service` 后验证通过。\n- 处理结论：\n  - `integration-service` 外围协议适配最小链路真实本地验证通过。\n  - 当前只记录外围消息和兼容查询，不触发真实外部 HTTP 回推，也不直接修改订单主链路。\n- 清理：\n  - 已停止本次启动的 `19482/19492` 临时进程。\n  - 端口 `19482/19492` 已释放。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n\n## 2026-07-09 integration-service 集成重试回推本地验证\n\n- 环境：Windows 本地 JDK 21，老笔记本 Ubuntu PostgreSQL，Tailscale 地址 `[网络地址]`。\n- 涉及服务：`order-service`、`integration-service`、本机临时 HTTP 接收端。\n- 启动方式：使用本地 `java -jar` 临时进程启动两个服务，端口使用 `19582/19592`，避免干扰 IDEA 当前 `180xx` 进程；本机 HTTP 接收端监听 `[网络地址]:19599`。\n- 中间件：PostgreSQL `[网络地址]:15432`。\n- Flyway：本次临时启动 `order-service` 时执行 `V11__add_integration_retry_task.sql`，完成 `integration_retry_task` 表结构迁移。\n- 测试数据：\n  - 业务订单号：`ZHYF-INTEG-1783600955824`\n  - 地址回推任务类型：`ADDRESS_PUSH`\n  - 社康状态回写任务类型：`COMMUNITY_STATUS_PUSH`\n  - 地址回推目标：`http://[网络地址]:19599/address`\n  - 社康回写目标：`http://[网络地址]:19599/community/status`\n- 已执行步骤：\n  - 使用 JDK 21 打包 `order-service` 和 `integration-service`。\n  - 启动 `order-service:19582` 执行 V11 migration。\n  - 启动 `integration-service:19592`，并保持 `zhyf.integration.dispatch-enabled=false`。\n  - 启动本机 HTTP 接收端，返回 HTTP 200。\n  - 调用 `POST /api/integration/address/push-records`，携带 `requestUrl` 创建地址回推记录。\n  - 调用 `GET /api/admin/integration/retry-tasks?businessKey=...\u0026limit=10`，确认地址回推任务为 `PENDING`。\n  - 调用 `POST /api/admin/integration/retry-tasks/dispatch-due?limit=20`，手动派发地址回推任务。\n  - 调用 `POST /api/integration/community/status-pushes`，携带 `requestUrl` 创建社康状态回写记录。\n  - 再次调用手动派发接口，派发社康状态回写任务。\n  - 调用后台重试任务和消息列表，确认最终状态。\n- 结果：\n  - 地址回推登记返回业务码 `0`，初始消息状态 `PENDING`，重试任务状态 `PENDING`。\n  - 第一次手动派发处理 1 条任务。\n  - 社康状态回写登记返回业务码 `0`，初始消息状态 `PENDING`。\n  - 第二次手动派发处理 1 条任务。\n  - 最终重试任务状态：`ADDRESS_PUSH:SUCCESS:0`、`COMMUNITY_STATUS_PUSH:SUCCESS:0`。\n  - 最终消息状态：`ADDRESS_PUSH:SUCCESS`、`COMMUNITY_STATUS_PUSH:SUCCESS`。\n  - 本机 HTTP 接收端确认收到两次 POST：`/address` 和 `/community/status`。\n- 处理结论：\n  - `integration_retry_task` 表结构、地址补录真实 HTTP 回推、社康状态回写重试和手动派发接口真实本地验证通过。\n  - 定时派发默认关闭，后续需要自动派发时再开启 `ZHYF_INTEGRATION_DISPATCH_ENABLED=true`。\n- 清理：\n  - 已停止本次启动的 `19582/19592` 临时进程。\n  - 已停止本机 HTTP 接收端。\n  - 未清理数据库中的 E2E 测试数据，保留用于联调追踪。\n\n## 2026-08-16 联调记录 H5 浏览页\n\n- 环境：本地文档工作区。\n- 涉及文档：`docs/99_项目记录/联调记录.md`、`docs/99_项目记录/联调记录.html`。\n- 执行步骤：保留 Markdown 原始审计记录，在同目录新增 H5 浏览页，并在文档顶部追加浏览入口。\n- 结果：H5 页面按日期倒序折叠联调记录，同时保留“记录格式”和“第一版业务联调清单”等非日期章节。\n- 处理结论：本次只改联调记录展示文档，不修改业务代码、数据库、部署配置、接口契约或服务器数据。\n";
+    const state = { query: '', type: 'all' };
+    const dom = { intro: document.querySelector('#intro'), timeline: document.querySelector('#timeline'), searchInput: document.querySelector('#searchInput'), typeFilter: document.querySelector('#typeFilter'), expandAll: document.querySelector('#expandAll'), collapseAll: document.querySelector('#collapseAll'), dateCount: document.querySelector('#dateCount'), entryCount: document.querySelector('#entryCount'), itemCount: document.querySelector('#itemCount'), matchCount: document.querySelector('#matchCount') };
+    const escapeHtml = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const inlineCode = (value) => escapeHtml(value).replace(/`([^`]+)`/g, '<code>$1</code>');
+    function parseSections(markdown) {
+      const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+      const sections = [];
+      let current = null;
+      let inFence = false;
+      for (const line of lines) {
+        const isFence = /^```/.test(line.trim());
+        const match = !inFence ? line.match(/^##\s+(.+)$/) : null;
+        if (match) {
+          if (current) sections.push(current);
+          current = { title: match[1].trim(), lines: [] };
+          continue;
+        }
+        if (current) current.lines.push(line);
+        if (isFence) inFence = !inFence;
+      }
+      if (current) sections.push(current);
+      return sections;
+    }
+    function splitItems(lines) {
+      const items = [];
+      let current = null;
+      let fence = false;
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\s+$/g, '');
+        if (/^```/.test(line.trim())) fence = !fence;
+        if (!fence && /^-\s+/.test(line)) {
+          if (current) items.push(current.trim());
+          current = line.replace(/^-\s+/, '').trim();
+          continue;
+        }
+        if (!fence && /^\s+-\s+/.test(line) && current) {
+          current += '\n' + line.replace(/^\s+-\s+/, '- ').trim();
+          continue;
+        }
+        if (line.trim()) {
+          if (current) current += '\n' + line.trim();
+          else current = line.trim();
+        }
+      }
+      if (current) items.push(current.trim());
+      return items;
+    }
+    function parseRecord(section) {
+      const dateMatch = section.title.match(/^(20\d{2}-\d{2}-\d{2})\s+(.+)$/);
+      if (!dateMatch) return null;
+      const items = splitItems(section.lines);
+      return { date: dateMatch[1], title: dateMatch[2], items, fields: groupFields(items) };
+    }
+    function groupFields(items) {
+      const groups = new Map();
+      const fallback = [];
+      for (const item of items) {
+        const match = item.match(/^([^：:]{2,12})[：:]\s*([\s\S]*)$/);
+        if (match) {
+          const label = normalizeLabel(match[1]);
+          if (!groups.has(label)) groups.set(label, []);
+          groups.get(label).push(match[2].trim() || '已记录，详见原始条目');
+        } else {
+          fallback.push(item);
+        }
+      }
+      if (fallback.length) groups.set('补充记录', fallback);
+      return [...groups.entries()].map(([label, values]) => ({ label, values }));
+    }
+    function normalizeLabel(label) {
+      const map = { '已执行': '执行步骤', '已执行步骤': '执行步骤', '本地验证': '验证结果', '健康检查': '验证结果', '返回结果': '验证结果', '数据库结果': '验证结果', 'Outbox 结果': '验证结果', 'RocketMQ 结果': '验证结果', '处理结论': '处理结论', '结论': '处理结论', '清理': '清理记录' };
+      return map[label.trim()] || label.trim();
+    }
+    function renderIntro(sections) {
+      const nonDate = sections.filter((section) => !/^(20\d{2}-\d{2}-\d{2})\s+/.test(section.title));
+      dom.intro.innerHTML = nonDate.map((section, index) => `<details class="intro-card"${index === 0 ? ' open' : ''}><summary>${escapeHtml(section.title)}</summary><div class="text-block">${renderBlock(section.lines)}</div></details>`).join('');
+    }
+    function renderBlock(lines) {
+      const text = lines.join('\n').trim();
+      if (!text) return '暂无内容';
+      if (text.includes('| --- |')) return renderTable(text);
+      if (text.includes('```')) {
+        return escapeHtml(text).replace(/```(?:text)?\n?([\s\S]*?)```/g, '<pre>$1</pre>').replace(/\n(?![^<]*<\/pre>)/g, '<br>');
+      }
+      return inlineCode(text).replace(/\n/g, '<br>');
+    }
+    function renderTable(text) {
+      const rows = text.split('\n').filter((line) => /^\|/.test(line.trim())).map((line) => line.trim().slice(1, -1).split('|').map((cell) => cell.trim()));
+      if (rows.length < 2) return inlineCode(text).replace(/\n/g, '<br>');
+      const header = rows[0];
+      const body = rows.slice(2);
+      return `<table><thead><tr>${header.map((cell) => `<th>${inlineCode(cell)}</th>`).join('')}</tr></thead><tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${inlineCode(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+    function unique(values) { return [...new Set(values.filter(Boolean))]; }
+    function classifyArtifact(value) {
+      if (/^(GET|POST|PUT|DELETE|PATCH)\s+/i.test(value) || /^\//.test(value)) return '接口';
+      if (/^(mvn|pnpm|npm|yarn|java|docker|curl|rg|git)\b/i.test(value)) return '命令';
+      if (/service|gateway|admin-web|portal|RocketMQ|PostgreSQL|Redis|Outbox/i.test(value)) return '服务';
+      if (/^[a-f0-9]{7,40}$/i.test(value)) return '提交';
+      return '信息';
+    }
+    function extractArtifacts(text) {
+      const values = [];
+      const codeMatches = text.match(/`([^`]+)`/g) || [];
+      for (const match of codeMatches) values.push(match.slice(1, -1));
+      values.push(...(text.match(/\b(?:GET|POST|PUT|DELETE|PATCH)\s+\/[A-Za-z0-9_./?=&:-]+/g) || []));
+      values.push(...((text.match(/\s(\/[A-Za-z0-9_./?=&:-]+)(?=[，。、；;\s]|$)/g) || []).map((item) => item.trim())));
+      return unique(values).slice(0, 10).map((value) => ({ value, type: classifyArtifact(value) }));
+    }
+    function hasType(record, type) {
+      if (type === 'all') return true;
+      const haystack = [record.title, ...record.items].join('\n');
+      if (type === 'issue') return /问题|风险|失败|超时|异常|未完成|尚未/.test(haystack);
+      if (type === 'service') return /service|gateway|admin-web|RocketMQ|PostgreSQL|Redis|Outbox/i.test(haystack);
+      if (type === 'command') return /`(GET|POST|PUT|DELETE|PATCH|mvn|pnpm|npm|java|docker|curl|rg|git)|\b(GET|POST|PUT|DELETE|PATCH)\s+\//i.test(haystack);
+      return true;
+    }
+    function filterRecords(records) {
+      const query = state.query.trim().toLowerCase();
+      return records.filter((record) => {
+        const haystack = [record.date, record.title, ...record.items].join('\n').toLowerCase();
+        return (!query || haystack.includes(query)) && hasType(record, state.type);
+      });
+    }
+    function groupByDate(records) {
+      const map = new Map();
+      for (const record of records) {
+        if (!map.has(record.date)) map.set(record.date, []);
+        map.get(record.date).push(record);
+      }
+      return [...map.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, entries]) => ({ date, entries }));
+    }
+    function renderArtifact(artifact) {
+      return `<span class="pill">${artifact.type}：<code>${escapeHtml(artifact.value)}</code></span>`;
+    }
+    function renderValues(values) {
+      return `<ol class="item-list">${values.map((value) => { const artifacts = extractArtifacts(value); const artifactHtml = artifacts.length ? `<div class="artifacts">${artifacts.map(renderArtifact).join('')}</div>` : ''; return `<li class="item"><div class="item-copy">${inlineCode(value).replace(/\n/g, '<br>')}${artifactHtml}</div></li>`; }).join('')}</ol>`;
+    }
+    function renderRecord(record) {
+      const fields = record.fields.length ? record.fields : [{ label: '联调内容', values: record.items }];
+      return `<article class="entry"><div class="entry-header"><h2>联调主题：${escapeHtml(record.title)}</h2><div class="entry-meta">${record.items.length} 条记录</div></div>${fields.map((field) => `<div class="section-grid"><div class="section-label">${escapeHtml(field.label)}</div><div class="section-main">${renderValues(field.values)}</div></div>`).join('')}</article>`;
+    }
+    function render(groups) {
+      const totalEntries = groups.reduce((sum, group) => sum + group.entries.length, 0);
+      const totalItems = groups.reduce((sum, group) => sum + group.entries.reduce((entrySum, entry) => entrySum + entry.items.length, 0), 0);
+      dom.dateCount.textContent = String(groups.length);
+      dom.entryCount.textContent = String(totalEntries);
+      dom.itemCount.textContent = String(totalItems);
+      dom.matchCount.textContent = String(totalEntries);
+      if (!groups.length) { dom.timeline.innerHTML = '<div class="empty">没有匹配的联调记录。请调整搜索词或记录类型。</div>'; return; }
+      dom.timeline.innerHTML = groups.map((group, index) => {
+        const itemCount = group.entries.reduce((sum, entry) => sum + entry.items.length, 0);
+        const issueCount = group.entries.filter((entry) => hasType(entry, 'issue')).length;
+        const titlePreview = group.entries.map((entry) => entry.title).slice(0, 3).join(' / ');
+        return `<details class="day" id="day-${group.date}"${index === 0 ? ' open' : ''}><summary><span class="date">${group.date}</span><span class="day-title">${escapeHtml(titlePreview)}</span><span class="badge-row"><span class="badge primary">${group.entries.length} 个主题</span><span class="badge green">${itemCount} 条记录</span>${issueCount ? `<span class="badge red">${issueCount} 个问题/风险</span>` : ''}</span></summary><div class="day-body">${group.entries.map(renderRecord).join('')}</div></details>`;
+      }).join('');
+    }
+    const sections = parseSections(EMBEDDED_MARKDOWN);
+    const records = sections.map(parseRecord).filter(Boolean);
+    renderIntro(sections);
+    function updateView() { render(groupByDate(filterRecords(records))); }
+    dom.searchInput.addEventListener('input', (event) => { state.query = event.target.value; updateView(); });
+    dom.typeFilter.addEventListener('change', (event) => { state.type = event.target.value; updateView(); });
+    dom.expandAll.addEventListener('click', () => { document.querySelectorAll('details.day').forEach((detail) => { detail.open = true; }); });
+    dom.collapseAll.addEventListener('click', () => { document.querySelectorAll('details.day').forEach((detail) => { detail.open = false; }); });
+    updateView();
+  </script>
+</body>
+</html>
