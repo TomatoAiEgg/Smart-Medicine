@@ -54,7 +54,7 @@ foreach ($service in $Services) {
 }
 
 docker build `
-    --file frontend/admin-web/Dockerfile `
+    --file frontend/admin-react/Dockerfile `
     --build-arg "NODE_IMAGE=$NodeImage" `
     --build-arg "NGINX_IMAGE=$NginxImage" `
     --tag "$ImageNamespace/admin-web`:$Tag" `

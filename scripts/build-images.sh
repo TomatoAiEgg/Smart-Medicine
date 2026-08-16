@@ -33,7 +33,7 @@ for service in $SERVICES; do
 done
 
 docker build \
-  --file frontend/admin-web/Dockerfile \
+  --file frontend/admin-react/Dockerfile \
   --build-arg "NODE_IMAGE=$NODE_IMAGE" \
   --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
   --tag "$IMAGE_NAMESPACE/admin-web:$TAG" \

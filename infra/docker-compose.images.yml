@@ -393,7 +393,7 @@ services:
     image: ${ZHYF_IMAGE_NAMESPACE:-zhyf}/admin-web:${ZHYF_IMAGE_TAG:-dev}
     build:
       context: ..
-      dockerfile: frontend/admin-web/Dockerfile
+      dockerfile: frontend/admin-react/Dockerfile
       args:
         NODE_IMAGE: ${ZHYF_NODE_IMAGE:-node:24-alpine}
         NGINX_IMAGE: ${ZHYF_NGINX_IMAGE:-nginx:1.27-alpine}
