@@ -111,6 +111,13 @@ select {
   align-items: end;
 }
 
+.operation-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
 .entity-list__alert {
   margin: 12px;
 }
@@ -160,6 +167,7 @@ select {
   }
 
   .entity-filters,
+  .operation-filters,
   .entity-form-grid {
     grid-template-columns: 1fr;
   }

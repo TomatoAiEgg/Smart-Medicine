@@ -156,7 +156,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '机构物流费规则配置',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-address-costs',
@@ -166,7 +166,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '机构地址物流费配置',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-delivery',
@@ -176,7 +176,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单发货查询',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-info',
@@ -186,7 +186,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流信息查询',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-print',
@@ -196,7 +196,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流打单',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-merges',
@@ -206,7 +206,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '物流合并列表',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'logistics-unreceived',
@@ -216,7 +216,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '未签收跟进',
         parentKey: 'logistics',
         parentLabel: '物流管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -242,7 +242,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单审核',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-dispense',
@@ -252,7 +252,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '调剂打印',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-recheck',
@@ -272,7 +272,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方复核（多桶）',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-recheck-records',
@@ -282,7 +282,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '复核管理',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-address',
@@ -292,7 +292,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单地址修改',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-prescription-modify',
@@ -302,7 +302,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方修改',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-actions',
@@ -312,7 +312,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单操作',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-reprint',
@@ -322,7 +322,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '处方重打',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-warehouse',
@@ -332,7 +332,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单仓库',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-intercept',
@@ -342,7 +342,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单拦截配置',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-manual-process',
@@ -352,7 +352,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单走流程',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'orders-receipts',
@@ -362,7 +362,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单签收',
         parentKey: 'orders',
         parentLabel: '订单管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
@@ -378,7 +378,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '订单流程查询',
         parentKey: 'maintenance',
         parentLabel: '维护管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'maintenance-exception-logs',
@@ -388,7 +388,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '异常日志信息查询',
         parentKey: 'maintenance',
         parentLabel: '维护管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'maintenance-mq',
@@ -398,7 +398,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: 'MQ 消息查询列表',
         parentKey: 'maintenance',
         parentLabel: '维护管理',
-        implemented: false,
+        implemented: true,
       },
       {
         key: 'maintenance-problems',
@@ -408,7 +408,7 @@ export const menuGroups: AdminMenuGroup[] = [
         title: '问题件登记',
         parentKey: 'maintenance',
         parentLabel: '维护管理',
-        implemented: false,
+        implemented: true,
       },
     ],
   },
