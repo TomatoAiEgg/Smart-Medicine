@@ -15,6 +15,17 @@ export interface AdminMenuGroup {
   children: AdminMenuItem[];
 }
 
+export const dashboardMenuItem: AdminMenuItem = {
+  key: 'dashboard',
+  label: '首页',
+  path: '/dashboard',
+  legacyRoute: '',
+  title: '首页',
+  parentKey: 'dashboard',
+  parentLabel: '工作台',
+  implemented: true,
+};
+
 export const menuGroups: AdminMenuGroup[] = [
   {
     key: 'system',
@@ -767,5 +778,6 @@ export const menuGroups: AdminMenuGroup[] = [
 export const menuItems = menuGroups.flatMap((group) => group.children);
 
 export function findMenuItemByPath(pathname: string) {
+  if (pathname === dashboardMenuItem.path) return dashboardMenuItem;
   return menuItems.find((item) => item.path === pathname) ?? menuItems[0];
 }

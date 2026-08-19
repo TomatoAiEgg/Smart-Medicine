@@ -4,6 +4,7 @@ import {
   DatabaseOutlined,
   ExperimentOutlined,
   FileTextOutlined,
+  HomeOutlined,
   MessageOutlined,
   MenuOutlined,
   SettingOutlined,
@@ -16,7 +17,7 @@ import { Button, Drawer, Layout, Menu, Tabs, Typography, type MenuProps } from '
 import { useEffect, useState, type ReactNode } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { readAdminSession, type AdminUserSession } from '../api/adminSession';
-import { menuGroups } from '../routes/menu';
+import { dashboardMenuItem, menuGroups } from '../routes/menu';
 import { useRouteTabs } from './useRouteTabs';
 
 const { Header, Sider, Content } = Layout;
@@ -89,15 +90,27 @@ export function AdminShell() {
   }));
 
   const renderNavigationMenu = (inlineCollapsed = false) => (
-    <Menu
-      theme="dark"
-      mode="inline"
-      selectedKeys={[current.key]}
-      openKeys={inlineCollapsed ? undefined : openKeys}
-      inlineCollapsed={inlineCollapsed}
-      items={menuItems}
-      onOpenChange={handleOpenChange}
-    />
+    <>
+      <button
+        className={`admin-shell__home${current.key === dashboardMenuItem.key ? ' admin-shell__home--active' : ''}`}
+        type="button"
+        aria-current={current.key === dashboardMenuItem.key ? 'page' : undefined}
+        title={inlineCollapsed ? dashboardMenuItem.title : undefined}
+        onClick={() => navigateToMenuItem(dashboardMenuItem.path)}
+      >
+        <HomeOutlined aria-hidden />
+        {!inlineCollapsed ? <span>{dashboardMenuItem.title}</span> : null}
+      </button>
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={current.key === dashboardMenuItem.key ? [] : [current.key]}
+        openKeys={inlineCollapsed ? undefined : openKeys}
+        inlineCollapsed={inlineCollapsed}
+        items={menuItems}
+        onOpenChange={handleOpenChange}
+      />
+    </>
   );
 
   return (

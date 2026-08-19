@@ -4,6 +4,9 @@
 }
 
 .admin-shell__sider {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   min-height: 100vh;
   overflow-y: auto;
   background: #001529;
@@ -73,6 +76,7 @@
 
 .admin-shell__body {
   min-width: 0;
+  min-height: 100vh;
   background: var(--zhyf-bg);
 }
 
@@ -169,10 +173,47 @@
 }
 
 .admin-shell__content {
-  height: calc(100vh - 90px);
+  min-height: calc(100vh - 90px);
   padding: 16px 18px 20px;
-  overflow: auto;
+  overflow: visible;
   background: var(--zhyf-bg);
+}
+
+.admin-shell__home {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 12px);
+  min-height: 40px;
+  margin: 8px 6px 4px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+}
+
+.admin-shell__home:hover,
+.admin-shell__home:focus-visible {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.admin-shell__home--active {
+  color: #ffffff;
+  background: var(--zhyf-primary);
+}
+
+.admin-shell__sider.ant-layout-sider-collapsed .admin-shell__home {
+  justify-content: center;
+  width: 44px;
+  margin-right: 10px;
+  margin-left: 10px;
+  padding: 0;
 }
 
 .login-page {
@@ -227,7 +268,7 @@
   }
 
   .admin-shell__content {
-    height: calc(100vh - 90px);
+    min-height: calc(100vh - 90px);
     padding: 12px;
   }
 }

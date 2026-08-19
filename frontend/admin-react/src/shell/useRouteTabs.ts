@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, type NavigateFunction } from 'react-router-dom';
-import { findMenuItemByPath, type AdminMenuItem } from '../routes/menu';
+import { dashboardMenuItem, findMenuItemByPath, type AdminMenuItem } from '../routes/menu';
 
 export interface RouteTab {
   key: string;
@@ -10,9 +10,9 @@ export interface RouteTab {
 }
 
 const initialRouteTab: RouteTab = {
-  key: 'system-users',
-  title: '用户管理',
-  path: '/system/users',
+  key: dashboardMenuItem.key,
+  title: dashboardMenuItem.title,
+  path: dashboardMenuItem.path,
   closable: false,
 };
 

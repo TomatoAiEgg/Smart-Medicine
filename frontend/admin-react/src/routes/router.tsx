@@ -5,6 +5,9 @@ import { menuItems } from './menu';
 
 const AdminShell = lazy(() => import('../shell/AdminShell').then(({ AdminShell }) => ({ default: AdminShell })));
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then(({ LoginPage }) => ({ default: LoginPage })));
+const DashboardHomePage = lazy(() =>
+  import('../features/dashboard/DashboardHomePage').then(({ DashboardHomePage }) => ({ default: DashboardHomePage })),
+);
 const UserManagementPage = lazy(() =>
   import('../features/system/UserManagementPage').then(({ UserManagementPage }) => ({ default: UserManagementPage })),
 );
@@ -107,6 +110,7 @@ const PrescriptionCountReportPage = lazy(() =>
 );
 
 const implementedPages: Record<string, ReactNode> = {
+  dashboard: <DashboardHomePage />,
   'system-users': <UserManagementPage />,
   'system-roles': <RoleManagementPage />,
   'system-menus': <MenuRegistryPage />,
@@ -192,16 +196,20 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/system/users" replace />,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: 'dashboard',
+        element: implementedPages.dashboard,
       },
       ...menuItems.map((item) => ({
         path: item.path.slice(1),
-        element: implementedPages[item.key] ?? <Navigate to="/system/users" replace />,
+        element: implementedPages[item.key] ?? <Navigate to="/dashboard" replace />,
       })),
     ],
   },
   {
     path: '*',
-    element: <Navigate to="/system/users" replace />,
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);
